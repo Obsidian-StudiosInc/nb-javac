@@ -71,8 +71,7 @@
     <target name="-javadoc-build"/>
     
     <target name="-post-init">
-        <available file="../../nbbuild/netbeans/java2/modules/ext" type="dir" property="modules.ext.exists"/>
-        <available file="../../java/source/javacapi/external/" type="dir" property="nball.checkout.exists"/>
+        <available file="../../../../nbbuild/netbeans/java2/modules/ext" type="dir" property="modules.ext.exists"/>
     </target>
     
     <target name="-separate-jars">
@@ -93,15 +92,11 @@
         <delete file="${dist.jar}"/>
     </target>
     
-    <target name="-copy-jars-to-external" if="nball.checkout.exists">
-        <copy file="${dist.dir}/javac-api.jar" tofile="../../java/source/javacapi/external/javac-api-nb-7.0-b07.jar" />
-        <copy file="${dist.dir}/javac-impl.jar" tofile="../../java/source/javacimpl/external/javac-impl-nb-7.0-b07.jar" />
-    </target>
     <target name="-copy-jars-to-build" if="modules.ext.exists">
-        <copy file="${dist.dir}/javac-api.jar" tofile="../../nbbuild/netbeans/java2/modules/ext/javac-api-nb-7.0-b07.jar" />
-        <copy file="${dist.dir}/javac-impl.jar" tofile="../../nbbuild/netbeans/java2/modules/ext/javac-impl-nb-7.0-b07.jar" />
+        <copy file="${dist.dir}/javac-api.jar" tofile="../../../../nbbuild/netbeans/java2/modules/ext/javac-api-nb-7.0-b07.jar" />
+        <copy file="${dist.dir}/javac-impl.jar" tofile="../../../../nbbuild/netbeans/java2/modules/ext/javac-impl-nb-7.0-b07.jar" />
     </target>
-    <target name="-post-jar" depends="-post-init,-separate-jars,-copy-jars-to-external,-copy-jars-to-build">
+    <target name="-post-jar" depends="-post-init,-separate-jars,-copy-jars-to-build">
     </target>
     
 </project>
