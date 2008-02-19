@@ -295,7 +295,7 @@ public class Flow extends TreeScanner {
 
     /** Complain that pending exceptions are not caught.
      */
-    void errorUncaught() {
+    public void errorUncaught() {
         for (PendingExit exit = pendingExits.next();
              exit != null;
              exit = pendingExits.next()) {
@@ -671,7 +671,6 @@ public class Flow extends TreeScanner {
 
     public void visitMethodDef(JCMethodDecl tree) {
         if (tree.body == null) return;
-
         List<Type> caughtPrev = caught;
         List<Type> mthrown = tree.sym.type.getThrownTypes();
         Bits initsPrev = inits.dup();
@@ -1246,41 +1245,58 @@ public class Flow extends TreeScanner {
  * main method
  *************************************************************************/
 
+    public void init(final TreeMaker make) {
+        this.make = make;
+        inits = new Bits();
+        uninits = new Bits();
+        uninitsTry = new Bits();
+        initsWhenTrue = initsWhenFalse =
+            uninitsWhenTrue = uninitsWhenFalse = null;
+        if (vars == null)
+            vars = new VarSymbol[32];
+        else
+            for (int i=0; i<vars.length; i++)
+                vars[i] = null;
+        firstadr = 0;
+        nextadr = 0;
+        pendingExits = new ListBuffer<PendingExit>();
+        alive = true;
+        this.thrown = this.caught = null;
+        this.classDef = null;
+    }
+
+    public void cleanup() {
+        // note that recursive invocations of this method fail hard
+        inits = uninits = uninitsTry = null;
+        initsWhenTrue = initsWhenFalse =
+            uninitsWhenTrue = uninitsWhenFalse = null;
+        if (vars != null) for (int i=0; i<vars.length; i++)
+            vars[i] = null;
+        firstadr = 0;
+        nextadr = 0;
+        pendingExits = null;
+        this.make = null;
+        this.thrown = this.caught = null;
+        this.classDef = null;
+    }
+
+    public void reanalyzeMethod (final TreeMaker make, final JCClassDecl classDef) {
+        try {
+            init (make);
+            scan(classDef);
+        } finally {
+            cleanup();
+        }
+    }
+
     /** Perform definite assignment/unassignment analysis on a tree.
      */
     public void analyzeTree(JCTree tree, TreeMaker make) {
         try {
-            this.make = make;
-            inits = new Bits();
-            uninits = new Bits();
-            uninitsTry = new Bits();
-            initsWhenTrue = initsWhenFalse =
-                uninitsWhenTrue = uninitsWhenFalse = null;
-            if (vars == null)
-                vars = new VarSymbol[32];
-            else
-                for (int i=0; i<vars.length; i++)
-                    vars[i] = null;
-            firstadr = 0;
-            nextadr = 0;
-            pendingExits = new ListBuffer<PendingExit>();
-            alive = true;
-            this.thrown = this.caught = null;
-            this.classDef = null;
+            init(make);
             scan(tree);
         } finally {
-            // note that recursive invocations of this method fail hard
-            inits = uninits = uninitsTry = null;
-            initsWhenTrue = initsWhenFalse =
-                uninitsWhenTrue = uninitsWhenFalse = null;
-            if (vars != null) for (int i=0; i<vars.length; i++)
-                vars[i] = null;
-            firstadr = 0;
-            nextadr = 0;
-            pendingExits = null;
-            this.make = null;
-            this.thrown = this.caught = null;
-            this.classDef = null;
+            cleanup();
         }
     }
 }

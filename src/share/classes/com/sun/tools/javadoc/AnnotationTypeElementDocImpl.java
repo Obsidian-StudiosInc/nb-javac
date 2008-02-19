@@ -45,11 +45,11 @@ import com.sun.tools.javac.util.Position;
 public class AnnotationTypeElementDocImpl
         extends MethodDocImpl implements AnnotationTypeElementDoc {
 
-    AnnotationTypeElementDocImpl(DocEnv env, MethodSymbol sym) {
+    public AnnotationTypeElementDocImpl(DocEnv env, MethodSymbol sym) {
         super(env, sym);
     }
 
-    AnnotationTypeElementDocImpl(DocEnv env, MethodSymbol sym,
+    public AnnotationTypeElementDocImpl(DocEnv env, MethodSymbol sym,
                                  String doc, JCMethodDecl tree, Position.LineMap lineMap) {
         super(env, sym, doc, tree, lineMap);
     }

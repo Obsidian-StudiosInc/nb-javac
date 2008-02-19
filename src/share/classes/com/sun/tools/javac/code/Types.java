@@ -33,6 +33,8 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.comp.Infer;
 import com.sun.tools.javac.comp.Check;
+import java.util.logging.Logger;
+import javax.lang.model.type.TypeKind;
 
 import static com.sun.tools.javac.code.Type.*;
 import static com.sun.tools.javac.code.TypeTags.*;
@@ -69,6 +71,7 @@ public class Types {
 
     final Symtab syms;
     final Name.Table names;
+    final boolean allowGenerics;
     final boolean allowBoxing;
     final ClassReader reader;
     final Source source;
@@ -88,9 +91,10 @@ public class Types {
         context.put(typesKey, this);
         syms = Symtab.instance(context);
         names = Name.Table.instance(context);
-        allowBoxing = Source.instance(context).allowBoxing();
         reader = ClassReader.instance(context);
         source = Source.instance(context);
+        allowGenerics = source.allowGenerics();
+        allowBoxing = source.allowBoxing();
         chk = Check.instance(context);
         capturedName = names.fromString("<captured wildcard>");
     }
@@ -254,7 +258,7 @@ public class Types {
 
             @Override
             public Type visitErrorType(ErrorType t, Symbol sym) {
-                return t;
+                return t.tsym == sym || t.tsym.name == names.any ? t : null;
             }
         };
     // </editor-fold>
@@ -412,7 +416,12 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                Type sup = asSuper(t, s.tsym);
+                final Symbol _ssym = s.tsym;
+                if (_ssym == null) {
+                    TypeKind _skind = s.getKind();
+                    Logger.getLogger(Types.class.getName()).warning("Types.visitClassType type: [" + s.toString() + ","+ _skind +"] has a null symbol."); //NOI18N
+                }
+                Type sup = asSuper(t, _ssym);
                 return sup != null
                     && sup.tsym == s.tsym
                     // You're not allowed to write
@@ -460,7 +469,7 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
-                return true;
+                return t == s || t.tsym.name == names.any;
             }
         };
 
@@ -515,7 +524,7 @@ public class Types {
     public boolean isSuperType(Type t, Type s) {
         switch (t.tag) {
         case ERROR:
-            return true;
+            return t == s || t.tsym.name == names.any;
         case UNDETVAR: {
             UndetVar undet = (UndetVar)t;
             if (t == s ||
@@ -675,7 +684,7 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
-                return true;
+                return t == s || t.tsym.name == names.any || ((s.getKind() == TypeKind.ERROR || s.tsym.type.getKind() == TypeKind.ERROR) && (s.tsym.name == names.any || t.tsym.getQualifiedName() == s.tsym.getQualifiedName()));
             }
         };
     // </editor-fold>
@@ -714,7 +723,7 @@ public class Types {
                 return isSameType(t, s);
             }
         case ERROR:
-            return true;
+            return t == s || t.tsym.name == names.any;
         default:
             return containsType(s, t);
         }
@@ -826,7 +835,7 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
-                return true;
+                return t == s || t.tsym.name == names.any;
             }
         };
 
@@ -886,7 +895,7 @@ public class Types {
 
             public Boolean visitType(Type t, Type s) {
                 if (s.tag == ERROR)
-                    return true;
+                    return t == s || s.tsym.name == names.any;
 
                 switch (t.tag) {
                 case BYTE: case CHAR: case SHORT: case INT: case LONG: case FLOAT:
@@ -1059,7 +1068,7 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
-                return true;
+                return t == s || t.tsym.name == names.any;
             }
         };
     // </editor-fold>
@@ -1325,7 +1334,7 @@ public class Types {
 
             @Override
             public Type visitErrorType(ErrorType t, Symbol sym) {
-                return t;
+                return t.tsym == sym || t.tsym.name == names.any ? t : null;
             }
         };
 
@@ -1350,7 +1359,7 @@ public class Types {
         case TYPEVAR:
             return asSuper(t, sym);
         case ERROR:
-            return t;
+            return t.tsym == sym || t.tsym.name == names.any ? t : null;
         default:
             return null;
         }
@@ -1380,7 +1389,7 @@ public class Types {
         case TYPEVAR:
             return asSuper(t, sym);
         case ERROR:
-            return t;
+            return t.tsym == sym || t.tsym.name == names.any ? t : null;
         default:
             return null;
         }
@@ -1395,6 +1404,8 @@ public class Types {
      * @param sym a symbol
      */
     public Type memberType(Type t, Symbol sym) {
+        if (!allowGenerics && sym.kind != Kinds.TYP && !sym.isConstructor())
+            return sym.externalType(this);
         return (sym.flags() & STATIC) != 0
             ? sym.type
             : memberType.visit(t, sym);
@@ -1416,7 +1427,8 @@ public class Types {
                 Symbol owner = sym.owner;
                 long flags = sym.flags();
                 if (((flags & STATIC) == 0) && owner.type.isParameterized()) {
-                    Type base = asOuterSuper(t, owner);
+                    Type asOuterSuper = asOuterSuper(t, owner);
+                    Type base = asOuterSuper != null ? capture(asOuterSuper) : null;
                     if (base != null) {
                         List<Type> ownerParams = owner.type.allparams();
                         List<Type> baseParams = base.allparams();
@@ -1458,7 +1470,7 @@ public class Types {
      */
     public boolean isAssignable(Type t, Type s, Warner warn) {
         if (t.tag == ERROR)
-            return true;
+            return t.tsym.name == names.any;
         if (t.tag <= INT && t.constValue() != null) {
             int value = ((Number)t.constValue()).intValue();
             switch (s.tag) {
@@ -2154,7 +2166,7 @@ public class Types {
         }
         return tvars1;
     }
-    static private Mapping newInstanceFun = new Mapping("newInstanceFun") {
+    private Mapping newInstanceFun = new Mapping("newInstanceFun") {
             public Type apply(Type t) { return new TypeVar(t.tsym, t.getUpperBound(), t.getLowerBound()); }
         };
     // </editor-fold>
@@ -2171,7 +2183,10 @@ public class Types {
             ClassType cls = (ClassType)t;
             if (cls.rank_field < 0) {
                 Name fullname = cls.tsym.getQualifiedName();
-                if (fullname == fullname.table.java_lang_Object)
+                if (fullname == null) {
+                    Logger.getLogger(Types.class.getName()).fine("fullname==null");
+                }
+                if (fullname != null && fullname == fullname.table.java_lang_Object)
                     cls.rank_field = 0;
                 else {
                     int r = rank(supertype(cls));
@@ -2200,7 +2215,12 @@ public class Types {
             return tvar.rank_field;
         }
         case ERROR:
-            return 0;
+        case NONE:          //Works around type with non filled supertype_field, it happens when the supertype is created but
+            return 0;       //it's symbol is not completed, it is assigned to other symbols and when it is completed it completion
+                            //throws an CompletionFailure. The type is replaced by ErrorType rather than to filling the original
+                            //type the original type stays unfilled and has supertype NONE. Another possibility is to catch CompletionFailure
+                            //in the MemberEnter when supertype is computed (863) - works fine, but the same is is required also for ClassReader,
+                            //when the supertype_field is set it's type has to be comleted - which is hard to do since ClassReader is not reentrant.
         default:
             throw new AssertionError();
         }

@@ -400,6 +400,21 @@ public class TransTypes extends TreeTranslator {
             addBridges(pos, l.head.tsym, origin, bridges);
     }
 
+
+    public void getBridges (DiagnosticPosition pos, ClassSymbol origin, ListBuffer<JCTree> bridges) {
+
+        Env<AttrContext> myEnv = enter.typeEnvs.get(origin);
+        if (myEnv == null)
+            return;
+        Env<AttrContext> oldEnv = env;
+        try {
+            env = myEnv;
+            addBridges (pos, origin, bridges);
+        } finally {
+            env = oldEnv;
+        }
+    }
+
 /* ************************************************************************
  * Visitor methods
  *************************************************************************/

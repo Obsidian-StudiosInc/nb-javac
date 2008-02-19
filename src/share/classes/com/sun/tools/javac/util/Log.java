@@ -111,6 +111,10 @@ public class Log {
     private JCDiagnostic.Factory diags;
 
 
+    private boolean partialReparse;
+
+    private final Set<Pair<JavaFileObject, Integer>> partialReparseRecorded = new HashSet<Pair<JavaFileObject,Integer>>();
+
     /** Construct a log with given I/O redirections.
      */
     @Deprecated
@@ -225,6 +229,19 @@ public class Log {
         endPosTables.put(name, table);
     }
 
+
+    public void startPartialReparse () {
+        assert partialReparseRecorded.isEmpty();
+        this.nerrors = 0;
+        this.nwarnings = 0;
+        this.partialReparse = true;
+    }
+
+    public void endPartialReparse () {
+        this.partialReparseRecorded.clear();
+        this.partialReparse = false;
+    }
+
     /** Re-assign source, returning previous setting.
      */
     public JavaFileObject useSource(final JavaFileObject name) {
@@ -283,14 +300,25 @@ public class Log {
      * source name and pos.
      */
     protected boolean shouldReport(JavaFileObject file, int pos) {
-        if (multipleErrors || file == null)
+        if (multipleErrors || file == null) {
             return true;
-
-        Pair<JavaFileObject,Integer> coords = new Pair<JavaFileObject,Integer>(file, pos);
-        boolean shouldReport = !recorded.contains(coords);
-        if (shouldReport)
-            recorded.add(coords);
-        return shouldReport;
+        }
+        else {
+            Pair<JavaFileObject,Integer> coords = new Pair<JavaFileObject,Integer>(file, pos);
+            if (partialReparse) {
+                boolean shouldReport = !partialReparseRecorded.contains(coords);
+                if (shouldReport) {
+                    partialReparseRecorded.add(coords);
+                }
+                return shouldReport;
+            }
+            else {
+                boolean shouldReport = !recorded.contains(coords);
+                if (shouldReport)
+                    recorded.add(coords);
+                return shouldReport;
+            }
+        }
     }
 
     /** Prompt user after an error.

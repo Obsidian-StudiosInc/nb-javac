@@ -633,7 +633,9 @@ public class Type implements PrimitiveType {
 
         public List<Type> getTypeArguments() {
             if (typarams_field == null) {
-                complete();
+                try {
+                    complete();
+                } catch (CompletionFailure e) {}
                 if (typarams_field == null)
                     typarams_field = List.nil();
             }
@@ -938,11 +940,13 @@ public class Type implements PrimitiveType {
         public TypeVar(Name name, Symbol owner, Type lower) {
             super(TYPEVAR, null);
             tsym = new TypeSymbol(0, name, this, owner);
+            assert lower != null;
             this.lower = lower;
         }
 
         public TypeVar(TypeSymbol tsym, Type bound, Type lower) {
             super(TYPEVAR, tsym);
+            assert lower != null;
             this.bound = bound;
             this.lower = lower;
         }
@@ -975,7 +979,6 @@ public class Type implements PrimitiveType {
      */
     public static class CapturedType extends TypeVar {
 
-        public Type lower;
         public WildcardType wildcard;
 
         public CapturedType(Name name,
@@ -986,17 +989,12 @@ public class Type implements PrimitiveType {
             super(name, owner, lower);
             assert lower != null;
             this.bound = upper;
-            this.lower = lower;
             this.wildcard = wildcard;
         }
 
         @Override
         public <R,S> R accept(Type.Visitor<R,S> v, S s) {
             return v.visitCapturedType(this, s);
-        }
-
-        public Type getLowerBound() {
-            return lower;
         }
 
         @Override

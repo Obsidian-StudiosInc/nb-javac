@@ -43,6 +43,7 @@ import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.model.*;
 import com.sun.tools.javac.tree.JCTree;
+import javax.lang.model.util.ElementScanner6;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
@@ -263,7 +264,7 @@ public abstract class Symbol implements Element {
     public ClassSymbol enclClass() {
         Symbol c = this;
         while (c != null &&
-               ((c.kind & TYP) == 0 || c.type.tag != CLASS)) {
+               ((c.kind & TYP) == 0 || (c.type.tag != CLASS && c.type.tag != ERROR))) {
             c = c.owner;
         }
         return (ClassSymbol)c;
@@ -553,8 +554,10 @@ public abstract class Symbol implements Element {
         public java.util.List<Symbol> getEnclosedElements() {
             List<Symbol> list = List.nil();
             for (Scope.Entry e = members().elems; e != null; e = e.sibling) {
-                if (e.sym != null && (e.sym.flags() & SYNTHETIC) == 0 && e.sym.owner == this)
-                    list = list.prepend(e.sym);
+                try {
+                    if (e.sym != null && (e.sym.flags() & SYNTHETIC) == 0 && e.sym.owner == this)
+                        list = list.prepend(e.sym);
+                } catch (CompletionFailure cf) {}
             }
             return list;
         }
@@ -716,12 +719,16 @@ public abstract class Symbol implements Element {
         }
 
         public long flags() {
-            if (completer != null) complete();
+            try {
+                if (completer != null) complete();
+            } catch (CompletionFailure cf) {}
             return flags_field;
         }
 
         public Scope members() {
-            if (completer != null) complete();
+            try {
+                if (completer != null) complete();
+            } catch (CompletionFailure cf) {}
             return members_field;
         }
 
@@ -784,7 +791,9 @@ public abstract class Symbol implements Element {
         }
 
         public List<Type> getInterfaces() {
-            complete();
+            try {
+                complete();
+            } catch (CompletionFailure cf) {}
             if (type instanceof ClassType) {
                 ClassType t = (ClassType)type;
                 if (t.interfaces_field == null) // FIXME: shouldn't be null
@@ -796,7 +805,9 @@ public abstract class Symbol implements Element {
         }
 
         public Type getSuperclass() {
-            complete();
+            try {
+                complete();
+            } catch (CompletionFailure cf) {}
             if (type instanceof ClassType) {
                 ClassType t = (ClassType)type;
                 if (t.supertype_field == null) // FIXME: shouldn't be null
@@ -823,7 +834,9 @@ public abstract class Symbol implements Element {
         }
 
         public NestingKind getNestingKind() {
-            complete();
+            try {
+                complete();
+            } catch (CompletionFailure cf) {}
             if (owner.kind == PCK)
                 return NestingKind.TOP_LEVEL;
             else if (name.isEmpty())
@@ -867,16 +880,23 @@ public abstract class Symbol implements Element {
          */
         public int adr = -1;
 
+        public final VarSymbol originalVar;
+
         /** Construct a variable symbol, given its flags, name, type and owner.
          */
         public VarSymbol(long flags, Name name, Type type, Symbol owner) {
+            this(flags, name, type, owner, null);
+        }
+
+        private VarSymbol(long flags, Name name, Type type, Symbol owner, VarSymbol originalVar) {
             super(VAR, flags, name, type, owner);
+            this.originalVar = originalVar;
         }
 
         /** Clone this symbol with new owner.
          */
         public VarSymbol clone(Symbol newOwner) {
-            VarSymbol v = new VarSymbol(flags_field, name, type, newOwner);
+            VarSymbol v = new VarSymbol(flags_field, name, type, newOwner, originalVar != null ? originalVar : this);
             v.pos = pos;
             v.adr = adr;
             v.data = data;
@@ -967,6 +987,8 @@ public abstract class Symbol implements Element {
                 data = null; // to make sure we don't evaluate this twice.
                 try {
                     data = eval.call();
+                } catch (Attr.BreakAttr bk) {
+                    throw bk;
                 } catch (Exception ex) {
                     throw new AssertionError(ex);
                 }
@@ -977,6 +999,43 @@ public abstract class Symbol implements Element {
         public void setData(Object data) {
             assert !(data instanceof Env<?>) : this;
             this.data = data;
+        }
+
+        public void setName(Name name) {
+            this.name = name;
+        }
+    }
+
+    /** A class for variable symbols representing method parameters that allows for
+     * lazy name resolution
+     */
+    public static class ParamSymbol extends VarSymbol {
+
+        private boolean initialized = false;
+
+        public ParamSymbol(long flags, Name name, Type type, Symbol owner) {
+            super(flags, name, type, owner);
+        }
+
+        public Name getSimpleName() {
+            if (!initialized) {
+                ClassSymbol enclClass = this.enclClass();
+                new ElementScanner6<Void, Void>() {
+                    @Override
+                    public Void visitVariable(VariableElement e, Void p) {
+                        if (e instanceof ParamSymbol)
+                            ((ParamSymbol)e).initialized = true;
+                        return super.visitVariable(e, p);
+                    }
+                }.scan(enclClass);
+                name.table.loader.loadTreeFor(enclClass);
+            }
+            return super.getSimpleName();
+        }
+
+        public void setName(Name name) {
+            if (this.name != name)
+                super.setName(this.name.table.fromString(name));
         }
     }
 
@@ -999,17 +1058,24 @@ public abstract class Symbol implements Element {
          */
         public Attribute defaultValue = null;
 
+        public final MethodSymbol originalMethod;
+
         /** Construct a method symbol, given its flags, name, type and owner.
          */
         public MethodSymbol(long flags, Name name, Type type, Symbol owner) {
+            this(flags, name, type, owner, null);
+        }
+
+        private MethodSymbol(long flags, Name name, Type type, Symbol owner, MethodSymbol originalMethod) {
             super(MTH, flags, name, type, owner);
             assert owner.type.tag != TYPEVAR : owner + "." + name;
+            this.originalMethod = originalMethod;
         }
 
         /** Clone this symbol with new owner.
          */
         public MethodSymbol clone(Symbol newOwner) {
-            MethodSymbol m = new MethodSymbol(flags_field, name, type, newOwner);
+            MethodSymbol m = new MethodSymbol(flags_field, name, type, newOwner, originalMethod != null ? originalMethod : this);
             m.code = code;
             return m;
         }
@@ -1088,7 +1154,7 @@ public abstract class Symbol implements Element {
          *  @param origin   The class of which the implementation is a member.
          */
         public MethodSymbol binaryImplementation(ClassSymbol origin, Types types) {
-            for (TypeSymbol c = origin; c != null; c = types.supertype(c.type).tsym) {
+            for (TypeSymbol c = origin; c != null && c.type.tag != TypeTags.ERROR; c = types.supertype(c.type).tsym) {
                 for (Scope.Entry e = c.members().lookup(name);
                      e.scope != null;
                      e = e.next()) {
@@ -1195,17 +1261,22 @@ public abstract class Symbol implements Element {
             if (params == null) {
                 List<Name> names = savedParameterNames;
                 savedParameterNames = null;
+                ListBuffer<VarSymbol> buf = new ListBuffer<VarSymbol>();
                 if (names == null) {
                     names = List.nil();
                     int i = 0;
                     for (Type t : type.getParameterTypes())
                         names = names.prepend(name.table.fromString("arg" + i++));
                     names = names.reverse();
-                }
-                ListBuffer<VarSymbol> buf = new ListBuffer<VarSymbol>();
-                for (Type t : type.getParameterTypes()) {
-                    buf.append(new VarSymbol(PARAMETER, names.head, t, this));
-                    names = names.tail;
+                    for (Type t : type.getParameterTypes()) {
+                        buf.append(new ParamSymbol(PARAMETER, names.head, t, this));
+                        names = names.tail;
+                    }
+                } else {
+                    for (Type t : type.getParameterTypes()) {
+                        buf.append(new VarSymbol(PARAMETER, names.head, t, this));
+                        names = names.tail;
+                    }
                 }
                 params = buf.toList();
             }
@@ -1221,6 +1292,8 @@ public abstract class Symbol implements Element {
                 return ElementKind.CONSTRUCTOR;
             else if (name == name.table.clinit)
                 return ElementKind.STATIC_INIT;
+            else if ((flags_field & BLOCK) != 0)
+                return (flags_field & STATIC) != 0 ? ElementKind.STATIC_INIT : ElementKind.INSTANCE_INIT;
             else
                 return ElementKind.METHOD;
         }

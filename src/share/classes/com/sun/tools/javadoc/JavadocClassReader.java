@@ -38,19 +38,19 @@ import javax.tools.JavaFileObject;
 /** Javadoc uses an extended class reader that records package.html entries
  *  @author Neal Gafter
  */
-class JavadocClassReader extends ClassReader {
+public class JavadocClassReader extends ClassReader {
 
     public static JavadocClassReader instance0(Context context) {
         ClassReader instance = context.get(classReaderKey);
         if (instance == null)
-            instance = new JavadocClassReader(context);
+            instance = new JavadocClassReader(context, true);
         return (JavadocClassReader)instance;
     }
 
     public static void preRegister(final Context context) {
         context.put(classReaderKey, new Context.Factory<ClassReader>() {
             public ClassReader make() {
-                return new JavadocClassReader(context);
+                return new JavadocClassReader(context, true);
             }
         });
     }
@@ -62,8 +62,10 @@ class JavadocClassReader extends ClassReader {
     private EnumSet<JavaFileObject.Kind> noSource = EnumSet.of(JavaFileObject.Kind.CLASS,
                                                                JavaFileObject.Kind.HTML);
 
-    private JavadocClassReader(Context context) {
+    public JavadocClassReader(Context context, boolean loadDocEnv) {
         super(context, true);
+
+        if (loadDocEnv)
         docenv = DocEnv.instance(context);
     }
 
@@ -72,6 +74,9 @@ class JavadocClassReader extends ClassReader {
      */
     @Override
     protected EnumSet<JavaFileObject.Kind> getPackageFileKinds() {
+        if (docenv == null)
+            return super.getPackageFileKinds();
+        else
         return docenv.docClasses ? noSource : all;
     }
 
@@ -80,8 +85,11 @@ class JavadocClassReader extends ClassReader {
      */
     @Override
     protected void extraFileActions(PackageSymbol pack, JavaFileObject fo) {
+        if (docenv == null)
+            return ;
+
         CharSequence fileName = Old199.getName(fo);
-        if (docenv != null && fileName.equals("package.html")) {
+        if (docenv != null && fileName != null && fileName.equals("package.html")) {
             if (fo instanceof JavacFileManager.ZipFileObject) {
                 JavacFileManager.ZipFileObject zfo = (JavacFileManager.ZipFileObject) fo;
                 String zipName = zfo.getZipName();

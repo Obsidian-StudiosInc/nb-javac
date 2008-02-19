@@ -560,10 +560,10 @@ public class Lower extends TreeTranslator {
      *  @param flags    The class symbol's flags
      *  @param owner    The class symbol's owner
      */
-    ClassSymbol makeEmptyClass(long flags, ClassSymbol owner) {
+    ClassSymbol makeEmptyClass(long flags, ClassSymbol owner, int index) {
         // Create class symbol.
         ClassSymbol c = reader.defineClass(names.empty, owner);
-        c.flatname = chk.localClassName(c);
+        c.flatname = chk.localClassName(owner,names.empty,index);
         c.sourcefile = owner.sourcefile;
         c.completer = null;
         c.members_field = new Scope(c);
@@ -1115,7 +1115,7 @@ public class Lower extends TreeTranslator {
                                          "1");
         ClassSymbol ctag = chk.compiled.get(flatname);
         if (ctag == null)
-            ctag = makeEmptyClass(STATIC | SYNTHETIC, topClass);
+            ctag = makeEmptyClass(STATIC | SYNTHETIC, topClass, 1);
         return ctag;
     }
 
@@ -1481,7 +1481,7 @@ public class Lower extends TreeTranslator {
             if (e.sym.kind == TYP &&
                 e.sym.name == names.empty &&
                 (e.sym.flags() & INTERFACE) == 0) return (ClassSymbol) e.sym;
-        return makeEmptyClass(STATIC | SYNTHETIC, clazz);
+        return makeEmptyClass(STATIC | SYNTHETIC, clazz, 1);
     }
 
     /** Return symbol for "class$" method. If there is no method definition

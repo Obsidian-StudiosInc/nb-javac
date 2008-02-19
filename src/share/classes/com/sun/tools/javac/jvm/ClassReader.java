@@ -68,7 +68,7 @@ public class ClassReader extends ClassFile implements Completer {
     protected static final Context.Key<ClassReader> classReaderKey =
         new Context.Key<ClassReader>();
 
-    Annotate annotate;
+    protected Annotate annotate;
 
     /** Switch: verbose output.
      */
@@ -86,15 +86,19 @@ public class ClassReader extends ClassFile implements Completer {
 
     /** Switch: read GJ signature information.
      */
-    boolean allowGenerics;
+    protected boolean allowGenerics;
+
+    /** Switch: Allow GJ covariant return types.
+     */
+    protected boolean allowCovRetTypes;
 
     /** Switch: read varargs attribute.
      */
-    boolean allowVarargs;
+    protected boolean allowVarargs;
 
     /** Switch: allow annotations.
      */
-    boolean allowAnnotations;
+    protected boolean allowAnnotations;
 
     /** Switch: preserve parameter names from the variable table.
      */
@@ -230,7 +234,7 @@ public class ClassReader extends ClassFile implements Completer {
         verbose        = options.get("-verbose")        != null;
         checkClassFile = options.get("-checkclassfile") != null;
         Source source = Source.instance(context);
-        allowGenerics    = source.allowGenerics();
+        allowGenerics    = allowCovRetTypes = source.allowGenerics();
         allowVarargs     = source.allowVarargs();
         allowAnnotations = source.allowAnnotations();
         saveParameterNames = options.get("save-parameter-names") != null;
@@ -247,7 +251,7 @@ public class ClassReader extends ClassFile implements Completer {
 
     /** Add member to class unless it is synthetic.
      */
-    private void enterMember(ClassSymbol c, Symbol sym) {
+    protected void enterMember(ClassSymbol c, Symbol sym) {
         if ((sym.flags_field & (SYNTHETIC|BRIDGE)) != SYNTHETIC)
             c.members_field.enter(sym);
     }
@@ -861,7 +865,7 @@ public class ClassReader extends ClassFile implements Completer {
                 sym.flags_field |= SYNTHETIC;
         } else if (attrName == names.Bridge) {
             sym.flags_field |= BRIDGE;
-            if (!allowGenerics)
+            if (!allowCovRetTypes)
                 sym.flags_field &= ~SYNTHETIC;
         } else if (attrName == names.Deprecated) {
             sym.flags_field |= DEPRECATED;
@@ -944,7 +948,7 @@ public class ClassReader extends ClassFile implements Completer {
         self.name = simpleBinaryName(self.flatname, c.flatname) ;
         self.owner = m != null ? m : c;
         if (self.name.len == 0)
-            self.fullname = null;
+            self.fullname = self.name;
         else
             self.fullname = ClassSymbol.formFullName(self.name, self.owner);
 
@@ -968,7 +972,7 @@ public class ClassReader extends ClassFile implements Completer {
     }
 
     // See java.lang.Class
-    private Name simpleBinaryName(Name self, Name enclosing) {
+    protected Name simpleBinaryName(Name self, Name enclosing) {
         String simpleBinaryName = self.toString().substring(enclosing.toString().length());
         if (simpleBinaryName.length() < 1 || simpleBinaryName.charAt(0) != '$')
             throw badClassFile("bad.enclosing.method", self);
@@ -1010,7 +1014,7 @@ public class ClassReader extends ClassFile implements Completer {
     }
 
     /** Similar to Types.isSameType but avoids completion */
-    private boolean isSameBinaryType(MethodType mt1, MethodType mt2) {
+    protected boolean isSameBinaryType(MethodType mt1, MethodType mt2) {
         List<Type> types1 = types.erasure(mt1.getParameterTypes())
             .prepend(types.erasure(mt1.getReturnType()));
         List<Type> types2 = mt2.getParameterTypes().prepend(mt2.getReturnType());
@@ -1215,7 +1219,7 @@ public class ClassReader extends ClassFile implements Completer {
         void visitCompoundAnnotationProxy(CompoundAnnotationProxy proxy);
     }
 
-    static class EnumAttributeProxy extends Attribute {
+    protected static class EnumAttributeProxy extends Attribute {
         Type enumType;
         Name enumerator;
         public EnumAttributeProxy(Type enumType, Name enumerator) {
@@ -1229,9 +1233,9 @@ public class ClassReader extends ClassFile implements Completer {
         }
     }
 
-    static class ArrayAttributeProxy extends Attribute {
+    protected static class ArrayAttributeProxy extends Attribute {
         List<Attribute> values;
-        ArrayAttributeProxy(List<Attribute> values) {
+        public ArrayAttributeProxy(List<Attribute> values) {
             super(null);
             this.values = values;
         }
@@ -1243,7 +1247,7 @@ public class ClassReader extends ClassFile implements Completer {
 
     /** A temporary proxy representing a compound attribute.
      */
-    static class CompoundAnnotationProxy extends Attribute {
+    protected static class CompoundAnnotationProxy extends Attribute {
         final List<Pair<Name,Attribute>> values;
         public CompoundAnnotationProxy(Type type,
                                       List<Pair<Name,Attribute>> values) {
@@ -1415,14 +1419,14 @@ public class ClassReader extends ClassFile implements Completer {
         }
     }
 
-    class AnnotationDefaultCompleter extends AnnotationDeproxy implements Annotate.Annotator {
+    protected class AnnotationDefaultCompleter extends AnnotationDeproxy implements Annotate.Annotator {
         final MethodSymbol sym;
         final Attribute value;
         final JavaFileObject classFile = currentClassFile;
         public String toString() {
             return " ClassReader store default for " + sym.owner + "." + sym + " is " + value;
         }
-        AnnotationDefaultCompleter(MethodSymbol sym, Attribute value) {
+        public AnnotationDefaultCompleter(MethodSymbol sym, Attribute value) {
             this.sym = sym;
             this.value = value;
         }
@@ -1438,14 +1442,14 @@ public class ClassReader extends ClassFile implements Completer {
         }
     }
 
-    class AnnotationCompleter extends AnnotationDeproxy implements Annotate.Annotator {
+    protected class AnnotationCompleter extends AnnotationDeproxy implements Annotate.Annotator {
         final Symbol sym;
         final List<CompoundAnnotationProxy> l;
         final JavaFileObject classFile;
         public String toString() {
             return " ClassReader annotate " + sym.owner + "." + sym + " with " + l;
         }
-        AnnotationCompleter(Symbol sym, List<CompoundAnnotationProxy> l) {
+        public AnnotationCompleter(Symbol sym, List<CompoundAnnotationProxy> l) {
             this.sym = sym;
             this.l = l;
             this.classFile = currentClassFile;
@@ -1683,7 +1687,7 @@ public class ClassReader extends ClassFile implements Completer {
         if ((flags & ACC_BRIDGE) != 0) {
             flags &= ~ACC_BRIDGE;
             flags |= BRIDGE;
-            if (!allowGenerics)
+            if (!allowCovRetTypes)
                 flags &= ~SYNTHETIC;
         }
         if ((flags & ACC_VARARGS) != 0) {
@@ -1720,6 +1724,23 @@ public class ClassReader extends ClassFile implements Completer {
             c = defineClass(name, owner);
             classes.put(flatname, c);
         } else if ((c.name != name || c.owner != owner) && owner.kind == TYP && c.owner.kind == PCK) {
+            // reassign fields of classes that might have been loaded with
+            // their flat names.
+            c.owner.members().remove(c);
+            c.name = name;
+            c.owner = owner;
+            c.fullname = ClassSymbol.formFullName(name, owner);
+        }
+        return c;
+    }
+
+    public ClassSymbol enterClass(Name flatname, Name name, Symbol owner) {
+        ClassSymbol c = classes.get(flatname);
+        if (c == null) {
+            c = defineClass(name, owner);
+            c.flatname = flatname;
+            classes.put(flatname, c);
+        } else if ((c.name != name || c.owner != owner) && c.owner.kind == PCK) {
             // reassign fields of classes that might have been loaded with
             // their flat names.
             c.owner.members().remove(c);
@@ -1835,7 +1856,7 @@ public class ClassReader extends ClassFile implements Completer {
     /** Fill in definition of class `c' from corresponding class or
      *  source file.
      */
-    private void fillIn(ClassSymbol c) {
+    protected void fillIn(ClassSymbol c) {
         if (completionFailureName == c.fullname) {
             throw new CompletionFailure(c, "user-selected completion failure by class name");
         }
@@ -1877,6 +1898,7 @@ public class ClassReader extends ClassFile implements Completer {
                         missingTypeVariables = List.nil();
                         foundTypeVariables = List.nil();
                         filling = false;
+                        c.flags_field |= FROMCLASS;
                     }
                 } else {
                     if (sourceCompleter != null) {
@@ -1900,14 +1922,14 @@ public class ClassReader extends ClassFile implements Completer {
         }
     }
     // where
-        private static byte[] readInputStream(byte[] buf, InputStream s) throws IOException {
+        static byte[] readInputStream(byte[] buf, InputStream s) throws IOException {
             try {
                 buf = ensureCapacity(buf, s.available());
                 int r = s.read(buf);
                 int bp = 0;
                 while (r != -1) {
                     bp += r;
-                    buf = ensureCapacity(buf, bp);
+                    buf = ensureCapacity(buf, buf.length == bp ? bp + 1 : bp); //see ClassReaderTest
                     r = s.read(buf, bp, buf.length - bp);
                 }
                 return buf;
@@ -2034,7 +2056,7 @@ public class ClassReader extends ClassFile implements Completer {
                 if (c.owner == p)  // it might be an inner class
                     p.members_field.enter(c);
             }
-        } else if (c.classfile != null && (c.flags_field & seen) == 0) {
+        } else if (c.classfile != null && ((c.flags_field & seen) == 0 || isSigOverClass(c.classfile, file))) {
             // if c.classfile == null, we are currently compiling this class
             // and no further action is necessary.
             // if (c.flags_field & seen) != 0, we have already encountered
@@ -2043,6 +2065,12 @@ public class ClassReader extends ClassFile implements Completer {
                 c.classfile = preferredFileObject(file, c.classfile);
         }
         c.flags_field |= seen;
+    }
+
+    private boolean isSigOverClass (final JavaFileObject a, final JavaFileObject b) {
+        String patha = a.getName().toLowerCase();
+        String pathb = b.getName().toLowerCase();
+        return pathb.endsWith(".sig") && patha.endsWith(".class");  //NOI18N
     }
 
     /** Implement policy to choose to derive information from a source
@@ -2167,10 +2195,12 @@ public class ClassReader extends ClassFile implements Completer {
                 case SOURCE: {
                     // TODO pass binaryName to includeClassFile
                     String binaryName = fileManager.inferBinaryName(currentLoc, fo);
-                    String simpleName = binaryName.substring(binaryName.lastIndexOf(".") + 1);
-                    if (SourceVersion.isIdentifier(simpleName) ||
-                        simpleName.equals("package-info"))
-                        includeClassFile(p, fo);
+                    if (binaryName != null) {
+                        String simpleName = binaryName.substring(binaryName.lastIndexOf(".") + 1);
+                        if (SourceVersion.isIdentifier(simpleName) ||
+                            simpleName.equals("package-info"))
+                            includeClassFile(p, fo);
+                    }
                     break;
                 }
                 default:

@@ -30,7 +30,6 @@ import com.sun.source.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
-import java.util.Map;
 
 /**
  * Creates a copy of a tree, using a given TreeMaker.
@@ -140,7 +139,9 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
         JCTree extending = copy(t.extending, p);
         List<JCExpression> implementing = copy(t.implementing, p);
         List<JCTree> defs = copy(t.defs, p);
-        return M.at(t.pos).ClassDef(mods, t.name, typarams, extending, implementing, defs);
+         JCTree.JCClassDecl classDecl = M.at(t.pos).ClassDef(mods, t.name, typarams, extending, implementing, defs);
+         classDecl.index = t.index;
+         return classDecl;
     }
 
     public JCTree visitConditionalExpression(ConditionalExpressionTree node, P p) {
