@@ -274,6 +274,9 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      */
     protected TaskListener taskListener;
 
+
+    protected FlowListener flowListener;
+
     /**
      * Annotation processing may require and provide a new instance
      * of the compiler to be used for the analyze and generate phases.
@@ -292,6 +295,8 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
 
     protected Context context;
 
+    protected Map<JavaFileObject, JCCompilationUnit> notYetEntered;
+
     /** Construct a new compiler using a shared context.
      */
     public JavaCompiler(final Context context) {
@@ -309,6 +314,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         writer = ClassWriter.instance(context);
         enter = Enter.instance(context);
         todo = Todo.instance(context);
+        flowListener = FlowListener.instance(context);
 
         fileManager = context.get(JavaFileManager.class);
         parserFactory = Parser.Factory.instance(context);
@@ -347,7 +353,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         lineDebugInfo = options.get("-g:")            == null ||
                         options.get("-g:lines")       != null;
         genEndPos     = options.get("-Xjcov")         != null ||
-                        context.get(DiagnosticListener.class) != null;
+                        (context.get(DiagnosticListener.class) != null && options.get("backgroundCompilation") == null);
         devVerbose    = options.get("dev") != null;
         processPcks   = options.get("process.packages") != null;
 
@@ -652,15 +658,19 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         if (completionFailureName == c.fullname) {
             throw new CompletionFailure(c, "user-selected completion failure by class name");
         }
-        JCCompilationUnit tree;
+        JCCompilationUnit tree = null;
         JavaFileObject filename = c.classfile;
         JavaFileObject prev = log.useSource(filename);
 
         try {
-            tree = parse(filename, filename.getCharContent(false));
+            if (notYetEntered != null)
+                tree = notYetEntered.remove(filename);
+            if (tree == null)
+                tree = parse(filename, filename.getCharContent(false));
         } catch (IOException e) {
             log.error("error.reading.file", filename, e);
             tree = make.TopLevel(List.<JCTree.JCAnnotation>nil(), null, List.<JCTree>nil());
+            tree.sourcefile = filename;
         } finally {
             log.useSource(prev);
         }
@@ -854,6 +864,10 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             rootClasses = cdefs.toList();
         }
         return roots;
+    }
+
+    public void initNotYetEntered(Map<JavaFileObject, JCCompilationUnit> notYetEntered) {
+        this.notYetEntered = notYetEntered;
     }
 
     /**
@@ -1101,8 +1115,13 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             try {
                 make.at(Position.FIRSTPOS);
                 TreeMaker localMake = make.forToplevel(env.toplevel);
+                if (flowListener != null) {
+                    flowListener.flowStarted (env);
+                }
                 flow.analyzeTree(env.tree, localMake);
-
+                if (flowListener != null) {
+                    flowListener.flowFinished (env);
+                }
                 if (errorCount() > 0)
                     return;
 

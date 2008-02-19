@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.util;
 
+import com.sun.tools.javac.model.LazyTreeLoader;
 import java.lang.ref.SoftReference;
 
 
@@ -355,13 +356,13 @@ public class Name implements javax.lang.model.element.Name {
         // maintain a freelist of recently used name tables for reuse.
         private static List<SoftReference<Table>> freelist = List.nil();
 
-        static private synchronized Table make() {
+        static private synchronized Table make(Context context) {
             while (freelist.nonEmpty()) {
                 Table t = freelist.head.get();
                 freelist = freelist.tail;
                 if (t != null) return t;
             }
-            return new Table();
+            return new Table(context);
         }
 
         static private synchronized void dispose(Table t) {
@@ -378,11 +379,15 @@ public class Name implements javax.lang.model.element.Name {
         public static Table instance(Context context) {
             Table instance = context.get(namesKey);
             if (instance == null) {
-                instance = make();
+                instance = make(context);
                 context.put(namesKey, instance);
             }
             return instance;
         }
+
+        /** The tree loader
+         */
+        public LazyTreeLoader loader;
 
         /** The hash table for names.
          */
@@ -405,7 +410,8 @@ public class Name implements javax.lang.model.element.Name {
          *                  needs to be a power of two.
          *  @param nameSize the initial size of the name table.
          */
-        public Table(int hashSize, int nameSize) {
+        public Table(Context context, int hashSize, int nameSize) {
+            loader = LazyTreeLoader.instance(context);
             hashMask = hashSize - 1;
             hashes = new Name[hashSize];
             names = new byte[nameSize];
@@ -513,8 +519,8 @@ public class Name implements javax.lang.model.element.Name {
             finalize = fromString("finalize");
         }
 
-        public Table() {
-            this(0x8000, 0x20000);
+        public Table(Context context) {
+            this(context, 0x8000, 0x20000);
         }
 
         /** Create a name from the bytes in cs[start..start+len-1].

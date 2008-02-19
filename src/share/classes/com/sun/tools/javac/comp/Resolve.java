@@ -62,6 +62,7 @@ public class Resolve {
     public final boolean boxingEnabled; // = source.allowBoxing();
     public final boolean varargsEnabled; // = source.allowVarargs();
     private final boolean debugResolve;
+    private final boolean ideMode;
 
     public static Resolve instance(Context context) {
         Resolve instance = context.get(resolveKey);
@@ -97,6 +98,7 @@ public class Resolve {
         varargsEnabled = source.allowVarargs();
         Options options = Options.instance(context);
         debugResolve = options.get("debugresolve") != null;
+        this.ideMode = options.get("ide") != null;
     }
 
     /** error symbols, which are returned when resolution fails
@@ -114,7 +116,7 @@ public class Resolve {
     /** An environment is "static" if its static level is greater than
      *  the one of its outer environment
      */
-    static boolean isStatic(Env<AttrContext> env) {
+    public static boolean isStatic(Env<AttrContext> env) {
         return env.info.staticLevel > env.outer.info.staticLevel;
     }
 
@@ -856,7 +858,12 @@ public class Resolve {
             ClassSymbol c = reader.loadClass(name);
             return isAccessible(env, c) ? c : new AccessError(c);
         } catch (ClassReader.BadClassFile err) {
-            throw err;
+            if (ideMode) {
+                return typeNotFound;
+            }
+            else {
+                throw err;
+            }
         } catch (CompletionFailure ex) {
             return typeNotFound;
         }
@@ -1083,20 +1090,37 @@ public class Resolve {
                   List<Type> typeargtypes) {
         if (sym.kind >= AMBIGUOUS) {
 //          printscopes(site.tsym.members());//DEBUG
-            if (!site.isErroneous() &&
-                !Type.isErroneous(argtypes) &&
-                (typeargtypes==null || !Type.isErroneous(typeargtypes)))
-                ((ResolveError)sym).report(log, pos, site, name, argtypes, typeargtypes);
+            if (!isErroneous(site) &&
+                !isErroneous(argtypes) &&
+                (typeargtypes==null || !isErroneous(typeargtypes)))
+            ((ResolveError)sym).report(log, pos, site, name, argtypes, typeargtypes);
             do {
                 sym = ((ResolveError)sym).sym;
             } while (sym.kind >= AMBIGUOUS);
             if (sym == syms.errSymbol // preserve the symbol name through errors
                 || ((sym.kind & ERRONEOUS) == 0 // make sure an error symbol is returned
-                    && (sym.kind & TYP) != 0))
-                sym = new ErrorType(name, qualified?site.tsym:syms.noSymbol).tsym;
+                    && (sym.kind & TYP) != 0)) {
+                if (!site.isErroneous() && !Type.isErroneous(argtypes) &&
+                    (typeargtypes==null || !Type.isErroneous(typeargtypes)))
+                    sym = new ErrorType(name, qualified?site.tsym:syms.noSymbol).tsym;
+                else
+                    sym = syms.errSymbol;
+            }
         }
         return sym;
     }
+
+    private boolean isErroneous(Type t) {
+        return t.isErroneous() && t.tsym.name == names.any;
+    }
+
+    private boolean isErroneous(List<Type> ts) {
+        for (List<Type> l = ts; l.nonEmpty(); l = l.tail)
+            if (isErroneous(l.head)) return true;
+        return false;
+    }
+
+
 
     /** Same as above, but without type arguments and arguments.
      */
@@ -1373,6 +1397,19 @@ public class Resolve {
                        Env<AttrContext> env,
                        TypeSymbol c,
                        Name name) {
+        // Check that declarations in inner classes are not static. If so,
+        // 'Inner classes cannot have static declarations is already reported
+        // and there is no need to report 'Non-static {0} {1} cannot be referenced from a static context'.
+        boolean staticInnerDecl = false;
+        if (env.tree.getTag() == JCTree.VARDEF && (TreeInfo.flags(env.tree) & (STATIC | INTERFACE)) != 0) {
+            Symbol sym = ((JCVariableDecl)env.tree).sym;
+            if (sym == null || sym.kind != VAR || ((VarSymbol) sym).getConstValue() == null) {
+                sym = env.enclClass.sym;
+                if (sym != null && sym.owner.kind != PCK && ((sym.flags() & STATIC) == 0 || sym.name == names.empty)) {
+                    staticInnerDecl = true;
+                }
+            }
+        }
         Env<AttrContext> env1 = env;
         boolean staticOnly = false;
         while (env1.outer != null) {
@@ -1380,7 +1417,9 @@ public class Resolve {
             if (env1.enclClass.sym == c) {
                 Symbol sym = env1.info.scope.lookup(name).sym;
                 if (sym != null) {
-                    if (staticOnly) sym = new StaticError(sym);
+                    if (staticOnly && !staticInnerDecl) {
+                        sym = new StaticError(sym);
+                    }
                     return access(sym, pos, env.enclClass.sym.type,
                                   name, true);
                 }

@@ -39,6 +39,7 @@ import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Scope;
+import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.comp.AttrContext;
@@ -94,7 +95,12 @@ public class JavacScope implements com.sun.source.tree.Scope {
                     return null;
                 }
                 public Iterable<? extends Element> getLocalElements() {
-                    return env.toplevel.starImportScope.getElements();
+                    List<Element> l = List.nil();
+                    for (Symbol symbol : env.toplevel.starImportScope.getElements()) {
+                        if (env.toplevel.starImportScope.lookup(symbol.name).scope != null)
+                            l = l.prepend(symbol);
+                    }
+                    return l;
                 }
             };
         }
@@ -102,7 +108,7 @@ public class JavacScope implements com.sun.source.tree.Scope {
 
     public TypeElement getEnclosingClass() {
         // hide the dummy class that javac uses to enclose the top level declarations
-        return (env.outer == null || env.outer == env ? null : env.enclClass.sym);
+        return (env.outer == null || env.outer == env || env.baseClause ? null : env.enclClass.sym);
     }
 
     public ExecutableElement getEnclosingMethod() {

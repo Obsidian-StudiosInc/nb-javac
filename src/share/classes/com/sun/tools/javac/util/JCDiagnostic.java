@@ -260,7 +260,7 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
         }
 
         private final int pos;
-    }
+        }
 
     private final Messages messages;
     private final DiagnosticType type;
@@ -479,4 +479,7 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
         return getLocalizedString(key, args);
     }
 
+    public boolean hasFixedPositions () {
+        return !(this.position instanceof JCTree);
+    }
 }

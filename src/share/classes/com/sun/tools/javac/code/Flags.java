@@ -217,6 +217,8 @@ public class Flags {
      */
     public static final long PROPRIETARY = 1L<<38;
 
+    public static final long FROMCLASS = 1L<<39;
+
     /** Modifier masks.
      */
     public static final int
