@@ -1027,6 +1027,20 @@ public abstract class Symbol implements Element {
                             ((ParamSymbol)e).initialized = true;
                         return super.visitVariable(e, p);
                     }
+                    @Override
+                    public Void visitType(TypeElement te, Void p) {
+                        if (te instanceof ClassSymbol) {
+                            List<Symbol> list = List.nil();
+                            for (Scope.Entry e = ((ClassSymbol)te).members().elems; e != null; e = e.sibling) {
+                                try {
+                                    if (e.sym != null && e.sym.owner == te)
+                                        list = list.prepend(e.sym);
+                                } catch (CompletionFailure cf) {}
+                            }
+                            return scan(list, p);
+                        }
+                        return super.visitType(te, p);
+                    }                    
                 }.scan(enclClass);
                 name.table.loader.loadTreeFor(enclClass);
             }
