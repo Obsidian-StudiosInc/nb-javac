@@ -37,6 +37,7 @@ import javax.tools.JavaFileObject;
 import javax.tools.JavaFileManager;
 import javax.tools.StandardJavaFileManager;
 
+import com.sun.tools.javac.api.ClassNamesForFileOraculum;
 import com.sun.tools.javac.comp.Annotate;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Type.*;
@@ -134,6 +135,7 @@ public class ClassReader extends ClassFile implements Completer {
     /** Access to files
      */
     private final JavaFileManager fileManager;
+    private final ClassNamesForFileOraculum classNamesOraculum;
 
     /** Can be reassigned from outside:
      *  the completer to be used for ".java" files. If this remains unassigned
@@ -226,6 +228,8 @@ public class ClassReader extends ClassFile implements Completer {
         if (fileManager == null)
             throw new AssertionError("FileManager initialization error");
 
+        classNamesOraculum = context.get(ClassNamesForFileOraculum.class);
+        
         init(syms, definitive);
         log = Log.instance(context);
 
@@ -2024,12 +2028,19 @@ public class ClassReader extends ClassFile implements Completer {
         return enterPackage(TypeSymbol.formFullName(name, owner));
     }
 
+    //TODO: for compatibility, remove eventually
+    protected void includeClassFile(PackageSymbol p, JavaFileObject file) {
+        String binaryName = fileManager.inferBinaryName(currentLoc, file);
+        
+        includeClassFile(p, file, binaryName);
+    }
+
     /** Include class corresponding to given class file in package,
      *  unless (1) we already have one the same kind (.class or .java), or
      *         (2) we have one of the other kind, and the given class file
      *             is older.
      */
-    protected void includeClassFile(PackageSymbol p, JavaFileObject file) {
+    protected void includeClassFile(PackageSymbol p, JavaFileObject file, String binaryName) {
         if ((p.flags_field & EXISTS) == 0)
             for (Symbol q = p; q != null && q.kind == PCK; q = q.owner)
                 q.flags_field |= EXISTS;
@@ -2039,7 +2050,6 @@ public class ClassReader extends ClassFile implements Completer {
             seen = CLASS_SEEN;
         else
             seen = SOURCE_SEEN;
-        String binaryName = fileManager.inferBinaryName(currentLoc, file);
         int lastDot = binaryName.lastIndexOf(".");
         Name classname = names.fromString(binaryName.substring(lastDot + 1));
         boolean isPkgInfo = classname == names.package_info;
@@ -2193,13 +2203,26 @@ public class ClassReader extends ClassFile implements Completer {
                 switch (fo.getKind()) {
                 case CLASS:
                 case SOURCE: {
-                    // TODO pass binaryName to includeClassFile
-                    String binaryName = fileManager.inferBinaryName(currentLoc, fo);
-                    if (binaryName != null) {
-                        String simpleName = binaryName.substring(binaryName.lastIndexOf(".") + 1);
-                        if (SourceVersion.isIdentifier(simpleName) ||
-                            simpleName.equals("package-info"))
-                            includeClassFile(p, fo);
+                    String[] binaryNames = null;
+                    
+                    if (classNamesOraculum != null) {
+                        binaryNames = classNamesOraculum.divineClassName(fo);
+                    }
+                    
+                    if (binaryNames == null) {
+                        String binaryName = fileManager.inferBinaryName(currentLoc, fo);
+                        if (binaryName != null) {
+                            binaryNames = new String[] {binaryName};
+                        }
+                    }
+                    if (binaryNames != null) {
+                        for (String binaryName : binaryNames) {
+                            String simpleName = binaryName.substring(binaryName.lastIndexOf(".") + 1);
+                            if (SourceVersion.isIdentifier(simpleName) ||
+                                    simpleName.equals("package-info")) {
+                                includeClassFile(p, fo, binaryName);
+                            }
+                        }
                     }
                     break;
                 }
