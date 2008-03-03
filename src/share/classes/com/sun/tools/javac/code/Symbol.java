@@ -1051,6 +1051,11 @@ public abstract class Symbol implements Element {
             if (this.name != name)
                 super.setName(this.name.table.fromString(name));
         }
+
+        @Override
+        public String toString() {
+            return getSimpleName().toString();
+        }                
     }
 
     /** A class for method symbols.
