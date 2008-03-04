@@ -44,7 +44,6 @@ import com.sun.tools.javac.code.Symbol.*;
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.TypeTags.*;
-import javax.lang.model.element.ElementKind;
 
 /** Type checking helper class for the attribution phase.
  *
@@ -1569,13 +1568,6 @@ public class Check {
         void checkImplementations(JCClassDecl tree, ClassSymbol ic) {
             ClassSymbol origin = tree.sym;
             for (List<Type> l = types.closure(ic.type); l.nonEmpty(); l = l.tail) {
-                ElementKind kind = l.head.tsym.getKind();
-
-                if (!kind.isClass() && !kind.isInterface()) {
-                    //not a class: an error should have already been reported, ignore.
-                    continue;
-                }
-
                 ClassSymbol lc = (ClassSymbol)l.head.tsym;
                 if ((allowGenerics || origin != lc) && (lc.flags() & ABSTRACT) != 0) {
                     for (Scope.Entry e=lc.members().elems; e != null; e=e.sibling) {

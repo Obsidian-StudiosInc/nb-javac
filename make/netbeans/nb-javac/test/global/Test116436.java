@@ -35,6 +35,10 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
 import junit.framework.TestCase;
 
+/**Superseded by test/tools/javac/api/6608214/T6608214.java
+ * keeping here for convenience
+ * 
+ */
 public class Test116436 extends TestCase {
 
     public Test116436(String name) {
