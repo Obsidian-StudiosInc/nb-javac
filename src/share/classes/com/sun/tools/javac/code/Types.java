@@ -2503,7 +2503,7 @@ public class Types {
                 break;
             default:
                 if (t.isPrimitive())
-                    return syms.botType;
+                    return syms.errType;
             }
         }
         switch (boundkind) {
