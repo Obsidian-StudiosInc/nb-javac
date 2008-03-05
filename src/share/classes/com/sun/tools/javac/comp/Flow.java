@@ -554,7 +554,8 @@ public class Flow extends TreeScanner {
     /* ------------ Visitor methods for various sorts of trees -------------*/
 
     public void visitClassDef(JCClassDecl tree) {
-        if (tree.sym == null) return;
+        if (tree.sym == null || tree.sym.type.tag == ERROR) return;     //Making behave like Attr.attribClass,
+                                                                        //prevents NPE form Flow when Attr skeeps subtree.
 
         JCClassDecl classDefPrev = classDef;
         List<Type> thrownPrev = thrown;
