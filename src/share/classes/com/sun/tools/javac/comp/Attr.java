@@ -2640,9 +2640,7 @@ public class Attr extends JCTree.Visitor {
      */
     void attribClass(ClassSymbol c) throws CompletionFailure {
         if (c.type.tag == ERROR) {
-            if (chk.compiled.get(c.flatname) == null) {
-                return;
-            }
+            return;
         }
 
         // Check for cycles in the inheritance graph, which can arise from
