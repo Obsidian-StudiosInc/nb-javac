@@ -438,7 +438,7 @@ public class Enter extends JCTree.Visitor {
             if (chk.compiled.get(c.flatname) != null) {
                 duplicateClass(tree.pos(), c);
                 result = new ErrorType(tree.name, (TypeSymbol)owner);
-                tree.sym.type  = result ; //(ClassSymbol)result.tsym;
+                tree.sym  = (ClassSymbol)result.tsym;
                 return;
             }
             chk.compiled.put(c.flatname, c);
