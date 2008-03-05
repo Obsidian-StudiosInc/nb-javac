@@ -251,7 +251,10 @@ public class JavacTrees extends Trees {
                 case CLASS:
 //                    System.err.println("CLASS: " + ((JCClassDecl)tree).sym.getSimpleName());
                     clazz = (JCClassDecl)tree;
-                    env = enter.getClassEnv(clazz.sym);
+                    Env<AttrContext> e = enter.getClassEnv(clazz.sym);
+                    if (e == null)
+                        return env;
+                    env = e;
                     break;
                 case METHOD:
 //                    System.err.println("METHOD: " + ((JCMethodDecl)tree).sym.getSimpleName());
