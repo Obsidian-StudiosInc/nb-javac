@@ -373,6 +373,8 @@ public class Enter extends JCTree.Visitor {
                 if (c == null) {
                     ClassSymbol cs = enclScope.owner.outermostClass();
                     treeLoader.couplingError(cs, tree);
+                } else {
+                    reattr = true;
                 }
                 if (owner.kind == TYP) {
                     if ((owner.flags_field & INTERFACE) != 0) {
