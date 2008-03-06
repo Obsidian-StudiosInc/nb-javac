@@ -590,7 +590,11 @@ public class Attr extends JCTree.Visitor {
     public void visitMethodDef(JCMethodDecl tree) {
         cancelService.abortIfCanceled();
         MethodSymbol m = tree.sym;
-
+        if (m == null) {
+            // exit in case something drastic went wrong during enter.
+            result = null;
+            return;
+        }
         Lint lint = env.info.lint.augment(m.attributes_field, m.flags());
         Lint prevLint = chk.setLint(lint);
         try {
@@ -722,6 +726,11 @@ public class Attr extends JCTree.Visitor {
         chk.validate(tree.vartype);
 
         VarSymbol v = tree.sym;
+        if (v == null) {
+            // exit in case something drastic went wrong during enter.
+            result = null;
+            return;
+        }
         Lint lint = env.info.lint.augment(v.attributes_field, v.flags());
         Lint prevLint = chk.setLint(lint);
 
