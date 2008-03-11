@@ -375,14 +375,15 @@ public class Enter extends JCTree.Visitor {
                     treeLoader.couplingError(cs, tree);
                 } else {
                     reattr = true;
-                }
-                if (owner.kind == TYP) {
-                    if ((owner.flags_field & INTERFACE) != 0) {
-                        tree.mods.flags |= PUBLIC | STATIC;
+                    if (owner.kind == TYP) {
+                        if ((owner.flags_field & INTERFACE) != 0) {
+                            tree.mods.flags |= PUBLIC | STATIC;
+                        }
                     }
                 }
                 doEnterClass = false;
-            } else {
+            }
+            if (c == null) {
                 if (tree.name.len != 0 &&
                         !chk.checkUniqueClassName(tree.pos(), tree.name, enclScope)) {
                     result = new ErrorType(tree.name, (TypeSymbol)owner);
@@ -464,7 +465,7 @@ public class Enter extends JCTree.Visitor {
         boolean notYetCompleted = c.completer != null;
         c.completer = memberEnter;
         c.sourcefile = env.toplevel.sourcefile;
-        if ((c.flags_field & FROMCLASS) == 0 && ((enclScope.owner.flags_field & FROMCLASS) == 0 || notYetCompleted)) {
+        if (notYetCompleted || (c.flags_field & FROMCLASS) == 0 && (enclScope.owner.flags_field & FROMCLASS) == 0) {
             c.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, c, tree);
             c.members_field = new Scope(c);
             ClassType ct = (ClassType)c.type;
