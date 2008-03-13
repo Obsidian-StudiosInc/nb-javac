@@ -30,10 +30,12 @@ import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.Scope;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeParameterTree;
+import com.sun.source.tree.VariableTree;
 import com.sun.tools.javac.api.JavacTrees;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.tools.JavaCompiler;
@@ -54,11 +56,16 @@ public class TreesTest extends TestCase {
     }
 
     static class MyFileObject extends SimpleJavaFileObject {
+        private String code;
         public MyFileObject() {
+            this("public class Test<TTT> { public void test() {TTT ttt;}}");
+        }
+        public MyFileObject(String code) {
             super(URI.create("myfo:/Test.java"), JavaFileObject.Kind.SOURCE);
+            this.code = code;
         }
         public CharSequence getCharContent(boolean ignoreEncodingErrors) {
-            return "public class Test<TTT> { public void test() {TTT ttt;}}";
+            return code;
         }
     }
 
@@ -91,6 +98,56 @@ public class TreesTest extends TestCase {
         assertFalse(Trees.instance(ct).isAccessible(s, type));
     }
 
+    public void testScope129282() throws IOException {
+        String code = "package test;\n" +
+                  "public class Test {\n" +
+                  "\n" +
+                  "    void method() {\n" +
+                  "        label:\n" +
+                  "        for (int i = 0; i < 1; i++) {\n" +
+                  "            String foo = null;\n" +
+                  "            System.out.println(foo);\n" +
+                  "        }\n" +
+                  "    }\n" +
+                  "\n" +
+                  "}\n";
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath), null, Arrays.asList(new MyFileObject(code)));
+
+        CompilationUnitTree cut = ct.parse().iterator().next();
+
+        ct.analyze();
+
+        Trees trees = JavacTrees.instance(ct);
+        final AtomicReference<TreePath> result = new AtomicReference<TreePath>();
+
+        new TreePathScanner<Void, Void>() {
+            @Override
+            public Void visitVariable(VariableTree node, Void p) {
+                if ("foo".equals(node.getName().toString())) {
+                    result.set(getCurrentPath());
+                }
+                return super.visitVariable(node, p);
+            }
+        }.scan(cut, null);
+        
+        assertNotNull(result.get());
+        
+        Scope s = trees.getScope(result.get());
+        boolean found = false;
+        
+        for (Element e : s.getLocalElements()) {
+            if ("foo".equals(e.getSimpleName().toString())) {
+                found = true;
+                break;
+            }
+        }
+        
+        assertTrue(found);
+    }
+    
     private class Scanner extends TreePathScanner<Void, Trees> {
 
         private Tree typeParam;
