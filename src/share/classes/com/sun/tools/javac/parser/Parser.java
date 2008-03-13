@@ -963,9 +963,11 @@ public class Parser {
     protected JCExpression term3() {
         int pos = S.pos();
         JCExpression t;
+        int prevmode = mode;
         List<JCExpression> typeArgs = typeArgumentsOpt(EXPR);
         if (typeArgs != null && S.pos() <= errorEndPos) {
             // error recovery
+            mode = prevmode;
             return F.at(pos).Erroneous(typeArgs);
         }
         switch (S.token()) {
