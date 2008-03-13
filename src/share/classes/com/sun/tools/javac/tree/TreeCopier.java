@@ -222,7 +222,7 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
     public JCTree visitLabeledStatement(LabeledStatementTree node, P p) {
         JCLabeledStatement t = (JCLabeledStatement) node;
         JCStatement body = copy(t.body, p);
-        return M.at(t.pos).Labelled(t.label, t.body);
+        return M.at(t.pos).Labelled(t.label, body);
     }
 
     public JCTree visitLiteral(LiteralTree node, P p) {
@@ -361,7 +361,7 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
     public JCTree visitTypeParameter(TypeParameterTree node, P p) {
         JCTypeParameter t = (JCTypeParameter) node;
         List<JCExpression> bounds = copy(t.bounds, p);
-        return M.at(t.pos).TypeParameter(t.name, t.bounds);
+        return M.at(t.pos).TypeParameter(t.name, bounds);
     }
 
     public JCTree visitInstanceOf(InstanceOfTree node, P p) {
