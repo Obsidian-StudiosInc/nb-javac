@@ -75,6 +75,7 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
     private final Annotate annotate;
     private final Types types;
     private final Target target;
+    private final Messages messages;
     private final CancelService cancelService;
     private final LazyTreeLoader treeLoader;
 
@@ -106,6 +107,7 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
         skipAnnotations =
             options.get("skipAnnotations") != null;
         ideMode = options.get("ide") != null;
+        messages = Messages.instance(context);
         cancelService = CancelService.instance(context);
         treeLoader = LazyTreeLoader.instance(context);
     }
@@ -459,6 +461,9 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                       List.<JCExpression>nil(), // thrown
                       null, //make.Block(0, Tree.emptyList.prepend(make.Return(make.Ident(names._null)))),
                       null);
+        Map<JCTree, String> docComments = env.toplevel.docComments;
+        if (docComments != null)
+            docComments.put(values, messages.getLocalizedString("compiler.javadoc.enum.values")); //NOI18N
         memberEnter(values, env);
 
         // public static T valueOf(String name) { return ???; }
@@ -473,6 +478,8 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                       List.<JCExpression>nil(), // thrown
                       null, //make.Block(0, Tree.emptyList.prepend(make.Return(make.Ident(names._null)))),
                       null);
+        if (docComments != null)
+            docComments.put(valueOf, messages.getLocalizedString("compiler.javadoc.enum.valueOf")); //NOI18N
         memberEnter(valueOf, env);
 
         // the remaining members are for bootstrapping only
