@@ -1,9 +1,11 @@
 #!/bin/bash
 load_into_cache() {
 mkdir -p cache
-if [ ! -f cache/$1 ] ; then
+NAME=`basename $2`;
+if [ ! -f cache/$NAME ] ; then
     cd cache;
-    wget -O $1 $2;
+    wget $2;
+    cp $NAME $1
     cd ..;
 fi;
 }
