@@ -35,10 +35,6 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
 import junit.framework.TestCase;
 
-/**Superseded by test/tools/javac/api/6608214/T6608214.java
- * keeping here for convenience
- * 
- */
 public class Test116436 extends TestCase {
 
     public Test116436(String name) {
@@ -57,7 +53,11 @@ public class Test116436 extends TestCase {
         }
     }
 
-    public void testPositionForSuperConstructorCalls() throws IOException {
+    /**Superseded by test/tools/javac/api/6608214/T6608214.java
+     * keeping here for convenience
+     * 
+     */
+    public void test116436() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
@@ -69,4 +69,16 @@ public class Test116436 extends TestCase {
         ct.analyze();
     }
 
+    public void test131101() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test; public class Test { <D, T extends Runnable & D> void f() {} }";
+
+        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+
+        ct.analyze();
+    }
+    
 }
