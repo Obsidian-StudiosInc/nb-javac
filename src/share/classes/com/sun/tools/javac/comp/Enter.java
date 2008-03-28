@@ -419,6 +419,8 @@ public class Enter extends JCTree.Visitor {
                         }
                         else {
                             c = reader.enterClass(flatname, tree.name, owner);
+                            if (c.completer == null)
+                                reattr = true;
                         }
                     }
                     if (c.name.len != 0)
