@@ -2610,6 +2610,8 @@ public class Lower extends TreeTranslator {
         Type unboxedType = types.unboxedType(tree.type);
         // note: the "primitive" parameter is not used.  There muse be
         // a conversion from unboxedType to primitive.
+        if (unboxedType.tsym == null)
+            return tree;
         make_at(tree.pos());
         Symbol valueSym = lookupMethod(tree.pos(),
                                        unboxedType.tsym.name.append(names.Value), // x.intValue()

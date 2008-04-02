@@ -289,6 +289,8 @@ public class ClassWriter extends ClassFile {
         case VOID:
             sigbuf.appendByte('V');
             break;
+        case ERROR:
+            type = syms.objectType;
         case CLASS:
             sigbuf.appendByte('L');
             assembleClassSig(type);

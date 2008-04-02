@@ -386,7 +386,8 @@ public class Flow extends TreeScanner {
         tree = TreeInfo.skipParens(tree);
         if (tree.getTag() == JCTree.IDENT || tree.getTag() == JCTree.SELECT) {
             Symbol sym = TreeInfo.symbol(tree);
-            letInit(tree.pos(), (VarSymbol)sym);
+            if (!sym.type.isErroneous())
+                letInit(tree.pos(), (VarSymbol)sym);
         }
     }
 
@@ -1135,11 +1136,14 @@ public class Flow extends TreeScanner {
     public void visitNewClass(JCNewClass tree) {
         scanExpr(tree.encl);
         scanExprs(tree.args);
+        Symbol ctor = tree.constructor;
        // scan(tree.def);
-        for (List<Type> l = tree.constructor.type.getThrownTypes();
+        if (ctor != null) {
+        for (List<Type> l = ctor.type.getThrownTypes();
              l.nonEmpty();
              l = l.tail)
             markThrown(tree, l.head);
+        }
         scan(tree.def);
     }
 
