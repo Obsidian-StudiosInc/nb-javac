@@ -34,6 +34,7 @@ import java.util.Set;
 import javax.tools.DiagnosticListener;
 import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.Source;
+import com.sun.tools.javac.comp.Repair;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
@@ -109,7 +110,8 @@ public class Log {
      * Factory for diagnostics
      */
     private JCDiagnostic.Factory diags;
-
+    
+    private Repair repair;
 
     private boolean partialReparse;
 
@@ -139,6 +141,7 @@ public class Log {
         DiagnosticListener<? super JavaFileObject> diagListener =
             context.get(DiagnosticListener.class);
         this.diagListener = diagListener;
+        repair = Repair.instance(context);
 
         Source source = Source.instance(context);
         this.enforceMandatoryWarnings = source.enforceMandatoryWarnings();
@@ -607,6 +610,8 @@ public class Log {
      * Write out a diagnostic.
      */
     protected void writeDiagnostic(JCDiagnostic diag) {
+        if (diag.getTree() != null)
+            repair.markErrTree(diag.getTree());
         if (diagListener != null) {
             try {
                 diagListener.report(diag);
