@@ -1229,7 +1229,7 @@ public class Flow extends TreeScanner {
     }
 
     public void visitIdent(JCIdent tree) {
-        if (tree.sym.kind == VAR)
+        if (tree.sym != null && tree.sym.kind == VAR)
             checkInit(tree.pos(), (VarSymbol)tree.sym);
     }
 

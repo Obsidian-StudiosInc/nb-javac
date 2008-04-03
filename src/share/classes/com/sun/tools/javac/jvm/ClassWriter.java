@@ -1502,6 +1502,8 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(flags);
 
         databuf.appendChar(pool.put(c));
+        if (supertype.tag == ERROR)
+            supertype = syms.objectType;
         databuf.appendChar(supertype.tag == CLASS ? pool.put(supertype.tsym) : 0);
         databuf.appendChar(interfaces.length());
         for (List<Type> l = interfaces; l.nonEmpty(); l = l.tail)
