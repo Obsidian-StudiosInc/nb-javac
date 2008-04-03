@@ -831,6 +831,11 @@ public class TreeMaker implements JCTree.Factory {
     /** Construct an assignment from a variable symbol and a right hand side.
      */
     public JCStatement Assignment(Symbol v, JCExpression rhs) {
+        if (rhs.getTag() == JCTree.ERRONEOUS) {
+            JCErroneous err = (JCErroneous)rhs;
+            if (err.errs.head != null && err.errs.head.getTag() == JCTree.THROW)
+                return (JCThrow)err.errs.head;
+        }
         return Exec(Assign(Ident(v), rhs).setType(v.type));
     }
 

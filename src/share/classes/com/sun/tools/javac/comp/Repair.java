@@ -35,6 +35,7 @@ import com.sun.tools.javac.tree.JCTree.JCLiteral;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.tree.JCTree.JCStatement;
+import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.tree.TreeTranslator;
 import com.sun.tools.javac.util.Context;
@@ -84,6 +85,19 @@ public class Repair extends TreeTranslator {
     }
 
     @Override
+    public void visitVarDef(JCVariableDecl tree) {
+        tree.mods = translate(tree.mods);
+        tree.vartype = translate(tree.vartype);
+        boolean previousHasError = hasError;
+        hasError = false;
+        tree.init = translate(tree.init);
+        if (hasError)
+            tree.init = generateErrExpr(tree.init.pos());
+        hasError = previousHasError;
+        result = tree;
+    }
+
+    @Override
     public void visitMethodDef(JCMethodDecl tree) {
         tree.mods = translate(tree.mods);
         tree.restype = translate(tree.restype);
@@ -113,6 +127,18 @@ public class Repair extends TreeTranslator {
         tree.constructor = rs.resolveConstructor(pos, attrEnv, ctype, List.of(literal.type), null, false, false);
         tree.type = ctype;
         return make.Block(0, List.<JCStatement>of(make.Throw(tree)));
+    }
+    
+    private JCExpression generateErrExpr(DiagnosticPosition pos) {
+        make.at(pos);
+        ClassType ctype = (ClassType)syms.runtimeExceptionType;
+        JCLiteral literal = make.Literal(ERR_MESSAGE);
+        JCNewClass tree = make.NewClass(null, null, make.QualIdent(ctype.tsym), List.<JCExpression>of(literal), null);
+        tree.constructor = rs.resolveConstructor(pos, attrEnv, ctype, List.of(literal.type), null, false, false);
+        tree.type = ctype;
+        JCExpression expr = make.Erroneous(List.<JCStatement>of(make.Throw(tree)));
+        expr.type = syms.errType;
+        return expr;
     }
     
     public void markErrTree(JCTree tree) {
