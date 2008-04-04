@@ -650,10 +650,10 @@ public class ClassReader extends ClassFile implements Completer {
                 ClassSymbol t = enterClass(names.fromUtf(signatureBuffer,
                                                          startSbp,
                                                          sbp - startSbp));
-                if (outer == Type.noType)
-                    outer = t.erasure(types);
-                else if (err)
+                if (err)
                     outer = new ErrorType(t);
+                else if (outer == Type.noType)
+                    outer = t.erasure(types);
                 else
                     outer = new ClassType(outer, List.<Type>nil(), t);
                 sbp = startSbp;

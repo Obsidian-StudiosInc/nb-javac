@@ -101,12 +101,14 @@ public class Repair extends TreeTranslator {
     public void visitVarDef(JCVariableDecl tree) {
         tree.mods = translate(tree.mods);
         tree.vartype = translate(tree.vartype);
-        boolean previousHasError = hasError;
-        hasError = false;
-        tree.init = translate(tree.init);
-        if (hasError)
-            tree.init = generateErrExpr(tree.init.pos());
-        hasError = previousHasError;
+        if (!hasError) {
+            tree.init = translate(tree.init);
+            if (hasError) {
+                JCTree parent = parents != null ? parents.tail.head : null;
+                if (parent != null && parent.getTag() == JCTree.CLASSDEF)
+                    tree.init = generateErrExpr(tree.init.pos());
+            }
+        }
         result = tree;
     }
 
