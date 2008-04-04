@@ -578,6 +578,7 @@ public class ClassReader extends ClassFile implements Completer {
         case 'J':
             sigp++;
             return syms.longType;
+        case 'R':
         case 'L':
             {
                 // int oldsigp = sigp;
@@ -633,9 +634,10 @@ public class ClassReader extends ClassFile implements Completer {
     /** Convert class signature to type, where signature is implicit.
      */
     Type classSigToType() {
-        if (signature[sigp] != 'L')
+        if (signature[sigp] != 'L' && signature[sigp] != 'R')
             throw badClassFile("bad.class.signature",
                                Convert.utf2string(signature, sigp, 10));
+        boolean err = signature[sigp] == 'R';
         sigp++;
         Type outer = Type.noType;
         int startSbp = sbp;
@@ -650,6 +652,8 @@ public class ClassReader extends ClassFile implements Completer {
                                                          sbp - startSbp));
                 if (outer == Type.noType)
                     outer = t.erasure(types);
+                else if (err)
+                    outer = new ErrorType(t);
                 else
                     outer = new ClassType(outer, List.<Type>nil(), t);
                 sbp = startSbp;
@@ -930,6 +934,8 @@ public class ClassReader extends ClassFile implements Completer {
             int newbp = bp + attrLen;
             readEnclosingMethodAttr(sym);
             bp = newbp;
+        } else if (attrName == names.TypeSignature) {
+            sym.type = readType(nextChar());
         } else {
             unrecognized(attrName);
             bp = bp + attrLen;

@@ -472,6 +472,7 @@ public class Name implements javax.lang.model.element.Name {
             RuntimeInvisibleParameterAnnotations = fromString("RuntimeInvisibleParameterAnnotations");
             Value = fromString("Value");
             EnclosingMethod = fromString("EnclosingMethod");
+            TypeSignature = fromString("TypeSignature");
 
             desiredAssertionStatus = fromString("desiredAssertionStatus");
 
@@ -606,6 +607,7 @@ public class Name implements javax.lang.model.element.Name {
 
         public final Name Value;
         public final Name EnclosingMethod;
+        public final Name TypeSignature;
 
         public final Name desiredAssertionStatus;
 

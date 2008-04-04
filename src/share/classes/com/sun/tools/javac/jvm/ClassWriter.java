@@ -26,7 +26,6 @@
 package com.sun.tools.javac.jvm;
 
 import java.io.*;
-import java.util.*;
 import java.util.Set;
 import java.util.HashSet;
 
@@ -144,6 +143,8 @@ public class ClassWriter extends ClassFile {
 
     /** Access to files. */
     private final JavaFileManager fileManager;
+    
+    private boolean preserveErrors = false;
 
     /** The tags and constants used in compressed stackmap. */
     static final int SAME_FRAME_SIZE = 64;
@@ -290,6 +291,12 @@ public class ClassWriter extends ClassFile {
             sigbuf.appendByte('V');
             break;
         case ERROR:
+            if (preserveErrors) {
+                sigbuf.appendByte('R');
+                assembleClassSig(type);
+                sigbuf.appendByte(';');
+                break;
+            }
             type = syms.objectType;
         case CLASS:
             sigbuf.appendByte('L');
@@ -673,6 +680,17 @@ public class ClassWriter extends ClassFile {
             acount++;
         }
         acount += writeJavaAnnotations(sym.getAnnotationMirrors());
+        if (sym.type.isErroneous()) {
+            int rsIdx = writeAttr(names.TypeSignature);
+            try {
+                preserveErrors = true;
+                databuf.appendChar(pool.put(typeSig(sym.type)));
+            } finally {
+                preserveErrors = false;
+            }
+            endAttr(rsIdx);
+            acount++;
+        }
         return acount;
     }
 
