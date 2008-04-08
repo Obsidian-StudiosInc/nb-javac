@@ -95,7 +95,7 @@ public class Repair extends TreeTranslator {
                     return tree;
             }
             hasError = false;
-            return (T)generateErrStat(tree.pos());
+            return (T)(tree.getTag() == JCTree.BLOCK ? make.Block(0, List.of(generateErrStat(tree.pos()))) : generateErrStat(tree.pos()));
         } finally {
             parents = parents.tail;            
             hasError |= prevHasError;

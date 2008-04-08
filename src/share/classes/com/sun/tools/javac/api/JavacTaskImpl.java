@@ -489,7 +489,7 @@ public class JavacTaskImpl extends JavacTask {
     public Iterable<? extends JavaFileObject> generate(Iterable<? extends TypeElement> classes) throws IOException {
         final ListBuffer<JavaFileObject> results = new ListBuffer<JavaFileObject>();
         try {
-            analyze(null);  // ensure all classes have been parsed, entered, and analyzed
+            analyze(classes);  // ensure all classes have been parsed, entered, and analyzed
 
             if (classes == null) {
                 compiler.generate(compiler.desugar(genList.toList()), results);
