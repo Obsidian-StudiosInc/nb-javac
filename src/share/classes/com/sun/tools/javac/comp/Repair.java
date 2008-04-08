@@ -24,15 +24,18 @@
  */
 package com.sun.tools.javac.comp;
 
+import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCErroneous;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCLiteral;
+import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.tree.JCTree.JCStatement;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
+import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.tree.TreeTranslator;
 import com.sun.tools.javac.util.Context;
@@ -77,24 +80,26 @@ public class Repair extends TreeTranslator {
 
     @Override
     public <T extends JCTree> T translate(T tree) {
-        if (hasError)
-            return tree;
-        if (errTrees.contains(tree)) {
-            hasError = true;
-        } else {
+        boolean prevHasError = hasError;
+        try {
+            hasError = false;
             parents = parents.prepend(tree);
             tree = super.translate(tree);
-            parents = parents.tail;
-        }
-        if (!(hasError && tree instanceof JCStatement))
-            return tree;
-        if (tree.getTag() == JCTree.CLASSDEF || tree.getTag() == JCTree.VARDEF) {
-            JCTree parent = parents.head;
-            if (parent == null || parent.getTag() != JCTree.BLOCK)
+            if (!hasError && errTrees.contains(tree))
+                hasError = true;
+            if (!(hasError && tree instanceof JCStatement))
                 return tree;
+            if (tree.getTag() == JCTree.CLASSDEF || tree.getTag() == JCTree.VARDEF) {
+                JCTree parent = parents.tail.head;
+                if (parent == null || parent.getTag() != JCTree.BLOCK)
+                    return tree;
+            }
+            hasError = false;
+            return (T)generateErrStat(tree.pos());
+        } finally {
+            parents = parents.tail;            
+            hasError |= prevHasError;
         }
-        hasError = false;
-        return (T)generateErrStat(tree.pos());
     }
 
     @Override
@@ -110,6 +115,15 @@ public class Repair extends TreeTranslator {
             }
         }
         result = tree;
+    }
+
+    @Override
+    public void visitApply(JCMethodInvocation tree) {
+        Symbol meth = TreeInfo.symbol(tree.meth);
+        if (meth == null || meth.type.isErroneous())
+            hasError = true;
+        else
+            super.visitApply(tree);
     }
 
     @Override

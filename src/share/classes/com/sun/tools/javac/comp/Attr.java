@@ -1252,7 +1252,7 @@ public class Attr extends JCTree.Visitor {
                     }
                 }
 
-                if (site.tag == CLASS || site.tag == ERROR) {
+                if (site.tag == CLASS) {
                     if (site.getEnclosingType().tag == CLASS) {
                         // we are calling a nested class
 
