@@ -1129,8 +1129,10 @@ public class Flow extends TreeScanner {
     public void visitApply(JCMethodInvocation tree) {
         scanExpr(tree.meth);
         scanExprs(tree.args);
-        for (List<Type> l = tree.meth.type.getThrownTypes(); l.nonEmpty(); l = l.tail)
-            markThrown(tree, l.head);
+        if (tree.meth.type != null) {
+            for (List<Type> l = tree.meth.type.getThrownTypes(); l.nonEmpty(); l = l.tail)
+                markThrown(tree, l.head);
+        }
     }
 
     public void visitNewClass(JCNewClass tree) {
