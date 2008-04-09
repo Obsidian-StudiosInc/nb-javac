@@ -1140,7 +1140,7 @@ public class Flow extends TreeScanner {
         scanExprs(tree.args);
         Symbol ctor = tree.constructor;
        // scan(tree.def);
-        if (ctor != null) {
+        if (ctor != null && ctor.type != null) {
         for (List<Type> l = ctor.type.getThrownTypes();
              l.nonEmpty();
              l = l.tail)

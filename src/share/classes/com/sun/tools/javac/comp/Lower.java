@@ -2607,6 +2607,8 @@ public class Lower extends TreeTranslator {
 
     /** Unbox an object to a primitive value. */
     JCExpression unbox(JCExpression tree, Type primitive) {
+        if (tree.type.isErroneous())
+            return tree;
         Type unboxedType = types.unboxedType(tree.type);
         // note: the "primitive" parameter is not used.  There muse be
         // a conversion from unboxedType to primitive.

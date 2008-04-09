@@ -34,7 +34,6 @@ import java.util.Set;
 import javax.tools.DiagnosticListener;
 import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.Source;
-import com.sun.tools.javac.comp.Repair;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
@@ -111,11 +110,10 @@ public class Log {
      */
     private JCDiagnostic.Factory diags;
     
-    private Repair repair;
-
     private boolean partialReparse;
 
     private final Set<Pair<JavaFileObject, Integer>> partialReparseRecorded = new HashSet<Pair<JavaFileObject,Integer>>();
+    private final Set<JCTree> errTrees = new HashSet<JCTree>();
 
     /** Construct a log with given I/O redirections.
      */
@@ -141,7 +139,6 @@ public class Log {
         DiagnosticListener<? super JavaFileObject> diagListener =
             context.get(DiagnosticListener.class);
         this.diagListener = diagListener;
-        repair = Repair.instance(context);
 
         Source source = Source.instance(context);
         this.enforceMandatoryWarnings = source.enforceMandatoryWarnings();
@@ -597,6 +594,8 @@ public class Log {
             break;
 
         case ERROR:
+            if (diagnostic.getTree() != null)
+                errTrees.add(diagnostic.getTree());
             if (nerrors < MaxErrors
                 && shouldReport(diagnostic.getSource(), diagnostic.getIntPosition())) {
                 writeDiagnostic(diagnostic);
@@ -610,8 +609,6 @@ public class Log {
      * Write out a diagnostic.
      */
     protected void writeDiagnostic(JCDiagnostic diag) {
-        if (diag.getTree() != null)
-            repair.markErrTree(diag.getTree());
         if (diagListener != null) {
             try {
                 diagListener.report(diag);
@@ -752,5 +749,8 @@ public class Log {
     public static String format(String fmt, Object... args) {
         return String.format((java.util.Locale)null, fmt, args);
     }
-
+    
+    public boolean isErrTree(JCTree tree) {
+        return errTrees.contains(tree);
+    }
 }
