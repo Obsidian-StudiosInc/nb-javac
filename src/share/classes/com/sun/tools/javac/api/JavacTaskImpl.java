@@ -377,7 +377,7 @@ public class JavacTaskImpl extends JavacTask {
         final java.util.List<CompilationUnitTree> toEnter = new java.util.ArrayList ();
         final java.util.List<TypeElement> result = new java.util.ArrayList ();
         for (CompilationUnitTree tree : trees) {
-            final java.util.Collection<TypeElement> te = this.getEnteredElement(tree);
+            final java.util.Collection<TypeElement> te = this.getEnteredElements(tree);
             if (te.isEmpty()) {
                 toEnter.add (tree);
             }
@@ -395,14 +395,16 @@ public class JavacTaskImpl extends JavacTask {
     }
 
 
-    private java.util.Collection<TypeElement> getEnteredElement (final CompilationUnitTree tree) {
-        assert tree != null;
-        final java.util.List<Env<AttrContext>> todo = compiler.todo.toList();
+    private java.util.Collection<TypeElement> getEnteredElements (final CompilationUnitTree tree) {
+        assert tree instanceof JCCompilationUnit;
         final java.util.List<TypeElement> result = new java.util.ArrayList<TypeElement>();
-        for (Env<AttrContext> env : todo) {
-            if (env.toplevel.getSourceFile().toUri().equals (((JCCompilationUnit)tree).getSourceFile().toUri())) {
-                this.notYetEntered.remove (((JCCompilationUnit)tree).getSourceFile());
-                result.add(((JCClassDecl)env.tree).sym);
+        if (((JCCompilationUnit)tree).packge != null) {
+            for (JCTree t : ((JCCompilationUnit)tree).defs) {
+                if (t.getTag() == JCTree.CLASSDEF) {
+                    ClassSymbol sym = ((JCClassDecl)t).sym;
+                    if (sym != null)
+                        result.add(sym);
+                }
             }
         }
         return result;
@@ -489,7 +491,7 @@ public class JavacTaskImpl extends JavacTask {
     public Iterable<? extends JavaFileObject> generate(Iterable<? extends TypeElement> classes) throws IOException {
         final ListBuffer<JavaFileObject> results = new ListBuffer<JavaFileObject>();
         try {
-            analyze(classes);  // ensure all classes have been parsed, entered, and analyzed
+            analyze(null);  // ensure all classes have been parsed, entered, and analyzed
 
             if (classes == null) {
                 compiler.generate(compiler.desugar(genList.toList()), results);

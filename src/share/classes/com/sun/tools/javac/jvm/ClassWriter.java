@@ -437,6 +437,8 @@ public class ClassWriter extends ClassFile {
      *  external representation.
      */
     public Name xClassName(Type t) {
+        if (t.tag == ERROR)
+            t = syms.objectType;
         if (t.tag == CLASS) {
             return names.fromUtf(externalize(t.tsym.flatName()));
         } else if (t.tag == ARRAY) {
@@ -1200,6 +1202,8 @@ public class ClassWriter extends ClassFile {
                 if (debugstackmap) System.out.print("null");
                 databuf.appendByte(5);
                 break;
+            case ERROR:
+                t = syms.objectType;
             case CLASS:
             case ARRAY:
                 if (debugstackmap) System.out.print("object(" + t + ")");

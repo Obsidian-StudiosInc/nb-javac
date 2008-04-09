@@ -25,9 +25,15 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symtab;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ClassType;
+import com.sun.tools.javac.code.TypeTags;
+import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCBlock;
+import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCErroneous;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCLiteral;
@@ -41,6 +47,8 @@ import com.sun.tools.javac.tree.TreeTranslator;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.Log;
+import com.sun.tools.javac.util.Name;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -65,37 +73,45 @@ public class Repair extends TreeTranslator {
 
     private Symtab syms;
     private Resolve rs;
+    private Enter enter;
+    private Types types;
+    private Log log;
     private TreeMaker make;
     
     private Env<AttrContext> attrEnv;
     private boolean hasError;
-    List<JCTree> parents;
-    private Set<JCTree> errTrees = new HashSet<JCTree>();
+    private List<JCTree> parents;
+    private Set<Name> repairedClassNames = new HashSet<Name>();
     
     private Repair(Context context) {
         context.put(repairKey, this);
         syms = Symtab.instance(context);
         rs = Resolve.instance(context);
+        enter = Enter.instance(context);
+        types = Types.instance(context);
+        log = Log.instance(context);
     }
 
     @Override
     public <T extends JCTree> T translate(T tree) {
+        if (tree == null)
+            return null;
         boolean prevHasError = hasError;
         try {
             hasError = false;
             parents = parents.prepend(tree);
             tree = super.translate(tree);
-            if (!hasError && errTrees.contains(tree))
+            if (!hasError && tree.getTag() != JCTree.BLOCK && log.isErrTree(tree))
                 hasError = true;
             if (!(hasError && tree instanceof JCStatement))
                 return tree;
             if (tree.getTag() == JCTree.CLASSDEF || tree.getTag() == JCTree.VARDEF) {
                 JCTree parent = parents.tail.head;
-                if (parent == null || parent.getTag() != JCTree.BLOCK)
+                if (parent == null || (parent.getTag() != JCTree.BLOCK && parent.getTag() != JCTree.CASE))
                     return tree;
             }
             hasError = false;
-            return (T)(tree.getTag() == JCTree.BLOCK ? make.Block(0, List.of(generateErrStat(tree.pos()))) : generateErrStat(tree.pos()));
+            return (T)generateErrStat(tree.pos());
         } finally {
             parents = parents.tail;            
             hasError |= prevHasError;
@@ -103,16 +119,34 @@ public class Repair extends TreeTranslator {
     }
 
     @Override
+    public void visitClassDef(JCClassDecl tree) {
+        translateClass(tree.sym);
+        result = tree;
+    }
+
+    @Override
     public void visitVarDef(JCVariableDecl tree) {
-        tree.mods = translate(tree.mods);
-        tree.vartype = translate(tree.vartype);
-        if (!hasError) {
-            tree.init = translate(tree.init);
-            if (hasError) {
-                JCTree parent = parents != null ? parents.tail.head : null;
-                if (parent != null && parent.getTag() == JCTree.CLASSDEF)
-                    tree.init = generateErrExpr(tree.init.pos());
+        super.visitVarDef(tree);
+        if (hasError && tree.init != null) {
+            JCTree parent = parents != null ? parents.tail.head : null;
+            if (parent != null && parent.getTag() == JCTree.CLASSDEF)
+                tree.init = generateErrExpr(tree.init.pos());
+        }
+    }
+
+    @Override
+    public void visitBlock(JCBlock tree) {
+        if (log.isErrTree(tree)) {
+            tree.stats = List.of(generateErrStat(tree));
+        } else {
+            List<JCStatement> last = null;
+            for (List<JCStatement> l = tree.stats; l.nonEmpty(); l = l.tail) {
+                l.head = translate(l.head);
+                if (last == null && l.head.getTag() == JCTree.THROW)
+                    last = l;
             }
+            if (last != null)
+                last.tail = List.nil();
         }
         result = tree;
     }
@@ -120,10 +154,23 @@ public class Repair extends TreeTranslator {
     @Override
     public void visitApply(JCMethodInvocation tree) {
         Symbol meth = TreeInfo.symbol(tree.meth);
-        if (meth == null || meth.type.isErroneous())
+        if (meth == null || meth.type == null || meth.type.isErroneous()) {
             hasError = true;
-        else
+            result = tree;
+        } else {
             super.visitApply(tree);
+        }
+    }
+
+    @Override
+    public void visitNewClass(JCNewClass tree) {
+        Symbol ctor = tree.constructor;
+        if (ctor == null || ctor.type == null || ctor.type.isErroneous()) {
+            hasError = true;
+            result = tree;
+        } else {
+            super.visitNewClass(tree);
+        }
     }
 
     @Override
@@ -148,10 +195,32 @@ public class Repair extends TreeTranslator {
         return expr;
     }
     
-    public void markErrTree(JCTree tree) {
-        errTrees.add(tree);
+    private void translateClass(ClassSymbol c) {
+        Type st = types.supertype(c.type);
+        if (st.tag == TypeTags.CLASS)
+            translateClass((ClassSymbol)st.tsym);
+        if (repairedClassNames.contains(c.flatname))
+            return;
+        repairedClassNames.add(c.flatname);
+        Env<AttrContext> myEnv = enter.typeEnvs.get(c);
+        if (myEnv == null)
+            return;
+        Env<AttrContext> oldEnv = attrEnv;
+        try {
+            attrEnv = myEnv;
+            TreeMaker oldMake = make;
+            make = make.forToplevel(attrEnv.toplevel);
+            try {
+                JCClassDecl tree = (JCClassDecl)attrEnv.tree;
+                super.visitClassDef(tree);
+            } finally {
+                make = oldMake;
+            }
+        } finally {
+            attrEnv = oldEnv;
+        }
     }
-    
+
     public JCTree translateTopLevelClass(Env<AttrContext> env, JCTree tree, TreeMaker localMake) {
         try {
             attrEnv = env;
