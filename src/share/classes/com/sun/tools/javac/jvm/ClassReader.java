@@ -936,6 +936,7 @@ public class ClassReader extends ClassFile implements Completer {
             bp = newbp;
         } else if (attrName == names.TypeSignature) {
             sym.type = readType(nextChar());
+            sym.name = sym.name.subName(0, sym.name.indexOf((byte)'+'));
         } else {
             unrecognized(attrName);
             bp = bp + attrLen;
