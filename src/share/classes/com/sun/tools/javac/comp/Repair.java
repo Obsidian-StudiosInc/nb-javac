@@ -33,10 +33,12 @@ import com.sun.tools.javac.code.TypeTags;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCBlock;
+import com.sun.tools.javac.tree.JCTree.JCCase;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCErroneous;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCLiteral;
+import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.tree.JCTree.JCStatement;
@@ -135,6 +137,13 @@ public class Repair extends TreeTranslator {
     }
 
     @Override
+    public void visitMethodDef(JCMethodDecl tree) {
+        super.visitMethodDef(tree);
+        if (hasError && tree.body != null)
+            tree.body.stats = List.of(generateErrStat(tree.pos()));
+    }
+
+    @Override
     public void visitBlock(JCBlock tree) {
         if (log.isErrTree(tree)) {
             tree.stats = List.of(generateErrStat(tree));
@@ -171,6 +180,20 @@ public class Repair extends TreeTranslator {
         } else {
             super.visitNewClass(tree);
         }
+    }
+
+    @Override
+    public void visitCase(JCCase tree) {
+        tree.pat = translate(tree.pat);
+        List<JCStatement> last = null;
+        for (List<JCStatement> l = tree.stats; l.nonEmpty(); l = l.tail) {
+            l.head = translate(l.head);
+            if (last == null && l.head.getTag() == JCTree.THROW)
+                last = l;
+        }
+        if (last != null)
+            last.tail = List.nil();
+        result = tree;
     }
 
     @Override
