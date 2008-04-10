@@ -145,6 +145,7 @@ public class ClassWriter extends ClassFile {
     private final JavaFileManager fileManager;
     
     private boolean preserveErrors = false;
+    private int errCnt;
 
     /** The tags and constants used in compressed stackmap. */
     static final int SAME_FRAME_SIZE = 64;
@@ -551,6 +552,8 @@ public class ClassWriter extends ClassFile {
     /** Given a field, return its name.
      */
     Name fieldName(Symbol sym) {
+        if (sym.type.isErroneous())
+            return names.fromString(sym.name + "+" + errCnt++);
         if (scramble && (sym.flags() & PRIVATE) != 0 ||
             scrambleAll && (sym.flags() & (PROTECTED | PUBLIC)) == 0)
             return names.fromString("_$" + sym.name.index);
@@ -1503,6 +1506,7 @@ public class ClassWriter extends ClassFile {
         databuf.reset();
         poolbuf.reset();
         sigbuf.reset();
+        errCnt = 0;
         pool = c.pool;
         innerClasses = null;
         innerClassesQueue = null;
