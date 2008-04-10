@@ -98,26 +98,29 @@ public class Repair extends TreeTranslator {
     public <T extends JCTree> T translate(T tree) {
         if (tree == null)
             return null;
-        boolean prevHasError = hasError;
+        parents = parents.prepend(tree);
         try {
-            hasError = false;
-            parents = parents.prepend(tree);
-            tree = super.translate(tree);
-            if (!hasError && tree.getTag() != JCTree.BLOCK && log.isErrTree(tree))
+            if (hasError)
+                return super.translate(tree);
+            if (log.isErrTree(tree))
                 hasError = true;
-            if (!(hasError && tree instanceof JCStatement))
-                return tree;
-            if (tree.getTag() == JCTree.CLASSDEF || tree.getTag() == JCTree.VARDEF) {
-                JCTree parent = parents.tail.head;
-                if (parent == null || (parent.getTag() != JCTree.BLOCK && parent.getTag() != JCTree.CASE))
-                    return tree;
-            }
-            hasError = false;
-            return (T)generateErrStat(tree.pos());
+            tree = super.translate(tree);
         } finally {
             parents = parents.tail;            
-            hasError |= prevHasError;
         }
+        if (!(hasError && tree instanceof JCStatement))
+            return tree;
+        if (tree.getTag() == JCTree.CLASSDEF || tree.getTag() == JCTree.VARDEF) {
+            JCTree parent = parents.head;
+            if (parent == null || (parent.getTag() != JCTree.BLOCK && parent.getTag() != JCTree.CASE))
+                return tree;
+        }
+        hasError = false;
+        if (tree.getTag() == JCTree.BLOCK) {
+            ((JCBlock)tree).stats = List.of(generateErrStat(tree.pos()));
+            return tree;
+        }
+        return (T)generateErrStat(tree.pos());
     }
 
     @Override
@@ -129,57 +132,53 @@ public class Repair extends TreeTranslator {
     @Override
     public void visitVarDef(JCVariableDecl tree) {
         super.visitVarDef(tree);
-        if (hasError && tree.init != null) {
+        if (hasError) {
             JCTree parent = parents != null ? parents.tail.head : null;
-            if (parent != null && parent.getTag() == JCTree.CLASSDEF)
-                tree.init = generateErrExpr(tree.init.pos());
+            if (parent != null && parent.getTag() == JCTree.CLASSDEF) {
+                if (tree.init != null)
+                    tree.init = generateErrExpr(tree.init.pos());
+                hasError = false;
+            }
         }
     }
 
     @Override
     public void visitMethodDef(JCMethodDecl tree) {
         super.visitMethodDef(tree);
-        if (hasError && tree.body != null)
-            tree.body.stats = List.of(generateErrStat(tree.pos()));
+        if (hasError) {
+            if (tree.body != null)
+                tree.body.stats = List.of(generateErrStat(tree.pos()));
+            hasError = false;
+        }
     }
 
     @Override
     public void visitBlock(JCBlock tree) {
-        if (log.isErrTree(tree)) {
-            tree.stats = List.of(generateErrStat(tree));
-        } else {
-            List<JCStatement> last = null;
-            for (List<JCStatement> l = tree.stats; l.nonEmpty(); l = l.tail) {
-                l.head = translate(l.head);
-                if (last == null && l.head.getTag() == JCTree.THROW)
-                    last = l;
-            }
-            if (last != null)
-                last.tail = List.nil();
+        List<JCStatement> last = null;
+        for (List<JCStatement> l = tree.stats; l.nonEmpty(); l = l.tail) {
+            l.head = translate(l.head);
+            if (last == null && l.head.getTag() == JCTree.THROW)
+                last = l;
         }
+        if (last != null)
+            last.tail = List.nil();
         result = tree;
     }
 
     @Override
     public void visitApply(JCMethodInvocation tree) {
         Symbol meth = TreeInfo.symbol(tree.meth);
-        if (meth == null || meth.type == null || meth.type.isErroneous()) {
+        if (meth == null || meth.type == null || meth.type.isErroneous())
             hasError = true;
-            result = tree;
-        } else {
-            super.visitApply(tree);
-        }
+        super.visitApply(tree);
     }
 
     @Override
     public void visitNewClass(JCNewClass tree) {
         Symbol ctor = tree.constructor;
-        if (ctor == null || ctor.type == null || ctor.type.isErroneous()) {
+        if (ctor == null || ctor.type == null || ctor.type.isErroneous())
             hasError = true;
-            result = tree;
-        } else {
-            super.visitNewClass(tree);
-        }
+        super.visitNewClass(tree);
     }
 
     @Override
@@ -219,6 +218,8 @@ public class Repair extends TreeTranslator {
     }
     
     private void translateClass(ClassSymbol c) {
+        if (c == null)
+            return;
         Type st = types.supertype(c.type);
         if (st.tag == TypeTags.CLASS)
             translateClass((ClassSymbol)st.tsym);
@@ -233,10 +234,21 @@ public class Repair extends TreeTranslator {
             attrEnv = myEnv;
             TreeMaker oldMake = make;
             make = make.forToplevel(attrEnv.toplevel);
+            boolean oldHasError = hasError;
             try {
                 JCClassDecl tree = (JCClassDecl)attrEnv.tree;
-                super.visitClassDef(tree);
+                tree.mods = translate(tree.mods);
+                tree.typarams = translateTypeParams(tree.typarams);
+                tree.extending = translate(tree.extending);
+                tree.implementing = translate(tree.implementing);
+                if (tree.defs != null) {
+                    for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
+                        hasError = false;
+                        l.head = translate(l.head);
+                    }
+                }
             } finally {
+                hasError = oldHasError;
                 make = oldMake;
             }
         } finally {
