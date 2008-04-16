@@ -934,9 +934,20 @@ public class ClassReader extends ClassFile implements Completer {
             int newbp = bp + attrLen;
             readEnclosingMethodAttr(sym);
             bp = newbp;
-        } else if (attrName == names.TypeSignature) {
+        } else if (attrName == names._org_netbeans_TypeSignature) {
             sym.type = readType(nextChar());
             sym.name = sym.name.subName(0, sym.name.indexOf((byte)'+'));
+        } else if (attrName == names._org_netbeans_ParameterNames) {
+            List<Name> parameterNames = List.nil();
+            int numParams = sym.type.getParameterTypes().length();
+            for (int i = 0; i < numParams; i++)
+                parameterNames = parameterNames.prepend(readName(nextChar()));
+            parameterNames = parameterNames.reverse();
+            ((MethodSymbol)sym).savedParameterNames = parameterNames;
+        } else if (attrName == names._org_netbeans_SourceLevelAnnotations) {
+            attachAnnotations(sym);
+        } else if (attrName == names._org_netbeans_SourceLevelParameterAnnotations) {
+            attachParameterAnnotations(sym);
         } else {
             unrecognized(attrName);
             bp = bp + attrLen;
