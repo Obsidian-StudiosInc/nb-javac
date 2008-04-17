@@ -93,6 +93,7 @@ public class JavacTaskImpl extends JavacTask {
         args.getClass();
         context.getClass();
         fileObjects.getClass();
+        this.context.put(JavacTaskImpl.class, this);
     }
 
     JavacTaskImpl(JavacTool tool,
@@ -181,7 +182,6 @@ public class JavacTaskImpl extends JavacTask {
     }
 
     private void beginContext() {
-        context.put(JavacTaskImpl.class, this);
         if (context.get(TaskListener.class) != null)
             context.put(TaskListener.class, (TaskListener)null);
         if (taskListener != null)
