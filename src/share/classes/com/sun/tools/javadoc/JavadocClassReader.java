@@ -48,9 +48,13 @@ public class JavadocClassReader extends ClassReader {
     }
 
     public static void preRegister(final Context context) {
+        preRegister(context, true);
+    }
+    
+    public static void preRegister(final Context context, final boolean loadDocEnv) {
         context.put(classReaderKey, new Context.Factory<ClassReader>() {
             public ClassReader make() {
-                return new JavadocClassReader(context, true);
+                return new JavadocClassReader(context, loadDocEnv);
             }
         });
     }
