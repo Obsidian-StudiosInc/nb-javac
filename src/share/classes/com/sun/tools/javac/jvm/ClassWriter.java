@@ -89,6 +89,8 @@ public class ClassWriter extends ClassFile {
     /** Switch: describe the generated stackmap
      */
     boolean debugstackmap;
+    
+    public String erroneousMarkChar = "+";
 
     /**
      * Target class version.
@@ -553,7 +555,7 @@ public class ClassWriter extends ClassFile {
      */
     Name fieldName(Symbol sym) {
         if (sym.externalType(types).isErroneous())
-            return names.fromString(sym.name + "+" + errCnt++);
+            return names.fromString(sym.name + erroneousMarkChar + errCnt++);
         if (scramble && (sym.flags() & PRIVATE) != 0 ||
             scrambleAll && (sym.flags() & (PROTECTED | PUBLIC)) == 0)
             return names.fromString("_$" + sym.name.index);
