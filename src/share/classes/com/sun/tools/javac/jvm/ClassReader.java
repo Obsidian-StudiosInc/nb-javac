@@ -1762,7 +1762,7 @@ public class ClassReader extends ClassFile implements Completer {
             c = defineClass(name, owner);
             c.flatname = flatname;
             classes.put(flatname, c);
-        } else if ((c.name != name || c.owner != owner) && c.owner.kind == PCK) {
+        } else if ((c.name != name || c.owner != owner) && (c.owner.kind & (PCK | TYP)) != 0) {
             // reassign fields of classes that might have been loaded with
             // their flat names.
             c.owner.members().remove(c);
