@@ -721,8 +721,7 @@ public class Flow extends TreeScanner {
                 PendingExit exit = exits.head;
                 exits = exits.tail;
                 if (exit.thrown == null) {
-                    assert exit.tree.getTag() == JCTree.RETURN;
-                    if (isInitialConstructor) {
+                    if (isInitialConstructor && exit.tree.getTag() == JCTree.RETURN) {
                         inits = exit.inits;
                         for (int i = firstadr; i < nextadr; i++)
                             checkInit(exit.tree.pos(), vars[i]);
