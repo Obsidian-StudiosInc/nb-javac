@@ -53,10 +53,6 @@ public class Test122900 extends TestCase {
         }
     }
 
-    /**Superseded by test/tools/javac/api/6608214/T6608214.java
-     * keeping here for convenience
-     * 
-     */
     public void test122900() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
