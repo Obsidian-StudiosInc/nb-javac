@@ -508,6 +508,7 @@ public class JavacTaskImpl extends JavacTask {
             if (genList.isEmpty()) {
                 compiler.reportDeferredDiagnostics();
                 compiler.log.flush();
+                compiler.repair.flush();
                 endContext();
             }
         }

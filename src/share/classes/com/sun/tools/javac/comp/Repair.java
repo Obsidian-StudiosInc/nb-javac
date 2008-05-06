@@ -268,4 +268,8 @@ public class Repair extends TreeTranslator {
             make = null;
         }
     }
+    
+    public void flush() {
+        repairedClassNames.clear();
+    }
 }

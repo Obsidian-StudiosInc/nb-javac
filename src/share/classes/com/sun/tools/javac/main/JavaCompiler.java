@@ -244,7 +244,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
     
     /** The error repairer.
      */
-    Repair repair;
+    public Repair repair;
     
     /** The type eraser.
      */
