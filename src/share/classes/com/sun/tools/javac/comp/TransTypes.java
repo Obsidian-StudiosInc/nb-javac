@@ -151,7 +151,7 @@ public class TransTypes extends TreeTranslator {
      */
     JCExpression retype(JCExpression tree, Type erasedType, Type target) {
 //      System.err.println("retype " + tree + " to " + erasedType);//DEBUG
-        if (erasedType.tag > lastBaseTag) {
+        if (erasedType != null && erasedType.tag > lastBaseTag) {
             if (target != null && target.isPrimitive())
                 target = erasure(tree.type);
             tree.type = erasedType;
