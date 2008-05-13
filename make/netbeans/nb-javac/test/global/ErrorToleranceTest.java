@@ -96,6 +96,26 @@ public class ErrorToleranceTest extends TestCase {
         compareResults(golden, code);
     }
 
+    public void testInvalidCase() throws Exception {
+        final String code = "package test;\n" +
+                      "public class Test {\n" +
+                      "    private void method(int i) {\n" +
+                      "        switch(i) {\n" +
+                      "            case Unknown.CONSTANT:\n" +
+                      "                break;\n" +                      
+                      "    }\n" +
+                      "}\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {\n" +
+                      "    private void method(int i) {\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code\");" +
+                      "    }\n" +
+                      "}\n";
+        
+        compareResults(golden, code);
+    }
+
     //<editor-fold defaultstate="collapsed" desc=" Test Infrastructure ">
     static class MyFileObject extends SimpleJavaFileObject {
         private String text;

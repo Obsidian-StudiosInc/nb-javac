@@ -110,6 +110,8 @@ public class Repair extends TreeTranslator {
         }
         if (!(hasError && tree instanceof JCStatement))
             return tree;
+        if (tree.getTag() == JCTree.CASE)
+            return tree;
         if (tree.getTag() == JCTree.CLASSDEF || tree.getTag() == JCTree.VARDEF) {
             JCTree parent = parents.head;
             if (parent == null || (parent.getTag() != JCTree.BLOCK && parent.getTag() != JCTree.CASE))
