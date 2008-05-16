@@ -2098,7 +2098,11 @@ public class ClassReader extends ClassFile implements Completer {
     private boolean isSigOverClass (final JavaFileObject a, final JavaFileObject b) {
         String patha = a.getName().toLowerCase();
         String pathb = b.getName().toLowerCase();
-        return pathb.endsWith(".sig") && patha.endsWith(".class");  //NOI18N
+        if (pathb.endsWith(".sig"))  //NOI18N
+            return patha.endsWith(".class");  //NOI18N
+        else if (pathb.endsWith(".class"))  //NOI18N
+            return patha.endsWith(".class") && b.getLastModified() >= a.getLastModified();  //NOI18N
+        return false;
     }
 
     /** Implement policy to choose to derive information from a source
