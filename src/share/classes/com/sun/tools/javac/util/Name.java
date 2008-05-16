@@ -472,10 +472,10 @@ public class Name implements javax.lang.model.element.Name {
             RuntimeInvisibleParameterAnnotations = fromString("RuntimeInvisibleParameterAnnotations");
             Value = fromString("Value");
             EnclosingMethod = fromString("EnclosingMethod");
-            _org_netbeans_TypeSignature = fromString("_org_netbeans_TypeSignature");
-            _org_netbeans_ParameterNames = fromString("_org_netbeans_ParameterNames");
-            _org_netbeans_SourceLevelAnnotations = fromString("_org_netbeans_SourceLevelAnnotations");
-            _org_netbeans_SourceLevelParameterAnnotations = fromString("_org_netbeans_SourceLevelParameterAnnotations");
+            _org_netbeans_TypeSignature = fromString("org.netbeans.TypeSignature");
+            _org_netbeans_ParameterNames = fromString("org.netbeans.ParameterNames");
+            _org_netbeans_SourceLevelAnnotations = fromString("org.netbeans.SourceLevelAnnotations");
+            _org_netbeans_SourceLevelParameterAnnotations = fromString("org.netbeans.SourceLevelParameterAnnotations");
 
             desiredAssertionStatus = fromString("desiredAssertionStatus");
 
