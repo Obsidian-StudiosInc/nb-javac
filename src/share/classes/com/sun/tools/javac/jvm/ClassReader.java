@@ -936,7 +936,6 @@ public class ClassReader extends ClassFile implements Completer {
             bp = newbp;
         } else if (attrName == names._org_netbeans_TypeSignature) {
             sym.type = readType(nextChar());
-            sym.name = sym.name.subName(0, sym.name.indexOf((byte)'+'));
         } else if (attrName == names._org_netbeans_ParameterNames) {
             List<Name> parameterNames = List.nil();
             int numParams = sym.type.getParameterTypes().length();
