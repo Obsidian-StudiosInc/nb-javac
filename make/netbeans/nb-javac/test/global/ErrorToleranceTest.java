@@ -26,8 +26,6 @@
 package global;
 
 import com.sun.source.util.JavacTask;
-import com.sun.tools.javac.api.JavacTaskImpl;
-import com.sun.tools.javac.jvm.ClassWriter;
 import com.sun.tools.javac.util.BaseFileObject;
 import java.io.File;
 import java.io.IOException;
@@ -70,7 +68,7 @@ public class ErrorToleranceTest extends TestCase {
 
         final String golden = "package test;\n" +
                       "public class Test {\n" +
-                      "    private void methodx0(Object u) {\n" +
+                      "    private void method(Unknown u) {\n" +
                       "        throw new RuntimeException(\"Uncompilable source code\");" +
                       "    }\n" +
                       "}\n";
@@ -91,6 +89,68 @@ public class ErrorToleranceTest extends TestCase {
                       "    private void method(Object u) {\n" +
                       "        throw new RuntimeException(\"Uncompilable source code\");" +
                       "    }\n" +
+                      "}\n";
+        
+        compareResults(golden, code);
+    }
+
+    public void testSimple3() throws Exception {
+        final String code = "package test;\n" +
+                      "public class Test {\n" +
+                      "    private void method(Object o) {\n" +
+                      "    }\n" +
+                      "    private void method(Unknown u) {\n" +
+                      "    }\n" +
+                      "}\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {\n" +
+                      "    private void method(Object o) {\n" +
+                      "    }\n" +
+                      "    private void method(Unknown u) {\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code\");" +
+                      "    }\n" +
+                      "}\n";
+        
+        compareResults(golden, code);
+    }
+
+    public void testInvalidFieldInit() throws Exception {
+        final String code = "package test;\n" +
+                      "public class Test {\n" +
+                      "    public Test() {\n" +
+                      "    }\n" +
+                      "    public Test(Object o) {\n" +
+                      "    }\n" +
+                      "    private String s = bflmpsvz;\n" +
+                      "}\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {\n" +
+                      "    public Test() {\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code\");" +
+                      "    }\n" +
+                      "    public Test(Object o) {\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code\");" +
+                      "    }\n" +
+                      "    private String s;\n" +
+                      "}\n";
+        
+        compareResults(golden, code);
+    }
+
+    public void testInvalidStaticFieldInit() throws Exception {
+        final String code = "package test;\n" +
+                      "public class Test {\n" +
+                      "    private static String s = bflmpsvz;\n" +
+                      "}\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {\n" +
+                      "    static {\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code\");" +
+                      "    }\n" +
+                      "    private static String s;\n" +
                       "}\n";
         
         compareResults(golden, code);
@@ -160,8 +220,6 @@ public class ErrorToleranceTest extends TestCase {
         std.setLocation(StandardLocation.CLASS_OUTPUT, Collections.singleton(workingDir));
         
         JavacTask ct = (JavacTask)tool.getTask(null, mjfm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
-
-        ClassWriter.instance(((JavacTaskImpl) ct).getContext()).erroneousMarkChar = "x";
         
         ct.parse();
         ct.analyze();
