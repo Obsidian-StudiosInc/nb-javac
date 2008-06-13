@@ -966,7 +966,7 @@ public class Check {
         return
             (exc.tag == TYPEVAR) ? isUnchecked(types.supertype(exc)) :
             (exc.tag == CLASS) ? isUnchecked((ClassSymbol)exc.tsym) :
-            exc.tag == BOT;
+            exc.tag == BOT || exc.tag == ERROR;
     }
 
     /** Same, but handling completion failures.

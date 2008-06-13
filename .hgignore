@@ -4,3 +4,4 @@
 ^make/netbeans/hudson/cache/
 ^build/
 ^dist/
+^make/netbeans/nb-javac/ext/

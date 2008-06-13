@@ -109,11 +109,11 @@ public class Log {
      * Factory for diagnostics
      */
     private JCDiagnostic.Factory diags;
-
-
+    
     private boolean partialReparse;
 
     private final Set<Pair<JavaFileObject, Integer>> partialReparseRecorded = new HashSet<Pair<JavaFileObject,Integer>>();
+    private final Set<JCTree> errTrees = new HashSet<JCTree>();
 
     /** Construct a log with given I/O redirections.
      */
@@ -594,6 +594,8 @@ public class Log {
             break;
 
         case ERROR:
+            if (diagnostic.getTree() != null)
+                errTrees.add(diagnostic.getTree());
             if (nerrors < MaxErrors
                 && shouldReport(diagnostic.getSource(), diagnostic.getIntPosition())) {
                 writeDiagnostic(diagnostic);
@@ -747,5 +749,8 @@ public class Log {
     public static String format(String fmt, Object... args) {
         return String.format((java.util.Locale)null, fmt, args);
     }
-
+    
+    public boolean isErrTree(JCTree tree) {
+        return errTrees.contains(tree);
+    }
 }

@@ -234,6 +234,7 @@ public class Code {
         case DOUBLE: return DOUBLEcode;
         case BOOLEAN: return BYTEcode;
         case VOID: return VOIDcode;
+        case ERROR:
         case CLASS:
         case ARRAY:
         case METHOD:

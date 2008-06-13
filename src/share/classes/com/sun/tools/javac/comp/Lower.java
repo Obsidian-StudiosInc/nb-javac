@@ -2159,9 +2159,11 @@ public class Lower extends TreeTranslator {
     /** Translate an enumeration constant and its initializer. */
     private void visitEnumConstantDef(JCVariableDecl var, int ordinal) {
         JCNewClass varDef = (JCNewClass)var.init;
-        varDef.args = varDef.args.
-            prepend(makeLit(syms.intType, ordinal)).
-            prepend(makeLit(syms.stringType, var.name.toString()));
+        if (varDef != null) {
+            varDef.args = varDef.args.
+                prepend(makeLit(syms.intType, ordinal)).
+                prepend(makeLit(syms.stringType, var.name.toString()));
+        }
     }
 
     public void visitMethodDef(JCMethodDecl tree) {
@@ -2607,9 +2609,13 @@ public class Lower extends TreeTranslator {
 
     /** Unbox an object to a primitive value. */
     JCExpression unbox(JCExpression tree, Type primitive) {
+        if (tree.type.isErroneous())
+            return tree;
         Type unboxedType = types.unboxedType(tree.type);
         // note: the "primitive" parameter is not used.  There muse be
         // a conversion from unboxedType to primitive.
+        if (unboxedType.tsym == null)
+            return tree;
         make_at(tree.pos());
         Symbol valueSym = lookupMethod(tree.pos(),
                                        unboxedType.tsym.name.append(names.Value), // x.intValue()
