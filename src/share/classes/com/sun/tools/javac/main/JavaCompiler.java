@@ -241,7 +241,11 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
     /** The flow analyzer.
      */
     protected Flow flow;
-
+    
+    /** The error repairer.
+     */
+    public Repair repair;
+    
     /** The type eraser.
      */
     TransTypes transTypes;
@@ -333,6 +337,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         chk = Check.instance(context);
         gen = Gen.instance(context);
         flow = Flow.instance(context);
+        repair = Repair.instance(context);
         transTypes = TransTypes.instance(context);
         lower = Lower.instance(context);
         annotate = Annotate.instance(context);
@@ -1081,7 +1086,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         for (List<Env<AttrContext>> l = envs; l.nonEmpty(); l = l.tail) {
             flow(l.head, results);
         }
-        return stopIfError(results);
+        return results.toList();
     }
 
     /**
@@ -1090,7 +1095,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
     public List<Env<AttrContext>> flow(Env<AttrContext> env) {
         ListBuffer<Env<AttrContext>> results = lb();
         flow(env, results);
-        return stopIfError(results);
+        return results.toList();
     }
 
     /**
@@ -1098,9 +1103,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      */
     protected void flow(Env<AttrContext> env, ListBuffer<Env<AttrContext>> results) {
         try {
-            if (errorCount() > 0)
-                return;
-
             if (relax || deferredSugar.contains(env)) {
                 results.append(env);
                 return;
@@ -1122,8 +1124,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 if (flowListener != null) {
                     flowListener.flowFinished (env);
                 }
-                if (errorCount() > 0)
-                    return;
 
                 results.append(env);
             }
@@ -1149,7 +1149,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         ListBuffer<Pair<Env<AttrContext>, JCClassDecl>> results = lb();
         for (List<Env<AttrContext>> l = envs; l.nonEmpty(); l = l.tail)
             desugar(l.head, results);
-        return stopIfError(results);
+        return results.toList();
     }
 
     /**
@@ -1159,9 +1159,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      * The preparation stops as soon as an error is found.
      */
     protected void desugar(Env<AttrContext> env, ListBuffer<Pair<Env<AttrContext>, JCClassDecl>> results) {
-        if (errorCount() > 0)
-            return;
-
         if (implicitSourcePolicy == ImplicitSourcePolicy.NONE
                 && !inputFiles.contains(env.toplevel.sourcefile)) {
             return;
@@ -1198,6 +1195,8 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 }
                 return;
             }
+            
+            env.tree = repair.translateTopLevelClass(env, env.tree, localMake);
 
             if (stubOutput) {
                 //emit stub Java source file, only for compilation
@@ -1214,9 +1213,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
 
             env.tree = transTypes.translateTopLevelClass(env.tree, localMake);
 
-            if (errorCount() != 0)
-                return;
-
             if (sourceOutput) {
                 //emit standard Java source file, only for compilation
                 //units enumerated explicitly on the command line
@@ -1230,9 +1226,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
 
             //translate out inner classes
             List<JCTree> cdefs = lower.translateTopLevelClass(env, env.tree, localMake);
-
-            if (errorCount() != 0)
-                return;
 
             //generate code for each class
             for (List<JCTree> l = cdefs; l.nonEmpty(); l = l.tail) {

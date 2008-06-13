@@ -578,6 +578,7 @@ public class ClassReader extends ClassFile implements Completer {
         case 'J':
             sigp++;
             return syms.longType;
+        case 'R':
         case 'L':
             {
                 // int oldsigp = sigp;
@@ -633,9 +634,10 @@ public class ClassReader extends ClassFile implements Completer {
     /** Convert class signature to type, where signature is implicit.
      */
     Type classSigToType() {
-        if (signature[sigp] != 'L')
+        if (signature[sigp] != 'L' && signature[sigp] != 'R')
             throw badClassFile("bad.class.signature",
                                Convert.utf2string(signature, sigp, 10));
+        boolean err = signature[sigp] == 'R';
         sigp++;
         Type outer = Type.noType;
         int startSbp = sbp;
@@ -648,7 +650,9 @@ public class ClassReader extends ClassFile implements Completer {
                 ClassSymbol t = enterClass(names.fromUtf(signatureBuffer,
                                                          startSbp,
                                                          sbp - startSbp));
-                if (outer == Type.noType)
+                if (err)
+                    outer = new ErrorType(t);
+                else if (outer == Type.noType)
                     outer = t.erasure(types);
                 else
                     outer = new ClassType(outer, List.<Type>nil(), t);
@@ -930,6 +934,19 @@ public class ClassReader extends ClassFile implements Completer {
             int newbp = bp + attrLen;
             readEnclosingMethodAttr(sym);
             bp = newbp;
+        } else if (attrName == names._org_netbeans_TypeSignature) {
+            sym.type = readType(nextChar());
+        } else if (attrName == names._org_netbeans_ParameterNames) {
+            List<Name> parameterNames = List.nil();
+            int numParams = sym.type.getParameterTypes().length();
+            for (int i = 0; i < numParams; i++)
+                parameterNames = parameterNames.prepend(readName(nextChar()));
+            parameterNames = parameterNames.reverse();
+            ((MethodSymbol)sym).savedParameterNames = parameterNames;
+        } else if (attrName == names._org_netbeans_SourceLevelAnnotations) {
+            attachAnnotations(sym);
+        } else if (attrName == names._org_netbeans_SourceLevelParameterAnnotations) {
+            attachParameterAnnotations(sym);
         } else {
             unrecognized(attrName);
             bp = bp + attrLen;
@@ -2080,7 +2097,11 @@ public class ClassReader extends ClassFile implements Completer {
     private boolean isSigOverClass (final JavaFileObject a, final JavaFileObject b) {
         String patha = a.getName().toLowerCase();
         String pathb = b.getName().toLowerCase();
-        return pathb.endsWith(".sig") && patha.endsWith(".class");  //NOI18N
+        if (pathb.endsWith(".sig"))  //NOI18N
+            return patha.endsWith(".class");  //NOI18N
+        else if (pathb.endsWith(".class"))  //NOI18N
+            return patha.endsWith(".class") && b.getLastModified() >= a.getLastModified();  //NOI18N
+        return false;
     }
 
     /** Implement policy to choose to derive information from a source

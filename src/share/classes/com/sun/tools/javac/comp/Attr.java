@@ -1303,7 +1303,6 @@ public class Attr extends JCTree.Visitor {
                     checkId(tree.meth, site, sym, localEnv, MTH,
                             mpt, tree.varargsElement != null);
                 }
-                // Otherwise, `site' is an error type and we do nothing
             }
             result = tree.type = syms.voidType;
         } else {

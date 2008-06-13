@@ -386,7 +386,8 @@ public class Flow extends TreeScanner {
         tree = TreeInfo.skipParens(tree);
         if (tree.getTag() == JCTree.IDENT || tree.getTag() == JCTree.SELECT) {
             Symbol sym = TreeInfo.symbol(tree);
-            letInit(tree.pos(), (VarSymbol)sym);
+            if (!sym.type.isErroneous())
+                letInit(tree.pos(), (VarSymbol)sym);
         }
     }
 
@@ -720,8 +721,7 @@ public class Flow extends TreeScanner {
                 PendingExit exit = exits.head;
                 exits = exits.tail;
                 if (exit.thrown == null) {
-                    assert exit.tree.getTag() == JCTree.RETURN;
-                    if (isInitialConstructor) {
+                    if (isInitialConstructor && exit.tree.getTag() == JCTree.RETURN) {
                         inits = exit.inits;
                         for (int i = firstadr; i < nextadr; i++)
                             checkInit(exit.tree.pos(), vars[i]);
@@ -1128,18 +1128,23 @@ public class Flow extends TreeScanner {
     public void visitApply(JCMethodInvocation tree) {
         scanExpr(tree.meth);
         scanExprs(tree.args);
-        for (List<Type> l = tree.meth.type.getThrownTypes(); l.nonEmpty(); l = l.tail)
-            markThrown(tree, l.head);
+        if (tree.meth.type != null) {
+            for (List<Type> l = tree.meth.type.getThrownTypes(); l.nonEmpty(); l = l.tail)
+                markThrown(tree, l.head);
+        }
     }
 
     public void visitNewClass(JCNewClass tree) {
         scanExpr(tree.encl);
         scanExprs(tree.args);
+        Symbol ctor = tree.constructor;
        // scan(tree.def);
-        for (List<Type> l = tree.constructor.type.getThrownTypes();
+        if (ctor != null && ctor.type != null) {
+        for (List<Type> l = ctor.type.getThrownTypes();
              l.nonEmpty();
              l = l.tail)
             markThrown(tree, l.head);
+        }
         scan(tree.def);
     }
 
@@ -1225,7 +1230,7 @@ public class Flow extends TreeScanner {
     }
 
     public void visitIdent(JCIdent tree) {
-        if (tree.sym.kind == VAR)
+        if (tree.sym != null && tree.sym.kind == VAR)
             checkInit(tree.pos(), (VarSymbol)tree.sym);
     }
 

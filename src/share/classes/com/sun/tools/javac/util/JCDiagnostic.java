@@ -375,6 +375,10 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
     public long getEndPosition() {
         return getIntEndPosition();
     }
+    
+    public JCTree getTree() {
+        return position == null ? null : position.getTree();
+    }
 
     /**
      * Get the line number within the source referred to by this diagnostic.
