@@ -103,6 +103,7 @@ public class Enter extends JCTree.Visitor {
     Lint lint;
     JavaFileManager fileManager;
     private final CancelService cancelService;
+    private final LowMemoryWatch memoryWatch;
     private final LazyTreeLoader treeLoader;
     private final Source source;
 
@@ -127,6 +128,7 @@ public class Enter extends JCTree.Visitor {
         annotate = Annotate.instance(context);
         lint = Lint.instance(context);
         cancelService = CancelService.instance(context);
+        memoryWatch = LowMemoryWatch.instance(context);
         treeLoader = LazyTreeLoader.instance(context);
 
         predefClassDef = make.ClassDef(
@@ -289,8 +291,10 @@ public class Enter extends JCTree.Visitor {
      */
     <T extends JCTree> List<Type> classEnter(List<T> trees, Env<AttrContext> env) {
         ListBuffer<Type> ts = new ListBuffer<Type>();
-        for (List<T> l = trees; l.nonEmpty(); l = l.tail)
+        for (List<T> l = trees; l.nonEmpty(); l = l.tail) {
             ts.append(classEnter(l.head, env));
+            memoryWatch.abortIfMemoryLow();
+        }
         return ts.toList();
     }
 
@@ -610,6 +614,7 @@ public class Enter extends JCTree.Visitor {
                     else
                         // defer
                         prevUncompleted.append(clazz);
+                    memoryWatch.abortIfMemoryLow();
                 }
 
                 // if there remain any unimported toplevels (these must have
@@ -622,6 +627,7 @@ public class Enter extends JCTree.Visitor {
                             env = topLevelEnv(tree);
                         memberEnter.memberEnter(tree, env);
                         log.useSource(prev);
+                        memoryWatch.abortIfMemoryLow();
                     }
                 }
             }

@@ -280,6 +280,8 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
 
 
     protected FlowListener flowListener;
+    
+    protected LowMemoryWatch memoryWatch;
 
     /**
      * Annotation processing may require and provide a new instance
@@ -319,6 +321,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         enter = Enter.instance(context);
         todo = Todo.instance(context);
         flowListener = FlowListener.instance(context);
+        memoryWatch = LowMemoryWatch.instance(context);
 
         fileManager = context.get(JavaFileManager.class);
         parserFactory = Parser.Factory.instance(context);
@@ -826,8 +829,10 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
 
         //parse all files
         ListBuffer<JCCompilationUnit> trees = lb();
-        for (JavaFileObject fileObject : fileObjects)
+        for (JavaFileObject fileObject : fileObjects) {
             trees.append(parse(fileObject));
+            memoryWatch.abortIfMemoryLow();
+        }
         return trees.toList();
     }
 
@@ -1041,8 +1046,10 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      */
     public List<Env<AttrContext>> attribute(ListBuffer<Env<AttrContext>> envs) {
         ListBuffer<Env<AttrContext>> results = lb();
-        while (envs.nonEmpty())
+        while (envs.nonEmpty()) {
             results.append(attribute(envs.next()));
+            memoryWatch.abortIfMemoryLow();
+        }
         return results.toList();
     }
 
@@ -1085,6 +1092,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         ListBuffer<Env<AttrContext>> results = lb();
         for (List<Env<AttrContext>> l = envs; l.nonEmpty(); l = l.tail) {
             flow(l.head, results);
+            memoryWatch.abortIfMemoryLow();
         }
         return results.toList();
     }
@@ -1147,8 +1155,10 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      */
     public List<Pair<Env<AttrContext>, JCClassDecl>> desugar(List<Env<AttrContext>> envs) {
         ListBuffer<Pair<Env<AttrContext>, JCClassDecl>> results = lb();
-        for (List<Env<AttrContext>> l = envs; l.nonEmpty(); l = l.tail)
+        for (List<Env<AttrContext>> l = envs; l.nonEmpty(); l = l.tail) {
             desugar(l.head, results);
+            memoryWatch.abortIfMemoryLow();
+        }
         return results.toList();
     }
 
@@ -1327,6 +1337,8 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 TaskEvent e = new TaskEvent(TaskEvent.Kind.GENERATE, env.toplevel, cdef.sym);
                 taskListener.finished(e);
             }
+            
+            memoryWatch.abortIfMemoryLow();
         }
     }
 
