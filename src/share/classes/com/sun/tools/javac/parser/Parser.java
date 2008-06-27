@@ -304,6 +304,7 @@ public class Parser {
                 case FINAL:
                 case ABSTRACT:
                 case MONKEYS_AT:
+                case PACKAGE:
                 case EOF:
                 case CLASS:
                 case INTERFACE:
@@ -2282,20 +2283,8 @@ public class Parser {
             String dc = S.docComment();
             JCModifiers mods = null;
             List<JCAnnotation> packageAnnotations = List.nil();
-            if (S.token() == MONKEYS_AT)
-                mods = modifiersOpt();
-
-            if (S.token() == PACKAGE) {
-                if (mods != null) {
-                    checkNoMods(mods.flags);
-                    packageAnnotations = mods.annotations;
-                    mods = null;
-                }
-                S.nextToken();
-                pid = qualident();
-                accept(SEMI);
-            }
             ListBuffer<JCTree> defs = new ListBuffer<JCTree>();
+            boolean checkForPackage = true;
             boolean checkForImports = true;
             while (S.token() != EOF) {
                 if (S.pos() <= errorEndPos) {
@@ -2304,13 +2293,27 @@ public class Parser {
                     if (S.token() == EOF)
                         break;
                 }
-                if (checkForImports && mods == null && S.token() == IMPORT) {
+                if (S.token() == MONKEYS_AT)
+                    mods = modifiersOpt();
+                else if (checkForPackage && S.token() == PACKAGE) {
+                    if (mods != null) {
+                        checkNoMods(mods.flags);
+                        packageAnnotations = mods.annotations;
+                        mods = null;
+                    }
+                    S.nextToken();
+                    pid = qualident();
+                    accept(SEMI);
+                } else if (checkForImports && mods == null && S.token() == IMPORT) {
                     defs.append(importDeclaration());
+                    checkForPackage = false;
                 } else {
                     JCTree def = typeDeclaration(mods);
                     defs.append(def);
-                    if (def instanceof JCClassDecl)
+                    if (def instanceof JCClassDecl) {
+                        checkForPackage = false;
                         checkForImports = false;
+                    }
                     mods = null;
                 }
             }
