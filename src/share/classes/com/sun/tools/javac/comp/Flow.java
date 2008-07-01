@@ -326,7 +326,7 @@ public class Flow extends TreeScanner {
      *  I.e. is symbol either a local or a blank final variable?
      */
     boolean trackable(VarSymbol sym) {
-        return
+        return sym != null &&
             (sym.owner.kind == MTH ||
              ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL &&
               classDef.sym.isEnclosedBy((ClassSymbol)sym.owner)));
