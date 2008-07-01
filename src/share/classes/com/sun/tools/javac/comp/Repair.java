@@ -24,6 +24,7 @@
  */
 package com.sun.tools.javac.comp;
 
+import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symtab;
@@ -37,6 +38,7 @@ import com.sun.tools.javac.tree.JCTree.JCCase;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCErroneous;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
+import com.sun.tools.javac.tree.JCTree.JCImport;
 import com.sun.tools.javac.tree.JCTree.JCLiteral;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
@@ -82,6 +84,7 @@ public class Repair extends TreeTranslator {
     
     private Env<AttrContext> attrEnv;
     private boolean hasError;
+    private DiagnosticPosition errorneousImport;
     private List<JCTree> parents;
     private Set<Name> repairedClassNames = new HashSet<Name>();
     
@@ -126,6 +129,13 @@ public class Repair extends TreeTranslator {
     }
 
     @Override
+    public void visitImport(JCImport tree) {
+        super.visitImport(tree);
+        if (hasError)
+            errorneousImport = tree;
+    }
+
+    @Override
     public void visitClassDef(JCClassDecl tree) {
         translateClass(tree.sym);
         result = tree;
@@ -156,6 +166,8 @@ public class Repair extends TreeTranslator {
 
     @Override
     public void visitBlock(JCBlock tree) {
+        if (tree.isStatic() && errorneousImport != null)
+            tree.stats = tree.stats.prepend(generateErrStat(errorneousImport));
         List<JCStatement> last = null;
         for (List<JCStatement> l = tree.stats; l.nonEmpty(); l = l.tail) {
             l.head = translate(l.head);
@@ -219,6 +231,11 @@ public class Repair extends TreeTranslator {
         return expr;
     }
     
+    private JCBlock generateErrStaticInit(DiagnosticPosition pos) {
+        make.at(pos);
+        return make.Block(Flags.STATIC, List.<JCStatement>of(generateErrStat(pos)));
+    }
+
     private void translateClass(ClassSymbol c) {
         if (c == null)
             return;
@@ -237,7 +254,13 @@ public class Repair extends TreeTranslator {
             TreeMaker oldMake = make;
             make = make.forToplevel(attrEnv.toplevel);
             boolean oldHasError = hasError;
+            DiagnosticPosition oldErrorneousImport = errorneousImport;
             try {
+                for (JCImport imp : attrEnv.toplevel.getImports()) {
+                    translate(imp);
+                    if (errorneousImport != null)
+                        break;
+                }
                 JCClassDecl tree = (JCClassDecl)attrEnv.tree;
                 tree.mods = translate(tree.mods);
                 tree.typarams = translateTypeParams(tree.typarams);
@@ -248,8 +271,11 @@ public class Repair extends TreeTranslator {
                         hasError = false;
                         l.head = translate(l.head);
                     }
+                    if (errorneousImport != null)
+                        tree.defs = tree.defs.prepend(generateErrStaticInit(errorneousImport));
                 }
             } finally {
+                errorneousImport = oldErrorneousImport;
                 hasError = oldHasError;
                 make = oldMake;
             }
