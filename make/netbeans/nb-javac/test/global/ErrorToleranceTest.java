@@ -176,6 +176,67 @@ public class ErrorToleranceTest extends TestCase {
         compareResults(golden, code);
     }
 
+    public void testInvalidImport() throws Exception {
+        final String code = "package test;\n" +
+                      "import a.b.c.List;\n" +
+                      "public class Test {\n" +
+                      "}\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {\n" +
+                      "    static {\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code\");\n" +
+                      "    }\n" +
+                      "}\n";
+
+        compareResults(golden, code);
+    }
+
+    public void testInvalidImportWithStaticInit() throws Exception {
+        final String code = "package test;\n" +
+                      "import a.b.c.List;\n" +
+                      "public class Test {\n" +
+                      "    static {\n" +
+                      "        System.out.println();\n" +
+                      "    }\n" +
+                      "}\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {\n" +
+                      "    static {\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code\");\n" +
+                      "    }\n" +
+                      "}\n";
+
+        compareResults(golden, code);
+    }
+
+    public void testInvalidCodeBeforePackage() throws Exception {
+        final String code = "xyz\n" +
+                      "package test;\n" +
+                      "public class Test {\n" +
+                      "}\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {\n" +
+                      "}\n";
+
+        compareResults(golden, code);
+    }
+
+    public void testInvalidCodeAfterClass() throws Exception {
+        final String code = "package test;\n" +
+                      "public class Test {\n" +
+                      "}\n" +
+                      "xyz\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {\n" +
+                      "}\n";
+
+        compareResults(golden, code);
+    }
+
     //<editor-fold defaultstate="collapsed" desc=" Test Infrastructure ">
     static class MyFileObject extends SimpleJavaFileObject {
         private String text;
