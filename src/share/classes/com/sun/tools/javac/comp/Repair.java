@@ -49,6 +49,7 @@ import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.tree.TreeTranslator;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Log;
@@ -84,7 +85,8 @@ public class Repair extends TreeTranslator {
     
     private Env<AttrContext> attrEnv;
     private boolean hasError;
-    private DiagnosticPosition errorneousImport;
+    private JCDiagnostic err;
+    private JCDiagnostic errImport;
     private List<JCTree> parents;
     private Set<Name> repairedClassNames = new HashSet<Name>();
     
@@ -105,7 +107,7 @@ public class Repair extends TreeTranslator {
         try {
             if (hasError)
                 return super.translate(tree);
-            if (log.isErrTree(tree))
+            if ((err = log.getErrDiag(tree)) != null)
                 hasError = true;
             tree = super.translate(tree);
         } finally {
@@ -120,19 +122,21 @@ public class Repair extends TreeTranslator {
             if (parent == null || (parent.getTag() != JCTree.BLOCK && parent.getTag() != JCTree.CASE))
                 return tree;
         }
+        String msg = err != null ? err.getMessage(null) : null;
         hasError = false;
+        err = null;
         if (tree.getTag() == JCTree.BLOCK) {
-            ((JCBlock)tree).stats = List.of(generateErrStat(tree.pos()));
+            ((JCBlock)tree).stats = List.of(generateErrStat(tree.pos(), msg));
             return tree;
         }
-        return (T)generateErrStat(tree.pos());
+        return (T)generateErrStat(tree.pos(), msg);
     }
 
     @Override
     public void visitImport(JCImport tree) {
         super.visitImport(tree);
         if (hasError)
-            errorneousImport = tree;
+            errImport = err;
     }
 
     @Override
@@ -148,8 +152,9 @@ public class Repair extends TreeTranslator {
             JCTree parent = parents != null ? parents.tail.head : null;
             if (parent != null && parent.getTag() == JCTree.CLASSDEF) {
                 if (tree.init != null)
-                    tree.init = generateErrExpr(tree.init.pos());
+                    tree.init = generateErrExpr(tree.init.pos(), err != null ? err.getMessage(null) : null);
                 hasError = false;
+                err = null;
             }
         }
     }
@@ -159,15 +164,16 @@ public class Repair extends TreeTranslator {
         super.visitMethodDef(tree);
         if (hasError) {
             if (tree.body != null)
-                tree.body.stats = List.of(generateErrStat(tree.pos()));
+                tree.body.stats = List.of(generateErrStat(tree.pos(), err != null ? err.getMessage(null) : null));
             hasError = false;
+            err = null;
         }
     }
 
     @Override
     public void visitBlock(JCBlock tree) {
-        if (tree.isStatic() && errorneousImport != null)
-            tree.stats = tree.stats.prepend(generateErrStat(errorneousImport));
+        if (tree.isStatic() && errImport != null)
+            tree.stats = tree.stats.prepend(generateErrStat(errImport.getTree(), errImport.getMessage(null)));
         List<JCStatement> last = null;
         for (List<JCStatement> l = tree.stats; l.nonEmpty(); l = l.tail) {
             l.head = translate(l.head);
@@ -215,25 +221,26 @@ public class Repair extends TreeTranslator {
         result = tree;
     }
     
-    private JCStatement generateErrStat(DiagnosticPosition pos) {
+    private JCStatement generateErrStat(DiagnosticPosition pos, String msg) {
         make.at(pos);
         ClassType ctype = (ClassType)syms.runtimeExceptionType;
-        JCLiteral literal = make.Literal(ERR_MESSAGE);
+        JCLiteral literal = make.Literal(msg != null ? ERR_MESSAGE + " - " + msg : ERR_MESSAGE); //NOI18N
         JCNewClass tree = make.NewClass(null, null, make.QualIdent(ctype.tsym), List.<JCExpression>of(literal), null);
         tree.constructor = rs.resolveConstructor(pos, attrEnv, ctype, List.of(literal.type), null, false, false);
         tree.type = ctype;
         return make.Throw(tree);
     }
     
-    private JCExpression generateErrExpr(DiagnosticPosition pos) {
-        JCExpression expr = make.Erroneous(List.<JCStatement>of(generateErrStat(pos)));
+    private JCExpression generateErrExpr(DiagnosticPosition pos, String msg) {
+        make.at(pos);
+        JCExpression expr = make.Erroneous(List.<JCStatement>of(generateErrStat(pos, msg)));
         expr.type = syms.errType;
         return expr;
     }
     
-    private JCBlock generateErrStaticInit(DiagnosticPosition pos) {
+    private JCBlock generateErrStaticInit(DiagnosticPosition pos, String msg) {
         make.at(pos);
-        return make.Block(Flags.STATIC, List.<JCStatement>of(generateErrStat(pos)));
+        return make.Block(Flags.STATIC, List.<JCStatement>of(generateErrStat(pos, msg)));
     }
 
     private void translateClass(ClassSymbol c) {
@@ -254,13 +261,16 @@ public class Repair extends TreeTranslator {
             TreeMaker oldMake = make;
             make = make.forToplevel(attrEnv.toplevel);
             boolean oldHasError = hasError;
-            DiagnosticPosition oldErrorneousImport = errorneousImport;
+            JCDiagnostic oldErr = err;
+            JCDiagnostic oldErrImport = errImport;
             try {
                 for (JCImport imp : attrEnv.toplevel.getImports()) {
                     translate(imp);
-                    if (errorneousImport != null)
+                    if (errImport != null)
                         break;
                 }
+                hasError = false;
+                err = null;
                 JCClassDecl tree = (JCClassDecl)attrEnv.tree;
                 tree.mods = translate(tree.mods);
                 tree.typarams = translateTypeParams(tree.typarams);
@@ -269,13 +279,15 @@ public class Repair extends TreeTranslator {
                 if (tree.defs != null) {
                     for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
                         hasError = false;
+                        err = null;
                         l.head = translate(l.head);
                     }
-                    if (errorneousImport != null)
-                        tree.defs = tree.defs.prepend(generateErrStaticInit(errorneousImport));
+                    if (errImport != null)
+                        tree.defs = tree.defs.prepend(generateErrStaticInit(errImport.getTree(), errImport.getMessage(null)));
                 }
             } finally {
-                errorneousImport = oldErrorneousImport;
+                errImport = oldErrImport;
+                err = oldErr;
                 hasError = oldHasError;
                 make = oldMake;
             }

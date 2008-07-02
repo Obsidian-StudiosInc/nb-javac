@@ -113,7 +113,7 @@ public class Log {
     private boolean partialReparse;
 
     private final Set<Pair<JavaFileObject, Integer>> partialReparseRecorded = new HashSet<Pair<JavaFileObject,Integer>>();
-    private final Set<JCTree> errTrees = new HashSet<JCTree>();
+    private final Map<JCTree, JCDiagnostic> errTrees = new HashMap<JCTree, JCDiagnostic>();
 
     /** Construct a log with given I/O redirections.
      */
@@ -594,8 +594,8 @@ public class Log {
             break;
 
         case ERROR:
-            if (diagnostic.getTree() != null)
-                errTrees.add(diagnostic.getTree());
+            if (diagnostic.getTree() != null && !errTrees.containsKey(diagnostic.getTree()))
+                errTrees.put(diagnostic.getTree(), diagnostic);
             if (nerrors < MaxErrors
                 && shouldReport(diagnostic.getSource(), diagnostic.getIntPosition())) {
                 writeDiagnostic(diagnostic);
@@ -750,7 +750,7 @@ public class Log {
         return String.format((java.util.Locale)null, fmt, args);
     }
     
-    public boolean isErrTree(JCTree tree) {
-        return errTrees.contains(tree);
+    public JCDiagnostic getErrDiag(JCTree tree) {
+        return errTrees.get(tree);
     }
 }

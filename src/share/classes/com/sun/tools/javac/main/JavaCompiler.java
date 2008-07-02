@@ -1147,6 +1147,8 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         }
     }
 
+    public boolean doRepair = true; // Allows for switching off repair. For test purposes only.
+
     /**
      * Prepare attributed parse trees, in conjunction with their attribution contexts,
      * for source or code generation.
@@ -1205,8 +1207,9 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 }
                 return;
             }
-            
-            env.tree = repair.translateTopLevelClass(env, env.tree, localMake);
+
+            if (doRepair)
+                env.tree = repair.translateTopLevelClass(env, env.tree, localMake);
 
             if (stubOutput) {
                 //emit stub Java source file, only for compilation
