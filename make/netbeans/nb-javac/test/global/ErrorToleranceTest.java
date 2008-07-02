@@ -25,7 +25,7 @@
 
 package global;
 
-import com.sun.source.util.JavacTask;
+import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.tools.javac.util.BaseFileObject;
 import java.io.File;
 import java.io.IOException;
@@ -69,7 +69,7 @@ public class ErrorToleranceTest extends TestCase {
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    private void method(Unknown u) {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code\");" +
+                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : class Unknown\\nlocation: class test.Test\");" +
                       "    }\n" +
                       "}\n";
         
@@ -108,7 +108,7 @@ public class ErrorToleranceTest extends TestCase {
                       "    private void method(Object o) {\n" +
                       "    }\n" +
                       "    private void method(Unknown u) {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code\");" +
+                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : class Unknown\\nlocation: class test.Test\");" +
                       "    }\n" +
                       "}\n";
         
@@ -128,10 +128,10 @@ public class ErrorToleranceTest extends TestCase {
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    public Test() {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code\");" +
+                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : variable bflmpsvz\\nlocation: class test.Test\");" +
                       "    }\n" +
                       "    public Test(Object o) {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code\");" +
+                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : variable bflmpsvz\\nlocation: class test.Test\");" +
                       "    }\n" +
                       "    private String s;\n" +
                       "}\n";
@@ -148,7 +148,7 @@ public class ErrorToleranceTest extends TestCase {
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    static {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code\");" +
+                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : variable bflmpsvz\\nlocation: class test.Test\");" +
                       "    }\n" +
                       "    private static String s;\n" +
                       "}\n";
@@ -169,7 +169,7 @@ public class ErrorToleranceTest extends TestCase {
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    private void method(int i) {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code\");" +
+                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : variable CONSTANT\\nlocation: class Unknown\");" +
                       "    }\n" +
                       "}\n";
         
@@ -185,7 +185,7 @@ public class ErrorToleranceTest extends TestCase {
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    static {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code\");\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code - package a.b.c does not exist\");\n" +
                       "    }\n" +
                       "}\n";
 
@@ -204,7 +204,7 @@ public class ErrorToleranceTest extends TestCase {
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    static {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code\");\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code - package a.b.c does not exist\");\n" +
                       "    }\n" +
                       "}\n";
 
@@ -270,7 +270,7 @@ public class ErrorToleranceTest extends TestCase {
         super.tearDown();
     }
 
-    private File[] compile(String code) throws Exception {
+    private File[] compile(String code, boolean repair) throws Exception {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
@@ -280,8 +280,8 @@ public class ErrorToleranceTest extends TestCase {
 
         std.setLocation(StandardLocation.CLASS_OUTPUT, Collections.singleton(workingDir));
         
-        JavacTask ct = (JavacTask)tool.getTask(null, mjfm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
-        
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, mjfm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        com.sun.tools.javac.main.JavaCompiler.instance(ct.getContext()).doRepair = repair;
         ct.parse();
         ct.analyze();
         
@@ -374,7 +374,9 @@ public class ErrorToleranceTest extends TestCase {
     }
     
     private void compareResults(String golden, String code) throws Exception {
-        assertEquals(dumpSignatures(compile(golden)), dumpSignatures(compile(code)));
+        Collection<String> codeSig = dumpSignatures(compile(code, true));
+        Collection<String> goldenSig = dumpSignatures(compile(golden, false));
+        assertEquals(goldenSig, codeSig);
     }
 
     private void deleteRecursively(File f) {
