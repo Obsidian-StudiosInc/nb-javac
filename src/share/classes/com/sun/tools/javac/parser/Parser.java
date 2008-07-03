@@ -371,29 +371,31 @@ public class Parser {
 
     private JCErroneous syntaxError(int pos, List<JCTree> errs, String key, Object... arg) {
         setErrorEndPos(pos);
-        reportSyntaxError(pos, key, arg);
+        JCErroneous err = F.at(S.prevEndPos()).Erroneous(errs);
+        reportSyntaxError(err, pos, key, arg);
         if (errs != null) {
             JCTree last = errs.last();
             if (last != null)
                 storeEnd(last, pos);
         }
-        return toP(F.at(S.prevEndPos()).Erroneous(errs));
+        return toP(err);
     }
 
     /**
      * Report a syntax error at given position using the given
      * argument unless one was already reported at the same position.
      */
-    private void reportSyntaxError(int pos, String key, Object... arg) {
+    private void reportSyntaxError(JCDiagnostic.DiagnosticPosition diag, int pos, String key, Object... arg) {
+        if (diag != null)
+            pos = diag.getPreferredPosition();
         if (pos > S.errPos() || pos == Position.NOPOS) {
             if (S.token() == EOF)
-                log.error(pos, "premature.eof");
+                log.error(diag, "premature.eof");
             else
-                log.error(pos, key, arg);
+                log.error(diag, key, arg);
         }
         S.errPos(pos);
     }
-
 
     /** Generate a syntax error at current position unless one was already
      *  reported at the same position.
@@ -417,7 +419,7 @@ public class Parser {
             S.nextToken();
         } else {
             setErrorEndPos(S.pos());
-            reportSyntaxError(S.prevEndPos(), "expected", keywords.token2string(token));
+            reportSyntaxError(null, S.prevEndPos(), "expected", keywords.token2string(token));
         }
     }
 
@@ -1390,14 +1392,15 @@ public class Parser {
             return F.at(pos).Wildcard(t, type());
         } else if (S.token() == IDENTIFIER) {
             //error recovery
-            reportSyntaxError(S.prevEndPos(), "expected3",
-                    keywords.token2string(GT),
-                    keywords.token2string(EXTENDS),
-                    keywords.token2string(SUPER));
             TypeBoundKind t = F.at(Position.NOPOS).TypeBoundKind(BoundKind.UNBOUND);
             JCExpression wc = toP(F.at(pos).Wildcard(t, null));
             JCIdent id = toP(F.at(S.pos()).Ident(ident()));
-            return F.at(pos).Erroneous(List.<JCTree>of(wc, id));
+            JCErroneous err = F.at(pos).Erroneous(List.<JCTree>of(wc, id));
+            reportSyntaxError(err, S.prevEndPos(), "expected3",
+                    keywords.token2string(GT),
+                    keywords.token2string(EXTENDS),
+                    keywords.token2string(SUPER));
+            return err;
         } else {
             TypeBoundKind t = F.at(Position.NOPOS).TypeBoundKind(BoundKind.UNBOUND);
             return toP(F.at(pos).Wildcard(t, null));
@@ -1497,19 +1500,21 @@ public class Parser {
                     pos = typeArgs.head.pos;
                 }
                 setErrorEndPos(S.prevEndPos());
-                reportSyntaxError(pos, "cannot.create.array.with.type.arguments");
-                return toP(F.at(newpos).Erroneous(typeArgs.prepend(e)));
+                JCErroneous err = F.at(pos).Erroneous(typeArgs.prepend(e));
+                reportSyntaxError(err, pos, "cannot.create.array.with.type.arguments");
+                return toP(err);
             }
             return e;
         } else if (S.token() == LPAREN) {
             return classCreatorRest(newpos, null, typeArgs, t);
         } else {
             errorEndPos = S.pos();
-            reportSyntaxError(S.pos(), "expected2",
+            t = toP(F.at(newpos).NewClass(null, typeArgs, t, List.<JCExpression>nil(), null));
+            JCErroneous err = F.at(newpos).Erroneous(List.<JCTree>of(t));
+            reportSyntaxError(err, S.pos(), "expected2",
                                keywords.token2string(LPAREN),
                                keywords.token2string(LBRACKET));
-            t = toP(F.at(newpos).NewClass(null, typeArgs, t, List.<JCExpression>nil(), null));
-            return toP(F.at(newpos).Erroneous(List.<JCTree>of(t)));
+            return toP(err);
         }
     }
 
@@ -2943,8 +2948,9 @@ public class Parser {
         case JCTree.ERRONEOUS:
             return t;
         default:
-            log.error(t.pos, "not.stmt");
-            return F.at(t.pos).Erroneous(List.<JCTree>of(t));
+            JCExpression ret = F.at(t.pos).Erroneous(List.<JCTree>of(t));
+            log.error(ret, "not.stmt");
+            return ret;
         }
     }
 

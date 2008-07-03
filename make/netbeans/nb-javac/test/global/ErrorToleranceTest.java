@@ -87,7 +87,7 @@ public class ErrorToleranceTest extends TestCase {
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    private void method(Object u) {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code\");" +
+                      "        throw new RuntimeException(\"Uncompilable source code - not a statement\");" +
                       "    }\n" +
                       "}\n";
         
