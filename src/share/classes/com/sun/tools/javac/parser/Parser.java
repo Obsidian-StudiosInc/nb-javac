@@ -2298,9 +2298,9 @@ public class Parser {
                     if (S.token() == EOF)
                         break;
                 }
-                if (S.token() == MONKEYS_AT)
+                if (checkForPackage && S.token() == MONKEYS_AT) {
                     mods = modifiersOpt();
-                else if (checkForPackage && S.token() == PACKAGE) {
+                } else if (checkForPackage && S.token() == PACKAGE) {
                     if (mods != null) {
                         checkNoMods(mods.flags);
                         packageAnnotations = mods.annotations;
@@ -2309,6 +2309,7 @@ public class Parser {
                     S.nextToken();
                     pid = qualident();
                     accept(SEMI);
+                    checkForPackage = false;
                 } else if (checkForImports && mods == null && S.token() == IMPORT) {
                     defs.append(importDeclaration());
                     checkForPackage = false;
