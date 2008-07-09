@@ -386,13 +386,21 @@ public class Parser {
      * argument unless one was already reported at the same position.
      */
     private void reportSyntaxError(JCDiagnostic.DiagnosticPosition diag, int pos, String key, Object... arg) {
-        if (diag != null)
+        if (diag != null) {
             pos = diag.getPreferredPosition();
-        if (pos > S.errPos() || pos == Position.NOPOS) {
-            if (S.token() == EOF)
-                log.error(diag, "premature.eof");
-            else
-                log.error(diag, key, arg);
+            if (pos > S.errPos() || pos == Position.NOPOS) {
+                if (S.token() == EOF)
+                    log.error(diag, "premature.eof");
+                else
+                    log.error(diag, key, arg);
+            }
+        } else {
+            if (pos > S.errPos() || pos == Position.NOPOS) {
+                if (S.token() == EOF)
+                    log.error(pos, "premature.eof");
+                else
+                    log.error(pos, key, arg);
+            }
         }
         S.errPos(pos);
     }
