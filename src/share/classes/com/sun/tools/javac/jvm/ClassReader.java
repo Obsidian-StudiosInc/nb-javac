@@ -237,10 +237,11 @@ public class ClassReader extends ClassFile implements Completer {
         annotate = Annotate.instance(context);
         verbose        = options.get("-verbose")        != null;
         checkClassFile = options.get("-checkclassfile") != null;
+        boolean ideMode = options.get("ide") != null;
         Source source = Source.instance(context);
-        allowGenerics    = allowCovRetTypes = source.allowGenerics();
-        allowVarargs     = source.allowVarargs();
-        allowAnnotations = source.allowAnnotations();
+        allowGenerics    = allowCovRetTypes = source.allowGenerics() || ideMode;
+        allowVarargs     = source.allowVarargs() || ideMode;
+        allowAnnotations = source.allowAnnotations() || ideMode;
         saveParameterNames = options.get("save-parameter-names") != null;
         cacheCompletionFailure = options.get("dev") == null;
         preferSource = "source".equals(options.get("-Xprefer"));

@@ -144,6 +144,7 @@ public class ClassWriter extends ClassFile {
     /** Access to files. */
     private final JavaFileManager fileManager;
     
+    private boolean allowGenerics;
     private boolean preserveErrors = false;
     private int errCnt;
 
@@ -194,6 +195,8 @@ public class ClassWriter extends ClassFile {
             (dumpModFlags != null && dumpModFlags.indexOf('i') != -1);
         dumpMethodModifiers =
             (dumpModFlags != null && dumpModFlags.indexOf('m') != -1);
+        
+        allowGenerics = source.allowGenerics() || options.get("ide") != null;
     }
 
 /******************************************************************
@@ -669,7 +672,7 @@ public class ClassWriter extends ClassFile {
     int writeMemberAttrs(Symbol sym) {
         int acount = writeFlagAttrs(sym.flags());
         long flags = sym.flags();
-        if (source.allowGenerics() &&
+        if (allowGenerics &&
             (flags & (SYNTHETIC|BRIDGE)) != SYNTHETIC &&
             (flags & ANONCONSTR) == 0 &&
             (!types.isSameType(sym.type, sym.erasure(types)) ||
@@ -1587,7 +1590,7 @@ public class ClassWriter extends ClassFile {
         for (List<Type> l = interfaces; !sigReq && l.nonEmpty(); l = l.tail)
             sigReq = l.head.getTypeArguments().length() != 0;
         if (sigReq) {
-            assert source.allowGenerics();
+            assert allowGenerics;
             int alenIdx = writeAttr(names.Signature);
             if (typarams.length() != 0) assembleParamsSig(typarams);
             assembleSig(supertype);
