@@ -623,7 +623,7 @@ public class JavacElements implements Elements {
         Symbol sym = cast(Symbol.class, e);
         Env<AttrContext> enterEnv = getEnterEnv(sym);
         if (enterEnv == null) {
-            if (!loader.loadTreeFor(sym.enclClass()))
+            if (!loader.loadTreeFor(sym.enclClass(), false))
                 return null;
             enterEnv = getEnterEnv(sym);
             if (enterEnv == null)
