@@ -484,6 +484,6 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
     }
 
     public boolean hasFixedPositions () {
-        return !(this.position instanceof JCTree);
+        return this.position.getTree() == null;
     }
 }
