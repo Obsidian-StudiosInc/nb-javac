@@ -49,7 +49,7 @@ public class LazyTreeLoader {
         return instance;
     }
 
-    public boolean loadTreeFor(ClassSymbol clazz) {
+    public boolean loadTreeFor(ClassSymbol clazz, boolean persist) {
         return false;
     }
 
