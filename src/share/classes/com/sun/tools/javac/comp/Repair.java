@@ -163,8 +163,13 @@ public class Repair extends TreeTranslator {
     public void visitMethodDef(JCMethodDecl tree) {
         super.visitMethodDef(tree);
         if (hasError) {
-            if (tree.body != null)
-                tree.body.stats = List.of(generateErrStat(tree.pos(), err != null ? err.getMessage(null) : null));
+            if (tree.sym != null) {
+                tree.sym.flags_field &= ~(Flags.ABSTRACT | Flags.NATIVE);
+            }
+            if (tree.body == null) {
+                tree.body = make.Block(0, List.<JCStatement>nil());
+            }
+            tree.body.stats = List.of(generateErrStat(tree.pos(), err != null ? err.getMessage(null) : null));
             hasError = false;
             err = null;
         }
