@@ -72,7 +72,7 @@ public class ErrorToleranceTest extends TestCase {
                       "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : class Unknown\\nlocation: class test.Test\");" +
                       "    }\n" +
                       "}\n";
-        
+
         compareResults(golden, code);
     }
 
@@ -90,7 +90,7 @@ public class ErrorToleranceTest extends TestCase {
                       "        throw new RuntimeException(\"Uncompilable source code - not a statement\");" +
                       "    }\n" +
                       "}\n";
-        
+
         compareResults(golden, code);
     }
 
@@ -111,7 +111,7 @@ public class ErrorToleranceTest extends TestCase {
                       "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : class Unknown\\nlocation: class test.Test\");" +
                       "    }\n" +
                       "}\n";
-        
+
         compareResults(golden, code);
     }
 
@@ -135,7 +135,7 @@ public class ErrorToleranceTest extends TestCase {
                       "    }\n" +
                       "    private String s;\n" +
                       "}\n";
-        
+
         compareResults(golden, code);
     }
 
@@ -152,7 +152,7 @@ public class ErrorToleranceTest extends TestCase {
                       "    }\n" +
                       "    private static String s;\n" +
                       "}\n";
-        
+
         compareResults(golden, code);
     }
 
@@ -162,7 +162,7 @@ public class ErrorToleranceTest extends TestCase {
                       "    private void method(int i) {\n" +
                       "        switch(i) {\n" +
                       "            case Unknown.CONSTANT:\n" +
-                      "                break;\n" +                      
+                      "                break;\n" +
                       "    }\n" +
                       "}\n";
 
@@ -172,7 +172,7 @@ public class ErrorToleranceTest extends TestCase {
                       "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : variable CONSTANT\\nlocation: class Unknown\");" +
                       "    }\n" +
                       "}\n";
-        
+
         compareResults(golden, code);
     }
 
@@ -232,6 +232,38 @@ public class ErrorToleranceTest extends TestCase {
 
         final String golden = "package test;\n" +
                       "public class Test {\n" +
+                      "}\n";
+
+        compareResults(golden, code);
+    }
+
+    public void testMethodWithoutBody1() throws Exception {
+        final String code = "package test;\n" +
+                      "public class Test {\n" +
+                      "     public void test();\n" +
+                      "}\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {\n" +
+                      "     public void test() {" +
+                      "        throw new RuntimeException(\"Uncompilable source code - missing method body, or declare abstract\");\n" +
+                      "     }\n" +
+                      "}\n";
+
+        compareResults(golden, code);
+    }
+    
+    public void testMethodWithoutBody2() throws Exception {
+        final String code = "package test;\n" +
+                      "public abstract class Test {\n" +
+                      "     public abstract void test() {}\n" +
+                      "}\n";
+
+        final String golden = "package test;\n" +
+                      "public abstract class Test {\n" +
+                      "     public void test() {" +
+                      "        throw new RuntimeException(\"Uncompilable source code - abstract methods cannot have a body\");\n" +
+                      "     }\n" +
                       "}\n";
 
         compareResults(golden, code);
@@ -366,8 +398,12 @@ public class ErrorToleranceTest extends TestCase {
             sb.append(", ");
         }
         sb.append(") {\n");
-        clazz.getCode().setAttributes(null);
-        sb.append(clazz.getCode().toString());
+        if (clazz.getCode() != null) {
+            clazz.getCode().setAttributes(null);
+            sb.append(clazz.getCode().toString());
+        } else {
+            sb.append("<<<no code>>>");
+        }
         sb.append("\n}");
 
         return sb.toString();
