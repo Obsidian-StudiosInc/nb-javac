@@ -86,7 +86,8 @@ public class Repair extends TreeTranslator {
     private Env<AttrContext> attrEnv;
     private boolean hasError;
     private JCDiagnostic err;
-    private JCDiagnostic errImport;
+    private JCDiagnostic classLevelErr;
+    private JCBlock staticInit;
     private List<JCTree> parents;
     private Set<Name> repairedClassNames = new HashSet<Name>();
     
@@ -136,7 +137,7 @@ public class Repair extends TreeTranslator {
     public void visitImport(JCImport tree) {
         super.visitImport(tree);
         if (hasError)
-            errImport = err;
+            classLevelErr = err;
     }
 
     @Override
@@ -177,8 +178,8 @@ public class Repair extends TreeTranslator {
 
     @Override
     public void visitBlock(JCBlock tree) {
-        if (tree.isStatic() && errImport != null)
-            tree.stats = tree.stats.prepend(generateErrStat(errImport.getTree(), errImport.getMessage(null)));
+        if (tree.isStatic() && staticInit == null)
+            staticInit = tree;
         List<JCStatement> last = null;
         for (List<JCStatement> l = tree.stats; l.nonEmpty(); l = l.tail) {
             l.head = translate(l.head);
@@ -267,31 +268,49 @@ public class Repair extends TreeTranslator {
             make = make.forToplevel(attrEnv.toplevel);
             boolean oldHasError = hasError;
             JCDiagnostic oldErr = err;
-            JCDiagnostic oldErrImport = errImport;
+            JCDiagnostic oldClassLevelErr = classLevelErr;
+            JCBlock oldStaticinit = staticInit;
             try {
                 for (JCImport imp : attrEnv.toplevel.getImports()) {
                     translate(imp);
-                    if (errImport != null)
+                    if (classLevelErr != null)
                         break;
                 }
                 hasError = false;
                 err = null;
+                staticInit = null;
                 JCClassDecl tree = (JCClassDecl)attrEnv.tree;
                 tree.mods = translate(tree.mods);
                 tree.typarams = translateTypeParams(tree.typarams);
                 tree.extending = translate(tree.extending);
                 tree.implementing = translate(tree.implementing);
                 if (tree.defs != null) {
-                    for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
+                    List<JCTree> last = null;
+                    for (List<JCTree> l = tree.defs; l != null && l.nonEmpty(); l = l.tail) {
                         hasError = false;
                         err = null;
                         l.head = translate(l.head);
+                        if (hasError && err != null) {
+                            if (last != null)
+                                last.tail = l.tail;
+                            else
+                                tree.defs = l.tail;
+                            if (classLevelErr == null)
+                                classLevelErr = err;
+                        } else {
+                            last = l;
+                        }
                     }
-                    if (errImport != null)
-                        tree.defs = tree.defs.prepend(generateErrStaticInit(errImport.getTree(), errImport.getMessage(null)));
+                    if (classLevelErr != null) {
+                        if (staticInit != null)
+                            staticInit.stats = List.of(generateErrStat(classLevelErr.getTree(), classLevelErr.getMessage(null)));
+                        else
+                            tree.defs = tree.defs.prepend(generateErrStaticInit(classLevelErr.getTree(), classLevelErr.getMessage(null)));
+                    }
                 }
             } finally {
-                errImport = oldErrImport;
+                staticInit = oldStaticinit;
+                classLevelErr = oldClassLevelErr;
                 err = oldErr;
                 hasError = oldHasError;
                 make = oldMake;
