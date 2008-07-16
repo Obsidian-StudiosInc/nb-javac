@@ -541,7 +541,6 @@ public class JavacTaskImpl extends JavacTask {
             this.compiler.todo.clear();
         }
         if (this.genList != null && !this.genList.isEmpty()) {
-            assert genList.size() == 1;
             this.genList.clear();
         }
         endContext();
