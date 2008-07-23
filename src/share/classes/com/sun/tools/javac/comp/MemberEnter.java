@@ -80,7 +80,7 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
     private final LazyTreeLoader treeLoader;
 
     private final boolean skipAnnotations;
-    private final boolean ideMode;
+    private final boolean ignoreNoLang;
 
     public static MemberEnter instance(Context context) {
         MemberEnter instance = context.get(memberEnterKey);
@@ -106,7 +106,9 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
         Options options = Options.instance(context);
         skipAnnotations =
             options.get("skipAnnotations") != null;
-        ideMode = options.get("ide") != null;
+        boolean ideMode = options.get("ide") != null;
+        boolean backgroundCompilation = options.get("backgroundCompilation") != null;
+        ignoreNoLang = ideMode && !backgroundCompilation;
         messages = Messages.instance(context);
         cancelService = CancelService.instance(context);
         treeLoader = LazyTreeLoader.instance(context);
@@ -145,11 +147,11 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             // If we can't find java.lang, exit immediately.
             if (((PackageSymbol)tsym).fullname.equals(names.java_lang)) {
                 JCDiagnostic msg = JCDiagnostic.fragment("fatal.err.no.java.lang");
-                if (ideMode) {
+                if (ignoreNoLang) {                    
                     throw new CompletionFailure(tsym, msg.toString());
                 }
                 else {
-                    throw new FatalError (msg);
+                    throw new MissingPlatformError (msg);
                 }
             } else {
                 log.error(pos, "doesnt.exist", tsym);
