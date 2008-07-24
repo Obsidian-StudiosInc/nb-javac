@@ -2158,8 +2158,8 @@ public class Lower extends TreeTranslator {
 
     /** Translate an enumeration constant and its initializer. */
     private void visitEnumConstantDef(JCVariableDecl var, int ordinal) {
-        JCNewClass varDef = (JCNewClass)var.init;
-        if (varDef != null) {
+        if (var.init instanceof JCNewClass) {
+            JCNewClass varDef = (JCNewClass)var.init;
             varDef.args = varDef.args.
                 prepend(makeLit(syms.intType, ordinal)).
                 prepend(makeLit(syms.stringType, var.name.toString()));
