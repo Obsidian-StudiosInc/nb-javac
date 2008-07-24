@@ -617,6 +617,7 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                         for(List<Type> tvars = ((ForAll)tree.sym.type).tvars; tvars.nonEmpty(); tvars = tvars.tail)
                             localEnv.info.scope.enter(tvars.head.tsym);
                     }
+                    tree.sym.savedParameterNames = null;
                     List<VarSymbol> p = tree.sym.params();
                     if (p != null) {
                         List<JCVariableDecl> l = tree.params;
