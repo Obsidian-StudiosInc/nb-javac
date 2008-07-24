@@ -2308,16 +2308,20 @@ public class Parser {
                 }
                 if (checkForPackage && S.token() == MONKEYS_AT) {
                     mods = modifiersOpt();
-                } else if (checkForPackage && S.token() == PACKAGE) {
-                    if (mods != null) {
-                        checkNoMods(mods.flags);
-                        packageAnnotations = mods.annotations;
-                        mods = null;
+                } else if (S.token() == PACKAGE) {
+                    if (checkForPackage) {
+                        if (mods != null) {
+                            checkNoMods(mods.flags);
+                            packageAnnotations = mods.annotations;
+                            mods = null;
+                        }
+                        S.nextToken();
+                        pid = qualident();
+                        accept(SEMI);
+                        checkForPackage = false;
+                    } else {
+                        S.nextToken();
                     }
-                    S.nextToken();
-                    pid = qualident();
-                    accept(SEMI);
-                    checkForPackage = false;
                 } else if (checkForImports && mods == null && S.token() == IMPORT) {
                     defs.append(importDeclaration());
                     checkForPackage = false;
