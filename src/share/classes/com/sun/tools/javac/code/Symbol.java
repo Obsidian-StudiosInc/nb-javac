@@ -1292,9 +1292,15 @@ public abstract class Symbol implements Element {
                         names = names.tail;
                     }
                 } else {
+                    int i = 0;
                     for (Type t : type.getParameterTypes()) {
-                        buf.append(new VarSymbol(PARAMETER, names.head, t, this));
-                        names = names.tail;
+                        if (names != null) {
+                            buf.append(new VarSymbol(PARAMETER, names.head, t, this));
+                            names = names.tail;
+                        } else {
+                            buf.append(new VarSymbol(PARAMETER, name.table.fromString("arg" + i), t, this));
+                        }
+                        i++;
                     }
                 }
                 params = buf.toList();
