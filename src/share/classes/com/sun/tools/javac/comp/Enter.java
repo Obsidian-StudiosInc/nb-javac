@@ -305,6 +305,7 @@ public class Enter extends JCTree.Visitor {
                                                              JavaFileObject.Kind.SOURCE);
         if (tree.pid != null) {
             tree.packge = reader.enterPackage(TreeInfo.fullName(tree.pid));
+            PackageAttributer.attrib(tree.pid, tree.packge);
             if (tree.packageAnnotations.nonEmpty()) {
                 if (isPkgInfo) {
                     addEnv = true;
@@ -346,6 +347,29 @@ public class Enter extends JCTree.Visitor {
         }
         log.useSource(prev);
         result = null;
+    }
+
+    private static class PackageAttributer extends TreeScanner {
+
+        private Symbol pkg;
+
+        public static void attrib(JCExpression pid, Symbol pkg) {
+            PackageAttributer pa = new PackageAttributer();
+            pa.pkg = pkg;
+            pa.scan(pid);
+        }
+
+        @Override
+        public void visitIdent(JCIdent that) {
+            that.sym = pkg;
+        }
+
+        @Override
+        public void visitSelect(JCFieldAccess that) {
+            that.sym = pkg;
+            pkg = pkg.owner;
+            super.visitSelect(that);
+        }
     }
 
     public void visitClassDef(JCClassDecl tree) {
