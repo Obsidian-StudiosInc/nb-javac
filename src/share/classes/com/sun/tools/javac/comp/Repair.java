@@ -86,7 +86,8 @@ public class Repair extends TreeTranslator {
     private Env<AttrContext> attrEnv;
     private boolean hasError;
     private JCDiagnostic err;
-    private JCDiagnostic classLevelErr;
+    private JCTree classLevelErrTree;
+    private String classLevelErrMessage;
     private JCBlock staticInit;
     private List<JCTree> parents;
     private Set<Name> repairedClassNames = new HashSet<Name>();
@@ -136,8 +137,10 @@ public class Repair extends TreeTranslator {
     @Override
     public void visitImport(JCImport tree) {
         super.visitImport(tree);
-        if (hasError)
-            classLevelErr = err;
+        if (hasError && err != null) {
+            classLevelErrTree = err.getTree();
+            classLevelErrMessage = err.getMessage(null);
+        }
     }
 
     @Override
@@ -268,12 +271,13 @@ public class Repair extends TreeTranslator {
             make = make.forToplevel(attrEnv.toplevel);
             boolean oldHasError = hasError;
             JCDiagnostic oldErr = err;
-            JCDiagnostic oldClassLevelErr = classLevelErr;
+            JCTree oldClassLevelErrTree = classLevelErrTree;
+            String oldClassLevelErrMessage = classLevelErrMessage;
             JCBlock oldStaticinit = staticInit;
             try {
                 for (JCImport imp : attrEnv.toplevel.getImports()) {
                     translate(imp);
-                    if (classLevelErr != null)
+                    if (classLevelErrTree != null)
                         break;
                 }
                 hasError = false;
@@ -290,27 +294,34 @@ public class Repair extends TreeTranslator {
                         hasError = false;
                         err = null;
                         l.head = translate(l.head);
-                        if (hasError && err != null) {
+                        if (hasError) {
                             if (last != null)
                                 last.tail = l.tail;
                             else
                                 tree.defs = l.tail;
-                            if (classLevelErr == null)
-                                classLevelErr = err;
+                            if (classLevelErrTree == null) {
+                                if (err != null) {
+                                    classLevelErrTree = err.getTree();
+                                    classLevelErrMessage = err.getMessage(null);
+                                } else {
+                                    classLevelErrTree = l.head;
+                                }
+                            }
                         } else {
                             last = l;
                         }
                     }
-                    if (classLevelErr != null) {
+                    if (classLevelErrTree != null) {
                         if (staticInit != null)
-                            staticInit.stats = List.of(generateErrStat(classLevelErr.getTree(), classLevelErr.getMessage(null)));
+                            staticInit.stats = List.of(generateErrStat(classLevelErrTree, classLevelErrMessage));
                         else
-                            tree.defs = tree.defs.prepend(generateErrStaticInit(classLevelErr.getTree(), classLevelErr.getMessage(null)));
+                            tree.defs = tree.defs.prepend(generateErrStaticInit(classLevelErrTree, classLevelErrMessage));
                     }
                 }
             } finally {
                 staticInit = oldStaticinit;
-                classLevelErr = oldClassLevelErr;
+                classLevelErrTree = oldClassLevelErrTree;
+                classLevelErrMessage = oldClassLevelErrMessage;
                 err = oldErr;
                 hasError = oldHasError;
                 make = oldMake;
