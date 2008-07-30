@@ -304,13 +304,13 @@ public class Parser {
                 case FINAL:
                 case ABSTRACT:
                 case MONKEYS_AT:
-                case PACKAGE:
                 case EOF:
                 case CLASS:
                 case INTERFACE:
                 case ENUM:
                     return;
                 case IMPORT:
+                case PACKAGE:
                     if (stopAtImport)
                         return;
                     break;
