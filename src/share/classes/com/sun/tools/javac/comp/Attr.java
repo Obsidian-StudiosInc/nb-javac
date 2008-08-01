@@ -665,13 +665,14 @@ public class Attr extends JCTree.Visitor {
                         log.error(tree.pos(),
                                   "default.allowed.in.intf.annotation.member");
                 }
-            } else if ((owner.flags() & INTERFACE) != 0) {
-                log.error(tree.body.pos(), "intf.meth.cant.have.body");
-            } else if ((tree.mods.flags & ABSTRACT) != 0) {
-                log.error(tree.pos(), "abstract.meth.cant.have.body");
-            } else if ((tree.mods.flags & NATIVE) != 0) {
-                log.error(tree.pos(), "native.meth.cant.have.body");
             } else {
+                if ((owner.flags() & INTERFACE) != 0) {
+                    log.error(tree.body.pos(), "intf.meth.cant.have.body");
+                } else if ((tree.mods.flags & ABSTRACT) != 0) {
+                    log.error(tree.pos(), "abstract.meth.cant.have.body");
+                } else if ((tree.mods.flags & NATIVE) != 0) {
+                    log.error(tree.pos(), "native.meth.cant.have.body");
+                }
                 // Add an implicit super() call unless an explicit call to
                 // super(...) or this(...) is given
                 // or we are compiling class java.lang.Object.
