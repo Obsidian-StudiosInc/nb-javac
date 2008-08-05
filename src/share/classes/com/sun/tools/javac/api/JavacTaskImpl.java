@@ -361,9 +361,15 @@ public class JavacTaskImpl extends JavacTask {
 
             ListBuffer<TypeElement> elements = new ListBuffer<TypeElement>();
             for (JCCompilationUnit unit : units) {
-                for (JCTree node : unit.defs)
-                    if (node.getTag() == JCTree.CLASSDEF)
-                        elements.append(((JCTree.JCClassDecl) node).sym);
+                boolean isPkgInfo = unit.sourcefile.isNameCompatible("package-info",
+                                                                     JavaFileObject.Kind.SOURCE);
+                if (isPkgInfo) {
+                    elements.append(unit.packge.package_info);
+                } else {
+                    for (JCTree node : unit.defs)
+                        if (node.getTag() == JCTree.CLASSDEF)
+                            elements.append(((JCTree.JCClassDecl) node).sym);
+                }
             }
             return elements.toList();
         }
