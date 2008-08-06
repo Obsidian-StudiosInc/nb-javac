@@ -178,7 +178,7 @@ public class Annotate {
                 log.error(left.pos(), "no.annotation.member", left.name, a.type);
             Type result = method.type.getReturnType();
             Attribute value = enterAttributeValue(result, assign.rhs, env);
-            if (!method.type.isErroneous())
+            if (!method.type.isErroneous() && !(value instanceof Attribute.Error))
                 buf.append(new Pair<MethodSymbol,Attribute>
                            ((MethodSymbol)method, value));
         }
@@ -229,9 +229,10 @@ public class Annotate {
             }
             ListBuffer<Attribute> buf = new ListBuffer<Attribute>();
             for (List<JCExpression> l = na.elems; l.nonEmpty(); l=l.tail) {
-                buf.append(enterAttributeValue(types.elemtype(expected),
-                                               l.head,
-                                               env));
+                Attribute value = enterAttributeValue(types.elemtype(expected),
+                        l.head, env);
+                if (!(value instanceof Attribute.Error))
+                    buf.append(value);
             }
             return new Attribute.
                 Array(expected, buf.toArray(new Attribute[buf.length()]));
