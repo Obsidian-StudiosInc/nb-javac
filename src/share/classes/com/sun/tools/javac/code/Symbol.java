@@ -1042,7 +1042,8 @@ public abstract class Symbol implements Element {
                         return super.visitType(te, p);
                     }                    
                 }.scan(enclClass);
-                name.table.loader.loadTreeFor(enclClass, true);
+                if (!name.table.loader.loadTreeFor(enclClass, true))
+                    name.table.loader.loadParamNames(enclClass);
             }
             return super.getSimpleName();
         }
