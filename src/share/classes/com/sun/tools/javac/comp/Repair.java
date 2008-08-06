@@ -155,8 +155,7 @@ public class Repair extends TreeTranslator {
         if (hasError) {
             JCTree parent = parents != null ? parents.tail.head : null;
             if (parent != null && parent.getTag() == JCTree.CLASSDEF) {
-                if (tree.init != null)
-                    tree.init = generateErrExpr(tree.init.pos(), err != null ? err.getMessage(null) : null);
+                tree.init = err != null ? generateErrExpr(err.getTree(), err.getMessage(null)) : generateErrExpr(tree.init, null);
                 hasError = false;
                 err = null;
             }
@@ -288,6 +287,10 @@ public class Repair extends TreeTranslator {
                 tree.typarams = translateTypeParams(tree.typarams);
                 tree.extending = translate(tree.extending);
                 tree.implementing = translate(tree.implementing);
+                if (hasError && err != null) {
+                    classLevelErrTree = err.getTree();
+                    classLevelErrMessage = err.getMessage(null);
+                }
                 if (tree.defs != null) {
                     List<JCTree> last = null;
                     for (List<JCTree> l = tree.defs; l != null && l.nonEmpty(); l = l.tail) {
