@@ -1849,6 +1849,7 @@ public class Parser {
             JCBlock body = block();
             ListBuffer<JCCatch> catchers = new ListBuffer<JCCatch>();
             JCBlock finalizer = null;
+            String err = null;
             if (S.token() == CATCH || S.token() == FINALLY) {
                 while (S.token() == CATCH) catchers.append(catchClause());
                 if (S.token() == FINALLY) {
@@ -1856,9 +1857,12 @@ public class Parser {
                     finalizer = block();
                 }
             } else {
-                log.error(pos, "try.without.catch.or.finally");
+                err = "try.without.catch.or.finally";
             }
-            return F.at(pos).Try(body, catchers.toList(), finalizer);
+            JCTry t = F.at(pos).Try(body, catchers.toList(), finalizer);
+            if (err != null)
+                log.error(t, err);
+            return t;
         }
         case SWITCH: {
             S.nextToken();
