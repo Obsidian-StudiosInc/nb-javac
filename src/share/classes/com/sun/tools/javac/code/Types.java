@@ -419,11 +419,12 @@ public class Types {
                 final Symbol _ssym = s.tsym;
                 if (_ssym == null) {
                     TypeKind _skind = s.getKind();
-                    Logger.getLogger(Types.class.getName()).warning("Types.visitClassType type: [" + s.toString() + ","+ _skind +"] has a null symbol."); //NOI18N
+                    Logger.getLogger(Types.class.getName()).warning("Types.isSubtype.visitClassType type t: [" + t.toString() +"]; type s: [" + s.toString() + ","+ _skind +"] has a null symbol."); //NOI18N
+                    return false;
                 }
                 Type sup = asSuper(t, _ssym);
                 return sup != null
-                    && sup.tsym == s.tsym
+                    && sup.tsym == _ssym
                     // You're not allowed to write
                     //     Vector<Object> vec = new Vector<String>();
                     // But with wildcards you can write
