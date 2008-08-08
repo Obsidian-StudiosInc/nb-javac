@@ -1295,7 +1295,7 @@ public abstract class Symbol implements Element {
                 } else {
                     int i = 0;
                     for (Type t : type.getParameterTypes()) {
-                        if (names != null) {
+                        if (names.nonEmpty()) {
                             buf.append(new VarSymbol(PARAMETER, names.head, t, this));
                             names = names.tail;
                         } else {
