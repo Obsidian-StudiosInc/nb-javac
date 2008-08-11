@@ -585,7 +585,14 @@ public class JavacTaskImpl extends JavacTask {
             List<Env<AttrContext>> defer = List.<Env<AttrContext>>nil();
             while (list.nonEmpty()) {
                 Env<AttrContext> env = list.next();
-                ClassSymbol csym = env.enclClass.sym;
+                ClassSymbol csym;
+                boolean isPkgInfo = env.toplevel.sourcefile.isNameCompatible("package-info",
+                                                                             JavaFileObject.Kind.SOURCE);
+                if (isPkgInfo) {
+                    csym = env.toplevel.packge.package_info;
+                } else {
+                    csym = env.enclClass.sym;
+                }
                 if (csym != null && set.contains(csym.outermostClass()))
                     process(env);
                 else
