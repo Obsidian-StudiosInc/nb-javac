@@ -56,6 +56,7 @@ import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Name;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Logger;
 
 /**
  *
@@ -198,6 +199,10 @@ public class Repair extends TreeTranslator {
         Symbol meth = TreeInfo.symbol(tree.meth);
         if (meth == null || meth.type == null || meth.type.isErroneous())
             hasError = true;
+        if (tree.args.length() != meth.type.getParameterTypes().length()) {
+            Logger.getLogger(Repair.class.getName()).warning("Repair.visitApply [" + meth.owner + "]'s method [" + meth + "] of type: [" + meth.type + "]; has different number of parameters than tree [" + tree +"]."); //NOI18N
+            hasError = true;
+        }
         super.visitApply(tree);
     }
 
