@@ -1405,7 +1405,6 @@ public class Lower extends TreeTranslator {
         List<VarSymbol> ots = outerThisStack;
         if (ots.isEmpty()) {
             log.error(pos, "no.encl.instance.of.type.in.scope", c);
-            assert false;
             return makeNull();
         }
         VarSymbol ot = ots.head;
@@ -1418,7 +1417,6 @@ public class Lower extends TreeTranslator {
                     log.error(pos,
                         "no.encl.instance.of.type.in.scope",
                         c);
-                    assert false;
                     return tree;
                 }
                 ot = ots.head;
