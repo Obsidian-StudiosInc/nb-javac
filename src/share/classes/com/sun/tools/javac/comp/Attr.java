@@ -1255,7 +1255,7 @@ public class Attr extends JCTree.Visitor {
                     }
                 }
 
-                if (site.tag == CLASS) {
+                if (site.tag == CLASS || site.tag == ERROR) {
                     if (site.getEnclosingType().tag == CLASS) {
                         // we are calling a nested class
 
@@ -1456,7 +1456,7 @@ public class Attr extends JCTree.Visitor {
         List<Type> typeargtypes = attribTypes(tree.typeargs, localEnv);
 
         // If we have made no mistakes in the class type...
-        if (clazztype.tag == CLASS) {
+        if (clazztype.tag == CLASS || clazztype.tag == ERROR) {
             // Enums may not be instantiated except implicitly
             if (allowEnums &&
                 (clazztype.tsym.flags_field&Flags.ENUM) != 0 &&
