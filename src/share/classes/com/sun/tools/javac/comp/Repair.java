@@ -25,6 +25,7 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.code.Flags;
+import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symtab;
@@ -83,6 +84,7 @@ public class Repair extends TreeTranslator {
     private Types types;
     private Log log;
     private TreeMaker make;
+    private boolean allowEnums;
     
     private Env<AttrContext> attrEnv;
     private boolean hasError;
@@ -100,6 +102,8 @@ public class Repair extends TreeTranslator {
         enter = Enter.instance(context);
         types = Types.instance(context);
         log = Log.instance(context);
+        Source source = Source.instance(context);
+        allowEnums = source.allowEnums();
     }
 
     @Override
@@ -197,11 +201,19 @@ public class Repair extends TreeTranslator {
     @Override
     public void visitApply(JCMethodInvocation tree) {
         Symbol meth = TreeInfo.symbol(tree.meth);
-        if (meth == null || meth.type == null || meth.type.isErroneous())
+        if (meth == null) {
+            Logger.getLogger(Repair.class.getName()).warning("Repair.visitApply tree [" + tree + "] has null symbol."); //NOI18N
             hasError = true;
-        if (tree.args.length() != meth.type.getParameterTypes().length()) {
-            Logger.getLogger(Repair.class.getName()).warning("Repair.visitApply [" + meth.owner + "]'s method [" + meth + "] of type: [" + meth.type + "]; has different number of parameters than tree [" + tree +"]."); //NOI18N
+        } else if (meth.type == null || meth.type.isErroneous()) {
             hasError = true;
+        } else {
+            List<Type> argtypes = meth.type.getParameterTypes();
+            if (allowEnums && meth.name == meth.name.table.init && meth.owner == syms.enumSym)
+                argtypes = argtypes.tail.tail;
+            if (tree.varargsElement == null && tree.args.length() != argtypes.length()) {
+                Logger.getLogger(Repair.class.getName()).warning("Repair.visitApply [" + meth.owner + "]'s method [" + meth + "] of type: [" + meth.type + "]; has different number of parameters than tree [" + tree +"]."); //NOI18N
+                hasError = true;
+            }
         }
         super.visitApply(tree);
     }
@@ -209,8 +221,12 @@ public class Repair extends TreeTranslator {
     @Override
     public void visitNewClass(JCNewClass tree) {
         Symbol ctor = tree.constructor;
-        if (ctor == null || ctor.type == null || ctor.type.isErroneous())
+        if (ctor == null) {
+            Logger.getLogger(Repair.class.getName()).warning("Repair.visitNewClass tree [" + tree + "] has null constructor symbol."); //NOI18N
             hasError = true;
+        } else if (ctor.type == null || ctor.type.isErroneous()) {
+            hasError = true;
+        }
         super.visitNewClass(tree);
     }
 
