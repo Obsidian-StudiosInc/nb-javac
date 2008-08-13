@@ -31,10 +31,17 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
+import com.sun.tools.javac.code.Scope;
+import com.sun.tools.javac.code.Type;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
@@ -103,6 +110,30 @@ public class ScopeTest extends TestCase {
                 return super.visitVariable(node, p);
             }
         }.scan(trees.iterator().next(), null);
+    }
+
+    public void test142924() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test;\n" +
+                      "public class Test {\n" +
+                      "    public Unresolved field;" +
+                      "}\n";
+
+        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        ct.parse();
+        ct.analyze();
+
+        TypeElement te = ct.getElements().getTypeElement("test.Test");
+        for (VariableElement field : ElementFilter.fieldsIn(te.getEnclosedElements())) {
+            TypeMirror type = field.asType();
+            if (type.getKind() == TypeKind.ERROR) {
+                Type.ErrorType et = (Type.ErrorType)type;
+                for (Scope.Entry e = et.tsym.members().lookup(et.tsym.name.table.fromString("XYZ")); e.sym != null; e = e.next());
+            }
+        }
     }
 
 }
