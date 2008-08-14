@@ -666,7 +666,8 @@ public class TreeInfo {
         case JCTree.TYPEAPPLY:
             return symbolFor(((JCTypeApply) node).clazz);
         case JCTree.TYPEPARAMETER:
-            return ((JCTypeParameter) node).type.tsym;
+            if (((JCTypeParameter) node).type != null)
+                return ((JCTypeParameter) node).type.tsym;
         default:
             return null;
         }
