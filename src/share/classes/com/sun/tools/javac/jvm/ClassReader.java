@@ -652,7 +652,7 @@ public class ClassReader extends ClassFile implements Completer {
                                                          startSbp,
                                                          sbp - startSbp));
                 if (err)
-                    outer = new ErrorType(t);
+                    outer = new ErrorType(t, false);
                 else if (outer == Type.noType)
                     outer = t.erasure(types);
                 else

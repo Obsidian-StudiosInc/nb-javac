@@ -25,11 +25,8 @@
 
 package com.sun.tools.javac.code;
 
-import javax.lang.model.element.Element;
-import javax.lang.model.type.*;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.code.Symbol.*;
-import javax.lang.model.element.Element;
 
 import javax.lang.model.type.*;
 
@@ -1177,17 +1174,24 @@ public class Type implements PrimitiveType {
         }
 
         public ErrorType(ClassSymbol c) {
-            this();
-            tsym = c;
-            c.type = this;
-            c.kind = ERR;
-            c.members_field = new Scope.ErrorScope(c);
+            this(c, true);
+        }
+
+        public ErrorType(TypeSymbol tsym, boolean modifyClassSym) {
+            super(noType, List.<Type>nil(), tsym);
+            tag = ERROR;
+            if (modifyClassSym && tsym instanceof ClassSymbol) {
+                ClassSymbol c = (ClassSymbol)tsym;
+                c.type = this;
+                c.kind = ERR;
+                c.members_field = new Scope.ErrorScope(c);
+            }
         }
 
         public ErrorType(Name name, TypeSymbol container) {
             this(new ClassSymbol(PUBLIC|STATIC|ACYCLIC, name, null, container));
         }
-
+        
         @Override
         public <R,S> R accept(Type.Visitor<R,S> v, S s) {
             return v.visitErrorType(this, s);
@@ -1213,6 +1217,13 @@ public class Type implements PrimitiveType {
 
         public <R, P> R accept(TypeVisitor<R, P> v, P p) {
             return v.visitError(this, p);
+        }
+
+        @Override
+        public String toString() {
+            if (tsym != null && tsym.type != this)
+                return tsym.name.table.any.toString();
+            return super.toString();
         }
     }
 

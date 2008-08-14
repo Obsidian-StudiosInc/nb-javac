@@ -2530,7 +2530,7 @@ public class Attr extends JCTree.Visitor {
                 } else {
                     log.error(tree.pos(), "type.doesnt.take.params", clazztype.tsym);
                 }
-                owntype = syms.errType;
+                owntype = new ErrorType(clazztype.tsym, false);
             }
         } else if (clazztype.tag == ERROR) {
             owntype = clazztype;
@@ -2650,10 +2650,6 @@ public class Attr extends JCTree.Visitor {
      *  @param c   The class symbol whose definition will be attributed.
      */
     void attribClass(ClassSymbol c) throws CompletionFailure {
-        if (c.type.tag == ERROR) {
-            return;
-        }
-
         // Check for cycles in the inheritance graph, which can arise from
         // ill-formed class files.
         chk.checkNonCyclic(null, c.type);

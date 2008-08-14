@@ -29,6 +29,7 @@ import java.io.*;
 import java.util.Set;
 import java.util.HashSet;
 
+import java.util.logging.Logger;
 import javax.tools.JavaFileManager;
 import javax.tools.FileObject;
 import javax.tools.JavaFileObject;
@@ -146,7 +147,7 @@ public class ClassWriter extends ClassFile {
     
     private boolean allowGenerics;
     private boolean preserveErrors = false;
-    private int errCnt;
+    private ClassSymbol generatedClass;
 
     /** The tags and constants used in compressed stackmap. */
     static final int SAME_FRAME_SIZE = 64;
@@ -392,7 +393,12 @@ public class ClassWriter extends ClassFile {
                                                    c.flatname.len)
                               : c.name);
         } else {
-            sigbuf.appendBytes(externalize(c.flatname));
+            if (c == syms.errSymbol) {
+                Logger.getLogger(ClassWriter.class.getName()).warning("ClassWriter.assembleClassSig: <any> appears in the [" + generatedClass + "]'s signature."); //NOI18N
+                sigbuf.appendBytes(externalize(names.java_lang_Object));
+            } else {
+                sigbuf.appendBytes(externalize(c.flatname));
+            }
         }
         if (ct.getTypeArguments().nonEmpty()) {
             sigbuf.appendByte('<');
@@ -1535,10 +1541,10 @@ public class ClassWriter extends ClassFile {
     public void writeClassFile(OutputStream out, ClassSymbol c)
         throws IOException, PoolOverflow, StringOverflow {
         assert (c.flags() & COMPOUND) == 0;
+        generatedClass = c;
         databuf.reset();
         poolbuf.reset();
         sigbuf.reset();
-        errCnt = 0;
         pool = c.pool;
         innerClasses = null;
         innerClassesQueue = null;
