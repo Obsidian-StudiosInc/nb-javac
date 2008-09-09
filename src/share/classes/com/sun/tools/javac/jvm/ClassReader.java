@@ -32,6 +32,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 import javax.lang.model.SourceVersion;
 import javax.tools.JavaFileObject;
 import javax.tools.JavaFileManager;
@@ -963,7 +964,12 @@ public class ClassReader extends ClassFile implements Completer {
         ClassSymbol c = readClassSymbol(nextChar());
         NameAndType nt = (NameAndType)readPool(nextChar());
 
-        MethodSymbol m = findMethod(nt, c.members_field, self.flags());
+        MethodSymbol m = null;
+        if (c.members_field != null) {
+            m = findMethod(nt, c.members_field, self.flags());
+        } else {
+            Logger.getLogger(ClassReader.class.getName()).warning("ClassWriter.readEnclosingMethodAttr:" + (c.completer != null ? "uncompleted" : "") + " symbol [" + c + "] of kind [" + c.kind + "] has null members_field."); //NOI18N
+        }
         if (nt != null && m == null)
             throw badClassFile("bad.enclosing.method", self);
 
