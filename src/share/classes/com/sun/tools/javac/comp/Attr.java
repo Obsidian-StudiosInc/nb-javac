@@ -1233,77 +1233,76 @@ public class Attr extends JCTree.Visitor {
         if (isConstructorCall) {
             // We are seeing a ...this(...) or ...super(...) call.
             // Check that this is the first statement in a constructor.
-            if (breakTree != null || checkFirstConstructorStat(tree, env)) {
+            checkFirstConstructorStat(tree, env);
 
-                // Record the fact
-                // that this is a constructor call (using isSelfCall).
-                localEnv.info.isSelfCall = true;
+            // Record the fact
+            // that this is a constructor call (using isSelfCall).
+            localEnv.info.isSelfCall = true;
 
-                // Attribute arguments, yielding list of argument types.
-                argtypes = attribArgs(tree.args, localEnv);
-                typeargtypes = attribTypes(tree.typeargs, localEnv);
+            // Attribute arguments, yielding list of argument types.
+            argtypes = attribArgs(tree.args, localEnv);
+            typeargtypes = attribTypes(tree.typeargs, localEnv);
 
-                // Variable `site' points to the class in which the called
-                // constructor is defined.
-                Type site = env.enclClass.sym.type;
-                if (methName == names._super) {
-                    if (site == syms.objectType) {
-                        log.error(tree.meth.pos(), "no.superclass", site);
-                        site = syms.errType;
-                    } else {
-                        site = types.supertype(site);
+            // Variable `site' points to the class in which the called
+            // constructor is defined.
+            Type site = env.enclClass.sym.type;
+            if (methName == names._super) {
+                if (site == syms.objectType) {
+                    log.error(tree.meth.pos(), "no.superclass", site);
+                    site = syms.errType;
+                } else {
+                    site = types.supertype(site);
+                }
+            }
+
+            if (site.tag == CLASS || site.tag == ERROR) {
+                if (site.getEnclosingType().tag == CLASS) {
+                    // we are calling a nested class
+
+                    if (tree.meth.getTag() == JCTree.SELECT) {
+                        JCTree qualifier = ((JCFieldAccess) tree.meth).selected;
+
+                        // We are seeing a prefixed call, of the form
+                        //     <expr>.super(...).
+                        // Check that the prefix expression conforms
+                        // to the outer instance type of the class.
+                        chk.checkRefType(qualifier.pos(),
+                                         attribExpr(qualifier, localEnv,
+                                                    site.getEnclosingType()));
+                    } else if (methName == names._super) {
+                        // qualifier omitted; check for existence
+                        // of an appropriate implicit qualifier.
+                        rs.resolveImplicitThis(tree.meth.pos(),
+                                               localEnv, site);
                     }
+                } else if (tree.meth.getTag() == JCTree.SELECT) {
+                    log.error(tree.meth.pos(), "illegal.qual.not.icls",
+                              site.tsym);
                 }
 
-                if (site.tag == CLASS || site.tag == ERROR) {
-                    if (site.getEnclosingType().tag == CLASS) {
-                        // we are calling a nested class
+                // if we're calling a java.lang.Enum constructor,
+                // prefix the implicit String and int parameters
+                if (site.tsym == syms.enumSym && allowEnums)
+                    argtypes = argtypes.prepend(syms.intType).prepend(syms.stringType);
 
-                        if (tree.meth.getTag() == JCTree.SELECT) {
-                            JCTree qualifier = ((JCFieldAccess) tree.meth).selected;
+                // Resolve the called constructor under the assumption
+                // that we are referring to a superclass instance of the
+                // current instance (JLS ???).
+                boolean selectSuperPrev = localEnv.info.selectSuper;
+                localEnv.info.selectSuper = true;
+                localEnv.info.varArgs = false;
+                Symbol sym = rs.resolveConstructor(
+                    tree.meth.pos(), localEnv, site, argtypes, typeargtypes);
+                localEnv.info.selectSuper = selectSuperPrev;
 
-                            // We are seeing a prefixed call, of the form
-                            //     <expr>.super(...).
-                            // Check that the prefix expression conforms
-                            // to the outer instance type of the class.
-                            chk.checkRefType(qualifier.pos(),
-                                             attribExpr(qualifier, localEnv,
-                                                        site.getEnclosingType()));
-                        } else if (methName == names._super) {
-                            // qualifier omitted; check for existence
-                            // of an appropriate implicit qualifier.
-                            rs.resolveImplicitThis(tree.meth.pos(),
-                                                   localEnv, site);
-                        }
-                    } else if (tree.meth.getTag() == JCTree.SELECT) {
-                        log.error(tree.meth.pos(), "illegal.qual.not.icls",
-                                  site.tsym);
-                    }
+                // Set method symbol to resolved constructor...
+                TreeInfo.setSymbol(tree.meth, sym);
 
-                    // if we're calling a java.lang.Enum constructor,
-                    // prefix the implicit String and int parameters
-                    if (site.tsym == syms.enumSym && allowEnums)
-                        argtypes = argtypes.prepend(syms.intType).prepend(syms.stringType);
-
-                    // Resolve the called constructor under the assumption
-                    // that we are referring to a superclass instance of the
-                    // current instance (JLS ???).
-                    boolean selectSuperPrev = localEnv.info.selectSuper;
-                    localEnv.info.selectSuper = true;
-                    localEnv.info.varArgs = false;
-                    Symbol sym = rs.resolveConstructor(
-                        tree.meth.pos(), localEnv, site, argtypes, typeargtypes);
-                    localEnv.info.selectSuper = selectSuperPrev;
-
-                    // Set method symbol to resolved constructor...
-                    TreeInfo.setSymbol(tree.meth, sym);
-
-                    // ...and check that it is legal in the current context.
-                    // (this will also set the tree's type)
-                    Type mpt = newMethTemplate(argtypes, typeargtypes);
-                    checkId(tree.meth, site, sym, localEnv, MTH,
-                            mpt, tree.varargsElement != null);
-                }
+                // ...and check that it is legal in the current context.
+                // (this will also set the tree's type)
+                Type mpt = newMethTemplate(argtypes, typeargtypes);
+                checkId(tree.meth, site, sym, localEnv, MTH,
+                        mpt, tree.varargsElement != null);
             }
             result = tree.type = syms.voidType;
         } else {
