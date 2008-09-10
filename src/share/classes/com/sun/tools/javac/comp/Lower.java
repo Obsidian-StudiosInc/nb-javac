@@ -1124,7 +1124,7 @@ public class Lower extends TreeTranslator {
      */
     void makeAccessible(Symbol sym) {
         JCClassDecl cdef = classDef(sym.owner.enclClass());
-        assert cdef != null : "class def not found: " + sym + " in " + sym.owner;
+        assert cdef != null : "class def not found: " + sym + " in " + sym.owner + "\noutermostMemberDef: " + outermostMemberDef + "\noutermostClassDef: " + outermostClassDef;
         if (sym.name == names.init) {
             cdef.defs = cdef.defs.prepend(
                 accessConstructorDef(cdef.pos, sym, accessConstrs.get(sym)));
