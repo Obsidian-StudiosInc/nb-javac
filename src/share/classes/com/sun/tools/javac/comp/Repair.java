@@ -173,7 +173,9 @@ public class Repair extends TreeTranslator {
         if (hasError) {
             if (tree.sym != null) {
                 tree.sym.flags_field &= ~(Flags.ABSTRACT | Flags.NATIVE);
+                tree.sym.defaultValue = null;
             }
+            tree.defaultValue = null;
             if (tree.body == null) {
                 tree.body = make.Block(0, List.<JCStatement>nil());
             }
