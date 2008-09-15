@@ -45,6 +45,7 @@ import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.tree.JCTree.JCStatement;
+import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
@@ -147,6 +148,20 @@ public class Repair extends TreeTranslator {
             classLevelErrMessage = err.getMessage(null);
         }
     }
+
+    @Override
+    public void visitTypeParameter(JCTypeParameter tree) {
+        super.visitTypeParameter(tree);
+        if (tree.type != null && tree.type.tag == TypeTags.TYPEVAR) {
+            Type.TypeVar tv = (Type.TypeVar)tree.type;
+            if (tv.bound != null && tv.bound.isErroneous()) {
+                tv.bound = syms.objectType;
+                hasError = true;
+            }
+        }
+    }
+
+
 
     @Override
     public void visitClassDef(JCClassDecl tree) {
