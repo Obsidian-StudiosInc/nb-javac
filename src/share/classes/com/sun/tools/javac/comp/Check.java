@@ -589,7 +589,7 @@ public class Check {
         long implicit = 0;
         switch (sym.kind) {
         case VAR:
-            if (sym.owner.kind != TYP)
+            if (sym.owner.kind != TYP && sym.owner.kind != ERR)
                 mask = LocalVarFlags;
             else if ((sym.owner.flags_field & INTERFACE) != 0)
                 mask = implicit = InterfaceVarFlags;
