@@ -184,7 +184,14 @@ public class Repair extends TreeTranslator {
 
     @Override
     public void visitMethodDef(JCMethodDecl tree) {
-        super.visitMethodDef(tree);
+        tree.mods = translate(tree.mods);
+        tree.restype = translate(tree.restype);
+        tree.typarams = translateTypeParams(tree.typarams);
+        tree.params = translateVarDefs(tree.params);
+        tree.thrown = translate(tree.thrown);
+        tree.defaultValue = translate(tree.defaultValue);
+        tree.body = translate(tree.body);
+        result = tree;
         if (hasError) {
             if (tree.sym != null) {
                 tree.sym.flags_field &= ~(Flags.ABSTRACT | Flags.NATIVE);
