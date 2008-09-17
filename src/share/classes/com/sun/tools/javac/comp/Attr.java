@@ -1177,7 +1177,7 @@ public class Attr extends JCTree.Visitor {
         if (env.enclMethod == null ||
             env.enclMethod.sym.owner != env.enclClass.sym) {
             log.error(tree.pos(), "ret.outside.meth");
-
+            attribExpr(tree.expr, env);
         } else {
             // Attribute return expression, if it exists, and check that
             // it conforms to result type of enclosing method.
