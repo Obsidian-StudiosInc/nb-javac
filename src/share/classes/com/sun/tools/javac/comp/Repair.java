@@ -343,10 +343,14 @@ public class Repair extends TreeTranslator {
                         err = null;
                         l.head = translate(l.head);
                         if (hasError) {
-                            if (last != null)
-                                last.tail = l.tail;
-                            else
-                                tree.defs = l.tail;
+                            if (l.head.getTag() == JCTree.CLASSDEF) {
+                                last = l;
+                            } else {
+                                if (last != null)
+                                    last.tail = l.tail;
+                                else
+                                    tree.defs = l.tail;
+                            }
                             if (classLevelErrTree == null) {
                                 if (err != null) {
                                     classLevelErrTree = err.getTree();
