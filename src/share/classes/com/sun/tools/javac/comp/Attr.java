@@ -27,6 +27,7 @@ package com.sun.tools.javac.comp;
 
 import java.util.*;
 import java.util.Set;
+import java.util.logging.Logger;
 import javax.lang.model.element.ElementKind;
 import javax.tools.JavaFileObject;
 
@@ -384,8 +385,11 @@ public class Attr extends JCTree.Visitor {
             this.env = env;
             this.pkind = pkind;
             this.pt = pt;
-            tree.accept(this);
-            if (tree == breakTree)
+            if (tree == null)
+                Logger.getLogger(Attr.class.getName()).warning("Attr.attribTree has a null tree. Enclosing class: [" + env.enclClass + "]"); //NOI18N
+            else
+                tree.accept(this);
+            if (breakTree != null && tree == breakTree)
                 throw new BreakAttr(env);
             return result;
         } catch (CompletionFailure ex) {
@@ -1177,7 +1181,8 @@ public class Attr extends JCTree.Visitor {
         if (env.enclMethod == null ||
             env.enclMethod.sym.owner != env.enclClass.sym) {
             log.error(tree.pos(), "ret.outside.meth");
-            attribExpr(tree.expr, env);
+            if (tree.expr != null)
+                attribExpr(tree.expr, env);
         } else {
             // Attribute return expression, if it exists, and check that
             // it conforms to result type of enclosing method.
