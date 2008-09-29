@@ -575,7 +575,10 @@ public class Attr extends JCTree.Visitor {
             result = null;
         } else {
             // make sure class has been completed:
+            JCTree oldBT = breakTree;
+            breakTree = null;
             c.complete();
+            breakTree = oldBT;
 
             // If this class appears as an anonymous class
             // in a superclass constructor call where
