@@ -1499,6 +1499,7 @@ public class Check {
             seen.add(tv);
             for (Type b : types.getBounds(tv))
                 checkNonCyclic1(pos, b, seen);
+            seen.remove(tv);
         }
     }
 

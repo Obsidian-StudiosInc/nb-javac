@@ -258,7 +258,7 @@ public class Types {
 
             @Override
             public Type visitErrorType(ErrorType t, Symbol sym) {
-                return t.tsym == sym || t.tsym.name == names.any ? t : null;
+                return t.tsym != null && (t.tsym == sym || t.tsym.name == names.any) ? t : null;
             }
         };
     // </editor-fold>
@@ -470,7 +470,7 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
-                return t == s || t.tsym.name == names.any;
+                return t == s || (t.tsym != null && t.tsym.name == names.any);
             }
         };
 
@@ -525,7 +525,7 @@ public class Types {
     public boolean isSuperType(Type t, Type s) {
         switch (t.tag) {
         case ERROR:
-            return t == s || t.tsym.name == names.any;
+            return t == s || (t.tsym != null && t.tsym.name == names.any);
         case UNDETVAR: {
             UndetVar undet = (UndetVar)t;
             if (t == s ||
@@ -685,7 +685,9 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
-                return t == s || t.tsym.name == names.any || ((s.getKind() == TypeKind.ERROR || s.tsym.type.getKind() == TypeKind.ERROR) && (s.tsym.name == names.any || t.tsym.getQualifiedName() == s.tsym.getQualifiedName()));
+                return t == s || (t.tsym != null && t.tsym.name == names.any) ||
+                        ((s.getKind() == TypeKind.ERROR || s.tsym.type.getKind() == TypeKind.ERROR) && s.tsym != null &&
+                        (s.tsym.name == names.any || (t.tsym != null && t.tsym.getQualifiedName() == s.tsym.getQualifiedName())));
             }
         };
     // </editor-fold>
@@ -724,7 +726,7 @@ public class Types {
                 return isSameType(t, s);
             }
         case ERROR:
-            return t == s || t.tsym.name == names.any;
+            return t == s || (t.tsym != null && t.tsym.name == names.any);
         default:
             return containsType(s, t);
         }
@@ -836,7 +838,7 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
-                return t == s || t.tsym.name == names.any;
+                return t == s || (t.tsym != null && t.tsym.name == names.any);
             }
         };
 
@@ -896,7 +898,7 @@ public class Types {
 
             public Boolean visitType(Type t, Type s) {
                 if (s.tag == ERROR)
-                    return t == s || s.tsym.name == names.any;
+                    return t == s || (t.tsym != null && t.tsym.name == names.any);
 
                 switch (t.tag) {
                 case BYTE: case CHAR: case SHORT: case INT: case LONG: case FLOAT:
@@ -1069,7 +1071,7 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
-                return t == s || t.tsym.name == names.any;
+                return t == s || (t.tsym != null && t.tsym.name == names.any);
             }
         };
     // </editor-fold>
@@ -1335,7 +1337,7 @@ public class Types {
 
             @Override
             public Type visitErrorType(ErrorType t, Symbol sym) {
-                return t.tsym == sym || t.tsym.name == names.any ? t : null;
+                return t.tsym != null && (t.tsym == sym || t.tsym.name == names.any) ? t : null;
             }
         };
 
@@ -1360,7 +1362,7 @@ public class Types {
         case TYPEVAR:
             return asSuper(t, sym);
         case ERROR:
-            return t.tsym == sym || t.tsym.name == names.any ? t : null;
+            return t.tsym != null && (t.tsym == sym || t.tsym.name == names.any) ? t : null;
         default:
             return null;
         }
@@ -1390,7 +1392,7 @@ public class Types {
         case TYPEVAR:
             return asSuper(t, sym);
         case ERROR:
-            return t.tsym == sym || t.tsym.name == names.any ? t : null;
+            return t.tsym != null && (t.tsym == sym || t.tsym.name == names.any) ? t : null;
         default:
             return null;
         }
@@ -1471,7 +1473,7 @@ public class Types {
      */
     public boolean isAssignable(Type t, Type s, Warner warn) {
         if (t.tag == ERROR)
-            return t.tsym.name == names.any;
+            return t.tsym != null && t.tsym.name == names.any;
         if (t.tag <= INT && t.constValue() != null) {
             int value = ((Number)t.constValue()).intValue();
             switch (s.tag) {
