@@ -2680,6 +2680,8 @@ public class Attr extends JCTree.Visitor {
 
             // Get environment current at the point of class definition.
             Env<AttrContext> env = enter.typeEnvs.get(c);
+            if (env == null)
+                Logger.getLogger(Attr.class.getName()).warning("Attr.attribClass has a null env for class: [" + c + "]. TypeEnvs map: [" + enter.typeEnvs + "]."); //NOI18N
 
             // The info.lint field in the envs stored in enter.typeEnvs is deliberately uninitialized,
             // because the annotations were not available at the time the env was created. Therefore,
@@ -2687,8 +2689,11 @@ public class Attr extends JCTree.Visitor {
             // lint value is set. Typically, this is the parent env, but might be further if there
             // are any envs created as a result of TypeParameter nodes.
             Env<AttrContext> lintEnv = env;
-            while (lintEnv.info.lint == null)
+            while (lintEnv.info.lint == null) {
+                if (lintEnv.next == null)
+                    Logger.getLogger(Attr.class.getName()).warning("Attr.attribClass has a lintEnv: [" + lintEnv + "] with a null next field."); //NOI18N
                 lintEnv = lintEnv.next;
+            }
 
             // Having found the enclosing lint value, we can initialize the lint value for this class
             env.info.lint = lintEnv.info.lint.augment(c.attributes_field, c.flags());
