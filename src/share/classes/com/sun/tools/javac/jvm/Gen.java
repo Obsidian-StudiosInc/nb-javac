@@ -148,7 +148,10 @@ public class Gen extends JCTree.Visitor {
 
     private Type stringBufferType() {
         if (stringBufferTypeInternal == null) {
-            syms.stringBuilderType.tsym.complete();
+            try {
+                syms.stringBuilderType.tsym.complete();
+            } catch (CompletionFailure cf) {
+            }
             //the target level may be set to 1.5, yet the StringBuild may not be accessible:
             stringBufferTypeInternal = target.useStringBuilder() && syms.stringBuilderType.tsym.type.tag != ERROR
                 ? syms.stringBuilderType
