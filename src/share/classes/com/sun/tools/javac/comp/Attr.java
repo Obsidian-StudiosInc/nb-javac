@@ -2680,8 +2680,10 @@ public class Attr extends JCTree.Visitor {
 
             // Get environment current at the point of class definition.
             Env<AttrContext> env = enter.typeEnvs.get(c);
-            if (env == null)
+            if (env == null) {
                 Logger.getLogger(Attr.class.getName()).warning("Attr.attribClass has a null env for class: [" + c + "]. TypeEnvs map: [" + enter.typeEnvs + "]."); //NOI18N
+                return;
+            }
 
             // The info.lint field in the envs stored in enter.typeEnvs is deliberately uninitialized,
             // because the annotations were not available at the time the env was created. Therefore,
