@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.api;
 
+import com.sun.tools.javac.parser.Token;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -770,7 +771,11 @@ public class JavacTaskImpl extends JavacTask {
         Scanner scanner = scannerFactory.newScanner(stms, stms.length);
         scanner.seek(((JCBlock)methodToReparse.getBody()).pos);
         Parser parser = parserFactory.newParser(scanner, false, annonIndex, ((JCCompilationUnit)topLevel).endPositions);
-        return (JCBlock) parser.statement();
+        final JCStatement statement = parser.statement();
+        if (statement.getKind() == Tree.Kind.BLOCK) {
+            return (JCBlock) statement;
+        }
+        return null;
     }
 
     public BlockTree reattrMethodBody(MethodTree methodToReparse, BlockTree block) {
