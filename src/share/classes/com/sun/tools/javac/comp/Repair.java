@@ -184,7 +184,7 @@ public class Repair extends TreeTranslator {
 
     @Override
     public void visitMethodDef(JCMethodDecl tree) {
-        boolean hadError = hasError;
+        boolean hadDuplicateSymError = hasError && err != null && "compiler.err.already.defined".equals(err.getCode()); //NOI18N
         tree.mods = translate(tree.mods);
         tree.restype = translate(tree.restype);
         tree.typarams = translateTypeParams(tree.typarams);
@@ -193,7 +193,7 @@ public class Repair extends TreeTranslator {
         tree.defaultValue = translate(tree.defaultValue);
         tree.body = translate(tree.body);
         result = tree;
-        if (hasError && !hadError) {
+        if (hasError && !hadDuplicateSymError) {
             if (tree.sym != null) {
                 tree.sym.flags_field &= ~(Flags.ABSTRACT | Flags.NATIVE);
                 tree.sym.defaultValue = null;
