@@ -269,6 +269,27 @@ public class ErrorToleranceTest extends TestCase {
         compareResults(golden, code);
     }
 
+    public void testDuplicateMethods() throws Exception {
+        final String code = "package test;\n" +
+                      "public class Test {\n" +
+                      "    public void test() {\n" +
+                      "    };\n" +
+                      "    public void test() {\n" +
+                      "    };\n" +
+                      "}\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {\n" +
+                      "    static {\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code - test() is already defined in test.Test\");\n" +
+                      "    }\n" +
+                      "    public void test() {" +
+                      "    }\n" +
+                      "}\n";
+
+        compareResults(golden, code);
+    }
+
     //<editor-fold defaultstate="collapsed" desc=" Test Infrastructure ">
     static class MyFileObject extends SimpleJavaFileObject {
         private String text;

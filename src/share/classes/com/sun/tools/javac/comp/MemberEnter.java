@@ -678,8 +678,8 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             if (lastParam != null && (lastParam.mods.flags & Flags.VARARGS) != 0)
                 m.flags_field |= Flags.VARARGS;
 
-            chk.checkUnique(tree.pos(), m, enclScope);
-            enclScope.enter(m);
+            if( chk.checkUnique(tree.pos(), m, enclScope))
+                enclScope.enter(m);
         }
         annotateLater(tree.mods.annotations, localEnv, m);
         if (tree.defaultValue != null)
@@ -736,9 +736,9 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
         }
         if (chk.checkUnique(tree.pos(), v, enclScope)) {
             chk.checkTransparentVar(tree.pos(), v, enclScope);
+            if (doEnterSymbol)
+                enclScope.enter(v);
         }
-        if (doEnterSymbol)
-            enclScope.enter(v);
         annotateLater(tree.mods.annotations, localEnv, v);
         v.pos = tree.pos;
     }

@@ -418,6 +418,8 @@ public class Enter extends JCTree.Visitor {
                     tree.sym = (ClassSymbol)result.tsym;
                     Env<AttrContext> localEnv = classEnv(tree, env);
                     typeEnvs.put(tree.sym, localEnv);
+                    tree.sym.completer = memberEnter;
+                    if (!tree.sym.isLocal() && uncompleted != null) uncompleted.append(tree.sym);
                     return;
                 }
                 if (owner.kind == TYP) {
@@ -458,14 +460,12 @@ public class Enter extends JCTree.Visitor {
         }
         tree.sym = c;
 
-        if (reattr) {
-            if (c.kind == ERR && c.type.isErroneous()) {
-                c.flags_field &= ~FROMCLASS;
-                c.kind = TYP;
-                c.type = new ClassType(Type.noType, List.<Type>nil(), c);
-            } else {
-                c.flags_field |= FROMCLASS;
-            }
+        if (c.kind == ERR && c.type.isErroneous()) {
+            c.flags_field &= ~FROMCLASS;
+            c.kind = TYP;
+            c.type = new ClassType(Type.noType, List.<Type>nil(), c);
+        } else if (reattr) {
+            c.flags_field |= FROMCLASS;
         }
 
         // Enter class into `compiled' table and enclosing scope.
