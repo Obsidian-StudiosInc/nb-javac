@@ -26,6 +26,7 @@
 package com.sun.tools.javac.comp;
 
 import java.util.*;
+import java.util.logging.Logger;
 
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.*;
@@ -764,6 +765,8 @@ public class TransTypes extends TreeTranslator {
         if (st.tag == CLASS)
             translateClass((ClassSymbol)st.tsym);
 
+        if ((c.flags_field & UNATTRIBUTED) != 0)
+            Logger.getLogger(TransTypes.class.getName()).warning("TransTypes.translateClass removes unattributed class: [" + c + "] form the typeEnvs map."); //NOI18N
         Env<AttrContext> myEnv = enter.typeEnvs.remove(c);
         if (myEnv == null)
             return;

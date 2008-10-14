@@ -402,7 +402,7 @@ class Comment {
         if (start == inlinetext.length() ||
               (linkstart = inlinetext.indexOf("{@", start)) == -1) {
             return -1;
-        } else if(inlinetext.indexOf('}', start) == -1) {
+        } else if(inlinetext.indexOf('}', linkstart) == -1) {
             //Missing '}'.
             docenv.warning(holder, "tag.Improper_Use_Of_Link_Tag",
                           inlinetext.substring(linkstart, inlinetext.length()));

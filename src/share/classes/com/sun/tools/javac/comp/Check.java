@@ -589,7 +589,7 @@ public class Check {
         long implicit = 0;
         switch (sym.kind) {
         case VAR:
-            if (sym.owner.kind != TYP)
+            if (sym.owner.kind != TYP && sym.owner.kind != ERR)
                 mask = LocalVarFlags;
             else if ((sym.owner.flags_field & INTERFACE) != 0)
                 mask = implicit = InterfaceVarFlags;
@@ -1499,6 +1499,7 @@ public class Check {
             seen.add(tv);
             for (Type b : types.getBounds(tv))
                 checkNonCyclic1(pos, b, seen);
+            seen.remove(tv);
         }
     }
 

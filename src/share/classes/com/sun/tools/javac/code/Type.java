@@ -1221,7 +1221,9 @@ public class Type implements PrimitiveType {
 
         @Override
         public String toString() {
-            if (tsym != null && tsym.type != this)
+            if (tsym == null)
+                return "<error>";
+            if (tsym.type != this)
                 return tsym.name.table.any.toString();
             return super.toString();
         }

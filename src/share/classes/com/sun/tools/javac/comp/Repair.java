@@ -45,6 +45,7 @@ import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.tree.JCTree.JCStatement;
+import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
@@ -149,6 +150,20 @@ public class Repair extends TreeTranslator {
     }
 
     @Override
+    public void visitTypeParameter(JCTypeParameter tree) {
+        super.visitTypeParameter(tree);
+        if (tree.type != null && tree.type.tag == TypeTags.TYPEVAR) {
+            Type.TypeVar tv = (Type.TypeVar)tree.type;
+            if (tv.bound != null && tv.bound.isErroneous()) {
+                tv.bound = syms.objectType;
+                hasError = true;
+            }
+        }
+    }
+
+
+
+    @Override
     public void visitClassDef(JCClassDecl tree) {
         translateClass(tree.sym);
         result = tree;
@@ -169,11 +184,21 @@ public class Repair extends TreeTranslator {
 
     @Override
     public void visitMethodDef(JCMethodDecl tree) {
-        super.visitMethodDef(tree);
-        if (hasError) {
+        boolean hadDuplicateSymError = hasError && err != null && "compiler.err.already.defined".equals(err.getCode()); //NOI18N
+        tree.mods = translate(tree.mods);
+        tree.restype = translate(tree.restype);
+        tree.typarams = translateTypeParams(tree.typarams);
+        tree.params = translateVarDefs(tree.params);
+        tree.thrown = translate(tree.thrown);
+        tree.defaultValue = translate(tree.defaultValue);
+        tree.body = translate(tree.body);
+        result = tree;
+        if (hasError && !hadDuplicateSymError) {
             if (tree.sym != null) {
                 tree.sym.flags_field &= ~(Flags.ABSTRACT | Flags.NATIVE);
+                tree.sym.defaultValue = null;
             }
+            tree.defaultValue = null;
             if (tree.body == null) {
                 tree.body = make.Block(0, List.<JCStatement>nil());
             }
@@ -319,10 +344,14 @@ public class Repair extends TreeTranslator {
                         err = null;
                         l.head = translate(l.head);
                         if (hasError) {
-                            if (last != null)
-                                last.tail = l.tail;
-                            else
-                                tree.defs = l.tail;
+                            if (l.head.getTag() == JCTree.CLASSDEF) {
+                                last = l;
+                            } else {
+                                if (last != null)
+                                    last.tail = l.tail;
+                                else
+                                    tree.defs = l.tail;
+                            }
                             if (classLevelErrTree == null) {
                                 if (err != null) {
                                     classLevelErrTree = err.getTree();
