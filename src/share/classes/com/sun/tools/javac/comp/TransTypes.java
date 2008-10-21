@@ -594,7 +594,7 @@ public class TransTypes extends TreeTranslator {
         if (tree.varargsElement != null)
             tree.varargsElement = types.erasure(tree.varargsElement);
         else
-            assert tree.args.length() == argtypes.length();
+            assert tree.args.length() == argtypes.length() : "[" + meth.owner + "]'s method [" + meth + "] of type: [" + mt + "]; has different number of parameters than tree [" + tree + "].\nEnv tree: [" + env.tree + "]"; //NOI18N
         tree.args = translateArgs(tree.args, argtypes, tree.varargsElement);
 
         // Insert casts of method invocation results as needed.
