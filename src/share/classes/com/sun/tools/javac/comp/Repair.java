@@ -69,6 +69,7 @@ public class Repair extends TreeTranslator {
     /** The context key for the Repair phase. */
     protected static final Context.Key<Repair> repairKey = new Context.Key<Repair>();
     private static final String ERR_MESSAGE = "Uncompilable source code";
+    private static final Logger LOGGER = Logger.getLogger(Repair.class.getName());
 
     /** Get the instance for this context. */
     public static Repair instance(Context context) {
@@ -227,7 +228,7 @@ public class Repair extends TreeTranslator {
     public void visitApply(JCMethodInvocation tree) {
         Symbol meth = TreeInfo.symbol(tree.meth);
         if (meth == null) {
-            Logger.getLogger(Repair.class.getName()).warning("Repair.visitApply tree [" + tree + "] has null symbol."); //NOI18N
+            LOGGER.warning("Repair.visitApply tree [" + tree + "] has null symbol."); //NOI18N
             hasError = true;
         } else if (meth.type == null || meth.type.isErroneous()) {
             hasError = true;
@@ -236,7 +237,7 @@ public class Repair extends TreeTranslator {
             if (allowEnums && meth.name == meth.name.table.init && meth.owner == syms.enumSym)
                 argtypes = argtypes.tail.tail;
             if (tree.varargsElement == null && tree.args.length() != argtypes.length()) {
-                Logger.getLogger(Repair.class.getName()).warning("Repair.visitApply [" + meth.owner + "]'s method [" + meth + "] of type: [" + meth.type + "]; has different number of parameters than tree [" + tree +"]."); //NOI18N
+                LOGGER.warning("Repair.visitApply [" + meth.owner + "]'s method [" + meth + "] of type: [" + meth.type + "]; has different number of parameters than tree [" + tree +"]."); //NOI18N
                 hasError = true;
             }
         }
@@ -247,7 +248,7 @@ public class Repair extends TreeTranslator {
     public void visitNewClass(JCNewClass tree) {
         Symbol ctor = tree.constructor;
         if (ctor == null) {
-            Logger.getLogger(Repair.class.getName()).warning("Repair.visitNewClass tree [" + tree + "] has null constructor symbol."); //NOI18N
+            LOGGER.warning("Repair.visitNewClass tree [" + tree + "] has null constructor symbol."); //NOI18N
             hasError = true;
         } else if (ctor.type == null || ctor.type.isErroneous()) {
             hasError = true;
@@ -303,12 +304,14 @@ public class Repair extends TreeTranslator {
         Type st = types.supertype(c.type);
         if (st.tag == TypeTags.CLASS)
             translateClass((ClassSymbol)st.tsym);
+        LOGGER.finest("Trying to repair: " + c);
         if (repairedClassNames.contains(c.flatname))
             return;
         repairedClassNames.add(c.flatname);
         Env<AttrContext> myEnv = enter.typeEnvs.get(c);
         if (myEnv == null)
             return;
+        LOGGER.finest("Repairing: " + c);
         Env<AttrContext> oldEnv = attrEnv;
         try {
             attrEnv = myEnv;
