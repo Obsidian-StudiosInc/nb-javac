@@ -35,6 +35,7 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ModifiersTree;
 import com.sun.source.tree.StatementTree;
+import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
 import com.sun.source.util.SourcePositions;
@@ -44,7 +45,10 @@ import com.sun.tools.javac.tree.JCTree;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticListener;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
@@ -249,6 +253,30 @@ public class ParserTest extends TestCase {
             assertEquals(command, code.indexOf(command + " {") + (command + " ").length(), t.getSourcePositions().getEndPosition(cut, ret));
             assertEquals(command, code.indexOf(command + " {") + (command + " ").length(), t.getSourcePositions().getStartPosition(cut, block));
         }
+    }
+
+    public void DISABLEDtestErrorRecoveryForEnhancedForLoop142381() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test; class Test { private void method() { java.util.Set<String> s = null; for (a : s) {} } }";
+
+        final List<Diagnostic<? extends JavaFileObject>> errors = new LinkedList<Diagnostic<? extends JavaFileObject>>();
+
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, new DiagnosticListener<JavaFileObject>() {
+            public void report(Diagnostic<? extends JavaFileObject> diagnostic) {
+                errors.add(diagnostic);
+            }
+        }, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+
+        CompilationUnitTree cut = ct.parse().iterator().next();
+
+        ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
+        StatementTree forStatement = ((MethodTree) clazz.getMembers().get(0)).getBody().getStatements().get(1);
+
+        assertEquals(Kind.ENHANCED_FOR_LOOP, forStatement.getKind());
+        assertFalse(errors.isEmpty());
     }
 
 }
