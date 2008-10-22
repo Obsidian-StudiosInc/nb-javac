@@ -2034,7 +2034,7 @@ public class Parser {
         } else {
             JCExpression t = term(EXPR | TYPE);
             if ((lastmode & TYPE) != 0 &&
-                (S.token() == IDENTIFIER || S.token() == ASSERT || S.token() == ENUM))
+                (S.token() == IDENTIFIER || S.token() == ASSERT || S.token() == ENUM || S.token() == COLON))
                 return variableDeclarators(modifiersOpt(), t, stats).toList();
             else
                 return moreStatementExpressions(pos, t, stats).toList();

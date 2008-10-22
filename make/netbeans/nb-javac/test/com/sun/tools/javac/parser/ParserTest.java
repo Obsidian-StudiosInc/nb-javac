@@ -255,7 +255,7 @@ public class ParserTest extends TestCase {
         }
     }
 
-    public void DISABLEDtestErrorRecoveryForEnhancedForLoop142381() throws IOException {
+    public void testErrorRecoveryForEnhancedForLoop142381() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
