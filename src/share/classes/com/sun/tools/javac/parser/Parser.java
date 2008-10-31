@@ -2634,8 +2634,6 @@ public class Parser {
             }
             body = toP(F.at(identPos).AnonymousClassDef(mods1, defs, this.anonScopes.peek().assignNumber()));
         }
-        if (args.isEmpty() && body == null)
-            createPos = Position.NOPOS;
         JCIdent ident = F.at(Position.NOPOS).Ident(enumName);
         JCNewClass create = F.at(createPos).NewClass(null, typeArgs, ident, args, body);
         if (createPos != Position.NOPOS)
