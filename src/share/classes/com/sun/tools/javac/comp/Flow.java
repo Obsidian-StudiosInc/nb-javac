@@ -552,6 +552,11 @@ public class Flow extends TreeScanner {
         inits = uninits = null;
     }
 
+    public void scan(JCTree tree) {
+        if (log.getErrDiag(tree) == null)
+            super.scan(tree);
+    }
+
     /* ------------ Visitor methods for various sorts of trees -------------*/
 
     public void visitClassDef(JCClassDecl tree) {
