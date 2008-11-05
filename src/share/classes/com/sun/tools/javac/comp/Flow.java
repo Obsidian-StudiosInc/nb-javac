@@ -552,11 +552,6 @@ public class Flow extends TreeScanner {
         inits = uninits = null;
     }
 
-    public void scan(JCTree tree) {
-        if (log.getErrDiag(tree) == null)
-            super.scan(tree);
-    }
-
     /* ------------ Visitor methods for various sorts of trees -------------*/
 
     public void visitClassDef(JCClassDecl tree) {
@@ -869,7 +864,13 @@ public class Flow extends TreeScanner {
         ListBuffer<PendingExit> prevPendingExits = pendingExits;
         boolean prevLoopPassTwo = loopPassTwo;
         int nextadrPrev = nextadr;
+        Bits initsExpr = inits;
+        Bits uninitsExpr = uninits;
         scan(tree.expr);
+        if (inits == null) {
+            inits = initsExpr;
+            uninits = uninitsExpr;
+        }
         Bits initsStart = inits.dup();
         Bits uninitsStart = uninits.dup();
 
