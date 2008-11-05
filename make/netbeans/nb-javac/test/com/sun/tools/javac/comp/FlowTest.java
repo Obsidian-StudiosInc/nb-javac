@@ -56,7 +56,19 @@ public class FlowTest extends TestCase {
         }
     }
 
-    public void testNotImportedAnnotationsAttributed() throws IOException {
+    public void test152088() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test; public class Test {public void test() {java.util.List<String> l = null;for (String s : !l.isEmpty()) {}}}";
+
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+
+        ct.analyze();
+    }
+    
+    public void test152334() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
@@ -65,7 +77,6 @@ public class FlowTest extends TestCase {
 
         final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
-//        ct.analyze();//ENABLE ME
+        ct.analyze();
     }
-    
 }
