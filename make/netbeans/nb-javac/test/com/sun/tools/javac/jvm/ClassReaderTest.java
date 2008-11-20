@@ -25,10 +25,24 @@
 
 package com.sun.tools.javac.jvm;
 
+import com.sun.source.util.JavacTask;
+import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.Set;
+import javax.lang.model.element.TypeElement;
+import javax.tools.ForwardingJavaFileManager;
+import javax.tools.JavaCompiler;
+import javax.tools.JavaFileManager;
+import javax.tools.JavaFileObject;
+import javax.tools.JavaFileObject.Kind;
+import javax.tools.SimpleJavaFileObject;
+import javax.tools.StandardLocation;
+import javax.tools.ToolProvider;
 import junit.framework.TestCase;
 
 /**
@@ -79,4 +93,79 @@ public class ClassReaderTest extends TestCase {
         }
 
     }
+
+    public void testOrderOnClassPathIsSignificant() throws Exception {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        JavacTask ct = (JavacTask)tool.getTask(null, new JFM(tool.getStandardFileManager(null, null, null)), null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.<JavaFileObject>asList());
+
+        TypeElement pack = ct.getElements().getTypeElement("Test");
+
+        URI source = ((ClassSymbol) pack).classfile.toUri();
+
+        assertTrue(source.toASCIIString(), source.getPath().endsWith("Test1.class"));
+        assertEquals(1, pack.getEnclosedElements().size());
+    }
+
+    private static final class JFM extends ForwardingJavaFileManager<JavaFileManager> {
+
+        public JFM(JavaFileManager delegate) {
+            super(delegate);
+        }
+
+        @Override
+        public Iterable<JavaFileObject> list(Location location, String packageName, Set<Kind> kinds, boolean recurse) throws IOException {
+            if (StandardLocation.CLASS_PATH == location && "".equals(packageName) && kinds.contains(Kind.CLASS)) {
+                try {
+                    return Arrays.<JavaFileObject>asList(ClassJFO.create("Test1", 1000), ClassJFO.create("Test2", 2000));
+                } catch (URISyntaxException ex) {
+                    throw new IOException(ex);
+                }
+            }
+
+            Iterable<JavaFileObject> list = super.list(location, packageName, kinds, recurse);
+
+            return list;
+        }
+
+        @Override
+        public String inferBinaryName(Location location, JavaFileObject file) {
+            if (file instanceof ClassJFO) {
+                return ((ClassJFO) file).binaryName;
+            }
+
+            return super.inferBinaryName(location, file);
+        }
+
+    }
+
+    private static final class ClassJFO extends SimpleJavaFileObject {
+
+        private final String binaryName;
+        private final long lastModified;
+
+        public ClassJFO(URI uri, String binaryName, long lastModified) {
+            super(uri, Kind.CLASS);
+            this.binaryName = binaryName;
+            this.lastModified = lastModified;
+        }
+
+        public static final ClassJFO create(String name, long lastModified) throws URISyntaxException {
+            return new ClassJFO(ClassReaderTest.class.getResource(name + ".class").toURI(), "Test", lastModified);
+        }
+
+        @Override
+        public InputStream openInputStream() throws IOException {
+            return uri.toURL().openStream();
+        }
+
+        @Override
+        public long getLastModified() {
+            return lastModified;
+        }
+
+    }
+
 }
