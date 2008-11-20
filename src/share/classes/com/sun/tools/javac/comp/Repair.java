@@ -34,6 +34,7 @@ import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.TypeTags;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCBinary;
 import com.sun.tools.javac.tree.JCTree.JCBlock;
 import com.sun.tools.javac.tree.JCTree.JCCase;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
@@ -46,6 +47,7 @@ import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.tree.JCTree.JCStatement;
 import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
+import com.sun.tools.javac.tree.JCTree.JCUnary;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
@@ -162,8 +164,6 @@ public class Repair extends TreeTranslator {
         }
     }
 
-
-
     @Override
     public void visitClassDef(JCClassDecl tree) {
         translateClass(tree.sym);
@@ -254,6 +254,26 @@ public class Repair extends TreeTranslator {
             hasError = true;
         }
         super.visitNewClass(tree);
+    }
+
+    @Override
+    public void visitUnary(JCUnary tree) {
+        Symbol operator = tree.operator;
+        if (operator == null) {
+            LOGGER.warning("Repair.visitUnary tree [" + tree + "] has null operator symbol."); //NOI18N
+            hasError = true;
+        }
+        super.visitUnary(tree);
+    }
+
+    @Override
+    public void visitBinary(JCBinary tree) {
+        Symbol operator = tree.operator;
+        if (operator == null) {
+            LOGGER.warning("Repair.visitBinary tree [" + tree + "] has null operator symbol."); //NOI18N
+            hasError = true;
+        }
+        super.visitBinary(tree);
     }
 
     @Override
