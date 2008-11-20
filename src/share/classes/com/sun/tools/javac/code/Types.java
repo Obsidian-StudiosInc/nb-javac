@@ -686,7 +686,7 @@ public class Types {
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
                 return t == s || (t.tsym != null && t.tsym.name == names.any) ||
-                        (s.tsym != null && (s.getKind() == TypeKind.ERROR || s.tsym.type.getKind() == TypeKind.ERROR) &&
+                        (s != null && s.tsym != null && (s.getKind() == TypeKind.ERROR || (s.tsym.type != null && s.tsym.type.getKind() == TypeKind.ERROR)) &&
                         (s.tsym.name == names.any || (t.tsym != null && t.tsym.getQualifiedName() == s.tsym.getQualifiedName())));
             }
         };
