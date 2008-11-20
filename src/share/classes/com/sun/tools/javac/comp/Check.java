@@ -964,6 +964,7 @@ public class Check {
      */
     boolean isUnchecked(Type exc) {
         return
+            (exc == null) ? true :
             (exc.tag == TYPEVAR) ? isUnchecked(types.supertype(exc)) :
             (exc.tag == CLASS) ? isUnchecked((ClassSymbol)exc.tsym) :
             exc.tag == BOT || exc.tag == ERROR;
