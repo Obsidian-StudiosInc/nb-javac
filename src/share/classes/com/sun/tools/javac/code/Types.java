@@ -1315,7 +1315,7 @@ public class Types {
                     if (x != null)
                         return x;
                 }
-                if ((sym.flags() & INTERFACE) != 0) {
+                if (sym != null && (sym.flags() & INTERFACE) != 0) {
                     for (List<Type> l = interfaces(t); l.nonEmpty(); l = l.tail) {
                         Type x = asSuper(l.head, sym);
                         if (x != null)
