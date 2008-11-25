@@ -24,10 +24,18 @@
  */
 package com.sun.tools.javac.comp;
 
+import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.tools.javac.api.JavacTaskImpl;
+import com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import com.sun.tools.javac.tree.TreeMaker;
+import com.sun.tools.javac.util.Context;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
+import javax.tools.DiagnosticCollector;
+import javax.tools.DiagnosticListener;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
@@ -67,7 +75,7 @@ public class FlowTest extends TestCase {
 
         ct.analyze();
     }
-    
+
     public void test152334() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
@@ -79,4 +87,66 @@ public class FlowTest extends TestCase {
 
         ct.analyze();
     }
+
+    public void test153488a() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test;\n" +
+                      "class Test{\n" +
+                      "    private final int x;" +
+                      "    Test() { x = 0; }" +
+                      "    class Inner { int foo() { return x; } }" +
+                      "}";
+
+        DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        
+        ct.analyze();
+
+        assertEquals(c.getDiagnostics().toString(), 0, c.getDiagnostics().size());
+
+        ClassTree clazz = (ClassTree) ((ClassTree) cut.getTypeDecls().get(0)).getMembers().get(2);
+
+        Context context = ct.getContext();
+        Flow flow = Flow.instance(context);
+        TreeMaker make = TreeMaker.instance(context);
+        
+        flow.reanalyzeMethod(make.forToplevel((JCCompilationUnit) cut), (JCClassDecl) clazz);
+        
+        assertEquals(c.getDiagnostics().toString(), 0, c.getDiagnostics().size());
+    }
+
+    public void test153488b() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test;\n" +
+                      "class Test{\n" +
+                      "    Test() { }" +
+                      "    class Inner { final int y; int foo() { final int x; return x; } }" +
+                      "}";
+
+        DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+
+        ct.analyze();
+
+        assertEquals(c.getDiagnostics().toString(), 2, c.getDiagnostics().size());
+
+        ClassTree clazz = (ClassTree) ((ClassTree) cut.getTypeDecls().get(0)).getMembers().get(1);
+
+        Context context = ct.getContext();
+        Flow flow = Flow.instance(context);
+        TreeMaker make = TreeMaker.instance(context);
+
+        flow.reanalyzeMethod(make.forToplevel((JCCompilationUnit) cut), (JCClassDecl) clazz);
+
+        assertEquals(c.getDiagnostics().toString(), 4, c.getDiagnostics().size());
+    }
+    
 }

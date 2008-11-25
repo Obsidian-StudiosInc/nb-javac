@@ -242,6 +242,8 @@ public class Flow extends TreeScanner {
      */
     JCClassDecl classDef;
 
+    JCClassDecl reanalyzedClass;
+
     /** The first variable sequence number in this class definition.
      */
     int firstadr;
@@ -329,7 +331,8 @@ public class Flow extends TreeScanner {
         return sym != null &&
             (sym.owner.kind == MTH ||
              ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL &&
-              classDef.sym.isEnclosedBy((ClassSymbol)sym.owner)));
+              classDef.sym.isEnclosedBy((ClassSymbol)sym.owner)) &&
+              (reanalyzedClass == null || ((ClassSymbol)sym.owner).isEnclosedBy(reanalyzedClass.sym)));
     }
 
     /** Initialize new trackable variable by setting its address field
@@ -1290,10 +1293,13 @@ public class Flow extends TreeScanner {
     }
 
     public void reanalyzeMethod (final TreeMaker make, final JCClassDecl classDef) {
+        JCClassDecl oldReanalyzedClass = reanalyzedClass;
         try {
             init (make);
+            reanalyzedClass = classDef;
             scan(classDef);
         } finally {
+            reanalyzedClass = oldReanalyzedClass;
             cleanup();
         }
     }
