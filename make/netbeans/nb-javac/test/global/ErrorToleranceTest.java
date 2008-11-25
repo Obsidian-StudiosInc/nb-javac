@@ -290,6 +290,48 @@ public class ErrorToleranceTest extends TestCase {
         compareResults(golden, code);
     }
 
+    public void testDuplicateClasses() throws Exception {
+        final String code = "package test;\n" +
+                      "public class Test {\n" +
+                      "    public static class Nested {\n" +
+                      "    }\n" +
+                      "    public static class Nested {\n" +
+                      "    }\n" +
+                      "}\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {\n" +
+                      "    static {\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code - test.Test.Nested is already defined in test.Test\");\n" +
+                      "    }\n" +
+                      "    public static class Nested {\n" +
+                      "    }\n" +
+                      "}\n";
+
+        compareResults(golden, code);
+    }
+
+    public void testIssue147516() throws Exception {
+        final String code = "package test;\n" +
+                      "public class Test {\n" +
+                      "    public static final Nested NESTED = new Nested();\n" +
+                      "    public static class Nested implements Runnable {\n" +
+                      "    }\n" +
+                      "}\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {\n" +
+                      "    static {\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code - test.Test.Nested is not abstract and does not override abstract method run() in java.lang.Runnable\");\n" +
+                      "    }\n" +
+                      "    public static final Nested NESTED = new Nested();\n" +
+                      "    public static class Nested implements Runnable {\n" +
+                      "    };\n" +
+                      "}\n";
+
+        compareResults(golden, code);
+    }
+
     //<editor-fold defaultstate="collapsed" desc=" Test Infrastructure ">
     static class MyFileObject extends SimpleJavaFileObject {
         private String text;
@@ -374,7 +416,7 @@ public class ErrorToleranceTest extends TestCase {
         sb.append(clazz.getSuperClass().getClassName());
         sb.append(" implements ");
         for (JavaClass c : clazz.getInterfaces()) {
-            sb.append(c.getSuperClass().getClassName());
+            sb.append(c.getClassName());
             sb.append(", ");
         }
         sb.append("{\n");
