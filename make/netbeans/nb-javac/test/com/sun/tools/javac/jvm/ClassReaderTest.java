@@ -121,7 +121,7 @@ public class ClassReaderTest extends TestCase {
                 try {
                     return Arrays.<JavaFileObject>asList(ClassJFO.create("Test1", 1000), ClassJFO.create("Test2", 2000));
                 } catch (URISyntaxException ex) {
-                    throw new IOException(ex);
+                    throw new IOException(ex.getMessage());
                 }
             }
 
