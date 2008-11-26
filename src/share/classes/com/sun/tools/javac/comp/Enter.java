@@ -474,6 +474,10 @@ public class Enter extends JCTree.Visitor {
                 duplicateClass(tree.pos(), c);
                 result = new ErrorType(tree.name, (TypeSymbol)owner);
                 tree.sym  = (ClassSymbol)result.tsym;
+                Env<AttrContext> localEnv = classEnv(tree, env);
+                typeEnvs.put(tree.sym, localEnv);
+                tree.sym.completer = memberEnter;
+                if (!tree.sym.isLocal() && uncompleted != null) uncompleted.append(tree.sym);
                 return;
             }
             chk.compiled.put(c.flatname, c);

@@ -686,7 +686,7 @@ public class Types {
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
                 return t == s || (t.tsym != null && t.tsym.name == names.any) ||
-                        (s.tsym != null && (s.getKind() == TypeKind.ERROR || s.tsym.type.getKind() == TypeKind.ERROR) &&
+                        (s != null && s.tsym != null && (s.getKind() == TypeKind.ERROR || (s.tsym.type != null && s.tsym.type.getKind() == TypeKind.ERROR)) &&
                         (s.tsym.name == names.any || (t.tsym != null && t.tsym.getQualifiedName() == s.tsym.getQualifiedName())));
             }
         };
@@ -1315,7 +1315,7 @@ public class Types {
                     if (x != null)
                         return x;
                 }
-                if ((sym.flags() & INTERFACE) != 0) {
+                if (sym != null && (sym.flags() & INTERFACE) != 0) {
                     for (List<Type> l = interfaces(t); l.nonEmpty(); l = l.tail) {
                         Type x = asSuper(l.head, sym);
                         if (x != null)
