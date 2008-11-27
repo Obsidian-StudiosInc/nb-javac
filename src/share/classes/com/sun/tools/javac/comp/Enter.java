@@ -414,7 +414,7 @@ public class Enter extends JCTree.Visitor {
             if (c == null) {
                 if (tree.name.len != 0 &&
                         !chk.checkUniqueClassName(tree.pos(), tree.name, enclScope)) {
-                    result = new ErrorType(tree.name, (TypeSymbol)owner);
+                    result = new ErrorType(tree.name, owner);
                     tree.sym = (ClassSymbol)result.tsym;
                     Env<AttrContext> localEnv = classEnv(tree, env);
                     typeEnvs.put(tree.sym, localEnv);
@@ -472,7 +472,7 @@ public class Enter extends JCTree.Visitor {
         if (!reattr && !noctx) {
             if (chk.compiled.get(c.flatname) != null) {
                 duplicateClass(tree.pos(), c);
-                result = new ErrorType(tree.name, (TypeSymbol)owner);
+                result = new ErrorType(tree.name, owner);
                 tree.sym  = (ClassSymbol)result.tsym;
                 Env<AttrContext> localEnv = classEnv(tree, env);
                 typeEnvs.put(tree.sym, localEnv);
