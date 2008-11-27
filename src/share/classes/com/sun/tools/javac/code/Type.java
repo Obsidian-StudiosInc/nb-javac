@@ -1188,7 +1188,7 @@ public class Type implements PrimitiveType {
             }
         }
 
-        public ErrorType(Name name, TypeSymbol container) {
+        public ErrorType(Name name, Symbol container) {
             this(new ClassSymbol(PUBLIC|STATIC|ACYCLIC, name, null, container));
         }
         
