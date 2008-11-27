@@ -590,20 +590,19 @@ public class Enter extends JCTree.Visitor {
                     break;
                 }
             }
-            if (result == null) {
-                ClassSymbol cs = env.info.scope.owner.outermostClass();
-                treeLoader.couplingError(cs, tree);
-            }
-        } else {
-            TypeVar a = (tree.type != null)
-            ? (TypeVar)tree.type
-                    : new TypeVar(tree.name, env.info.scope.owner, syms.botType);
-            tree.type = a;
-            if (chk.checkUnique(tree.pos(), a.tsym, env.info.scope)) {
-                env.info.scope.enter(a.tsym);
-            }
-            result = a;
+            if (result != null)
+                return;
+            ClassSymbol cs = env.info.scope.owner.outermostClass();
+            treeLoader.couplingError(cs, tree);
         }
+        TypeVar a = (tree.type != null)
+        ? (TypeVar)tree.type
+                : new TypeVar(tree.name, env.info.scope.owner, syms.botType);
+        tree.type = a;
+        if (chk.checkUnique(tree.pos(), a.tsym, env.info.scope)) {
+            env.info.scope.enter(a.tsym);
+        }
+        result = a;
     }
 
     /** Default class enter visitor method: do nothing.
