@@ -34,6 +34,7 @@ import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.TypeTags;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCAssignOp;
 import com.sun.tools.javac.tree.JCTree.JCBinary;
 import com.sun.tools.javac.tree.JCTree.JCBlock;
 import com.sun.tools.javac.tree.JCTree.JCCase;
@@ -274,6 +275,16 @@ public class Repair extends TreeTranslator {
             hasError = true;
         }
         super.visitBinary(tree);
+    }
+
+    @Override
+    public void visitAssignop(JCAssignOp tree) {
+        Symbol operator = tree.operator;
+        if (operator == null) {
+            LOGGER.warning("Repair.visitAssignop tree [" + tree + "] has null operator symbol."); //NOI18N
+            hasError = true;
+        }
+        super.visitAssignop(tree);
     }
 
     @Override
