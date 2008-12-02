@@ -70,7 +70,7 @@ public class ClassReader extends ClassFile implements Completer {
     protected static final Context.Key<ClassReader> classReaderKey =
         new Context.Key<ClassReader>();
 
-    protected Annotate annotate;
+    Annotate annotate;
 
     /** Switch: verbose output.
      */
@@ -88,19 +88,15 @@ public class ClassReader extends ClassFile implements Completer {
 
     /** Switch: read GJ signature information.
      */
-    protected boolean allowGenerics;
-
-    /** Switch: Allow GJ covariant return types.
-     */
-    protected boolean allowCovRetTypes;
+    boolean allowGenerics;
 
     /** Switch: read varargs attribute.
      */
-    protected boolean allowVarargs;
+    boolean allowVarargs;
 
     /** Switch: allow annotations.
      */
-    protected boolean allowAnnotations;
+    boolean allowAnnotations;
 
     /** Switch: preserve parameter names from the variable table.
      */
@@ -137,6 +133,7 @@ public class ClassReader extends ClassFile implements Completer {
      */
     private final JavaFileManager fileManager;
     private final ClassNamesForFileOraculum classNamesOraculum;
+    private final boolean ideMode;
 
     /** Can be reassigned from outside:
      *  the completer to be used for ".java" files. If this remains unassigned
@@ -238,11 +235,11 @@ public class ClassReader extends ClassFile implements Completer {
         annotate = Annotate.instance(context);
         verbose        = options.get("-verbose")        != null;
         checkClassFile = options.get("-checkclassfile") != null;
-        boolean ideMode = options.get("ide") != null;
+        ideMode = options.get("ide") != null;
         Source source = Source.instance(context);
-        allowGenerics    = allowCovRetTypes = source.allowGenerics() || ideMode;
-        allowVarargs     = source.allowVarargs() || ideMode;
-        allowAnnotations = source.allowAnnotations() || ideMode;
+        allowGenerics    = source.allowGenerics();
+        allowVarargs     = source.allowVarargs();
+        allowAnnotations = source.allowAnnotations();
         saveParameterNames = options.get("save-parameter-names") != null;
         cacheCompletionFailure = options.get("dev") == null;
         preferSource = "source".equals(options.get("-Xprefer"));
@@ -257,7 +254,7 @@ public class ClassReader extends ClassFile implements Completer {
 
     /** Add member to class unless it is synthetic.
      */
-    protected void enterMember(ClassSymbol c, Symbol sym) {
+    private void enterMember(ClassSymbol c, Symbol sym) {
         if ((sym.flags_field & (SYNTHETIC|BRIDGE)) != SYNTHETIC)
             c.members_field.enter(sym);
     }
@@ -875,17 +872,17 @@ public class ClassReader extends ClassFile implements Completer {
                 sym.flags_field |= SYNTHETIC;
         } else if (attrName == names.Bridge) {
             sym.flags_field |= BRIDGE;
-            if (!allowCovRetTypes)
+            if (!allowGenerics)
                 sym.flags_field &= ~SYNTHETIC;
         } else if (attrName == names.Deprecated) {
             sym.flags_field |= DEPRECATED;
         } else if (attrName == names.Varargs) {
-            if (allowVarargs) sym.flags_field |= VARARGS;
+            if (allowVarargs || ideMode) sym.flags_field |= VARARGS;
         } else if (attrName == names.Annotation) {
-            if (allowAnnotations) sym.flags_field |= ANNOTATION;
+            if (allowAnnotations || ideMode) sym.flags_field |= ANNOTATION;
         } else if (attrName == names.Enum) {
             sym.flags_field |= ENUM;
-        } else if (allowGenerics && attrName == names.Signature) {
+        } else if ((allowGenerics || ideMode) && attrName == names.Signature) {
             List<Type> thrown = sym.type.getThrownTypes();
             sym.type = readType(nextChar());
             //- System.err.println(" # " + sym.type);
@@ -1082,7 +1079,7 @@ public class ClassReader extends ClassFile implements Completer {
             c.sourcefile = new SourceFileObject(n);
         } else if (attrName == names.InnerClasses) {
             readInnerClasses(c);
-        } else if (allowGenerics && attrName == names.Signature) {
+        } else if ((allowGenerics || ideMode) && attrName == names.Signature) {
             readingClassAttr = true;
             try {
                 ClassType ct1 = (ClassType)c.type;
@@ -1715,7 +1712,7 @@ public class ClassReader extends ClassFile implements Completer {
         if ((flags & ACC_BRIDGE) != 0) {
             flags &= ~ACC_BRIDGE;
             flags |= BRIDGE;
-            if (!allowCovRetTypes)
+            if (!allowGenerics)
                 flags &= ~SYNTHETIC;
         }
         if ((flags & ACC_VARARGS) != 0) {
