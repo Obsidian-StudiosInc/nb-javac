@@ -335,14 +335,18 @@ public class Repair extends TreeTranslator {
         Type st = types.supertype(c.type);
         if (st.tag == TypeTags.CLASS)
             translateClass((ClassSymbol)st.tsym);
-        LOGGER.finest("Trying to repair: " + c);
-        if (repairedClassNames.contains(c.flatname))
+        LOGGER.finest("Repair.translateClass: " + c); //NOI18N
+        if (repairedClassNames.contains(c.flatname)) {
+            LOGGER.finest("Repair.translateClass: Should be already done"); //NOI18N
             return;
-        repairedClassNames.add(c.flatname);
+        }
         Env<AttrContext> myEnv = enter.typeEnvs.get(c);
-        if (myEnv == null)
+        if (myEnv == null) {
+            LOGGER.finest("Repair.translateClass: Context not found"); //NOI18N
             return;
-        LOGGER.finest("Repairing: " + c);
+        }
+        LOGGER.finest("Repair.translateClass: Repairing " + c); //NOI18N
+        repairedClassNames.add(c.flatname);
         Env<AttrContext> oldEnv = attrEnv;
         try {
             attrEnv = myEnv;
