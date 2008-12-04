@@ -1890,9 +1890,16 @@ public class ClassReader extends ClassFile implements Completer {
         if (classfile != null) {
             JavaFileObject previousClassFile = currentClassFile;
             try {
-                assert !filling :
-                    "Filling " + classfile.toUri() +
-                    " during " + previousClassFile;
+                if (filling) {
+                    StringBuilder sb = new StringBuilder();
+                    for (StackTraceElement[] trace : Thread.getAllStackTraces().values()) {
+                        for (StackTraceElement element : trace)
+                            sb.append(element).append('\n');
+                        sb.append('\n');
+                    }
+                    assert false : "Filling " + classfile.toUri() +
+                    " during " + previousClassFile + "\n" + sb;
+                }
                 currentClassFile = classfile;
                 if (verbose) {
                     printVerbose("loading", currentClassFile.toString());
