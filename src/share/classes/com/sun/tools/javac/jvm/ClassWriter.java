@@ -1580,7 +1580,7 @@ public class ClassWriter extends ClassFile {
             case MTH: if ((e.sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
                       break;
             case TYP: enterInner((ClassSymbol)e.sym); break;
-            default : assert false;
+            default : assert false : "ClassWriter.writeClassFile: Member [" + e.sym + "] of a kind ["+ e.sym.kind + "] contained in class [" + c + "]."; //NOI18N
             }
         }
         databuf.appendChar(fieldsCount);
