@@ -246,7 +246,7 @@ public class Log {
      */
     public JavaFileObject useSource(final JavaFileObject name) {
         JavaFileObject prev = currentSource();
-        if (name != prev) {
+        if (name != prev || source == null) {
             source = new JCDiagnostic.DiagnosticSource() {
                     public JavaFileObject getFile() {
                         return name;
