@@ -25,9 +25,12 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.code.Flags;
+import com.sun.tools.javac.code.Kinds;
+import com.sun.tools.javac.code.Scope;
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
+import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ClassType;
@@ -329,6 +332,11 @@ public class Repair extends TreeTranslator {
         return make.Block(Flags.STATIC, List.<JCStatement>of(generateErrStat(pos, msg)));
     }
 
+    private JCMethodDecl generateErrMethod(MethodSymbol sym) {
+        make.at(null);
+        return make.MethodDef(sym, make.Block(0, List.<JCStatement>of(generateErrStat(null, null))));
+    }
+
     private void translateClass(ClassSymbol c) {
         if (c == null)
             return;
@@ -376,8 +384,15 @@ public class Repair extends TreeTranslator {
                     classLevelErrMessage = err.getMessage(null);
                 }
                 if (tree.defs != null) {
+                    HashSet<MethodSymbol> nonAbstractMethods = new HashSet<MethodSymbol>();
+                    for (Scope.Entry e = tree.sym.members_field.elems; e != null; e = e.sibling) {
+                        if (e.sym.kind == Kinds.MTH && (e.sym.flags_field & Flags.ABSTRACT) == 0 && e.sym.name != e.sym.name.table.clinit)
+                            nonAbstractMethods.add((MethodSymbol)e.sym);
+                    }
                     List<JCTree> last = null;
                     for (List<JCTree> l = tree.defs; l != null && l.nonEmpty(); l = l.tail) {
+                        if (l.head.getTag() == JCTree.METHODDEF)
+                            nonAbstractMethods.remove(((JCMethodDecl)l.head).sym);
                         hasError = false;
                         err = null;
                         l.head = translate(l.head);
@@ -407,6 +422,9 @@ public class Repair extends TreeTranslator {
                             staticInit.stats = List.of(generateErrStat(classLevelErrTree, classLevelErrMessage));
                         else
                             tree.defs = tree.defs.prepend(generateErrStaticInit(classLevelErrTree, classLevelErrMessage));
+                    }
+                    for (MethodSymbol symbol : nonAbstractMethods) {
+                        tree.defs = tree.defs.prepend(generateErrMethod(symbol));
                     }
                 }
             } finally {
