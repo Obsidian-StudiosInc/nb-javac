@@ -389,7 +389,7 @@ public class Flow extends TreeScanner {
         tree = TreeInfo.skipParens(tree);
         if (tree.getTag() == JCTree.IDENT || tree.getTag() == JCTree.SELECT) {
             Symbol sym = TreeInfo.symbol(tree);
-            if (!sym.type.isErroneous())
+            if (sym != null && sym.type != null && !sym.type.isErroneous())
                 letInit(tree.pos(), (VarSymbol)sym);
         }
     }
