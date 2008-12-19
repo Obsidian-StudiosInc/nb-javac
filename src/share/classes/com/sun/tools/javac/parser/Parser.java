@@ -371,7 +371,7 @@ public class Parser {
 
     private JCErroneous syntaxError(int pos, List<JCTree> errs, String key, Object... arg) {
         setErrorEndPos(pos);
-        JCErroneous err = F.at(S.prevEndPos()).Erroneous(errs);
+        JCErroneous err = F.at(pos).Erroneous(errs);
         reportSyntaxError(err, pos, key, arg);
         if (errs != null) {
             JCTree last = errs.last();
