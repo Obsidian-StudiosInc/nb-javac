@@ -84,4 +84,27 @@ public class AnnotateTest extends TestCase {
         }.scan(cut, null);
     }
 
+    public void XtestNotImportedAnnotationsAttributed156131() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test; @TransformationSet({@Transformation(displayName=\"\")}) public class Test {}";
+
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+
+        ct.analyze();
+
+        new TreePathScanner<Void, Void>() {
+            @Override
+            public Void visitIdentifier(IdentifierTree node, Void p) {
+                if (node.getName().toString().startsWith("Transformation")) {
+                    assertNotNull(node.toString(), Trees.instance(ct).getElement(getCurrentPath()));
+                }
+                return super.visitIdentifier(node, p);
+            }
+        }.scan(cut, null);
+    }
+
 }
