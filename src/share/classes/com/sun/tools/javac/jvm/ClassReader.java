@@ -998,7 +998,11 @@ public class ClassReader extends ClassFile implements Completer {
 
     // See java.lang.Class
     protected Name simpleBinaryName(Name self, Name enclosing) {
-        String simpleBinaryName = self.toString().substring(enclosing.toString().length());
+        String selfStr = self.toString();
+        String enclStr = enclosing.toString();
+        if (selfStr.length() <= enclStr.length())
+            throw badClassFile("bad.enclosing.method", self);
+        String simpleBinaryName = selfStr.substring(enclStr.length());
         if (simpleBinaryName.length() < 1 || simpleBinaryName.charAt(0) != '$')
             throw badClassFile("bad.enclosing.method", self);
         int index = 1;
