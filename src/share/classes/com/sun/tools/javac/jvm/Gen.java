@@ -63,7 +63,7 @@ public class Gen extends JCTree.Visitor {
     private final TreeMaker make;
     private final Name.Table names;
     private final Target target;
-    private       Type stringBufferTypeInternal;
+    private final Type stringBufferType;
     private final Map<Type,Symbol> stringBufferAppend;
     private Name accessDollar;
     private final Types types;
@@ -102,6 +102,9 @@ public class Gen extends JCTree.Visitor {
         types = Types.instance(context);
         methodType = new MethodType(null, null, null, syms.methodClass);
         allowGenerics = Source.instance(context).allowGenerics();
+        stringBufferType = target.useStringBuilder()
+            ? syms.stringBuilderType
+            : syms.stringBufferType;
         stringBufferAppend = new HashMap<Type,Symbol>();
         accessDollar = names.
             fromString("access" + target.syntheticNameChar());
@@ -146,20 +149,6 @@ public class Gen extends JCTree.Visitor {
         this.useJsrLocally = false; // reset in visitTry
     }
 
-    private Type stringBufferType() {
-        if (stringBufferTypeInternal == null) {
-            try {
-                syms.stringBuilderType.tsym.complete();
-            } catch (CompletionFailure cf) {
-            }
-            //the target level may be set to 1.5, yet the StringBuild may not be accessible:
-            stringBufferTypeInternal = target.useStringBuilder() && syms.stringBuilderType.tsym.type.tag != ERROR
-                ? syms.stringBuilderType
-                : syms.stringBufferType;
-        }
-        return stringBufferTypeInternal;
-    }
-    
     /** Switches
      */
     private final boolean lineDebugInfo;
@@ -1962,10 +1951,10 @@ public class Gen extends JCTree.Visitor {
         /** Make a new string buffer.
          */
         void makeStringBuffer(DiagnosticPosition pos) {
-            code.emitop2(new_, makeRef(pos, stringBufferType()));
+            code.emitop2(new_, makeRef(pos, stringBufferType));
             code.emitop0(dup);
             callMethod(
-                pos, stringBufferType(), names.init, List.<Type>nil(), false);
+                pos, stringBufferType, names.init, List.<Type>nil(), false);
         }
 
         /** Append value (on tos) to string buffer (on tos - 1).
@@ -1983,7 +1972,7 @@ public class Gen extends JCTree.Visitor {
             if (method == null) {
                 method = rs.resolveInternalMethod(tree.pos(),
                                                   attrEnv,
-                                                  stringBufferType(),
+                                                  stringBufferType,
                                                   names.append,
                                                   List.of(t),
                                                   null);
@@ -2014,7 +2003,7 @@ public class Gen extends JCTree.Visitor {
         void bufferToString(DiagnosticPosition pos) {
             callMethod(
                 pos,
-                stringBufferType(),
+                stringBufferType,
                 names.toString,
                 List.<Type>nil(),
                 false);
