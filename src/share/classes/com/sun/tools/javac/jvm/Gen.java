@@ -508,8 +508,8 @@ public class Gen extends JCTree.Visitor {
         // If there are class initializers, create a <clinit> method
         // that contains them as its body.
         if (clinitCode.length() != 0) {
-            MethodSymbol clinit = (MethodSymbol)c.members().lookup(names.clinit).sym;
-            if (clinit == null) {
+            Symbol clinit = c.members().lookup(names.clinit).sym;
+            if (!(clinit instanceof MethodSymbol)) {
                 clinit = new MethodSymbol(
                     STATIC, names.clinit,
                     new MethodType(
@@ -521,7 +521,7 @@ public class Gen extends JCTree.Visitor {
             List<JCStatement> clinitStats = clinitCode.toList();
             JCBlock block = make.at(clinitStats.head.pos()).Block(0, clinitStats);
             block.endpos = TreeInfo.endPos(clinitStats.last());
-            methodDefs.append(make.MethodDef(clinit, block));
+            methodDefs.append(make.MethodDef((MethodSymbol)clinit, block));
         }
         // Return all method definitions.
         return methodDefs.toList();
