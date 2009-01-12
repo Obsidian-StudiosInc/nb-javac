@@ -291,8 +291,9 @@ public class Check {
      */
     boolean checkUniqueClassName(DiagnosticPosition pos, Name name, Scope s) {
         for (Scope.Entry e = s.lookup(name); e.scope == s; e = e.next()) {
-            if (e.sym.kind == TYP && e.sym.name != names.error) {
-                duplicateError(pos, e.sym);
+            if (e.sym.kind == TYP) {
+                if (e.sym.name != names.error)
+                    duplicateError(pos, e.sym);
                 return false;
             }
         }
