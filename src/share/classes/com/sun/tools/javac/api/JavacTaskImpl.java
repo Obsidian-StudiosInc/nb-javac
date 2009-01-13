@@ -790,7 +790,7 @@ public class JavacTaskImpl extends JavacTask {
         final TreeMaker make = TreeMaker.instance(context);
         final Env<AttrContext> env = attr.dupLocalEnv(((JCMethodDecl) methodToReparse).localEnv);
         final ClassSymbol owner = env.enclClass.sym;
-        if (tree.name == names.init && owner.type != syms.objectType) {
+        if (tree.name == names.init && !owner.type.isErroneous() && owner.type != syms.objectType) {
             JCBlock body = tree.body;
             if (body.stats.isEmpty() || !TreeInfo.isSelfCall(body.stats.head)) {
                 body.stats = body.stats.
