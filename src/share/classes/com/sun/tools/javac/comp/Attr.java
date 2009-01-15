@@ -683,7 +683,7 @@ public class Attr extends JCTree.Visitor {
                 // Add an implicit super() call unless an explicit call to
                 // super(...) or this(...) is given
                 // or we are compiling class java.lang.Object.
-                if (tree.name == names.init && owner.type != syms.objectType) {
+                if (tree.name == names.init && !owner.type.isErroneous() && owner.type != syms.objectType) {
                     JCBlock body = tree.body;
                     if (body.stats.isEmpty() ||
                         !TreeInfo.isSelfCall(body.stats.head)) {

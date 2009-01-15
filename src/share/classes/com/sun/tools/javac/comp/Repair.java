@@ -61,7 +61,6 @@ import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Log;
-import com.sun.tools.javac.util.Name;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -101,7 +100,7 @@ public class Repair extends TreeTranslator {
     private String classLevelErrMessage;
     private JCBlock staticInit;
     private List<JCTree> parents;
-    private Set<Name> repairedClassNames = new HashSet<Name>();
+    private Set<ClassSymbol> repairedClasses = new HashSet<ClassSymbol>();
     
     private Repair(Context context) {
         context.put(repairKey, this);
@@ -344,7 +343,7 @@ public class Repair extends TreeTranslator {
         if (st.tag == TypeTags.CLASS)
             translateClass((ClassSymbol)st.tsym);
         LOGGER.finest("Repair.translateClass: " + c); //NOI18N
-        if (repairedClassNames.contains(c.flatname)) {
+        if (repairedClasses.contains(c)) {
             LOGGER.finest("Repair.translateClass: Should be already done"); //NOI18N
             return;
         }
@@ -354,7 +353,7 @@ public class Repair extends TreeTranslator {
             return;
         }
         LOGGER.finest("Repair.translateClass: Repairing " + c); //NOI18N
-        repairedClassNames.add(c.flatname);
+        repairedClasses.add(c);
         Env<AttrContext> oldEnv = attrEnv;
         try {
             attrEnv = myEnv;
@@ -454,6 +453,6 @@ public class Repair extends TreeTranslator {
     }
     
     public void flush() {
-        repairedClassNames.clear();
+        repairedClasses.clear();
     }
 }

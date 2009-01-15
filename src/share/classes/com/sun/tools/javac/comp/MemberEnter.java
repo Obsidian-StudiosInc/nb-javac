@@ -1170,7 +1170,7 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                             boolean based) {
         List<JCVariableDecl> params = make.Params(argtypes, syms.noSymbol);
         List<JCStatement> stats = List.nil();
-        if (c.type != syms.objectType)
+        if (!c.type.isErroneous() && c.type != syms.objectType)
             stats = stats.prepend(SuperCall(make, typarams, params, based));
         if ((c.flags() & ENUM) != 0 &&
             (types.supertype(c.type).tsym == syms.enumSym ||
