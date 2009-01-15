@@ -786,7 +786,7 @@ public class Check {
         }
 
         public void visitTypeApply(JCTypeApply tree) {
-            if (tree.type.tag == CLASS) {
+            if (tree.type != null && tree.type.tag == CLASS) {
                 List<Type> formals = tree.type.tsym.type.getTypeArguments();
                 List<Type> actuals = tree.type.getTypeArguments();
                 List<JCExpression> args = tree.arguments;
