@@ -419,6 +419,7 @@ public class Enter extends JCTree.Visitor {
                     Env<AttrContext> localEnv = classEnv(tree, env);
                     typeEnvs.put(tree.sym, localEnv);
                     tree.sym.completer = memberEnter;
+                    ((ClassType)result).typarams_field = classEnter(tree.typarams, localEnv);
                     if (!tree.sym.isLocal() && uncompleted != null) uncompleted.append(tree.sym);
                     return;
                 }
@@ -477,6 +478,7 @@ public class Enter extends JCTree.Visitor {
                 Env<AttrContext> localEnv = classEnv(tree, env);
                 typeEnvs.put(tree.sym, localEnv);
                 tree.sym.completer = memberEnter;
+                ((ClassType)result).typarams_field = classEnter(tree.typarams, localEnv);
                 if (!tree.sym.isLocal() && uncompleted != null) uncompleted.append(tree.sym);
                 return;
             }
