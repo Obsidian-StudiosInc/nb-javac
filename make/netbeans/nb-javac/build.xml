@@ -95,6 +95,7 @@
     <target name="-copy-jars-to-build" if="modules.ext.exists">
         <copy file="${dist.dir}/javac-api.jar" tofile="../../../../nbbuild/netbeans/java2/modules/ext/javac-api-nb-7.0-b07.jar" />
         <copy file="${dist.dir}/javac-impl.jar" tofile="../../../../nbbuild/netbeans/java2/modules/ext/javac-impl-nb-7.0-b07.jar" />
+        <touch file="../../../../nbbuild/netbeans/java2/.lastModified" />
     </target>
     <target name="-post-jar" depends="-post-init,-separate-jars,-copy-jars-to-build">
     </target>
