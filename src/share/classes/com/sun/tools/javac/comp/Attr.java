@@ -845,7 +845,8 @@ public class Attr extends JCTree.Visitor {
                     : types.upperBound(iterableParams.head);
             }
         }
-        chk.checkType(tree.expr.pos(), elemtype, tree.var.sym.type);
+        if (tree.var.sym != null)
+            chk.checkType(tree.expr.pos(), elemtype, tree.var.sym.type);
         loopEnv.tree = tree; // before, we were not in loop!
         attribStat(tree.body, loopEnv);
         loopEnv.info.scope.leave();
