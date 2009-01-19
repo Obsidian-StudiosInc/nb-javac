@@ -532,7 +532,7 @@ public class Flow extends TreeScanner {
      *  rather than (un)inits on exit.
      */
     void scanCond(JCTree tree) {
-        if (tree.type.isFalse()) {
+        if (tree.type != null && tree.type.isFalse()) {
             if (inits == null) merge();
             initsWhenTrue = inits.dup();
             initsWhenTrue.inclRange(firstadr, nextadr);
@@ -540,7 +540,7 @@ public class Flow extends TreeScanner {
             uninitsWhenTrue.inclRange(firstadr, nextadr);
             initsWhenFalse = inits;
             uninitsWhenFalse = uninits;
-        } else if (tree.type.isTrue()) {
+        } else if (tree.type != null && tree.type.isTrue()) {
             if (inits == null) merge();
             initsWhenFalse = inits.dup();
             initsWhenFalse.inclRange(firstadr, nextadr);
