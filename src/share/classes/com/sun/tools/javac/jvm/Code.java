@@ -274,8 +274,10 @@ public class Code {
      */
     public static int width(List<Type> types) {
         int w = 0;
-        for (List<Type> l = types; l.nonEmpty(); l = l.tail)
-            w = w + width(l.head);
+        if (types != null) {
+            for (List<Type> l = types; l.nonEmpty(); l = l.tail)
+                w = w + width(l.head);
+        }
         return w;
     }
 
