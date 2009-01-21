@@ -35,6 +35,7 @@ import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.tree.JCTree.*;
 
+import java.util.logging.Logger;
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.TypeTags.*;
@@ -673,6 +674,10 @@ public class Flow extends TreeScanner {
 
     public void visitMethodDef(JCMethodDecl tree) {
         if (tree.body == null) return;
+        if (tree.sym == null) {
+            Logger.getLogger(Flow.class.getName()).warning("Flow.visitMethodDef has a null tree.sym. Tree: [" + tree + "] Enclosing class: [" + classDef + "]"); //NOI18N
+            return;
+        }
         List<Type> caughtPrev = caught;
         List<Type> mthrown = tree.sym.type.getThrownTypes();
         Bits initsPrev = inits.dup();
@@ -742,6 +747,10 @@ public class Flow extends TreeScanner {
     }
 
     public void visitVarDef(JCVariableDecl tree) {
+        if (tree.sym == null) {
+            Logger.getLogger(Flow.class.getName()).warning("Flow.visitVarDef has a null tree.sym. Tree: [" + tree + "] Enclosing class: [" + classDef + "]"); //NOI18N
+            return;
+        }
         boolean track = trackable(tree.sym);
         if (track && tree.sym.owner.kind == MTH) newVar(tree.sym);
         if (tree.init != null) {
