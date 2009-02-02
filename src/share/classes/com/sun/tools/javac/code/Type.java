@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2006 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 1999-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -360,17 +360,6 @@ public class Type implements PrimitiveType {
     public boolean isUnbound() { return false; }
     public Type withTypeVar(Type t) { return this; }
 
-    public static List<Type> removeBounds(List<Type> ts) {
-        ListBuffer<Type> result = new ListBuffer<Type>();
-        for(;ts.nonEmpty(); ts = ts.tail) {
-            result.append(ts.head.removeBounds());
-        }
-        return result.toList();
-    }
-    public Type removeBounds() {
-        return this;
-    }
-
     /** The underlying method type of this type.
      */
     public MethodType asMethodType() { throw new AssertionError(); }
@@ -489,10 +478,6 @@ public class Type implements PrimitiveType {
                 return new WildcardType(t, kind, tsym, bound);
         }
 
-        public Type removeBounds() {
-            return isUnbound() ? this : type;
-        }
-
         public Type getExtendsBound() {
             if (kind == EXTENDS)
                 return type;
@@ -599,14 +584,14 @@ public class Type implements PrimitiveType {
         }
 //where
             private String className(Symbol sym, boolean longform) {
-                if (sym.name.len == 0 && (sym.flags() & COMPOUND) != 0) {
+                if (sym.name.isEmpty() && (sym.flags() & COMPOUND) != 0) {
                     StringBuffer s = new StringBuffer(supertype_field.toString());
                     for (List<Type> is=interfaces_field; is.nonEmpty(); is = is.tail) {
                         s.append("&");
                         s.append(is.head.toString());
                     }
                     return s.toString();
-                } else if (sym.name.len == 0) {
+                } else if (sym.name.isEmpty()) {
                     String s;
                     ClassType norm = (ClassType) tsym.type;
                     if (norm == null) {
@@ -637,6 +622,10 @@ public class Type implements PrimitiveType {
                     typarams_field = List.nil();
             }
             return typarams_field;
+        }
+
+        public boolean hasErasedSupertypes() {
+            return isRaw();
         }
 
         public Type getEnclosingType() {
@@ -707,6 +696,17 @@ public class Type implements PrimitiveType {
 
         public <R, P> R accept(TypeVisitor<R, P> v, P p) {
             return v.visitDeclared(this, p);
+        }
+    }
+
+    public static class ErasedClassType extends ClassType {
+        public ErasedClassType(Type outer, TypeSymbol tsym) {
+            super(outer, List.<Type>nil(), tsym);
+        }
+
+        @Override
+        public boolean hasErasedSupertypes() {
+            return true;
         }
     }
 
@@ -965,6 +965,10 @@ public class Type implements PrimitiveType {
             return TypeKind.TYPEVAR;
         }
 
+        public boolean isCaptured() {
+            return false;
+        }
+
         public <R, P> R accept(TypeVisitor<R, P> v, P p) {
             return v.visitTypeVariable(this, p);
         }
@@ -992,6 +996,11 @@ public class Type implements PrimitiveType {
         @Override
         public <R,S> R accept(Type.Visitor<R,S> v, S s) {
             return v.visitCapturedType(this, s);
+        }
+
+        @Override
+        public boolean isCaptured() {
+            return true;
         }
 
         @Override
@@ -1168,18 +1177,20 @@ public class Type implements PrimitiveType {
     public static class ErrorType extends ClassType
             implements javax.lang.model.type.ErrorType {
 
-        public ErrorType() {
-            super(noType, List.<Type>nil(), null);
-            tag = ERROR;
+        private Type originalType = null;
+
+        public ErrorType(Type originalType, TypeSymbol tsym) {
+            this(originalType, tsym, false);
         }
 
-        public ErrorType(ClassSymbol c) {
-            this(c, true);
+        public ErrorType(ClassSymbol c, Type originalType) {
+            this(originalType, c, true);
         }
 
-        public ErrorType(TypeSymbol tsym, boolean modifyClassSym) {
+        public ErrorType(Type originalType, TypeSymbol tsym, boolean modifyClassSym) {
             super(noType, List.<Type>nil(), tsym);
             tag = ERROR;
+            this.originalType = (originalType == null ? noType : originalType);
             if (modifyClassSym && tsym instanceof ClassSymbol) {
                 ClassSymbol c = (ClassSymbol)tsym;
                 c.type = this;
@@ -1188,10 +1199,10 @@ public class Type implements PrimitiveType {
             }
         }
 
-        public ErrorType(Name name, Symbol container) {
-            this(new ClassSymbol(PUBLIC|STATIC|ACYCLIC, name, null, container));
+        public ErrorType(Name name, Symbol container, Type originalType) {
+            this(new ClassSymbol(PUBLIC|STATIC|ACYCLIC, name, null, container), originalType);
         }
-        
+
         @Override
         public <R,S> R accept(Type.Visitor<R,S> v, S s) {
             return v.visitErrorType(this, s);
@@ -1215,6 +1226,10 @@ public class Type implements PrimitiveType {
             return TypeKind.ERROR;
         }
 
+        public Type getOriginalType() {
+            return originalType;
+        }
+
         public <R, P> R accept(TypeVisitor<R, P> v, P p) {
             return v.visitError(this, p);
         }
@@ -1224,7 +1239,7 @@ public class Type implements PrimitiveType {
             if (tsym == null)
                 return "<error>";
             if (tsym.type != this)
-                return tsym.name.table.any.toString();
+                return tsym.name.table.names.any.toString();
             return super.toString();
         }
     }

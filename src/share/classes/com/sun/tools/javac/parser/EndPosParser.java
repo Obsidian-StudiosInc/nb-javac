@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2006 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2005-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,8 +30,6 @@ import java.util.HashMap;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.util.CancelService;
-import com.sun.tools.javac.util.Position;
-import com.sun.tools.javac.util.List;
 
 import static com.sun.tools.javac.tree.JCTree.*;
 
@@ -44,19 +42,16 @@ import static com.sun.tools.javac.tree.JCTree.*;
  * This code and its internal interfaces are subject to change or
  * deletion without notice.</b></p>
  */
-public class EndPosParser extends Parser {
+public class EndPosParser extends JavacParser {
 
-    public EndPosParser(Factory fac, Lexer S, boolean keepDocComments, CancelService cancelService) {
-        this (fac, S, keepDocComments, cancelService, null);
+    public EndPosParser(ParserFactory fac, Lexer S, boolean keepDocComments, boolean keepLineMap, CancelService cancelService) {
+        this(fac, S, keepDocComments, keepLineMap, cancelService, null);
     }
 
-    public EndPosParser(Factory fac, Lexer S, boolean keepDocComments, CancelService cancelService, Map<JCTree,Integer> endPositions) {
-        super(fac, S, keepDocComments, cancelService);
-        this.S = S;
+    public EndPosParser(ParserFactory fac, Lexer S, boolean keepDocComments, boolean keepLineMap, CancelService cancelService, Map<JCTree,Integer> endPositions) {
+        super(fac, S, keepDocComments, keepLineMap, cancelService);
         this.endPositions = endPositions == null ? new HashMap<JCTree,Integer>() : endPositions;
     }
-
-    private Lexer S;
 
     /** A hashtable to store ending positions
      *  of source ranges indexed by the tree nodes.
@@ -86,8 +81,8 @@ public class EndPosParser extends Parser {
     }
 
     @Override
-    public JCCompilationUnit compilationUnit() {
-        JCCompilationUnit t = super.compilationUnit();
+    public JCCompilationUnit parseCompilationUnit() {
+        JCCompilationUnit t = super.parseCompilationUnit();
         t.endPositions = endPositions;
         return t;
     }

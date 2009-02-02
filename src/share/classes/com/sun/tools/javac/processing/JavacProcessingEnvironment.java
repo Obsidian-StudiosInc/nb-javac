@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2006 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2005-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,22 +25,17 @@
 
 package com.sun.tools.javac.processing;
 
-import com.sun.source.util.TaskEvent;
-import com.sun.source.util.TaskListener;
-import com.sun.tools.javac.api.JavacTaskImpl;
-import com.sun.tools.javac.util.List;
-import com.sun.tools.javac.util.*;
-import com.sun.tools.javac.code.*;
-import com.sun.tools.javac.code.Symbol.*;
-import com.sun.tools.javac.comp.*;
-import com.sun.tools.javac.jvm.*;
-import com.sun.tools.javac.tree.*;
-import com.sun.tools.javac.parser.*;
-import com.sun.tools.javac.code.Symbol.*;
-import com.sun.tools.javac.model.JavacElements;
-import com.sun.tools.javac.model.JavacTypes;
-import com.sun.tools.javac.tree.JCTree.*;
-import com.sun.tools.javac.main.JavaCompiler;
+
+import java.lang.reflect.*;
+import java.util.*;
+import java.util.regex.*;
+
+import java.net.URL;
+import java.io.Closeable;
+import java.io.File;
+import java.io.PrintWriter;
+import java.io.IOException;
+import java.net.MalformedURLException;
 import java.io.StringWriter;
 
 import javax.annotation.processing.*;
@@ -50,24 +45,36 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.util.*;
-
 import javax.tools.JavaFileManager;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.DiagnosticListener;
+
+import com.sun.source.util.TaskEvent;
+import com.sun.source.util.TaskListener;
+import com.sun.tools.javac.api.JavacTaskImpl;
+import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Symbol.*;
+import com.sun.tools.javac.file.Paths;
+import com.sun.tools.javac.file.JavacFileManager;
+import com.sun.tools.javac.jvm.*;
+import com.sun.tools.javac.main.JavaCompiler;
+import com.sun.tools.javac.model.JavacElements;
+import com.sun.tools.javac.model.JavacTypes;
+import com.sun.tools.javac.parser.*;
+import com.sun.tools.javac.tree.*;
+import com.sun.tools.javac.tree.JCTree.*;
+import com.sun.tools.javac.util.Abort;
+import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.ListBuffer;
+import com.sun.tools.javac.util.Log;
+import com.sun.tools.javac.util.JavacMessages;
+import com.sun.tools.javac.util.Name;
+import com.sun.tools.javac.util.Names;
+import com.sun.tools.javac.util.Options;
+
 import static javax.tools.StandardLocation.*;
-
-import java.lang.reflect.*;
-import java.util.*;
-import java.util.regex.*;
-
-import java.net.URLClassLoader;
-import java.net.URL;
-import java.io.Closeable;
-import java.io.File;
-import java.io.PrintWriter;
-import java.io.IOException;
-import java.net.MalformedURLException;
 
 /**
  * Objects of this class hold and manage the state needed to support
@@ -127,9 +134,14 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
      */
     Source source;
 
+    /**
+     * JavacMessages object used for localization
+     */
+    private JavacMessages messages;
+
     private Context context;
 
-   public JavacProcessingEnvironment(Context context, Iterable<? extends Processor> processors) {
+    public JavacProcessingEnvironment(Context context, Iterable<? extends Processor> processors) {
         options = Options.instance(context);
         this.context = context;
         log = Log.instance(context);
@@ -151,6 +163,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         typeUtils = new JavacTypes(context);
         processorOptions = initProcessorOptions(context);
         unmatchedProcessorOptions = initUnmatchedProcessorOptions();
+        messages = JavacMessages.instance(context);
         initProcessorIterator(context, processors);
     }
 
@@ -734,7 +747,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         } catch (CompletionFailure ex) {
             StringWriter out = new StringWriter();
             ex.printStackTrace(new PrintWriter(out));
-            log.error("proc.cant.access", ex.sym, ex.errmsg, out.toString());
+            log.error("proc.cant.access", ex.sym, ex.getDetailValue(), out.toString());
             return false;
         } catch (Throwable t) {
             throw new AnnotationProcessingError(t);
@@ -826,7 +839,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     topLevelClasses  = List.nil();
                     packageInfoFiles = List.nil();
 
-                    compiler.close();
+                    compiler.close(false);
                     currentContext = contextForNextRound(currentContext, true);
 
                     JavaFileManager fileManager = currentContext.get(JavaFileManager.class);
@@ -874,7 +887,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
         runLastRound(xout, roundNumber, errorStatus, taskListener);
 
-        compiler.close();
+        compiler.close(false);
         currentContext = contextForNextRound(currentContext, true);
         compiler = JavaCompiler.instance(currentContext);
         filer.newRound(currentContext, true);
@@ -908,7 +921,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         } else if (procOnly) {
             compiler.todo.clear();
         } else { // Final compilation
-            compiler.close();
+            compiler.close(false);
             currentContext = contextForNextRound(currentContext, true);
             compiler = JavaCompiler.instance(currentContext);
 
@@ -982,7 +995,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
     private ListBuffer<ClassSymbol> enterNewClassFiles(Context currentContext) {
         ClassReader reader = ClassReader.instance(currentContext);
-        Name.Table names = Name.Table.instance(currentContext);
+        Names names = Names.instance(currentContext);
         ListBuffer<ClassSymbol> list = new ListBuffer<ClassSymbol>();
 
         for (Map.Entry<String,JavaFileObject> entry : filer.getGeneratedClasses().entrySet()) {
@@ -1042,12 +1055,12 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         next.put(Log.outKey, out);
 
         if (shareNames) {
-            Name.Table names = Name.Table.instance(context);
+            Names names = Names.instance(context);
             assert names != null;
-            next.put(Name.Table.namesKey, names);
+            next.put(Names.namesKey, names);
         }
 
-        DiagnosticListener dl = context.get(DiagnosticListener.class);
+        DiagnosticListener<?> dl = context.get(DiagnosticListener.class);
         if (dl != null)
             next.put(DiagnosticListener.class, dl);
 
@@ -1062,9 +1075,9 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             ((JavacFileManager)jfm).setContext(next);
         }
 
-        Name.Table names = Name.Table.instance(context);
+        Names names = Names.instance(context);
         assert names != null;
-        next.put(Name.Table.namesKey, names);
+        next.put(Names.namesKey, names);
 
         Keywords keywords = Keywords.instance(context);
         assert(keywords != null);
@@ -1240,7 +1253,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     }
 
     public Locale getLocale() {
-        return Locale.getDefault();
+        return messages.getCurrentLocale();
     }
 
     public Set<Symbol.PackageSymbol> getSpecifiedPackages() {

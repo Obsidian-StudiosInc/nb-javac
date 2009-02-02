@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2006 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 1999-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,6 +44,7 @@ import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Symtab;
+import com.sun.tools.javac.file.BaseFileObject;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.List;
 
@@ -123,7 +124,7 @@ public class ClassReader extends ClassFile implements Completer {
     Types types;
 
     /** The name table. */
-    final Name.Table names;
+    final Names names;
 
     /** Force a completion failure on this name
      */
@@ -132,6 +133,11 @@ public class ClassReader extends ClassFile implements Completer {
     /** Access to files
      */
     private final JavaFileManager fileManager;
+
+    /** Factory for diagnostics
+     */
+    JCDiagnostic.Factory diagFactory;
+
     private final ClassNamesForFileOraculum classNamesOraculum;
     private final boolean ideMode;
 
@@ -219,13 +225,13 @@ public class ClassReader extends ClassFile implements Completer {
     protected ClassReader(Context context, boolean definitive) {
         if (definitive) context.put(classReaderKey, this);
 
-        names = Name.Table.instance(context);
+        names = Names.instance(context);
         syms = Symtab.instance(context);
         types = Types.instance(context);
         fileManager = context.get(JavaFileManager.class);
         if (fileManager == null)
             throw new AssertionError("FileManager initialization error");
-
+        diagFactory = JCDiagnostic.Factory.instance(context);
         classNamesOraculum = context.get(ClassNamesForFileOraculum.class);
         
         init(syms, definitive);
@@ -263,23 +269,26 @@ public class ClassReader extends ClassFile implements Completer {
  * Error Diagnoses
  ***********************************************************************/
 
-    public static class BadClassFile extends CompletionFailure {
+
+    public class BadClassFile extends CompletionFailure {
         private static final long serialVersionUID = 0;
 
-        /**
-         * @param msg A localized message.
-         */
-        public BadClassFile(ClassSymbol c, Object cname, Object msg) {
-            super(c, Log.getLocalizedString("bad.class.file.header",
-                                            cname, msg));
+        public BadClassFile(TypeSymbol sym, JavaFileObject file, JCDiagnostic diag) {
+            super(sym, createBadClassFileDiagnostic(file, diag));
         }
+    }
+    // where
+    private JCDiagnostic createBadClassFileDiagnostic(JavaFileObject file, JCDiagnostic diag) {
+        String key = (file.getKind() == JavaFileObject.Kind.SOURCE
+                    ? "bad.source.file.header" : "bad.class.file.header");
+        return diagFactory.fragment(key, file, diag);
     }
 
     public BadClassFile badClassFile(String key, Object... args) {
         return new BadClassFile (
             currentOwner.enclClass(),
             currentClassFile,
-            Log.getLocalizedString(key, args));
+            diagFactory.fragment(key, args));
     }
 
 /************************************************************************
@@ -514,14 +523,6 @@ public class ClassReader extends ClassFile implements Completer {
     int siglimit;
     boolean sigEnterPhase = false;
 
-    /** Convert signature to type, where signature is a name.
-     */
-    Type sigToType(Name sig) {
-        return sig == null
-            ? null
-            : sigToType(sig.table.names, sig.index, sig.len);
-    }
-
     /** Convert signature to type, where signature is a byte array segment.
      */
     Type sigToType(byte[] sig, int offset, int len) {
@@ -650,7 +651,7 @@ public class ClassReader extends ClassFile implements Completer {
                                                          startSbp,
                                                          sbp - startSbp));
                 if (err)
-                    outer = new ErrorType(t, false);
+                    outer = new ErrorType(Type.noType, t, false);
                 else if (outer == Type.noType)
                     outer = t.erasure(types);
                 else
@@ -741,12 +742,6 @@ public class ClassReader extends ClassFile implements Completer {
             tail = tail.setTail(List.of(sigToType()));
         sigp++;
         return head.tail;
-    }
-
-    /** Convert signature to type parameters, where signature is a name.
-     */
-    List<Type> sigToTypeParams(Name name) {
-        return sigToTypeParams(name.table.names, name.index, name.len);
     }
 
     /** Convert signature to type parameters, where signature is a byte
@@ -972,7 +967,7 @@ public class ClassReader extends ClassFile implements Completer {
 
         self.name = simpleBinaryName(self.flatname, c.flatname) ;
         self.owner = m != null ? m : c;
-        if (self.name.len == 0)
+        if (self.name.isEmpty())
             self.fullname = self.name;
         else
             self.fullname = ClassSymbol.formFullName(self.name, self.owner);
@@ -1080,7 +1075,7 @@ public class ClassReader extends ClassFile implements Completer {
     void readClassAttr(ClassSymbol c, Name attrName, int attrLen) {
         if (attrName == names.SourceFile) {
             Name n = readName(nextChar());
-            c.sourcefile = new SourceFileObject(n);
+            c.sourcefile = new SourceFileObject(n, c.flatname);
         } else if (attrName == names.InnerClasses) {
             readInnerClasses(c);
         } else if ((allowGenerics || ideMode) && attrName == names.Signature) {
@@ -1355,7 +1350,7 @@ public class ClassReader extends ClassFile implements Completer {
                     log.warning("annotation.method.not.found.reason",
                                 container,
                                 name,
-                                failure.getMessage());
+                                failure.getDetailValue());//diagnostic, if present
                 }
             } finally {
                 log.useSource(prevSource);
@@ -1524,7 +1519,7 @@ public class ClassReader extends ClassFile implements Completer {
             // Sometimes anonymous classes don't have an outer
             // instance, however, there is no reliable way to tell so
             // we never strip this$n
-            if (currentOwner.name.len != 0)
+            if (!currentOwner.name.isEmpty())
                 type = new MethodType(type.getParameterTypes().tail,
                                       type.getReturnType(),
                                       type.getThrownTypes(),
@@ -1951,10 +1946,10 @@ public class ClassReader extends ClassFile implements Completer {
                 currentClassFile = previousClassFile;
             }
         } else {
+            JCDiagnostic diag =
+                diagFactory.fragment("class.file.not.found", c.flatname);
             throw
-                newCompletionFailure(c,
-                                     Log.getLocalizedString("class.file.not.found",
-                                                            c.flatname));
+                newCompletionFailure(c, diag);
         }
     }
     // where
@@ -1992,22 +1987,22 @@ public class ClassReader extends ClassFile implements Completer {
          *  In practice, only one can be used at a time, so we share one
          *  to reduce the expense of allocating new exception objects.
          */
-        private CompletionFailure newCompletionFailure(ClassSymbol c,
-                                                       String localized) {
+        private CompletionFailure newCompletionFailure(TypeSymbol c,
+                                                       JCDiagnostic diag) {
             if (!cacheCompletionFailure) {
                 // log.warning("proc.messager",
                 //             Log.getLocalizedString("class.file.not.found", c.flatname));
                 // c.debug.printStackTrace();
-                return new CompletionFailure(c, localized);
+                return new CompletionFailure(c, diag);
             } else {
                 CompletionFailure result = cachedCompletionFailure;
                 result.sym = c;
-                result.errmsg = localized;
+                result.diag = diag;
                 return result;
             }
         }
         private CompletionFailure cachedCompletionFailure =
-            new CompletionFailure(null, null);
+            new CompletionFailure(null, (JCDiagnostic) null);
         {
             cachedCompletionFailure.setStackTrace(new StackTraceElement[0]);
         }
@@ -2291,9 +2286,12 @@ public class ClassReader extends ClassFile implements Completer {
         /** The file's name.
          */
         private Name name;
+        private Name flatname;
 
-        public SourceFileObject(Name name) {
+        public SourceFileObject(Name name, Name flatname) {
+            super(null); // no file manager; never referenced for this file object
             this.name = name;
+            this.flatname = flatname;
         }
 
         public InputStream openInputStream() {
@@ -2355,5 +2353,9 @@ public class ClassReader extends ClassFile implements Completer {
             throw new UnsupportedOperationException();
         }
 
+        @Override
+        protected String inferBinaryName(Iterable<? extends File> path) {
+            return flatname.toString();
+        }
     }
 }

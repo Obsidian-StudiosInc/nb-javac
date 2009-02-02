@@ -26,7 +26,7 @@
 package global;
 
 import com.sun.tools.javac.api.JavacTaskImpl;
-import com.sun.tools.javac.util.BaseFileObject;
+import com.sun.tools.javac.file.BaseFileObject;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -163,13 +163,14 @@ public class ErrorToleranceTest extends TestCase {
                       "        switch(i) {\n" +
                       "            case Unknown.CONSTANT:\n" +
                       "                break;\n" +
+                      "        }\n" +
                       "    }\n" +
                       "}\n";
 
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    private void method(int i) {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : variable CONSTANT\\nlocation: class Unknown\");" +
+                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : variable Unknown\\nlocation: class test.Test\");\n" +
                       "    }\n" +
                       "}\n";
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2006 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 1999-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,7 +60,7 @@ public class TransTypes extends TreeTranslator {
         return instance;
     }
 
-    private Name.Table names;
+    private Names names;
     private Log log;
     private Symtab syms;
     private TreeMaker make;
@@ -78,7 +78,7 @@ public class TransTypes extends TreeTranslator {
 
     protected TransTypes(Context context) {
         context.put(transTypesKey, this);
-        names = Name.Table.instance(context);
+        names = Names.instance(context);
         log = Log.instance(context);
         syms = Symtab.instance(context);
         enter = Enter.instance(context);
@@ -550,7 +550,7 @@ public class TransTypes extends TreeTranslator {
         tree.truepart = translate(tree.truepart, erasure(tree.type));
         tree.falsepart = translate(tree.falsepart, erasure(tree.type));
         tree.type = erasure(tree.type);
-        result = tree;
+        result = retype(tree, tree.type, pt);
     }
 
    public void visitIf(JCIf tree) {
@@ -639,8 +639,8 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitAssignop(JCAssignOp tree) {
-        tree.lhs = translate(tree.lhs, null);
-        tree.rhs = translate(tree.rhs, erasure(tree.rhs.type));
+        tree.lhs = translate(tree.lhs, tree.operator.type.getParameterTypes().head);
+        tree.rhs = translate(tree.rhs, tree.operator.type.getParameterTypes().tail.head);
         tree.type = erasure(tree.type);
         result = tree;
     }
@@ -706,13 +706,15 @@ public class TransTypes extends TreeTranslator {
 
     public void visitSelect(JCFieldAccess tree) {
         Type t = tree.selected.type;
-        if (t.isCompound() || (t.tag == TYPEVAR && t.getUpperBound().isCompound())) {
+        while (t.tag == TYPEVAR)
+            t = t.getUpperBound();
+        if (t.isCompound()) {
             if ((tree.sym.flags() & IPROXY) != 0) {
                 tree.sym = ((MethodSymbol)tree.sym).
                     implemented((TypeSymbol)tree.sym.owner, types);
             }
             tree.selected = cast(
-                translate(tree.selected, erasure(t)),
+                translate(tree.selected, erasure(tree.selected.type)),
                 erasure(tree.sym.owner.type));
         } else
             tree.selected = translate(tree.selected, erasure(t));

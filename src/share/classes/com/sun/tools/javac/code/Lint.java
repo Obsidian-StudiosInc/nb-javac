@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2006 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2005-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -176,6 +176,11 @@ public class Lint
         PATH("path"),
 
         /**
+         * Warn about issues regarding annotation processing.
+         */
+        PROCESSING("processing"),
+
+        /**
          * Warn about Serializable classes that do not provide a serial version ID.
          */
         SERIAL("serial"),
@@ -183,7 +188,12 @@ public class Lint
         /**
          * Warn about unchecked operations on raw types.
          */
-        UNCHECKED("unchecked");
+        UNCHECKED("unchecked"),
+
+        /**
+         * Warn about unchecked operations on raw types.
+         */
+        RAW("rawtypes");
 
         LintCategory(String option) {
             this.option = option;
@@ -194,7 +204,7 @@ public class Lint
             return map.get(option);
         }
 
-        private final String option;
+        public final String option;
     };
 
     /**

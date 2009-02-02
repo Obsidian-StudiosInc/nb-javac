@@ -1,5 +1,5 @@
 /*
- * Copyright 1997-2003 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 1997-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,10 +55,10 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
         super(writer, classDoc);
         VisibleMemberMap visibleMemberMap = new VisibleMemberMap(classDoc,
             VisibleMemberMap.CONSTRUCTORS, configuration().nodeprecated);
-        List constructors = new ArrayList(visibleMemberMap.getMembersFor(classDoc));
+        List<ProgramElementDoc> constructors = new ArrayList<ProgramElementDoc>(visibleMemberMap.getMembersFor(classDoc));
         for (int i = 0; i < constructors.size(); i++) {
-            if (((ProgramElementDoc)(constructors.get(i))).isProtected() ||
-                ((ProgramElementDoc)(constructors.get(i))).isPrivate()) {
+            if ((constructors.get(i)).isProtected() ||
+                (constructors.get(i)).isPrivate()) {
                 setFoundNonPubConstructor(true);
             }
         }
@@ -144,7 +144,7 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
         if (configuration().linksource) {
             writer.printSrcLink(constructor, constructor.name());
         } else {
-            bold(constructor.name());
+            strong(constructor.name());
         }
         writeParameters(constructor);
         writeExceptions(constructor);
@@ -220,7 +220,7 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
     }
 
     public void printSummaryLabel(ClassDoc cd) {
-        writer.boldText("doclet.Constructor_Summary");
+        writer.strongText("doclet.Constructor_Summary");
     }
 
     public void printSummaryAnchor(ClassDoc cd) {
@@ -238,7 +238,7 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
         return VisibleMemberMap.CONSTRUCTORS;
     }
 
-    protected void navSummaryLink(List members) {
+    protected void navSummaryLink(List<?> members) {
         printNavSummaryLink(classdoc,
                 members.size() > 0? true: false);
     }

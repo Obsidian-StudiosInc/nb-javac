@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2006 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2001-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,15 +25,12 @@
 
 package com.sun.tools.javadoc;
 
+import java.util.EnumSet;
+import javax.tools.JavaFileObject;
+
 import com.sun.tools.javac.code.Symbol.PackageSymbol;
 import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.JavacFileManager;
-import com.sun.tools.javac.util.Old199;
-
-import java.io.File;
-import java.util.EnumSet;
-import javax.tools.JavaFileObject;
 
 /** Javadoc uses an extended class reader that records package.html entries
  *  @author Neal Gafter
@@ -89,35 +86,7 @@ public class JavadocClassReader extends ClassReader {
      */
     @Override
     protected void extraFileActions(PackageSymbol pack, JavaFileObject fo) {
-        if (docenv == null)
-            return ;
-
-        CharSequence fileName = Old199.getName(fo);
-        if (docenv != null && fileName != null && fileName.equals("package.html")) {
-            if (fo instanceof JavacFileManager.ZipFileObject) {
-                JavacFileManager.ZipFileObject zfo = (JavacFileManager.ZipFileObject) fo;
-                String zipName = zfo.getZipName();
-                String entryName = zfo.getZipEntryName();
-                int lastSep = entryName.lastIndexOf("/");
-                String classPathName = entryName.substring(0, lastSep + 1);
-                docenv.getPackageDoc(pack).setDocPath(zipName, classPathName);
-            }
-            else if (fo instanceof JavacFileManager.ZipFileIndexFileObject) {
-                JavacFileManager.ZipFileIndexFileObject zfo = (JavacFileManager.ZipFileIndexFileObject) fo;
-                String zipName = zfo.getZipName();
-                String entryName = zfo.getZipEntryName();
-                if (File.separatorChar != '/') {
-                    entryName = entryName.replace(File.separatorChar, '/');
-                }
-
-                int lastSep = entryName.lastIndexOf("/");
-                String classPathName = entryName.substring(0, lastSep + 1);
-                docenv.getPackageDoc(pack).setDocPath(zipName, classPathName);
-            }
-            else {
-                File fileDir = new File(Old199.getPath(fo)).getParentFile();
-                docenv.getPackageDoc(pack).setDocPath(fileDir.getAbsolutePath());
-            }
-        }
+        if (fo.isNameCompatible("package", JavaFileObject.Kind.HTML))
+            docenv.getPackageDoc(pack).setDocPath(fo);
     }
 }

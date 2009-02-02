@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2006 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 1999-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -140,7 +140,7 @@ public class ClassWriter extends ClassFile {
     private final Log log;
 
     /** The name table. */
-    private final Name.Table names;
+    private final Names names;
 
     /** Access to files. */
     private final JavaFileManager fileManager;
@@ -170,7 +170,7 @@ public class ClassWriter extends ClassFile {
         context.put(classWriterKey, this);
 
         log = Log.instance(context);
-        names = Name.Table.instance(context);
+        names = Names.instance(context);
         syms = Symtab.instance(context);
         options = Options.instance(context);
         target = Target.instance(context);
@@ -388,9 +388,7 @@ public class ClassWriter extends ClassFile {
             sigbuf.appendByte('.');
             assert c.flatname.startsWith(c.owner.enclClass().flatname);
             sigbuf.appendName(rawOuter
-                              ? c.flatname.subName(c.owner.enclClass()
-                                                   .flatname.len+1,
-                                                   c.flatname.len)
+                              ? c.flatname.subName(c.owner.enclClass().flatname.getByteLength()+1,c.flatname.getByteLength())
                               : c.name);
         } else {
             if (c == syms.errSymbol) {
@@ -562,7 +560,7 @@ public class ClassWriter extends ClassFile {
     Name fieldName(Symbol sym) {
         if (scramble && (sym.flags() & PRIVATE) != 0 ||
             scrambleAll && (sym.flags() & (PROTECTED | PUBLIC)) == 0)
-            return names.fromString("_$" + sym.name.index);
+            return names.fromString("_$" + sym.name.getIndex());
         else
             return sym.name;
     }
@@ -980,7 +978,7 @@ public class ClassWriter extends ClassFile {
             databuf.appendChar(
                 inner.owner.kind == TYP ? pool.get(inner.owner) : 0);
             databuf.appendChar(
-                inner.name.len != 0 ? pool.get(inner.name) : 0);
+                !inner.name.isEmpty() ? pool.get(inner.name) : 0);
             databuf.appendChar(flags);
         }
         endAttr(alenIdx);
@@ -1522,7 +1520,7 @@ public class ClassWriter extends ClassFile {
         try {
             writeClassFile(out, c);
             if (verbose)
-                log.errWriter.println(log.getLocalizedString("verbose.wrote.file", outFile));
+                log.errWriter.println(Log.getLocalizedString("verbose.wrote.file", outFile));
             out.close();
             out = null;
         } finally {

@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2006 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 1999-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,6 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Scope;
 import com.sun.tools.javac.code.Symbol.*;
-import com.sun.source.tree.Tree;
 import com.sun.source.tree.*;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Env;
@@ -1333,6 +1332,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public JCClassDecl def;
         public Symbol constructor;
         public Type varargsElement;
+        public Type constructorType;
         protected JCNewClass(JCExpression encl,
                            List<JCExpression> typeargs,
                            JCExpression clazz,

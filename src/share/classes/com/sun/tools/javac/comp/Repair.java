@@ -237,7 +237,7 @@ public class Repair extends TreeTranslator {
             hasError = true;
         } else {
             List<Type> argtypes = meth.type.getParameterTypes();
-            if (allowEnums && meth.name == meth.name.table.init && meth.owner == syms.enumSym)
+            if (allowEnums && meth.name == meth.name.table.names.init && meth.owner == syms.enumSym)
                 argtypes = argtypes.tail.tail;
             if (tree.varargsElement == null && tree.args.length() != argtypes.length()) {
                 LOGGER.warning("Repair.visitApply [" + meth.owner + "]'s method [" + meth + "] of type: [" + meth.type + "]; has different number of parameters than tree [" + tree +"]."); //NOI18N
@@ -385,7 +385,7 @@ public class Repair extends TreeTranslator {
                 if (tree.defs != null) {
                     HashSet<MethodSymbol> nonAbstractMethods = new HashSet<MethodSymbol>();
                     for (Scope.Entry e = tree.sym.members_field.elems; e != null; e = e.sibling) {
-                        if (e.sym.kind == Kinds.MTH && (e.sym.flags_field & Flags.ABSTRACT) == 0 && e.sym.name != e.sym.name.table.clinit)
+                        if (e.sym.kind == Kinds.MTH && (e.sym.flags_field & Flags.ABSTRACT) == 0 && e.sym.name != e.sym.name.table.names.clinit)
                             nonAbstractMethods.add((MethodSymbol)e.sym);
                     }
                     List<JCTree> last = null;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2005 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2001-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -92,7 +92,7 @@ public class ConstantsSummaryWriterImpl extends HtmlDocletWriter
      * {@inheritDoc}
      */
     public void writeContentsHeader() {
-        bold(configuration.getText("doclet.Contents"));
+        strong(configuration.getText("doclet.Contents"));
         ul();
     }
 
@@ -107,7 +107,7 @@ public class ConstantsSummaryWriterImpl extends HtmlDocletWriter
     /**
      * {@inheritDoc}
      */
-    public void writeLinkToPackageContent(PackageDoc pkg, String parsedPackageName, Set printedPackageHeaders) {
+    public void writeLinkToPackageContent(PackageDoc pkg, String parsedPackageName, Set<String> printedPackageHeaders) {
         String packageName = pkg.name();
         //add link to summary
         li();
@@ -194,10 +194,10 @@ public class ConstantsSummaryWriterImpl extends HtmlDocletWriter
     /**
      * {@inheritDoc}
      */
-    public void writeConstantMembers(ClassDoc cd, List fields) {
+    public void writeConstantMembers(ClassDoc cd, List<FieldDoc> fields) {
         currentClassDoc = cd;
         for (int i = 0; i < fields.size(); ++i) {
-            writeConstantMember((FieldDoc)(fields.get(i)));
+            writeConstantMember(fields.get(i));
         }
     }
 

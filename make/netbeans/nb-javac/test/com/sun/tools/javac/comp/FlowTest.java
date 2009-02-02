@@ -31,6 +31,7 @@ import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.Log;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
@@ -113,9 +114,15 @@ public class FlowTest extends TestCase {
         Context context = ct.getContext();
         Flow flow = Flow.instance(context);
         TreeMaker make = TreeMaker.instance(context);
-        
-        flow.reanalyzeMethod(make.forToplevel((JCCompilationUnit) cut), (JCClassDecl) clazz);
-        
+        Log l = Log.instance(context);
+        l.startPartialReparse();
+        JavaFileObject prev = l.useSource(cut.getSourceFile());
+        try {
+            flow.reanalyzeMethod(make.forToplevel((JCCompilationUnit) cut), (JCClassDecl) clazz);
+        } finally {
+            l.useSource(prev);
+            l.endPartialReparse();
+        }        
         assertEquals(c.getDiagnostics().toString(), 0, c.getDiagnostics().size());
     }
 
@@ -143,9 +150,15 @@ public class FlowTest extends TestCase {
         Context context = ct.getContext();
         Flow flow = Flow.instance(context);
         TreeMaker make = TreeMaker.instance(context);
-
-        flow.reanalyzeMethod(make.forToplevel((JCCompilationUnit) cut), (JCClassDecl) clazz);
-
+        Log l = Log.instance(context);
+        l.startPartialReparse();
+        JavaFileObject prev = l.useSource(cut.getSourceFile());
+        try {
+            flow.reanalyzeMethod(make.forToplevel((JCCompilationUnit) cut), (JCClassDecl) clazz);
+        } finally {
+            l.useSource(prev);
+            l.endPartialReparse();
+        }
         assertEquals(c.getDiagnostics().toString(), 4, c.getDiagnostics().size());
     }
     

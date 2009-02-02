@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2003 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 1998-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -90,7 +90,7 @@ public class HtmlSerialMethodWriter extends MethodWriterImpl implements
             tagletManager.getSerializedFormTags(),
             writer.getTagletWriterInstance(false), output);
         print(output.toString());
-        MethodDoc method = (MethodDoc)member;
+        MethodDoc method = member;
         if (method.name().compareTo("writeExternal") == 0
                 && method.tags("serialData").length == 0) {
             serialWarning(member.position(), "doclet.MissingSerialDataTag",

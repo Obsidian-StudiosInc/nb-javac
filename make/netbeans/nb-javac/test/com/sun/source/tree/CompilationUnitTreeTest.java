@@ -89,7 +89,6 @@ public class CompilationUnitTreeTest extends TestCase {
         //DocCommentScanner:
         ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath), null, Arrays.asList(new MyFileObject(code)));
 
-        DocCommentScanner.Factory.preRegister(ct.getContext());
         cut = ct.parse().iterator().next();
 
         cut.getLineMap().getStartPosition(lastLine);

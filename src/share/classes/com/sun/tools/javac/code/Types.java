@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2006 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2003-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,6 @@ import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.List;
 
 import com.sun.tools.javac.jvm.ClassReader;
-import com.sun.tools.javac.comp.Infer;
 import com.sun.tools.javac.comp.Check;
 import java.util.logging.Logger;
 import javax.lang.model.type.TypeKind;
@@ -70,7 +69,8 @@ public class Types {
         new Context.Key<Types>();
 
     final Symtab syms;
-    final Name.Table names;
+    final JavacMessages messages;
+    final Names names;
     final boolean allowGenerics;
     final boolean allowBoxing;
     final ClassReader reader;
@@ -90,13 +90,14 @@ public class Types {
     protected Types(Context context) {
         context.put(typesKey, this);
         syms = Symtab.instance(context);
-        names = Name.Table.instance(context);
+        names = Names.instance(context);
         reader = ClassReader.instance(context);
         source = Source.instance(context);
         allowGenerics = source.allowGenerics();
         allowBoxing = source.allowBoxing();
         chk = Check.instance(context);
         capturedName = names.fromString("<captured wildcard>");
+        messages = JavacMessages.instance(context);
     }
     // </editor-fold>
 
@@ -305,7 +306,16 @@ public class Types {
                 : isSubtypeUnchecked(elemtype(t), elemtype(s), warn);
         } else if (isSubtype(t, s)) {
             return true;
-        } else if (!s.isRaw()) {
+        }
+        else if (t.tag == TYPEVAR) {
+            return isSubtypeUnchecked(t.getUpperBound(), s, warn);
+        }
+        else if (s.tag == UNDETVAR) {
+            UndetVar uv = (UndetVar)s;
+            if (uv.inst != null)
+                return isSubtypeUnchecked(t, uv.inst, warn);
+        }
+        else if (!s.isRaw()) {
             Type t2 = asSuper(t, s.tsym);
             if (t2 != null && t2.isRaw()) {
                 if (isReifiable(s))
@@ -711,16 +721,32 @@ public class Types {
         case UNDETVAR:
             if (s.tag == WILDCARD) {
                 UndetVar undetvar = (UndetVar)t;
-
-                // Because of wildcard capture, s must be on the left
-                // hand side of an assignment.  Furthermore, t is an
-                // underconstrained type variable, for example, one
-                // that is only used in the return type of a method.
-                // If the type variable is truly underconstrained, it
-                // cannot have any low bounds:
-                assert undetvar.lobounds.isEmpty() : undetvar;
-
-                undetvar.inst = glb(upperBound(s), undetvar.inst);
+                WildcardType wt = (WildcardType)s;
+                switch(wt.kind) {
+                    case UNBOUND: //similar to ? extends Object
+                    case EXTENDS: {
+                        Type bound = upperBound(s);
+                        // We should check the new upper bound against any of the
+                        // undetvar's lower bounds.
+                        for (Type t2 : undetvar.lobounds) {
+                            if (!isSubtype(t2, bound))
+                                return false;
+                        }
+                        undetvar.hibounds = undetvar.hibounds.prepend(bound);
+                        break;
+                    }
+                    case SUPER: {
+                        Type bound = lowerBound(s);
+                        // We should check the new lower bound against any of the
+                        // undetvar's lower bounds.
+                        for (Type t2 : undetvar.hibounds) {
+                            if (!isSubtype(bound, t2))
+                                return false;
+                        }
+                        undetvar.lobounds = undetvar.lobounds.prepend(bound);
+                        break;
+                    }
+                }
                 return true;
             } else {
                 return isSameType(t, s);
@@ -843,7 +869,7 @@ public class Types {
         };
 
     public boolean isCaptureOf(Type s, WildcardType t) {
-        if (s.tag != TYPEVAR || !(s instanceof CapturedType))
+        if (s.tag != TYPEVAR || !((TypeVar)s).isCaptured())
             return false;
         return isSameWildcard(t, ((CapturedType)s).wildcard);
     }
@@ -885,12 +911,12 @@ public class Types {
         if (warn != warnStack.head) {
             try {
                 warnStack = warnStack.prepend(warn);
-                return isCastable.visit(t, s);
+                return isCastable.visit(t,s);
             } finally {
                 warnStack = warnStack.tail;
             }
         } else {
-            return isCastable.visit(t, s);
+            return isCastable.visit(t,s);
         }
     }
     // where
@@ -935,12 +961,16 @@ public class Types {
                 }
 
                 if (t.isCompound()) {
+                    Warner oldWarner = warnStack.head;
+                    warnStack.head = Warner.noWarnings;
                     if (!visit(supertype(t), s))
                         return false;
                     for (Type intf : interfaces(t)) {
                         if (!visit(intf, s))
                             return false;
                     }
+                    if (warnStack.head.unchecked == true)
+                        oldWarner.warnUnchecked();
                     return true;
                 }
 
@@ -988,10 +1018,10 @@ public class Types {
                         if (highSub != null) {
                             assert a.tsym == highSub.tsym && a.tsym == lowSub.tsym
                                 : a.tsym + " != " + highSub.tsym + " != " + lowSub.tsym;
-                            if (!disjointTypes(aHigh.getTypeArguments(), highSub.getTypeArguments())
-                                && !disjointTypes(aHigh.getTypeArguments(), lowSub.getTypeArguments())
-                                && !disjointTypes(aLow.getTypeArguments(), highSub.getTypeArguments())
-                                && !disjointTypes(aLow.getTypeArguments(), lowSub.getTypeArguments())) {
+                            if (!disjointTypes(aHigh.allparams(), highSub.allparams())
+                                && !disjointTypes(aHigh.allparams(), lowSub.allparams())
+                                && !disjointTypes(aLow.allparams(), highSub.allparams())
+                                && !disjointTypes(aLow.allparams(), lowSub.allparams())) {
                                 if (upcast ? giveWarning(a, highSub) || giveWarning(a, lowSub)
                                            : giveWarning(highSub, a) || giveWarning(lowSub, a))
                                     warnStack.head.warnUnchecked();
@@ -1202,6 +1232,7 @@ public class Types {
             s = upperBound(s);
         if (s.tag == TYPEVAR)
             s = s.getUpperBound();
+
         return !isSubtype(t, s);
     }
     // </editor-fold>
@@ -1310,7 +1341,7 @@ public class Types {
                     return t;
 
                 Type st = supertype(t);
-                if (st.tag == CLASS || st.tag == ERROR) {
+                if (st.tag == CLASS || st.tag == TYPEVAR || st.tag == ERROR) {
                     Type x = asSuper(st, sym);
                     if (x != null)
                         return x;
@@ -1332,7 +1363,10 @@ public class Types {
 
             @Override
             public Type visitTypeVar(TypeVar t, Symbol sym) {
-                return asSuper(t.bound, sym);
+                if (t.tsym == sym)
+                    return t;
+                else
+                    return asSuper(t.bound, sym);
             }
 
             @Override
@@ -1430,8 +1464,11 @@ public class Types {
                 Symbol owner = sym.owner;
                 long flags = sym.flags();
                 if (((flags & STATIC) == 0) && owner.type.isParameterized()) {
-                    Type asOuterSuper = asOuterSuper(t, owner);
-                    Type base = asOuterSuper != null ? capture(asOuterSuper) : null;
+                    Type base = asOuterSuper(t, owner);
+                    //if t is an intersection type T = CT & I1 & I2 ... & In
+                    //its supertypes CT, I1, ... In might contain wildcards
+                    //so we need to go through capture conversion
+                    base = t.isCompound() ? capture(base) : base;
                     if (base != null) {
                         List<Type> ownerParams = owner.type.allparams();
                         List<Type> baseParams = base.allparams();
@@ -1511,46 +1548,67 @@ public class Types {
      * type parameters in t are deleted.
      */
     public Type erasure(Type t) {
+        return erasure(t, false);
+    }
+    //where
+    private Type erasure(Type t, boolean recurse) {
         if (t.tag <= lastBaseTag)
             return t; /* fast special case */
         else
-            return erasure.visit(t);
+            return erasure.visit(t, recurse);
     }
     // where
-        private UnaryVisitor<Type> erasure = new UnaryVisitor<Type>() {
-            public Type visitType(Type t, Void ignored) {
+        private SimpleVisitor<Type, Boolean> erasure = new SimpleVisitor<Type, Boolean>() {
+            public Type visitType(Type t, Boolean recurse) {
                 if (t.tag <= lastBaseTag)
                     return t; /*fast special case*/
                 else
-                    return t.map(erasureFun);
+                    return t.map(recurse ? erasureRecFun : erasureFun);
             }
 
             @Override
-            public Type visitWildcardType(WildcardType t, Void ignored) {
-                return erasure(upperBound(t));
+            public Type visitWildcardType(WildcardType t, Boolean recurse) {
+                return erasure(upperBound(t), recurse);
             }
 
             @Override
-            public Type visitClassType(ClassType t, Void ignored) {
-                return t.tsym.erasure(Types.this);
+            public Type visitClassType(ClassType t, Boolean recurse) {
+                Type erased = t.tsym.erasure(Types.this);
+                if (recurse) {
+                    erased = new ErasedClassType(erased.getEnclosingType(),erased.tsym);
+                }
+                return erased;
             }
 
             @Override
-            public Type visitTypeVar(TypeVar t, Void ignored) {
-                return erasure(t.bound);
+            public Type visitTypeVar(TypeVar t, Boolean recurse) {
+                return erasure(t.bound, recurse);
             }
 
             @Override
-            public Type visitErrorType(ErrorType t, Void ignored) {
+            public Type visitErrorType(ErrorType t, Boolean recurse) {
                 return t;
             }
         };
+
     private Mapping erasureFun = new Mapping ("erasure") {
             public Type apply(Type t) { return erasure(t); }
         };
 
+    private Mapping erasureRecFun = new Mapping ("erasureRecursive") {
+        public Type apply(Type t) { return erasureRecursive(t); }
+    };
+
     public List<Type> erasure(List<Type> ts) {
         return Type.map(ts, erasureFun);
+    }
+
+    public Type erasureRecursive(Type t) {
+        return erasure(t, true);
+    }
+
+    public List<Type> erasureRecursive(List<Type> ts) {
+        return Type.map(ts, erasureRecFun);
     }
     // </editor-fold>
 
@@ -1572,10 +1630,10 @@ public class Types {
                             syms.noSymbol);
         if (bounds.head.tag == TYPEVAR)
             // error condition, recover
-            bc.erasure_field = syms.objectType;
-        else
-            bc.erasure_field = erasure(bounds.head);
-        bc.members_field = new Scope(bc);
+                bc.erasure_field = syms.objectType;
+            else
+                bc.erasure_field = erasure(bounds.head);
+            bc.members_field = new Scope(bc);
         ClassType bt = (ClassType)bc.type;
         bt.allparams_field = List.nil();
         if (supertype != null) {
@@ -1638,14 +1696,13 @@ public class Types {
                     if (t.supertype_field == null) {
                         List<Type> actuals = classBound(t).allparams();
                         List<Type> formals = t.tsym.type.allparams();
-                        if (actuals.isEmpty()) {
-                            if (formals.isEmpty())
-                                // Should not happen.  See comments below in interfaces
-                                t.supertype_field = supertype;
-                            else
-                                t.supertype_field = erasure(supertype);
-                        } else {
+                        if (t.hasErasedSupertypes()) {
+                            t.supertype_field = erasureRecursive(supertype);
+                        } else if (formals.nonEmpty()) {
                             t.supertype_field = subst(supertype, formals, actuals);
+                        }
+                        else {
+                            t.supertype_field = supertype;
                         }
                     }
                 }
@@ -1720,17 +1777,14 @@ public class Types {
                         assert t != t.tsym.type : t.toString();
                         List<Type> actuals = t.allparams();
                         List<Type> formals = t.tsym.type.allparams();
-                        if (actuals.isEmpty()) {
-                            if (formals.isEmpty()) {
-                                // In this case t is not generic (nor raw).
-                                // So this should not happen.
-                                t.interfaces_field = interfaces;
-                            } else {
-                                t.interfaces_field = erasure(interfaces);
-                            }
-                        } else {
+                        if (t.hasErasedSupertypes()) {
+                            t.interfaces_field = erasureRecursive(interfaces);
+                        } else if (formals.nonEmpty()) {
                             t.interfaces_field =
                                 upperBounds(subst(interfaces, formals, actuals));
+                        }
+                        else {
+                            t.interfaces_field = interfaces;
                         }
                     }
                 }
@@ -2091,9 +2145,6 @@ public class Types {
                                   List<Type> to) {
         if (tvars.isEmpty())
             return tvars;
-        if (tvars.tail.isEmpty())
-            // fast common case
-            return List.<Type>of(substBound((TypeVar)tvars.head, from, to));
         ListBuffer<Type> newBoundsBuf = lb();
         boolean changed = false;
         // calculate new bounds
@@ -2133,8 +2184,14 @@ public class Types {
         Type bound1 = subst(t.bound, from, to);
         if (bound1 == t.bound)
             return t;
-        else
-            return new TypeVar(t.tsym, bound1, syms.botType);
+        else {
+            // create new type variable without bounds
+            TypeVar tv = new TypeVar(t.tsym, null, syms.botType);
+            // the new bound should use the new type variable in place
+            // of the old
+            tv.bound = subst(bound1, List.<Type>of(t), List.<Type>of(tv));
+            return tv;
+        }
     }
     // </editor-fold>
 
@@ -2174,6 +2231,20 @@ public class Types {
         };
     // </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="createErrorType">
+    public Type createErrorType(Type originalType) {
+        return new ErrorType(originalType, syms.errSymbol);
+    }
+
+    public Type createErrorType(ClassSymbol c, Type originalType) {
+        return new ErrorType(c, originalType);
+    }
+
+    public Type createErrorType(Name name, Symbol container, Type originalType) {
+        return new ErrorType(name, container, originalType);
+    }
+    // </editor-fold>
+
     // <editor-fold defaultstate="collapsed" desc="rank">
     /**
      * The rank of a class is the length of the longest path between
@@ -2186,10 +2257,7 @@ public class Types {
             ClassType cls = (ClassType)t;
             if (cls.rank_field < 0) {
                 Name fullname = cls.tsym.getQualifiedName();
-                if (fullname == null) {
-                    Logger.getLogger(Types.class.getName()).fine("fullname==null");
-                }
-                if (fullname != null && fullname == fullname.table.java_lang_Object)
+                if (fullname == names.java_lang_Object)
                     cls.rank_field = 0;
                 else {
                     int r = rank(supertype(cls));
@@ -2230,10 +2298,233 @@ public class Types {
     }
     // </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="printType">
+    /**
+     * Visitor for generating a string representation of a given type
+     * accordingly to a given locale
+     */
+    public String toString(Type t, Locale locale) {
+        return typePrinter.visit(t, locale);
+    }
+    // where
+    private TypePrinter typePrinter = new TypePrinter();
+
+    public class TypePrinter extends DefaultTypeVisitor<String, Locale> {
+
+        public String visit(List<Type> ts, Locale locale) {
+            ListBuffer<String> sbuf = lb();
+            for (Type t : ts) {
+                sbuf.append(visit(t, locale));
+            }
+            return sbuf.toList().toString();
+        }
+
+        @Override
+        public String visitCapturedType(CapturedType t, Locale locale) {
+            return messages.getLocalizedString("compiler.misc.type.captureof",
+                        (t.hashCode() & 0xFFFFFFFFL) % Type.CapturedType.PRIME,
+                        visit(t.wildcard, locale));
+        }
+
+        @Override
+        public String visitForAll(ForAll t, Locale locale) {
+            return "<" + visit(t.tvars, locale) + ">" + visit(t.qtype, locale);
+        }
+
+        @Override
+        public String visitUndetVar(UndetVar t, Locale locale) {
+            if (t.inst != null) {
+                return visit(t.inst, locale);
+            } else {
+                return visit(t.qtype, locale) + "?";
+            }
+        }
+
+        @Override
+        public String visitArrayType(ArrayType t, Locale locale) {
+            return visit(t.elemtype, locale) + "[]";
+        }
+
+        @Override
+        public String visitClassType(ClassType t, Locale locale) {
+            StringBuffer buf = new StringBuffer();
+            if (t.getEnclosingType().tag == CLASS && t.tsym.owner.kind == Kinds.TYP) {
+                buf.append(visit(t.getEnclosingType(), locale));
+                buf.append(".");
+                buf.append(className(t, false, locale));
+            } else {
+                buf.append(className(t, true, locale));
+            }
+            if (t.getTypeArguments().nonEmpty()) {
+                buf.append('<');
+                buf.append(visit(t.getTypeArguments(), locale));
+                buf.append(">");
+            }
+            return buf.toString();
+        }
+
+        @Override
+        public String visitMethodType(MethodType t, Locale locale) {
+            return "(" + printMethodArgs(t.argtypes, false, locale) + ")" + visit(t.restype, locale);
+        }
+
+        @Override
+        public String visitPackageType(PackageType t, Locale locale) {
+            return t.tsym.getQualifiedName().toString();
+        }
+
+        @Override
+        public String visitWildcardType(WildcardType t, Locale locale) {
+            StringBuffer s = new StringBuffer();
+            s.append(t.kind);
+            if (t.kind != UNBOUND) {
+                s.append(visit(t.type, locale));
+            }
+            return s.toString();
+        }
+
+
+        public String visitType(Type t, Locale locale) {
+            String s = (t.tsym == null || t.tsym.name == null)
+                    ? messages.getLocalizedString("compiler.misc.type.none")
+                    : t.tsym.name.toString();
+            return s;
+        }
+
+        protected String className(ClassType t, boolean longform, Locale locale) {
+            Symbol sym = t.tsym;
+            if (sym.name.length() == 0 && (sym.flags() & COMPOUND) != 0) {
+                StringBuffer s = new StringBuffer(visit(supertype(t), locale));
+                for (List<Type> is = interfaces(t); is.nonEmpty(); is = is.tail) {
+                    s.append("&");
+                    s.append(visit(is.head, locale));
+                }
+                return s.toString();
+            } else if (sym.name.length() == 0) {
+                String s;
+                ClassType norm = (ClassType) t.tsym.type;
+                if (norm == null) {
+                    s = getLocalizedString(locale, "compiler.misc.anonymous.class", (Object) null);
+                } else if (interfaces(norm).nonEmpty()) {
+                    s = getLocalizedString(locale, "compiler.misc.anonymous.class",
+                            visit(interfaces(norm).head, locale));
+                } else {
+                    s = getLocalizedString(locale, "compiler.misc.anonymous.class",
+                            visit(supertype(norm), locale));
+                }
+                return s;
+            } else if (longform) {
+                return sym.getQualifiedName().toString();
+            } else {
+                return sym.name.toString();
+            }
+        }
+
+        protected String printMethodArgs(List<Type> args, boolean varArgs, Locale locale) {
+            if (!varArgs) {
+                return visit(args, locale);
+            } else {
+                StringBuffer buf = new StringBuffer();
+                while (args.tail.nonEmpty()) {
+                    buf.append(visit(args.head, locale));
+                    args = args.tail;
+                    buf.append(',');
+                }
+                if (args.head.tag == ARRAY) {
+                    buf.append(visit(((ArrayType) args.head).elemtype, locale));
+                    buf.append("...");
+                } else {
+                    buf.append(visit(args.head, locale));
+                }
+                return buf.toString();
+            }
+        }
+
+        protected String getLocalizedString(Locale locale, String key, Object... args) {
+            return messages.getLocalizedString(key, args);
+        }
+    };
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="printSymbol">
+    /**
+     * Visitor for generating a string representation of a given symbol
+     * accordingly to a given locale
+     */
+    public String toString(Symbol t, Locale locale) {
+        return symbolPrinter.visit(t, locale);
+    }
+    // where
+    private SymbolPrinter symbolPrinter = new SymbolPrinter();
+
+    public class SymbolPrinter extends DefaultSymbolVisitor<String, Locale> {
+
+        @Override
+        public String visitClassSymbol(ClassSymbol sym, Locale locale) {
+            return sym.name.isEmpty()
+                    ? getLocalizedString(locale, "compiler.misc.anonymous.class", sym.flatname)
+                    : sym.fullname.toString();
+        }
+
+        @Override
+        public String visitMethodSymbol(MethodSymbol s, Locale locale) {
+            if ((s.flags() & BLOCK) != 0) {
+                return s.owner.name.toString();
+            } else {
+                String ms = (s.name == names.init)
+                        ? s.owner.name.toString()
+                        : s.name.toString();
+                if (s.type != null) {
+                    if (s.type.tag == FORALL) {
+                        ms = "<" + typePrinter.visit(s.type.getTypeArguments(), locale) + ">" + ms;
+                    }
+                    ms += "(" + typePrinter.printMethodArgs(
+                            s.type.getParameterTypes(),
+                            (s.flags() & VARARGS) != 0,
+                            locale) + ")";
+                }
+                return ms;
+            }
+        }
+
+        @Override
+        public String visitOperatorSymbol(OperatorSymbol s, Locale locale) {
+            return visitMethodSymbol(s, locale);
+        }
+
+        @Override
+        public String visitPackageSymbol(PackageSymbol s, Locale locale) {
+            return s.name.isEmpty()
+                    ? getLocalizedString(locale, "compiler.misc.unnamed.package")
+                    : s.fullname.toString();
+        }
+
+        public String visitSymbol(Symbol s, Locale locale) {
+            return s.name.toString();
+        }
+
+        public String visit(List<Symbol> ts, Locale locale) {
+            ListBuffer<String> sbuf = lb();
+            for (Symbol t : ts) {
+                sbuf.append(visit(t, locale));
+            }
+            return sbuf.toList().toString();
+        }
+
+        protected String getLocalizedString(Locale locale, String key, Object... args) {
+            return messages.getLocalizedString(key, args);
+        }
+    };
+    // </editor-fold>
+
     // <editor-fold defaultstate="collapsed" desc="toString">
     /**
      * This toString is slightly more descriptive than the one on Type.
+     *
+     * @deprecated Types.toString(Type t, Locale l) provides better support
+     * for localization
      */
+    @Deprecated
     public String toString(Type t) {
         if (t.tag == FORALL) {
             ForAll forAll = (ForAll)t;
@@ -2578,6 +2869,16 @@ public class Types {
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Greatest lower bound">
+    public Type glb(List<Type> ts) {
+        Type t1 = ts.head;
+        for (Type t2 : ts.tail) {
+            if (t1.isErroneous())
+                return t1;
+            t1 = glb(t1, t2);
+        }
+        return t1;
+    }
+    //where
     public Type glb(Type t, Type s) {
         if (s == null)
             return t;
@@ -2599,7 +2900,7 @@ public class Types {
                 if (!bound.isInterface())
                     classCount++;
             if (classCount > 1)
-                return syms.errType;
+                return createErrorType(t);
         }
         return makeCompoundType(bounds);
     }
@@ -2901,7 +3202,7 @@ public class Types {
             giveWarning = giveWarning || (reverse ? giveWarning(t2, t1) : giveWarning(t1, t2));
             commonSupers = commonSupers.tail;
         }
-        if (giveWarning && !isReifiable(to))
+        if (giveWarning && !isReifiable(reverse ? from : to))
             warn.warnUnchecked();
         if (!source.allowCovariantReturns())
             // reject if there is a common method signature with
@@ -2943,7 +3244,7 @@ public class Types {
     private boolean giveWarning(Type from, Type to) {
         // To and from are (possibly different) parameterizations
         // of the same class or interface
-        return to.isParameterized() && !containsType(to.getTypeArguments(), from.getTypeArguments());
+        return to.isParameterized() && !containsType(to.allparams(), from.allparams());
     }
 
     private List<Type> superClosure(Type t, Type s) {
@@ -2964,6 +3265,7 @@ public class Types {
             containsType(t, s) && containsType(s, t);
     }
 
+    // <editor-fold defaultstate="collapsed" desc="adapt">
     /**
      * Adapt a type by computing a substitution which maps a source
      * type to a target type.
@@ -2977,92 +3279,112 @@ public class Types {
                        Type target,
                        ListBuffer<Type> from,
                        ListBuffer<Type> to) throws AdaptFailure {
-        Map<Symbol,Type> mapping = new HashMap<Symbol,Type>();
-        adaptRecursive(source, target, from, to, mapping);
-        List<Type> fromList = from.toList();
-        List<Type> toList = to.toList();
-        while (!fromList.isEmpty()) {
-            Type val = mapping.get(fromList.head.tsym);
-            if (toList.head != val)
-                toList.head = val;
-            fromList = fromList.tail;
-            toList = toList.tail;
-        }
+        new Adapter(from, to).adapt(source, target);
     }
-    // where
-        private void adaptRecursive(Type source,
-                                    Type target,
-                                    ListBuffer<Type> from,
-                                    ListBuffer<Type> to,
-                                    Map<Symbol,Type> mapping) throws AdaptFailure {
-            if (source.tag == TYPEVAR) {
-                // Check to see if there is
-                // already a mapping for $source$, in which case
-                // the old mapping will be merged with the new
-                Type val = mapping.get(source.tsym);
-                if (val != null) {
-                    if (val.isSuperBound() && target.isSuperBound()) {
-                        val = isSubtype(lowerBound(val), lowerBound(target))
-                            ? target : val;
-                    } else if (val.isExtendsBound() && target.isExtendsBound()) {
-                        val = isSubtype(upperBound(val), upperBound(target))
-                            ? val : target;
-                    } else if (!isSameType(val, target)) {
-                        throw new AdaptFailure();
-                    }
-                } else {
-                    val = target;
-                    from.append(source);
-                    to.append(target);
-                }
-                mapping.put(source.tsym, val);
-            } else if (source.tag == target.tag) {
-                switch (source.tag) {
-                    case CLASS:
-                        adapt(source.allparams(), target.allparams(),
-                              from, to, mapping);
-                        break;
-                    case ARRAY:
-                        adaptRecursive(elemtype(source), elemtype(target),
-                                       from, to, mapping);
-                        break;
-                    case WILDCARD:
-                        if (source.isExtendsBound()) {
-                            adaptRecursive(upperBound(source), upperBound(target),
-                                           from, to, mapping);
-                        } else if (source.isSuperBound()) {
-                            adaptRecursive(lowerBound(source), lowerBound(target),
-                                           from, to, mapping);
-                        }
-                        break;
-                }
-            }
-        }
-        public static class AdaptFailure extends Exception {
-            static final long serialVersionUID = -7490231548272701566L;
+
+    class Adapter extends SimpleVisitor<Void, Type> {
+
+        ListBuffer<Type> from;
+        ListBuffer<Type> to;
+        Map<Symbol,Type> mapping;
+
+        Adapter(ListBuffer<Type> from, ListBuffer<Type> to) {
+            this.from = from;
+            this.to = to;
+            mapping = new HashMap<Symbol,Type>();
         }
 
-    /**
-     * Adapt a type by computing a substitution which maps a list of
-     * source types to a list of target types.
-     *
-     * @param source    the source type
-     * @param target    the target type
-     * @param from      the type variables of the computed substitution
-     * @param to        the types of the computed substitution.
-     */
-    private void adapt(List<Type> source,
-                       List<Type> target,
-                       ListBuffer<Type> from,
-                       ListBuffer<Type> to,
-                       Map<Symbol,Type> mapping) throws AdaptFailure {
-        if (source.length() == target.length()) {
-            while (source.nonEmpty()) {
-                adaptRecursive(source.head, target.head, from, to, mapping);
-                source = source.tail;
-                target = target.tail;
+        public void adapt(Type source, Type target) throws AdaptFailure {
+            visit(source, target);
+            List<Type> fromList = from.toList();
+            List<Type> toList = to.toList();
+            while (!fromList.isEmpty()) {
+                Type val = mapping.get(fromList.head.tsym);
+                if (toList.head != val)
+                    toList.head = val;
+                fromList = fromList.tail;
+                toList = toList.tail;
             }
         }
+
+        @Override
+        public Void visitClassType(ClassType source, Type target) throws AdaptFailure {
+            if (target.tag == CLASS)
+                adaptRecursive(source.allparams(), target.allparams());
+            return null;
+        }
+
+        @Override
+        public Void visitArrayType(ArrayType source, Type target) throws AdaptFailure {
+            if (target.tag == ARRAY)
+                adaptRecursive(elemtype(source), elemtype(target));
+            return null;
+        }
+
+        @Override
+        public Void visitWildcardType(WildcardType source, Type target) throws AdaptFailure {
+            if (source.isExtendsBound())
+                adaptRecursive(upperBound(source), upperBound(target));
+            else if (source.isSuperBound())
+                adaptRecursive(lowerBound(source), lowerBound(target));
+            return null;
+        }
+
+        @Override
+        public Void visitTypeVar(TypeVar source, Type target) throws AdaptFailure {
+            // Check to see if there is
+            // already a mapping for $source$, in which case
+            // the old mapping will be merged with the new
+            Type val = mapping.get(source.tsym);
+            if (val != null) {
+                if (val.isSuperBound() && target.isSuperBound()) {
+                    val = isSubtype(lowerBound(val), lowerBound(target))
+                        ? target : val;
+                } else if (val.isExtendsBound() && target.isExtendsBound()) {
+                    val = isSubtype(upperBound(val), upperBound(target))
+                        ? val : target;
+                } else if (!isSameType(val, target)) {
+                    throw new AdaptFailure();
+                }
+            } else {
+                val = target;
+                from.append(source);
+                to.append(target);
+            }
+            mapping.put(source.tsym, val);
+            return null;
+        }
+
+        public Void visitType(Type source, Type target) {
+            return null;
+        }
+
+        private Set<TypePair> cache = new HashSet<TypePair>();
+
+        private void adaptRecursive(Type source, Type target) {
+            TypePair pair = new TypePair(source, target);
+            if (cache.add(pair)) {
+                try {
+                    visit(source, target);
+                } finally {
+                    cache.remove(pair);
+                }
+            }
+        }
+
+        private void adaptRecursive(List<Type> source, List<Type> target) {
+            if (source.length() == target.length()) {
+                while (source.nonEmpty()) {
+                    adaptRecursive(source.head, target.head);
+                    source = source.tail;
+                    target = target.tail;
+                }
+            }
+        }
+    }
+
+    public static class AdaptFailure extends RuntimeException {
+        static final long serialVersionUID = -7490231548272701566L;
     }
 
     private void adaptSelf(Type t,
@@ -3077,6 +3399,7 @@ public class Types {
             throw new AssertionError(ex);
         }
     }
+    // </editor-fold>
 
     /**
      * Rewrite all type variables (universal quantifiers) in the given
@@ -3095,33 +3418,67 @@ public class Types {
      * quantifiers) only
      */
     private Type rewriteQuantifiers(Type t, boolean high, boolean rewriteTypeVars) {
-        ListBuffer<Type> from = new ListBuffer<Type>();
-        ListBuffer<Type> to = new ListBuffer<Type>();
-        adaptSelf(t, from, to);
-        ListBuffer<Type> rewritten = new ListBuffer<Type>();
-        List<Type> formals = from.toList();
-        boolean changed = false;
-        for (Type arg : to.toList()) {
-            Type bound;
-            if (rewriteTypeVars && arg.tag == TYPEVAR) {
-                TypeVar tv = (TypeVar)arg;
-                bound = high ? tv.bound : syms.botType;
-            } else {
-                bound = high ? upperBound(arg) : lowerBound(arg);
-            }
-            Type newarg = bound;
-            if (arg != bound) {
-                changed = true;
-                newarg = high ? makeExtendsWildcard(bound, (TypeVar)formals.head)
-                              : makeSuperWildcard(bound, (TypeVar)formals.head);
-            }
-            rewritten.append(newarg);
-            formals = formals.tail;
+        return new Rewriter(high, rewriteTypeVars).rewrite(t);
+    }
+
+    class Rewriter extends UnaryVisitor<Type> {
+
+        boolean high;
+        boolean rewriteTypeVars;
+
+        Rewriter(boolean high, boolean rewriteTypeVars) {
+            this.high = high;
+            this.rewriteTypeVars = rewriteTypeVars;
         }
-        if (changed)
-            return subst(t.tsym.type, from.toList(), rewritten.toList());
-        else
-            return t;
+
+        Type rewrite(Type t) {
+            ListBuffer<Type> from = new ListBuffer<Type>();
+            ListBuffer<Type> to = new ListBuffer<Type>();
+            adaptSelf(t, from, to);
+            ListBuffer<Type> rewritten = new ListBuffer<Type>();
+            List<Type> formals = from.toList();
+            boolean changed = false;
+            for (Type arg : to.toList()) {
+                Type bound = visit(arg);
+                if (arg != bound) {
+                    changed = true;
+                    bound = high ? makeExtendsWildcard(bound, (TypeVar)formals.head)
+                              : makeSuperWildcard(bound, (TypeVar)formals.head);
+                }
+                rewritten.append(bound);
+                formals = formals.tail;
+            }
+            if (changed)
+                return subst(t.tsym.type, from.toList(), rewritten.toList());
+            else
+                return t;
+        }
+
+        public Type visitType(Type t, Void s) {
+            return high ? upperBound(t) : lowerBound(t);
+        }
+
+        @Override
+        public Type visitCapturedType(CapturedType t, Void s) {
+            return visitWildcardType(t.wildcard, null);
+        }
+
+        @Override
+        public Type visitTypeVar(TypeVar t, Void s) {
+            if (rewriteTypeVars)
+                return high ? t.bound : syms.botType;
+            else
+                return t;
+        }
+
+        @Override
+        public Type visitWildcardType(WildcardType t, Void s) {
+            Type bound = high ? t.getExtendsBound() :
+                                t.getSuperBound();
+            if (bound == null)
+                bound = high ? syms.objectType : syms.botType;
+            return bound;
+        }
     }
 
     /**
@@ -3214,6 +3571,28 @@ public class Types {
         public R visitForAll(ForAll t, S s)             { return visitType(t, s); }
         public R visitUndetVar(UndetVar t, S s)         { return visitType(t, s); }
         public R visitErrorType(ErrorType t, S s)       { return visitType(t, s); }
+    }
+
+    /**
+     * A default visitor for symbols.  All visitor methods except
+     * visitSymbol are implemented by delegating to visitSymbol.  Concrete
+     * subclasses must provide an implementation of visitSymbol and can
+     * override other methods as needed.
+     *
+     * @param <R> the return type of the operation implemented by this
+     * visitor; use Void if no return type is needed.
+     * @param <S> the type of the second argument (the first being the
+     * symbol itself) of the operation implemented by this visitor; use
+     * Void if a second argument is not needed.
+     */
+    public static abstract class DefaultSymbolVisitor<R,S> implements Symbol.Visitor<R,S> {
+        final public R visit(Symbol s, S arg)                   { return s.accept(this, arg); }
+        public R visitClassSymbol(ClassSymbol s, S arg)         { return visitSymbol(s, arg); }
+        public R visitMethodSymbol(MethodSymbol s, S arg)       { return visitSymbol(s, arg); }
+        public R visitOperatorSymbol(OperatorSymbol s, S arg)   { return visitSymbol(s, arg); }
+        public R visitPackageSymbol(PackageSymbol s, S arg)     { return visitSymbol(s, arg); }
+        public R visitTypeSymbol(TypeSymbol s, S arg)           { return visitSymbol(s, arg); }
+        public R visitVarSymbol(VarSymbol s, S arg)             { return visitSymbol(s, arg); }
     }
 
     /**

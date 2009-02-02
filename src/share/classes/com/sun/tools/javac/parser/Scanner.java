@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2006 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 1999-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,12 @@
 
 package com.sun.tools.javac.parser;
 
-import java.io.*;
 import java.nio.*;
-import java.nio.ByteBuffer;
-import java.nio.charset.*;
-import java.nio.channels.*;
-import java.util.regex.*;
-
-import com.sun.tools.javac.util.*;
 
 import com.sun.tools.javac.code.Source;
+import com.sun.tools.javac.file.JavacFileManager;
+import com.sun.tools.javac.util.*;
+
 
 import static com.sun.tools.javac.parser.Token.*;
 import static com.sun.tools.javac.util.LayoutCharacters.*;
@@ -66,7 +62,7 @@ public class Scanner implements Lexer {
         }
 
         final Log log;
-        final Name.Table names;
+        final Names names;
         final Source source;
         final Keywords keywords;
 
@@ -74,7 +70,7 @@ public class Scanner implements Lexer {
         protected Factory(Context context) {
             context.put(scannerFactoryKey, this);
             this.log = Log.instance(context);
-            this.names = Name.Table.instance(context);
+            this.names = Names.instance(context);
             this.source = Source.instance(context);
             this.keywords = Keywords.instance(context);
         }
@@ -161,7 +157,7 @@ public class Scanner implements Lexer {
     private final Log log;
 
     /** The name table. */
-    private final Name.Table names;
+    private final Names names;
 
     /** The keyword table. */
     private final Keywords keywords;

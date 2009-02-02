@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2006 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 1999-2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,14 @@
 
 package com.sun.tools.javac.main;
 
-import com.sun.tools.javac.util.Options;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.MissingResourceException;
 
 import com.sun.tools.javac.code.Source;
+import com.sun.tools.javac.file.CacheFSInfo;
+import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.main.JavacOption.Option;
 import com.sun.tools.javac.main.RecognizedOptions.OptionHelper;
@@ -337,13 +338,13 @@ public class Main {
                 return EXIT_CMDERR;
             }
 
-            List<File> filenames;
+            List<File> files;
             try {
-                filenames = processArgs(CommandLine.parse(args));
-                if (filenames == null) {
+                files = processArgs(CommandLine.parse(args));
+                if (files == null) {
                     // null signals an error in options, abort
                     return EXIT_CMDERR;
-                } else if (filenames.isEmpty() && fileObjects.isEmpty() && classnames.isEmpty()) {
+                } else if (files.isEmpty() && fileObjects.isEmpty() && classnames.isEmpty()) {
                     // it is allowed to compile nothing if just asking for help or version info
                     if (options.get("-help") != null
                         || options.get("-X") != null
@@ -368,17 +369,25 @@ public class Main {
 
             context.put(Log.outKey, out);
 
+            // allow System property in following line as a Mustang legacy
+            boolean batchMode = (options.get("nonBatchMode") == null
+                        && System.getProperty("nonBatchMode") == null);
+            if (batchMode)
+                CacheFSInfo.preRegister(context);
+
             fileManager = context.get(JavaFileManager.class);
 
             comp = JavaCompiler.instance(context);
             if (comp == null) return EXIT_SYSERR;
 
-            if (!filenames.isEmpty()) {
+            Log log = Log.instance(context);
+
+            if (!files.isEmpty()) {
                 // add filenames to fileObjects
                 comp = JavaCompiler.instance(context);
                 List<JavaFileObject> otherFiles = List.nil();
                 JavacFileManager dfm = (JavacFileManager)fileManager;
-                for (JavaFileObject fo : dfm.getJavaFileObjectsFromFiles(filenames))
+                for (JavaFileObject fo : dfm.getJavaFileObjectsFromFiles(files))
                     otherFiles = otherFiles.prepend(fo);
                 for (JavaFileObject fo : otherFiles)
                     fileObjects = fileObjects.prepend(fo);
@@ -386,6 +395,16 @@ public class Main {
             comp.compile(fileObjects,
                          classnames.toList(),
                          processors);
+
+            if (log.expectDiagKeys != null) {
+                if (log.expectDiagKeys.size() == 0) {
+                    Log.printLines(log.noticeWriter, "all expected diagnostics found");
+                    return EXIT_OK;
+                } else {
+                    Log.printLines(log.noticeWriter, "expected diagnostic keys not found: " + log.expectDiagKeys);
+                    return EXIT_ERROR;
+                }
+            }
 
             if (comp.errorCount() != 0 ||
                 options.get("-Werror") != null && comp.warningCount() != 0)
@@ -477,7 +496,7 @@ public class Main {
     public static String getLocalizedString(String key, Object... args) { // FIXME sb private
         try {
             if (messages == null)
-                messages = new Messages(javacBundleName);
+                messages = new JavacMessages(javacBundleName);
             return messages.getLocalizedString("javac." + key, args);
         }
         catch (MissingResourceException e) {
@@ -487,18 +506,18 @@ public class Main {
 
     public static void useRawMessages(boolean enable) {
         if (enable) {
-            messages = new Messages(javacBundleName) {
+            messages = new JavacMessages(javacBundleName) {
                     public String getLocalizedString(String key, Object... args) {
                         return key;
                     }
                 };
         } else {
-            messages = new Messages(javacBundleName);
+            messages = new JavacMessages(javacBundleName);
         }
     }
 
     private static final String javacBundleName =
         "com.sun.tools.javac.resources.javac";
 
-    private static Messages messages;
+    private static JavacMessages messages;
 }
