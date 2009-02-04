@@ -129,6 +129,8 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
      *  unnecessarily deep recursion.
      */
     boolean completionEnabled = true;
+    
+    private JCCompilationUnit disabledCompletionInUnit = null;
 
     /* ---------- Processing import clauses ----------------
      */
@@ -566,30 +568,36 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
         // effects of other imports in Resolve.findGlobalType
         Env<AttrContext> localEnv = env.dup(tree);
 
-        // Attribute qualifying package or class.
-        JCFieldAccess s = (JCFieldAccess) imp;
-        p = attr.
-            attribTree(s.selected,
-                       localEnv,
-                       tree.staticImport ? TYP : (TYP | PCK),
-                       Type.noType).tsym;
-        if (name == names.asterisk) {
-            // Import on demand.
-            chk.checkCanonical(s.selected);
-            if (tree.staticImport)
-                importStaticAll(tree.pos, p, env);
-            else
-                importAll(tree.pos, p, env);
-        } else {
-            // Named type import.
-            if (tree.staticImport) {
-                importNamedStatic(tree.pos(), p, name, localEnv);
+        try {
+            disabledCompletionInUnit = localEnv.toplevel;
+
+            // Attribute qualifying package or class.
+            JCFieldAccess s = (JCFieldAccess) imp;
+            p = attr.
+                attribTree(s.selected,
+                           localEnv,
+                           tree.staticImport ? TYP : (TYP | PCK),
+                           Type.noType).tsym;
+            if (name == names.asterisk) {
+                // Import on demand.
                 chk.checkCanonical(s.selected);
+                if (tree.staticImport)
+                    importStaticAll(tree.pos, p, env);
+                else
+                    importAll(tree.pos, p, env);
             } else {
-                TypeSymbol c = attribImportType(imp, localEnv).tsym;
-                chk.checkCanonical(imp);
-                importNamed(tree.pos(), c, env);
+                // Named type import.
+                if (tree.staticImport) {
+                    importNamedStatic(tree.pos(), p, name, localEnv);
+                    chk.checkCanonical(s.selected);
+                } else {
+                    TypeSymbol c = attribImportType(imp, localEnv).tsym;
+                    chk.checkCanonical(imp);
+                    importNamed(tree.pos(), c, env);
+                }
             }
+        } finally {
+            disabledCompletionInUnit = null;
         }
     }
 
@@ -929,6 +937,13 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
         ClassSymbol c = (ClassSymbol)sym;
         ClassType ct = (ClassType)c.type;
         Env<AttrContext> env = enter.typeEnvs.get(c);
+
+        if (disabledCompletionInUnit == env.toplevel) {
+            // Re-install same completer for next time around and return.
+            sym.completer = this;
+            return;
+        }
+
         JCClassDecl tree = (JCClassDecl)env.tree;
         boolean wasFirst = isFirst;
         isFirst = false;
