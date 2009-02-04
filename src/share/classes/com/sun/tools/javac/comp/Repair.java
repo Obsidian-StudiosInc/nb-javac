@@ -381,6 +381,9 @@ public class Repair extends TreeTranslator {
                 if (hasError && err != null) {
                     classLevelErrTree = err.getTree();
                     classLevelErrMessage = err.getMessage(null);
+                } else if (c.type.isErroneous() && oldHasError && oldErr != null) {
+                    classLevelErrTree = oldErr.getTree();
+                    classLevelErrMessage = oldErr.getMessage(null);
                 }
                 if (tree.defs != null) {
                     HashSet<MethodSymbol> nonAbstractMethods = new HashSet<MethodSymbol>();
