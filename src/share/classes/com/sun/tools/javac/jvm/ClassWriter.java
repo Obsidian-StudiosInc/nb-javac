@@ -942,7 +942,7 @@ public class ClassWriter extends ClassFile {
             System.err.println("error: " + c + ": " + ex.getMessage());
             throw ex;
         }
-        if (c.type.tag != CLASS) return; // arrays
+        if (c.type.tag != CLASS && c.type.tag != ERROR) return; // arrays
         if (pool != null && // pool might be null if called from xClassName
             c.owner.kind != PCK &&
             (innerClasses == null || !innerClasses.contains(c))) {
@@ -1579,7 +1579,8 @@ public class ClassWriter extends ClassFile {
             case VAR: fieldsCount++; break;
             case MTH: if ((e.sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
                       break;
-            case TYP: enterInner((ClassSymbol)e.sym); break;
+            case TYP:
+            case ERR: enterInner((ClassSymbol)e.sym); break;
             default : assert false : "ClassWriter.writeClassFile: Member [" + e.sym + "] of a kind ["+ e.sym.kind + "] contained in class [" + c + "]."; //NOI18N
             }
         }
