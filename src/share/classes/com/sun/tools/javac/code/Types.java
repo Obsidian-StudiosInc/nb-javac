@@ -695,9 +695,25 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
-                return t == s || (t.tsym != null && t.tsym.name == names.any) ||
-                        (s != null && s.tsym != null && (s.getKind() == TypeKind.ERROR || (s.tsym.type != null && s.tsym.type.getKind() == TypeKind.ERROR)) &&
-                        (s.tsym.name == names.any || (t.tsym != null && t.tsym.getQualifiedName() == s.tsym.getQualifiedName())));
+                try {
+                    return t == s || (t.tsym != null && t.tsym.name == names.any) ||
+                            (s != null && s.tsym != null && (s.getKind() == TypeKind.ERROR || (s.tsym.type != null && s.tsym.type.getKind() == TypeKind.ERROR)) &&
+                            (s.tsym.name == names.any || (t.tsym != null && t.tsym.getQualifiedName() == s.tsym.getQualifiedName())));
+                } catch (NullPointerException npe) {
+                    if (t == null)
+                        Logger.getLogger(Types.class.getName()).warning("t==null");
+                    if (s == null)
+                        Logger.getLogger(Types.class.getName()).warning("s==null");
+                    if (t.tsym == null)
+                        Logger.getLogger(Types.class.getName()).warning("t.tsym==null");
+                    if (s.tsym == null)
+                        Logger.getLogger(Types.class.getName()).warning("s.tsym==null");
+                    if (s.tsym.type == null)
+                        Logger.getLogger(Types.class.getName()).warning("s.tsym.type==null");
+                    if (names == null)
+                        Logger.getLogger(Types.class.getName()).warning("names==null");
+                    throw npe;
+                }
             }
         };
     // </editor-fold>
