@@ -280,9 +280,6 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
                        DiagnosticPosition pos,
                        String key,
                        Object ... args) {
-        if (source == null && pos != null && pos.getPreferredPosition() != Position.NOPOS)
-            throw new IllegalArgumentException();
-
         this.defaultFormatter = formatter;
         this.type = dt;
         this.mandatory = mandatory;
