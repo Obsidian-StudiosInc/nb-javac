@@ -1169,7 +1169,7 @@ public class Flow extends TreeScanner {
             // 'caught/declared to be thrown' types, for the duration of
             // the class def analysis.
             if (tree.def != null)
-                for (List<Type> l = tree.constructor.type.getThrownTypes();
+                for (List<Type> l = tree.constructorType.getThrownTypes();
                      l.nonEmpty();
                      l = l.tail) {
                     caught = chk.incl(l.head, caught);

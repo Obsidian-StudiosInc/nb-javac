@@ -78,14 +78,10 @@ public class ParserFactory {
         return newParser (input, keepDocComments, keepEndPos, keepLineMap, false);
     }
 
-    public Parser newParser(CharSequence input, boolean keepDocComments, int firstAnnonClassIndex, Map<JCTree,Integer> endPos) {
+    public Parser newParser(CharSequence input, int startPos, int firstAnnonClassIndex, Map<JCTree,Integer> endPos) {
         Lexer lexer = scannerFactory.newScanner(input);
-        JavacParser p;
-        if (endPos != null)
-            p = new EndPosParser(this, lexer, keepDocComments, false, cancelSevice, endPos);
-        else
-            p = new JavacParser(this, lexer, keepDocComments, false, cancelSevice);
-
+        ((Scanner)lexer).seek(startPos);
+        JavacParser p = new EndPosParser(this, lexer, false, false, cancelSevice, endPos);
         p.anonScopes.push(new JavacParser.AnonScope(names.empty,firstAnnonClassIndex));
         return p;
     }
