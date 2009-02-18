@@ -68,6 +68,7 @@ public class Resolve {
     public final boolean boxingEnabled; // = source.allowBoxing();
     public final boolean varargsEnabled; // = source.allowVarargs();
     private final boolean debugResolve;
+    private final boolean ideMode;
 
     public static Resolve instance(Context context) {
         Resolve instance = context.get(resolveKey);
@@ -104,6 +105,7 @@ public class Resolve {
         varargsEnabled = source.allowVarargs();
         Options options = Options.instance(context);
         debugResolve = options.get("debugresolve") != null;
+        this.ideMode = options.get("ide") != null;
     }
 
     /** error symbols, which are returned when resolution fails
@@ -121,7 +123,7 @@ public class Resolve {
     /** An environment is "static" if its static level is greater than
      *  the one of its outer environment
      */
-    static boolean isStatic(Env<AttrContext> env) {
+    public static boolean isStatic(Env<AttrContext> env) {
         return env.info.staticLevel > env.outer.info.staticLevel;
     }
 
@@ -868,7 +870,12 @@ public class Resolve {
             ClassSymbol c = reader.loadClass(name);
             return isAccessible(env, c) ? c : new AccessError(c);
         } catch (ClassReader.BadClassFile err) {
-            throw err;
+            if (ideMode) {
+                return typeNotFound;
+            }
+            else {
+                throw err;
+            }
         } catch (CompletionFailure ex) {
             return typeNotFound;
         }
@@ -1098,7 +1105,7 @@ public class Resolve {
             if (!site.isErroneous() &&
                 !Type.isErroneous(argtypes) &&
                 (typeargtypes==null || !Type.isErroneous(typeargtypes)))
-                ((ResolveError)sym).report(log, pos, site, name, argtypes, typeargtypes);
+            ((ResolveError)sym).report(log, pos, site, name, argtypes, typeargtypes);
             do {
                 sym = ((ResolveError)sym).sym;
             } while (sym.kind >= AMBIGUOUS);
@@ -1407,6 +1414,19 @@ public class Resolve {
                        Env<AttrContext> env,
                        TypeSymbol c,
                        Name name) {
+        // Check that declarations in inner classes are not static. If so,
+        // 'Inner classes cannot have static declarations is already reported
+        // and there is no need to report 'Non-static {0} {1} cannot be referenced from a static context'.
+        boolean staticInnerDecl = false;
+        if (env.tree.getTag() == JCTree.VARDEF && (TreeInfo.flags(env.tree) & (STATIC | INTERFACE)) != 0) {
+            Symbol sym = ((JCVariableDecl)env.tree).sym;
+            if (sym == null || sym.kind != VAR || ((VarSymbol) sym).getConstValue() == null) {
+                sym = env.enclClass.sym;
+                if (sym != null && sym.owner.kind != PCK && ((sym.flags() & STATIC) == 0 || sym.name == names.empty)) {
+                    staticInnerDecl = true;
+                }
+            }
+        }
         Env<AttrContext> env1 = env;
         boolean staticOnly = false;
         while (env1.outer != null) {
@@ -1414,7 +1434,9 @@ public class Resolve {
             if (env1.enclClass.sym == c) {
                 Symbol sym = env1.info.scope.lookup(name).sym;
                 if (sym != null) {
-                    if (staticOnly) sym = new StaticError(sym);
+                    if (staticOnly && !staticInnerDecl) {
+                        sym = new StaticError(sym);
+                    }
                     return access(sym, pos, env.enclClass.sym.type,
                                   name, true);
                 }

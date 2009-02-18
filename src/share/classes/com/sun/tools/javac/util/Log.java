@@ -27,6 +27,7 @@ package com.sun.tools.javac.util;
 
 import java.io.*;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -106,6 +107,11 @@ public class Log extends AbstractLog {
      * JavacMessages object used for localization.
      */
     private JavacMessages messages;
+
+    private boolean partialReparse;
+
+    private final Set<Pair<JavaFileObject, Integer>> partialReparseRecorded = new HashSet<Pair<JavaFileObject,Integer>>();
+    private final Map<JCTree, JCDiagnostic> errTrees = new HashMap<JCTree, JCDiagnostic>();
 
     /** Construct a log with given I/O redirections.
      */
@@ -200,6 +206,18 @@ public class Log extends AbstractLog {
         getSource(name).setEndPosTable(table);
     }
 
+    public void startPartialReparse () {
+        assert partialReparseRecorded.isEmpty();
+        this.nerrors = 0;
+        this.nwarnings = 0;
+        this.partialReparse = true;
+    }
+
+    public void endPartialReparse () {
+        this.partialReparseRecorded.clear();
+        this.partialReparse = false;
+    }
+
     /** Return current sourcefile.
      */
     public JavaFileObject currentSourceFile() {
@@ -230,14 +248,25 @@ public class Log extends AbstractLog {
      * source name and pos.
      */
     protected boolean shouldReport(JavaFileObject file, int pos) {
-        if (multipleErrors || file == null)
+        if (multipleErrors || file == null) {
             return true;
-
-        Pair<JavaFileObject,Integer> coords = new Pair<JavaFileObject,Integer>(file, pos);
-        boolean shouldReport = !recorded.contains(coords);
-        if (shouldReport)
-            recorded.add(coords);
-        return shouldReport;
+        }
+        else {
+            Pair<JavaFileObject,Integer> coords = new Pair<JavaFileObject,Integer>(file, pos);
+            if (partialReparse) {
+                boolean shouldReport = !partialReparseRecorded.contains(coords);
+                if (shouldReport) {
+                    partialReparseRecorded.add(coords);
+                }
+                return shouldReport;
+            }
+            else {
+                boolean shouldReport = !recorded.contains(coords);
+                if (shouldReport)
+                    recorded.add(coords);
+                return shouldReport;
+            }
+        }
     }
 
     /** Prompt user after an error.
@@ -339,6 +368,8 @@ public class Log extends AbstractLog {
             break;
 
         case ERROR:
+            if (diagnostic.getTree() != null && !errTrees.containsKey(diagnostic.getTree()))
+                errTrees.put(diagnostic.getTree(), diagnostic);
             if (nerrors < MaxErrors
                 && shouldReport(diagnostic.getSource(), diagnostic.getIntPosition())) {
                 writeDiagnostic(diagnostic);
@@ -455,5 +486,8 @@ public class Log extends AbstractLog {
     public static String format(String fmt, Object... args) {
         return String.format((java.util.Locale)null, fmt, args);
     }
-
+    
+    public JCDiagnostic getErrDiag(JCTree tree) {
+        return errTrees.get(tree);
+    }
 }

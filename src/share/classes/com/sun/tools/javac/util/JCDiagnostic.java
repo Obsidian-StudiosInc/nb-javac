@@ -253,7 +253,7 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
         }
 
         private final int pos;
-    }
+        }
 
     private final DiagnosticType type;
     private final DiagnosticSource source;
@@ -280,16 +280,13 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
                        DiagnosticPosition pos,
                        String key,
                        Object ... args) {
-        if (source == null && pos != null && pos.getPreferredPosition() != Position.NOPOS)
-            throw new IllegalArgumentException();
-
         this.defaultFormatter = formatter;
         this.type = dt;
         this.mandatory = mandatory;
         this.source = source;
         this.position = pos;
         this.key = key;
-            this.args = args;
+        this.args = args;
 
         int n = (pos == null ? Position.NOPOS : pos.getPreferredPosition());
         if (n == Position.NOPOS || source == null)
@@ -379,6 +376,10 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
     public long getEndPosition() {
         return getIntEndPosition();
     }
+    
+    public JCTree getTree() {
+        return position == null ? null : position.getTree();
+    }
 
     /**
      * Get the line number within the source referred to by this diagnostic.
@@ -423,6 +424,7 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
     /**
      * Return the standard presentation of this diagnostic.
      */
+    @Override
     public String toString() {
         return defaultFormatter.format(this,Locale.getDefault());
     }
@@ -453,6 +455,10 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
 
     public String getMessage(Locale locale) {
         return defaultFormatter.formatMessage(this, locale);
+    }
+
+    public boolean hasFixedPositions () {
+        return this.position.getTree() == null;
     }
 
     public static class MultilineDiagnostic extends JCDiagnostic {

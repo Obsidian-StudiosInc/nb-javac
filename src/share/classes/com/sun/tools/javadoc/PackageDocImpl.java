@@ -96,7 +96,7 @@ public class PackageDocImpl extends DocImpl implements PackageDoc {
     /**
      * Do lazy initialization of "documentation" string.
      */
-    String documentation() {
+    protected String documentation() {
         if (documentation != null)
             return documentation;
         if (docPath != null) {

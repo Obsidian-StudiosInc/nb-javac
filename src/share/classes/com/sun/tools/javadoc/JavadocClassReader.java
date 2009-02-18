@@ -35,19 +35,23 @@ import com.sun.tools.javac.util.Context;
 /** Javadoc uses an extended class reader that records package.html entries
  *  @author Neal Gafter
  */
-class JavadocClassReader extends ClassReader {
+public class JavadocClassReader extends ClassReader {
 
     public static JavadocClassReader instance0(Context context) {
         ClassReader instance = context.get(classReaderKey);
         if (instance == null)
-            instance = new JavadocClassReader(context);
+            instance = new JavadocClassReader(context, true);
         return (JavadocClassReader)instance;
     }
 
     public static void preRegister(final Context context) {
+        preRegister(context, true);
+    }
+    
+    public static void preRegister(final Context context, final boolean loadDocEnv) {
         context.put(classReaderKey, new Context.Factory<ClassReader>() {
             public ClassReader make() {
-                return new JavadocClassReader(context);
+                return new JavadocClassReader(context, loadDocEnv);
             }
         });
     }
@@ -59,8 +63,10 @@ class JavadocClassReader extends ClassReader {
     private EnumSet<JavaFileObject.Kind> noSource = EnumSet.of(JavaFileObject.Kind.CLASS,
                                                                JavaFileObject.Kind.HTML);
 
-    private JavadocClassReader(Context context) {
+    public JavadocClassReader(Context context, boolean loadDocEnv) {
         super(context, true);
+
+        if (loadDocEnv)
         docenv = DocEnv.instance(context);
     }
 
@@ -69,6 +75,9 @@ class JavadocClassReader extends ClassReader {
      */
     @Override
     protected EnumSet<JavaFileObject.Kind> getPackageFileKinds() {
+        if (docenv == null)
+            return super.getPackageFileKinds();
+        else
         return docenv.docClasses ? noSource : all;
     }
 

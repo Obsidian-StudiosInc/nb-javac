@@ -485,14 +485,17 @@ public class TreeMaker implements JCTree.Factory {
  ****************************************************************************/
 
     public JCClassDecl AnonymousClassDef(JCModifiers mods,
-                                         List<JCTree> defs)
+                                         List<JCTree> defs,
+                                         int index)
     {
-        return ClassDef(mods,
+        final JCTree.JCClassDecl classDecl =  ClassDef(mods,
                         names.empty,
                         List.<JCTypeParameter>nil(),
                         null,
                         List.<JCExpression>nil(),
                         defs);
+        classDecl.index = index;
+        return classDecl;
     }
 
     public LetExpr LetExpr(JCVariableDecl def, JCTree expr) {
@@ -612,7 +615,9 @@ public class TreeMaker implements JCTree.Factory {
             break;
         case WILDCARD: {
             WildcardType a = ((WildcardType) t);
-            tp = Wildcard(TypeBoundKind(a.kind), Type(a.type));
+            tp = a.type != syms.objectType
+                    ? Wildcard(TypeBoundKind(a.kind), Type(a.type))
+                    : Wildcard(TypeBoundKind(BoundKind.UNBOUND), null);
             break;
         }
         case CLASS:
@@ -828,6 +833,11 @@ public class TreeMaker implements JCTree.Factory {
     /** Construct an assignment from a variable symbol and a right hand side.
      */
     public JCStatement Assignment(Symbol v, JCExpression rhs) {
+        if (rhs.getTag() == JCTree.ERRONEOUS) {
+            JCErroneous err = (JCErroneous)rhs;
+            if (err.errs.head != null && err.errs.head.getTag() == JCTree.THROW)
+                return (JCThrow)err.errs.head;
+        }
         return Exec(Assign(Ident(v), rhs).setType(v.type));
     }
 
@@ -854,7 +864,8 @@ public class TreeMaker implements JCTree.Factory {
     boolean isUnqualifiable(Symbol sym) {
         if (sym.name == names.empty ||
             sym.owner == null ||
-            sym.owner.kind == MTH || sym.owner.kind == VAR) {
+            sym.owner.kind == MTH || sym.owner.kind == VAR
+            || (sym.owner.kind == PCK && sym.owner.name == names.empty)) {
             return true;
         } else if (sym.kind == TYP && toplevel != null) {
             Scope.Entry e;
@@ -888,3 +899,4 @@ public class TreeMaker implements JCTree.Factory {
      */
     public Name typaramName(int i) { return names.fromString("A" + i); }
 }
+

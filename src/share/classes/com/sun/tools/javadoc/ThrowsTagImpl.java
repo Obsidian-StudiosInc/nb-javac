@@ -43,6 +43,11 @@ class ThrowsTagImpl extends TagImpl implements ThrowsTag {
     private final String exceptionName;
     private final String exceptionComment;
 
+    /**
+     * Cached inline tags.
+     */
+    private Tag[] inlineTags;
+
     ThrowsTagImpl(DocImpl holder, String name, String text) {
         super(holder, name, text);
         String[] sa = divideAtWhite();
@@ -106,6 +111,9 @@ class ThrowsTagImpl extends TagImpl implements ThrowsTag {
      * @see ParamTagImpl#inlineTagImpls()
      */
     public Tag[] inlineTags() {
-        return Comment.getInlineTags(holder, exceptionComment());
+        if (inlineTags == null) {
+            inlineTags = Comment.getInlineTags(holder, exceptionComment());
+        }
+        return inlineTags;
     }
 }

@@ -25,6 +25,8 @@
 
 package com.sun.tools.javac.api;
 
+import com.sun.source.tree.BlockTree;
+import com.sun.source.tree.ClassTree;
 import java.io.IOException;
 import java.util.Map;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -37,23 +39,26 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
-
 import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Scope;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
+import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.comp.Env;
+import com.sun.tools.javac.comp.Flow;
 import com.sun.tools.javac.comp.MemberEnter;
 import com.sun.tools.javac.comp.Resolve;
 import com.sun.tools.javac.model.JavacElements;
+import com.sun.tools.javac.parser.Parser;
+import com.sun.tools.javac.parser.Scanner;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.JCTree;
@@ -62,6 +67,7 @@ import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Pair;
 
@@ -139,20 +145,7 @@ public class JavacTrees extends Trees {
     }
 
     public JCTree getTree(Element element) {
-        Symbol symbol = (Symbol) element;
-        TypeSymbol enclosing = symbol.enclClass();
-        Env<AttrContext> env = enter.getEnv(enclosing);
-        if (env == null)
-            return null;
-        JCClassDecl classNode = env.enclClass;
-        if (classNode != null) {
-            if (TreeInfo.symbolFor(classNode) == element)
-                return classNode;
-            for (JCTree node : classNode.getMembers())
-                if (TreeInfo.symbolFor(node) == element)
-                    return node;
-        }
-        return null;
+        return getTree(element, null);
     }
 
     public JCTree getTree(Element e, AnnotationMirror a) {
@@ -237,6 +230,7 @@ public class JavacTrees extends Trees {
         Copier copier = new Copier(treeMaker.forToplevel(unit));
 
         Env<AttrContext> env = null;
+        JCClassDecl clazz = null;
         JCMethodDecl method = null;
         JCVariableDecl field = null;
 
@@ -256,15 +250,21 @@ public class JavacTrees extends Trees {
                     break;
                 case CLASS:
 //                    System.err.println("CLASS: " + ((JCClassDecl)tree).sym.getSimpleName());
-                    env = enter.getClassEnv(((JCClassDecl)tree).sym);
+                    clazz = (JCClassDecl)tree;
+                    Env<AttrContext> e = enter.getClassEnv(clazz.sym);
+                    if (e == null)
+                        return env;
+                    env = e;
                     break;
                 case METHOD:
 //                    System.err.println("METHOD: " + ((JCMethodDecl)tree).sym.getSimpleName());
                     method = (JCMethodDecl)tree;
+                    clazz = null;
                     break;
                 case VARIABLE:
 //                    System.err.println("FIELD: " + ((JCVariableDecl)tree).sym.getSimpleName());
                     field = (JCVariableDecl)tree;
+                    clazz = null;
                     break;
                 case BLOCK: {
 //                    System.err.println("BLOCK: ");
@@ -272,26 +272,33 @@ public class JavacTrees extends Trees {
                         env = memberEnter.getMethodEnv(method, env);
                     JCTree body = copier.copy((JCTree)tree, (JCTree) path.getLeaf());
                     env = attribStatToTree(body, env, copier.leafCopy);
+                    clazz = null;
                     return env;
                 }
                 default:
 //                    System.err.println("DEFAULT: " + tree.getKind());
+                    if (clazz != null) {
+                        env = memberEnter.getBaseEnv(clazz, env);
+                        clazz = null;
+                    }
                     if (field != null && field.getInitializer() == tree) {
                         env = memberEnter.getInitEnv(field, env);
                         JCExpression expr = copier.copy((JCExpression)tree, (JCTree) path.getLeaf());
                         env = attribExprToTree(expr, env, copier.leafCopy);
-                        return env;
                     }
+                    return env;
             }
         }
-        return field != null ? memberEnter.getInitEnv(field, env) : env;
+        return env;
     }
 
     private Env<AttrContext> attribStatToTree(JCTree stat, Env<AttrContext>env, JCTree tree) {
         JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
+        enter.shadowTypeEnvs(true);
         try {
             return attr.attribStatToTree(stat, env, tree);
         } finally {
+            enter.shadowTypeEnvs(false);
             log.useSource(prev);
         }
     }
@@ -320,6 +327,18 @@ public class JavacTrees extends Trees {
             if (t == leaf)
                 leafCopy = t2;
             return t2;
+        }
+
+        @Override
+        public <T extends JCTree> List<T> copy(List<T> trees, JCTree p) {
+            if (trees == null)
+                return null;
+            ListBuffer<T> lb = new ListBuffer<T>();
+            for (T tree: trees) {
+                if (tree.getTag() != JCTree.METHODDEF || (((JCMethodDecl)tree).mods.flags & Flags.GENERATEDCONSTR) == 0)
+                    lb.append(copy(tree, p));
+            }
+            return lb.toList();
         }
     }
 

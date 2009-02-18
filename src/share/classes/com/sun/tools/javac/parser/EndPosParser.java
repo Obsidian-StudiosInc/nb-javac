@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.HashMap;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
+import com.sun.tools.javac.util.CancelService;
 
 import static com.sun.tools.javac.tree.JCTree.*;
 
@@ -43,13 +44,14 @@ import static com.sun.tools.javac.tree.JCTree.*;
  */
 public class EndPosParser extends JavacParser {
 
-    public EndPosParser(ParserFactory fac, Lexer S, boolean keepDocComments, boolean keepLineMap) {
-        super(fac, S, keepDocComments, keepLineMap);
-        this.S = S;
-        endPositions = new HashMap<JCTree,Integer>();
+    public EndPosParser(ParserFactory fac, Lexer S, boolean keepDocComments, boolean keepLineMap, CancelService cancelService) {
+        this(fac, S, keepDocComments, keepLineMap, cancelService, null);
     }
 
-    private Lexer S;
+    public EndPosParser(ParserFactory fac, Lexer S, boolean keepDocComments, boolean keepLineMap, CancelService cancelService, Map<JCTree,Integer> endPositions) {
+        super(fac, S, keepDocComments, keepLineMap, cancelService);
+        this.endPositions = endPositions == null ? new HashMap<JCTree,Integer>() : endPositions;
+    }
 
     /** A hashtable to store ending positions
      *  of source ranges indexed by the tree nodes.
