@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,32 +23,35 @@
  * have any questions.
  */
 
-package com.sun.tools.javac.api;
-
-import java.util.Locale;
-import java.util.MissingResourceException;
+package javax.lang.model;
 
 /**
- * This interface defines the minimum requirements in order to provide support
- * for localized formatted strings.
+ * Superclass of exceptions which indicate that an unknown kind of
+ * entity was encountered.  This situation can occur if the language
+ * evolves and new kinds of constructs are introduced.  Subclasses of
+ * this exception may be thrown by visitors to indicate that the
+ * visitor was created for a prior version of the language.
  *
- * @author Maurizio Cimadamore
+ * <p>A common superclass for those exceptions allows a single catch
+ * block to have code handling them uniformly.
+ *
+ * @author Joseph D. Darcy
+ * @see javax.lang.model.element.UnknownElementException
+ * @see javax.lang.model.element.UnknownAnnotationValueException
+ * @see javax.lang.model.type.UnknownTypeException
+ * @since 1.7
  */
-public interface Messages {
+public class UnknownEntityException extends RuntimeException {
+
+    private static final long serialVersionUID = 269L;
 
     /**
-     * Add a new resource bundle to the list that is searched for localized messages.
-     * @param bundleName the name to identify the resource bundle of localized messages.
-     * @throws MissingResourceException if the given resource is not found
+     * Creates a new {@code UnknownEntityException} with the specified
+     * detail message.
+     *
+     * @param message the detail message
      */
-    void add(String bundleName) throws MissingResourceException;
-
-    /**
-     * Get a localized formatted string.
-     * @param l locale in which the text is to be localized
-     * @param key locale-independent message key
-     * @param args misc message arguments
-     * @return a localized formatted string
-     */
-    String getLocalizedString(Locale l, String key, Object... args);
+    protected UnknownEntityException(String message) {
+        super(message);
+    }
 }
