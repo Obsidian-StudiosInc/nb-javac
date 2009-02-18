@@ -69,7 +69,7 @@ public class ErrorToleranceTest extends TestCase {
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    private void method(Unknown u) {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : class Unknown\\nlocation: class test.Test\");" +
+                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\n  symbol:   class Unknown\\n  location: class test.Test\");" +
                       "    }\n" +
                       "}\n";
 
@@ -108,7 +108,7 @@ public class ErrorToleranceTest extends TestCase {
                       "    private void method(Object o) {\n" +
                       "    }\n" +
                       "    private void method(Unknown u) {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : class Unknown\\nlocation: class test.Test\");" +
+                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\n  symbol:   class Unknown\\n  location: class test.Test\");" +
                       "    }\n" +
                       "}\n";
 
@@ -128,10 +128,10 @@ public class ErrorToleranceTest extends TestCase {
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    public Test() {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : variable bflmpsvz\\nlocation: class test.Test\");" +
+                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\n  symbol:   variable bflmpsvz\\n  location: class test.Test\");" +
                       "    }\n" +
                       "    public Test(Object o) {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : variable bflmpsvz\\nlocation: class test.Test\");" +
+                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\n  symbol:   variable bflmpsvz\\n  location: class test.Test\");" +
                       "    }\n" +
                       "    private String s;\n" +
                       "}\n";
@@ -148,7 +148,7 @@ public class ErrorToleranceTest extends TestCase {
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    static {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\nsymbol  : variable bflmpsvz\\nlocation: class test.Test\");" +
+                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\n  symbol:   variable bflmpsvz\\n  location: class test.Test\");" +
                       "    }\n" +
                       "    private static String s;\n" +
                       "}\n";
@@ -170,7 +170,7 @@ public class ErrorToleranceTest extends TestCase {
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    private void method(int i) {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code - unexpected type\\nrequired: value\\nfound   : erroneous\");\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code - unexpected type\\n  required: value\\n  found:    erroneous\");\n" +
                       "    }\n" +
                       "}\n";
 
