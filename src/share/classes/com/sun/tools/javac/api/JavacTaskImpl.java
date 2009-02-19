@@ -447,7 +447,8 @@ public class JavacTaskImpl extends JavacTask {
     // An alternative implementation would be to move this code to JavaCompiler and
     // wrap it here
     public Iterable<? extends Element> analyze(Iterable<? extends TypeElement> classes) throws IOException {
-        enter(null);  // ensure all classes have been entered
+        if (classes == null)
+            enter(null);  // ensure all classes have been entered
 
         final ListBuffer<Element> results = new ListBuffer<Element>();
         try {
