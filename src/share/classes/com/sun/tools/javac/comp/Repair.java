@@ -61,6 +61,7 @@ import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Log;
+import com.sun.tools.javac.util.Name;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -101,6 +102,7 @@ public class Repair extends TreeTranslator {
     private JCBlock staticInit;
     private List<JCTree> parents;
     private Set<ClassSymbol> repairedClasses = new HashSet<ClassSymbol>();
+    private boolean isErrClass;
     
     private Repair(Context context) {
         context.put(repairKey, this);
@@ -197,6 +199,14 @@ public class Repair extends TreeTranslator {
         tree.defaultValue = translate(tree.defaultValue);
         tree.body = translate(tree.body);
         result = tree;
+        if (isErrClass && tree.body != null) {
+            JCMethodInvocation app = TreeInfo.firstConstructorCall(tree);
+            Name meth = app != null ? TreeInfo.name(app.meth) : null;
+            if (meth != null && (meth == meth.table.names._this || meth == meth.table.names._super))
+                tree.body.stats.tail = null;
+            else
+                tree.body.stats = List.<JCStatement>nil();
+        }
         if (hasError && !hadDuplicateSymError) {
             if (tree.sym != null) {
                 tree.sym.flags_field &= ~(Flags.ABSTRACT | Flags.NATIVE);
@@ -360,6 +370,7 @@ public class Repair extends TreeTranslator {
             TreeMaker oldMake = make;
             make = make.forToplevel(attrEnv.toplevel);
             boolean oldHasError = hasError;
+            boolean oldIsErrClass = isErrClass;
             JCDiagnostic oldErr = err;
             JCTree oldClassLevelErrTree = classLevelErrTree;
             String oldClassLevelErrMessage = classLevelErrMessage;
@@ -371,6 +382,7 @@ public class Repair extends TreeTranslator {
                         break;
                 }
                 hasError = false;
+                isErrClass = c.type.isErroneous();
                 err = null;
                 staticInit = null;
                 JCClassDecl tree = (JCClassDecl)attrEnv.tree;
@@ -434,6 +446,7 @@ public class Repair extends TreeTranslator {
                 classLevelErrTree = oldClassLevelErrTree;
                 classLevelErrMessage = oldClassLevelErrMessage;
                 err = oldErr;
+                isErrClass = oldIsErrClass;
                 hasError = oldHasError;
                 make = oldMake;
             }
