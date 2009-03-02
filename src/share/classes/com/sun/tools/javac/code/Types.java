@@ -259,8 +259,7 @@ public class Types {
 
             @Override
             public Type visitErrorType(ErrorType t, Symbol sym) {
-                ErrorType err = getOrigin(t);
-                return err.tsym != null && (err.tsym == sym || err.tsym.name == names.any) ? t : null;
+                return t;
             }
         };
     // </editor-fold>
@@ -481,8 +480,7 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
-                ErrorType err = getOrigin(t);
-                return t == s || (err.tsym != null && err.tsym.name == names.any);
+                return true;
             }
         };
 
@@ -537,8 +535,7 @@ public class Types {
     public boolean isSuperType(Type t, Type s) {
         switch (t.tag) {
         case ERROR:
-            ErrorType err = getOrigin((ErrorType)t);
-            return t == s || (err.tsym != null && err.tsym.name == names.any);
+            return true;
         case UNDETVAR: {
             UndetVar undet = (UndetVar)t;
             if (t == s ||
@@ -698,26 +695,7 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
-                try {
-                    ErrorType err = getOrigin(t);
-                    return t == s || (err.tsym != null && err.tsym.name == names.any) ||
-                            (s != null && s.tsym != null && (s.getKind() == TypeKind.ERROR || (s.tsym.type != null && s.tsym.type.getKind() == TypeKind.ERROR)) &&
-                            (s.tsym.name == names.any || (err.tsym != null && err.tsym.getQualifiedName() == s.tsym.getQualifiedName())));
-                } catch (NullPointerException npe) {
-                    if (t == null)
-                        Logger.getLogger(Types.class.getName()).warning("t==null");
-                    if (s == null)
-                        Logger.getLogger(Types.class.getName()).warning("s==null");
-                    if (t.tsym == null)
-                        Logger.getLogger(Types.class.getName()).warning("t.tsym==null");
-                    if (s.tsym == null)
-                        Logger.getLogger(Types.class.getName()).warning("s.tsym==null");
-                    if (s.tsym.type == null)
-                        Logger.getLogger(Types.class.getName()).warning("s.tsym.type==null");
-                    if (names == null)
-                        Logger.getLogger(Types.class.getName()).warning("names==null");
-                    throw npe;
-                }
+                return true;
             }
         };
     // </editor-fold>
@@ -772,8 +750,7 @@ public class Types {
                 return isSameType(t, s);
             }
         case ERROR:
-            ErrorType err = getOrigin((ErrorType)t);
-            return t == s || (err.tsym != null && err.tsym.name == names.any);
+            return true;
         default:
             return containsType(s, t);
         }
@@ -885,8 +862,7 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
-                ErrorType err = getOrigin(t);
-                return t == s || (err.tsym != null && err.tsym.name == names.any);
+                return true;
             }
         };
 
@@ -945,10 +921,9 @@ public class Types {
         private TypeRelation isCastable = new TypeRelation() {
 
             public Boolean visitType(Type t, Type s) {
-                if (s.tag == ERROR) {
-                    Type err = t.tag == ERROR ? getOrigin((ErrorType)t) : t;
-                    return t == s || (err.tsym != null && err.tsym.name == names.any);
-                }
+                if (s.tag == ERROR)
+                    return true;
+
                 switch (t.tag) {
                 case BYTE: case CHAR: case SHORT: case INT: case LONG: case FLOAT:
                 case DOUBLE:
@@ -1124,8 +1099,7 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
-                ErrorType err = getOrigin(t);
-                return t == s || (err.tsym != null && err.tsym.name == names.any);
+                return true;
             }
         };
     // </editor-fold>
@@ -1395,8 +1369,7 @@ public class Types {
 
             @Override
             public Type visitErrorType(ErrorType t, Symbol sym) {
-                ErrorType err = getOrigin(t);
-                return err.tsym != null && (err.tsym == sym || err.tsym.name == names.any) ? t : null;
+                return t;
             }
         };
 
@@ -1421,8 +1394,7 @@ public class Types {
         case TYPEVAR:
             return asSuper(t, sym);
         case ERROR:
-            ErrorType err = getOrigin((ErrorType)t);
-            return err.tsym != null && (err.tsym == sym || err.tsym.name == names.any) ? t : null;
+            return t;
         default:
             return null;
         }
@@ -1452,8 +1424,7 @@ public class Types {
         case TYPEVAR:
             return asSuper(t, sym);
         case ERROR:
-            ErrorType err = getOrigin((ErrorType)t);
-            return err.tsym != null && (err.tsym == sym || err.tsym.name == names.any) ? t : null;
+            return t;
         default:
             return null;
         }
@@ -1536,10 +1507,6 @@ public class Types {
      * (not defined for Method and ForAll types)
      */
     public boolean isAssignable(Type t, Type s, Warner warn) {
-        if (t.tag == ERROR) {
-            ErrorType err = getOrigin((ErrorType)t);
-            return err.tsym != null && err.tsym.name == names.any;
-        }
         if (t.tag <= INT && t.constValue() != null) {
             int value = ((Number)t.constValue()).intValue();
             switch (s.tag) {
@@ -3070,7 +3037,7 @@ public class Types {
      * Return the primitive type corresponding to a boxed type.
      */
     public Type unboxedType(Type t) {
-        if (allowBoxing) {
+        if (allowBoxing && !t.isErroneous()) {
             for (int i=0; i<syms.boxedName.length; i++) {
                 Name box = syms.boxedName[i];
                 if (box != null &&
@@ -3292,13 +3259,6 @@ public class Types {
         return
             isSameType(t, s) || // shortcut
             containsType(t, s) && containsType(s, t);
-    }
-
-    private ErrorType getOrigin(ErrorType t) {
-        Type orig;
-        while ((orig = t.getOriginalType()) != null && orig.tag == ERROR)
-            t = (ErrorType)orig;
-        return t;
     }
 
     // <editor-fold defaultstate="collapsed" desc="adapt">
