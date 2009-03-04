@@ -3040,8 +3040,10 @@ public class Types {
         if (allowBoxing && !t.isErroneous()) {
             for (int i=0; i<syms.boxedName.length; i++) {
                 Name box = syms.boxedName[i];
+                Type st = null;
                 if (box != null &&
-                    asSuper(t, reader.enterClass(box)) != null)
+                    (st = asSuper(t, reader.enterClass(box))) != null &&
+                    !st.isErroneous())
                     return syms.typeOfTag[i];
             }
         }
