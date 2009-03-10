@@ -1153,11 +1153,12 @@ public class Flow extends TreeScanner {
         scanExpr(tree.encl);
         scanExprs(tree.args);
        // scan(tree.def);
-        for (List<Type> l = tree.constructorType.getThrownTypes();
-             l.nonEmpty();
-             l = l.tail) {
-            markThrown(tree, l.head);
-        }
+        if (tree.constructorType != null)
+            for (List<Type> l = tree.constructorType.getThrownTypes();
+                 l.nonEmpty();
+                 l = l.tail) {
+                markThrown(tree, l.head);
+            }
         List<Type> caughtPrev = caught;
         try {
             // If the new class expression defines an anonymous class,
@@ -1168,7 +1169,7 @@ public class Flow extends TreeScanner {
             // each of the constructor's formal thrown types in the set of
             // 'caught/declared to be thrown' types, for the duration of
             // the class def analysis.
-            if (tree.def != null)
+            if (tree.def != null && tree.constructorType != null)
                 for (List<Type> l = tree.constructorType.getThrownTypes();
                      l.nonEmpty();
                      l = l.tail) {
