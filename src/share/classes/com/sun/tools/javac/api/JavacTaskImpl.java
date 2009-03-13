@@ -374,7 +374,8 @@ public class JavacTaskImpl extends JavacTask {
                 boolean isPkgInfo = unit.sourcefile.isNameCompatible("package-info",
                                                                      JavaFileObject.Kind.SOURCE);
                 if (isPkgInfo) {
-                    elements.append(unit.packge.package_info);
+                    if (unit.packge.package_info != null)
+                        elements.append(unit.packge.package_info);
                 } else {
                     for (JCTree node : unit.defs)
                         if (node.getTag() == JCTree.CLASSDEF)
