@@ -170,7 +170,7 @@ public class ErrorToleranceTest extends TestCase {
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    private void method(int i) {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code - unexpected type\\n  required: value\\n  found:    erroneous\");\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code - cannot find symbol\\n  symbol:   variable Unknown\\n  location: class test.Test\");" +
                       "    }\n" +
                       "}\n";
 
