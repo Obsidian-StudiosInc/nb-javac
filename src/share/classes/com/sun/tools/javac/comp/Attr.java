@@ -175,25 +175,17 @@ public class Attr extends JCTree.Visitor {
      *  @param pt       The expected type (or: prototype) of the tree
      */
     Type check(JCTree tree, Type owntype, int ownkind, int pkind, Type pt) {
-        tree.type = owntype;
-        if (pt.tag != METHOD && pt.tag != FORALL) {
+        if (owntype.tag != ERROR && pt.tag != METHOD && pt.tag != FORALL) {
             if ((ownkind & ~pkind) == 0) {
-                if (owntype.tag != ERROR) {
-                    owntype = chk.checkType(tree.pos(), owntype, pt);
-                    if (owntype.tag != ERROR) {
-                        tree.type = owntype;
-                    }
-                } else {
-                    chk.checkType(tree.pos(), owntype, pt);
-                }
+                owntype = chk.checkType(tree.pos(), owntype, pt);
             } else {
                 log.error(tree.pos(), "unexpected.type",
                           kindNames(pkind),
                           kindName(ownkind));
-                if ((ownkind & ~pkind) == 0)
-                    owntype = types.createErrorType(owntype);
+                owntype = types.createErrorType(owntype);
             }
         }
+        tree.type = owntype;
         return owntype;
     }
 
@@ -2116,6 +2108,7 @@ public class Attr extends JCTree.Visitor {
                      int pkind,
                      Type pt,
                      boolean useVarargs) {
+            if (pt.isErroneous()) return types.createErrorType(site);
             Type owntype; // The computed type of this identifier occurrence.
             switch (sym.kind) {
             case TYP:
