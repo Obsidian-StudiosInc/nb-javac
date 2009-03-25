@@ -639,20 +639,26 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitAssignop(JCAssignOp tree) {
-        tree.lhs = translate(tree.lhs, tree.operator.type.getParameterTypes().head);
-        tree.rhs = translate(tree.rhs, tree.operator.type.getParameterTypes().tail.head);
+        if (tree.operator != null) {
+            tree.lhs = translate(tree.lhs, tree.operator.type.getParameterTypes().head);
+            tree.rhs = translate(tree.rhs, tree.operator.type.getParameterTypes().tail.head);
+        }
         tree.type = erasure(tree.type);
         result = tree;
     }
 
     public void visitUnary(JCUnary tree) {
-        tree.arg = translate(tree.arg, tree.operator.type.getParameterTypes().head);
+        if (tree.operator != null) {
+            tree.arg = translate(tree.arg, tree.operator.type.getParameterTypes().head);
+        }
         result = tree;
     }
 
     public void visitBinary(JCBinary tree) {
-        tree.lhs = translate(tree.lhs, tree.operator.type.getParameterTypes().head);
-        tree.rhs = translate(tree.rhs, tree.operator.type.getParameterTypes().tail.head);
+        if (tree.operator != null) {
+            tree.lhs = translate(tree.lhs, tree.operator.type.getParameterTypes().head);
+            tree.rhs = translate(tree.rhs, tree.operator.type.getParameterTypes().tail.head);
+        }
         result = tree;
     }
 
