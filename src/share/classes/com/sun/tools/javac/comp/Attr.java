@@ -2376,7 +2376,7 @@ public class Attr extends JCTree.Visitor {
         // If this fails, something went wrong; we should not have
         // found the identifier in the first place.
         if (owntype == null) {
-            if (!pt.isErroneous())
+            if (!(pt.isErroneous() || site.isErroneous()))
                 log.error(env.tree.pos(),
                           "internal.error.cant.instantiate",
                           sym, site,
