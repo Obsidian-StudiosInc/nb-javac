@@ -1270,7 +1270,7 @@ public class Flow extends TreeScanner {
 
     public void visitTypeCast(JCTypeCast tree) {
         super.visitTypeCast(tree);
-        if (!tree.type.isErroneous()
+        if (tree.type != null && !tree.type.isErroneous()
             && lint.isEnabled(Lint.LintCategory.CAST)
             && types.isSameType(tree.expr.type, tree.clazz.type)) {
             log.warning(tree.pos(), "redundant.cast", tree.expr.type);
