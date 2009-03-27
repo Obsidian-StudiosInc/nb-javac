@@ -129,6 +129,11 @@ public class Repair extends TreeTranslator {
         } finally {
             parents = parents.tail;            
         }
+        if (tree.type != null && tree.type.isErroneous()) {
+            JCTree parent = parents.head;
+            if (parent == null || parent.getTag() != JCTree.CLASSDEF)
+                hasError = true;
+        }
         if (!(hasError && tree instanceof JCStatement))
             return tree;
         if (tree.getTag() == JCTree.CASE)
@@ -263,7 +268,7 @@ public class Repair extends TreeTranslator {
         if (ctor == null) {
             LOGGER.warning("Repair.visitNewClass tree [" + tree + "] has null constructor symbol."); //NOI18N
             hasError = true;
-        } else if (ctor.type == null || ctor.type.isErroneous()) {
+        } else if (tree.constructorType == null || tree.constructorType.isErroneous()) {
             hasError = true;
         }
         super.visitNewClass(tree);
