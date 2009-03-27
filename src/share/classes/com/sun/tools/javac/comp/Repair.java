@@ -250,14 +250,6 @@ public class Repair extends TreeTranslator {
             hasError = true;
         } else if (meth.type == null || meth.type.isErroneous()) {
             hasError = true;
-        } else {
-            List<Type> argtypes = meth.type.getParameterTypes();
-            if (allowEnums && meth.name == meth.name.table.names.init && meth.owner == syms.enumSym)
-                argtypes = argtypes.tail.tail;
-            if (tree.varargsElement == null && tree.args.length() != argtypes.length()) {
-                LOGGER.warning("Repair.visitApply [" + meth.owner + "]'s method [" + meth + "] of type: [" + meth.type + "]; has different number of parameters than tree [" + tree +"]."); //NOI18N
-                hasError = true;
-            }
         }
         super.visitApply(tree);
     }
