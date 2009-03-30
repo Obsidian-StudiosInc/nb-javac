@@ -641,7 +641,7 @@ public class Flow extends TreeScanner {
             // in an anonymous class, add the set of thrown exceptions to
             // the throws clause of the synthetic constructor and propagate
             // outwards.
-            if (tree.name == names.empty) {
+            if (tree.name == names.empty && thrownPrev != null) {
                 for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
                     if (TreeInfo.isInitialConstructor(l.head)) {
                         JCMethodDecl mdef = (JCMethodDecl)l.head;
