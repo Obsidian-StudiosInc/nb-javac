@@ -886,7 +886,8 @@ public class Flow extends TreeScanner {
         Bits initsStart = inits.dup();
         Bits uninitsStart = uninits.dup();
 
-        letInit(tree.pos(), tree.var.sym);
+        if (tree.var.sym != null)
+            letInit(tree.pos(), tree.var.sym);
         pendingExits = new ListBuffer<PendingExit>();
         do {
             Bits uninitsEntry = uninits.dup();

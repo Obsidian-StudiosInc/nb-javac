@@ -772,7 +772,7 @@ public class Attr extends JCTree.Visitor {
 
     public void visitBlock(JCBlock tree) {
         cancelService.abortIfCanceled();
-        if (env.info.scope.owner.kind == TYP) {
+        if (env.info.scope.owner.kind == TYP || env.info.scope.owner.kind == ERR) {
             // Block is a static or instance initializer;
             // let the owner of the environment be a freshly
             // created BLOCK-method.
