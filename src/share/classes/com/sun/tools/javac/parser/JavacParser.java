@@ -2263,7 +2263,7 @@ public class JavacParser implements Parser {
                     defs.append(importDeclaration());
                     checkForPackage = false;
                 } else {
-                    JCTree def = typeDeclaration(mods);
+                    JCTree def = typeDeclaration(mods, dc);
                     defs.append(def);
                     if (def instanceof JCClassDecl) {
                         checkForPackage = false;
@@ -2316,13 +2316,14 @@ public class JavacParser implements Parser {
     /** TypeDeclaration = ClassOrInterfaceOrEnumDeclaration
      *                  | ";"
      */
-    JCTree typeDeclaration(JCModifiers mods) {
+    JCTree typeDeclaration(JCModifiers mods, String dc) {
         int pos = S.pos();
         if (mods == null && S.token() == SEMI) {
             S.nextToken();
             return toP(F.at(pos).Skip());
         } else {
-            String dc = S.docComment();
+            if (dc == null)
+                dc = S.docComment();
             return classOrInterfaceOrEnumDeclaration(modifiersOpt(mods), dc);
         }
     }
