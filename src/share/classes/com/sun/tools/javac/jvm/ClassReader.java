@@ -2093,7 +2093,7 @@ public class ClassReader extends ClassFile implements Completer {
                 if (c.owner == p)  // it might be an inner class
                     p.members_field.enter(c);
             }
-        } else if (c.classfile != null && (c.flags_field & seen) == 0) {
+        } else if (c.classfile != null && ((c.flags_field & seen) == 0 || isSigOverClass(c.classfile, file))) {
             // if c.classfile == null, we are currently compiling this class
             // and no further action is necessary.
             // if (c.flags_field & seen) != 0, we have already encountered
@@ -2102,6 +2102,12 @@ public class ClassReader extends ClassFile implements Completer {
                 c.classfile = preferredFileObject(file, c.classfile);
         }
         c.flags_field |= seen;
+    }
+
+    private boolean isSigOverClass(final JavaFileObject a, final JavaFileObject b) {
+        String patha = a.getName().toLowerCase();
+        String pathb = b.getName().toLowerCase();
+        return pathb.endsWith(".sig") && patha.endsWith(".class");  //NOI18N
     }
 
     /** Implement policy to choose to derive information from a source
