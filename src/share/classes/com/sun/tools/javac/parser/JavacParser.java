@@ -2230,6 +2230,7 @@ public class JavacParser implements Parser {
         try {
             int pos = S.pos();
             JCExpression pid = null;
+            String toplevel_dc = S.docComment();
             String dc = S.docComment();
             JCModifiers mods = null;
             List<JCAnnotation> packageAnnotations = List.nil();
@@ -2259,9 +2260,11 @@ public class JavacParser implements Parser {
                     } else {
                         S.nextToken();
                     }
+                    dc = null;
                 } else if (checkForImports && mods == null && S.token() == IMPORT) {
                     defs.append(importDeclaration());
                     checkForPackage = false;
+                    dc = null;
                 } else {
                     JCTree def = typeDeclaration(mods, dc);
                     defs.append(def);
@@ -2270,10 +2273,11 @@ public class JavacParser implements Parser {
                         checkForImports = false;
                     }
                     mods = null;
+                    dc = null;
                 }
             }
             JCTree.JCCompilationUnit toplevel = F.at(pos).TopLevel(packageAnnotations, pid, defs.toList());
-            attach(toplevel, dc);
+            attach(toplevel, toplevel_dc);
             if (defs.elems.isEmpty())
                 storeEnd(toplevel, S.prevEndPos());
             if (keepDocComments)
@@ -2316,15 +2320,14 @@ public class JavacParser implements Parser {
     /** TypeDeclaration = ClassOrInterfaceOrEnumDeclaration
      *                  | ";"
      */
-    JCTree typeDeclaration(JCModifiers mods, String dc) {
+    JCTree typeDeclaration(JCModifiers mods, String comment) {
         int pos = S.pos();
         if (mods == null && S.token() == SEMI) {
             S.nextToken();
             return toP(F.at(pos).Skip());
         } else {
-            if (dc == null)
-                dc = S.docComment();
-            return classOrInterfaceOrEnumDeclaration(modifiersOpt(mods), dc);
+            String dc = S.docComment();
+            return classOrInterfaceOrEnumDeclaration(modifiersOpt(mods), dc != null ? dc : comment);
         }
     }
 
