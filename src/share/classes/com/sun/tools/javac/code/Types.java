@@ -1548,7 +1548,7 @@ public class Types {
     }
     //where
     private Type erasure(Type t, boolean recurse) {
-        if (t.tag <= lastBaseTag)
+        if (t == null || t.tag <= lastBaseTag)
             return t; /* fast special case */
         else
             return erasure.visit(t, recurse);
