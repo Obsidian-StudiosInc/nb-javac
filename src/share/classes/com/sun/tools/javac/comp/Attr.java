@@ -1894,7 +1894,7 @@ public class Attr extends JCTree.Visitor {
                 elt = ((ArrayType)elt).elemtype;
             if (elt.tag == TYPEVAR) {
                 log.error(tree.pos(), "type.var.cant.be.deref");
-                result = types.createErrorType(tree.type);
+                result = tree.type = types.createErrorType(tree.type);
                 return;
             }
         }
