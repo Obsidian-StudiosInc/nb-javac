@@ -327,6 +327,9 @@ public class ErrorToleranceTest extends TestCase {
                       "    }\n" +
                       "    public static final Nested NESTED = new Nested();\n" +
                       "    public static class Nested implements Runnable {\n" +
+                      "        static {\n" +
+                      "            throw new RuntimeException(\"Uncompilable source code - test.Test.Nested is not abstract and does not override abstract method run() in java.lang.Runnable\");\n" +
+                      "        }\n" +
                       "    };\n" +
                       "}\n";
 
