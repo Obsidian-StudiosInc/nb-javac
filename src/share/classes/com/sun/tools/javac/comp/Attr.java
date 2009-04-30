@@ -2110,7 +2110,7 @@ public class Attr extends JCTree.Visitor {
                      int pkind,
                      Type pt,
                      boolean useVarargs) {
-            if (pt.isErroneous()) return types.createErrorType(site);
+            if (pt.isErroneous()) return tree.type = types.createErrorType(site);
             Type owntype; // The computed type of this identifier occurrence.
             switch (sym.kind) {
             case TYP:
