@@ -1561,13 +1561,15 @@ public class Attr extends JCTree.Visitor {
                     typeargtypes, true, tree.varargsElement != null);
                 assert sym.kind < AMBIGUOUS || tree.constructorType.isErroneous() : "Attr.visitNewClass tree [" + tree + "] with constructor type [" + tree.constructorType + "] has symbol [" + sym + "] of kind [ " + sym.kind + "]";
                 tree.constructor = sym;
-                tree.constructorType = checkMethod(clazztype,
+                if (sym.kind < AMBIGUOUS) {
+                    tree.constructorType = checkMethod(clazztype,
                                             tree.constructor,
                                             localEnv,
                                             tree.args,
                                             argtypes,
                                             typeargtypes,
                                             localEnv.info.varArgs);
+                }
             }
 
             if (tree.constructor != null && tree.constructor.kind == MTH)
