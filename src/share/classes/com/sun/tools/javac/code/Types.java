@@ -2587,6 +2587,8 @@ public class Types {
         List<Type> cl = closureCache.get(t);
         if (cl == null) {
             Type st = supertype(t);
+            if (st == null) // FIXME: shouldn't be null
+                st = Type.noType;
             if (!t.isCompound()) {
                 if (st.tag == CLASS) {
                     cl = insert(closure(st), t);
@@ -2596,7 +2598,7 @@ public class Types {
                     cl = List.of(t);
                 }
             } else {
-                cl = closure(supertype(t));
+                cl = closure(st);
             }
             for (List<Type> l = interfaces(t); l.nonEmpty(); l = l.tail)
                 cl = union(cl, closure(l.head));
