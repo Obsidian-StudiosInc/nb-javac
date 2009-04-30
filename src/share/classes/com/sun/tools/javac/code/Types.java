@@ -1461,7 +1461,7 @@ public class Types {
             public Type visitClassType(ClassType t, Symbol sym) {
                 Symbol owner = sym.owner;
                 long flags = sym.flags();
-                if (((flags & STATIC) == 0) && owner.type.isParameterized()) {
+                if (((flags & STATIC) == 0) && owner != null && owner.type != null && owner.type.isParameterized()) {
                     Type base = asOuterSuper(t, owner);
                     //if t is an intersection type T = CT & I1 & I2 ... & In
                     //its supertypes CT, I1, ... In might contain wildcards
