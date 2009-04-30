@@ -1064,8 +1064,8 @@ public class Flow extends TreeScanner {
         Bits uninitsBeforeElse = uninitsWhenFalse;
         inits = initsWhenTrue;
         uninits = uninitsWhenTrue;
-        if (tree.truepart.type.tag == BOOLEAN &&
-            tree.falsepart.type.tag == BOOLEAN) {
+        if (tree.truepart.type != null && tree.truepart.type.tag == BOOLEAN &&
+            tree.falsepart.type != null && tree.falsepart.type.tag == BOOLEAN) {
             // if b and c are boolean valued, then
             // v is (un)assigned after a?b:c when true iff
             //    v is (un)assigned after b when true and
