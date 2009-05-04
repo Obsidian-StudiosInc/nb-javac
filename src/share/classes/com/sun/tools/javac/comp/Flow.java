@@ -575,7 +575,8 @@ public class Flow extends TreeScanner {
         }
         classDef = tree;
         thrown = List.nil();
-        lint = lint.augment(tree.sym.attributes_field);
+        if (tree.sym != null)
+            lint = lint.augment(tree.sym.attributes_field);
 
         try {
             // define all the static fields
