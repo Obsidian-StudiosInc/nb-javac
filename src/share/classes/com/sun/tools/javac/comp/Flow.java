@@ -969,8 +969,10 @@ public class Flow extends TreeScanner {
         List<Type> caughtPrev = caught;
         List<Type> thrownPrev = thrown;
         thrown = List.nil();
-        for (List<JCCatch> l = tree.catchers; l.nonEmpty(); l = l.tail)
-            caught = chk.incl(l.head.param.type, caught);
+        for (List<JCCatch> l = tree.catchers; l.nonEmpty(); l = l.tail) {
+            if (l.head.param.type != null)
+                caught = chk.incl(l.head.param.type, caught);
+        }
         Bits uninitsTryPrev = uninitsTry;
         ListBuffer<PendingExit> prevPendingExits = pendingExits;
         pendingExits = new ListBuffer<PendingExit>();
@@ -991,6 +993,8 @@ public class Flow extends TreeScanner {
             alive = true;
             JCVariableDecl param = l.head.param;
             Type exc = param.type;
+            if (exc == null)
+                continue;
             if (chk.subset(exc, caughtInTry)) {
                 log.error(l.head.pos(),
                           "except.already.caught", exc);
