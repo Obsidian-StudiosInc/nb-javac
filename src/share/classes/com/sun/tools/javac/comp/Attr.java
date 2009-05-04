@@ -964,7 +964,7 @@ public class Attr extends JCTree.Visitor {
             Env<AttrContext> catchEnv =
                 env.dup(c, env.info.dup(env.info.scope.dup()));
             Type ctype = attribStat(c.param, catchEnv);
-            if (c.param.sym.kind == Kinds.VAR) {
+            if (c.param.sym != null && c.param.sym.kind == Kinds.VAR) {
                 c.param.sym.setData(ElementKind.EXCEPTION_PARAMETER);
             }
             chk.checkType(c.param.vartype.pos(),
