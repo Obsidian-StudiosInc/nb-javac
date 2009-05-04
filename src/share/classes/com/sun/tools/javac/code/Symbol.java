@@ -590,6 +590,8 @@ public abstract class Symbol implements Element {
         public List<Type> getBounds() {
             TypeVar t = (TypeVar)type;
             Type bound = t.getUpperBound();
+            if (bound == null)
+                return List.nil();
             if (!bound.isCompound())
                 return List.of(bound);
             ClassType ct = (ClassType)bound;
