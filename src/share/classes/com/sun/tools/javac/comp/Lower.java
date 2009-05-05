@@ -2627,7 +2627,7 @@ public class Lower extends TreeTranslator {
     /** Expand a boxing or unboxing conversion if needed. */
     @SuppressWarnings("unchecked") // XXX unchecked
     <T extends JCTree> T boxIfNeeded(T tree, Type type) {
-        boolean havePrimitive = tree.type.isPrimitive();
+        boolean havePrimitive = tree.type != null ? tree.type.isPrimitive() : false;
         if (havePrimitive == type.isPrimitive())
             return tree;
         if (havePrimitive) {
@@ -2671,7 +2671,7 @@ public class Lower extends TreeTranslator {
 
     /** Unbox an object to a primitive value. */
     JCExpression unbox(JCExpression tree, Type primitive) {
-        if (tree.type.isErroneous())
+        if (tree.type == null || tree.type.isErroneous())
             return tree;
         Type unboxedType = types.unboxedType(tree.type);
         // note: the "primitive" parameter is not used.  There muse be
