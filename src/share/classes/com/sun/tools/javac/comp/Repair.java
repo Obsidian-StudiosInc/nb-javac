@@ -61,6 +61,7 @@ import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Log;
+import com.sun.tools.javac.util.MissingPlatformError;
 import com.sun.tools.javac.util.Name;
 import java.util.HashSet;
 import java.util.Set;
@@ -92,6 +93,7 @@ public class Repair extends TreeTranslator {
     private Types types;
     private Log log;
     private TreeMaker make;
+    private JCDiagnostic.Factory diags;
     private boolean allowEnums;
     
     private Env<AttrContext> attrEnv;
@@ -111,6 +113,7 @@ public class Repair extends TreeTranslator {
         enter = Enter.instance(context);
         types = Types.instance(context);
         log = Log.instance(context);
+        diags = JCDiagnostic.Factory.instance(context);
         Source source = Source.instance(context);
         allowEnums = source.allowEnums();
     }
@@ -321,11 +324,22 @@ public class Repair extends TreeTranslator {
     private JCStatement generateErrStat(DiagnosticPosition pos, String msg) {
         make.at(pos);
         ClassType ctype = (ClassType)syms.runtimeExceptionType;
-        JCLiteral literal = make.Literal(msg != null ? ERR_MESSAGE + " - " + msg : ERR_MESSAGE); //NOI18N
-        JCNewClass tree = make.NewClass(null, null, make.QualIdent(ctype.tsym), List.<JCExpression>of(literal), null);
-        tree.constructor = rs.resolveConstructor(pos, attrEnv, ctype, List.of(literal.type), null, false, false);
-        tree.type = ctype;
-        return make.Throw(tree);
+        Symbol ctor = rs.resolveConstructor(pos, attrEnv, ctype, List.of(syms.stringType), null, false, false);
+        if (ctor.kind == Kinds.MTH) {
+            JCLiteral literal = make.Literal(msg != null ? ERR_MESSAGE + " - " + msg : ERR_MESSAGE); //NOI18N
+            JCNewClass tree = make.NewClass(null, null, make.QualIdent(ctype.tsym), List.<JCExpression>of(literal), null);
+            tree.type = ctype;
+            tree.constructor = ctor;
+            return make.Throw(tree);
+        }
+        ctor = rs.resolveConstructor(pos, attrEnv, ctype, List.<Type>nil(), null, false, false);
+        if (ctor.kind == Kinds.MTH) {
+            JCNewClass tree = make.NewClass(null, null, make.QualIdent(ctype.tsym), List.<JCExpression>nil(), null);
+            tree.type = ctype;
+            tree.constructor = ctor;
+            return make.Throw(tree);
+        }
+        throw new MissingPlatformError (diags.fragment("fatal.err.cant.locate.ctor", ctype)); //NOI18N
     }
     
     private JCExpression generateErrExpr(DiagnosticPosition pos, String msg) {
