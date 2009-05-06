@@ -993,7 +993,7 @@ public class Flow extends TreeScanner {
             alive = true;
             JCVariableDecl param = l.head.param;
             Type exc = param.type;
-            if (exc == null)
+            if (exc == null || param.sym == null)
                 continue;
             if (chk.subset(exc, caughtInTry)) {
                 log.error(l.head.pos(),
