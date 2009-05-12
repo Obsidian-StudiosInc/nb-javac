@@ -329,7 +329,7 @@ public class Flow extends TreeScanner {
      *  I.e. is symbol either a local or a blank final variable?
      */
     boolean trackable(VarSymbol sym) {
-        return sym != null &&
+        return sym != null && sym.owner != null &&
             (sym.owner.kind == MTH ||
              ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL &&
               classDef.sym.isEnclosedBy((ClassSymbol)sym.owner)) &&
@@ -398,7 +398,7 @@ public class Flow extends TreeScanner {
     /** Check that trackable variable is initialized.
      */
     void checkInit(DiagnosticPosition pos, VarSymbol sym) {
-        if ((sym.adr >= firstadr || sym.owner.kind != TYP) &&
+        if ((sym.adr >= firstadr || (sym.owner != null && sym.owner.kind != TYP)) &&
             trackable(sym) &&
             !inits.isMember(sym.adr)) {
             log.error(pos, "var.might.not.have.been.initialized",
