@@ -144,6 +144,8 @@ public class Resolve {
      *  @param c      The class whose accessibility is checked.
      */
     public boolean isAccessible(Env<AttrContext> env, TypeSymbol c) {
+        if (c == null)
+            return false;
         switch ((short)(c.flags() & AccessFlags)) {
         case PRIVATE:
             return
