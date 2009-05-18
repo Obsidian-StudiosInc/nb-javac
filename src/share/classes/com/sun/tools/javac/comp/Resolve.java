@@ -383,7 +383,7 @@ public class Resolve {
             formals = formals.tail;
         }
         if (formals.head != varargsFormal) return false; // not enough args
-        if (!useVarargs)
+        if (varargsFormal == null)
             return argtypes.isEmpty();
         Type elt = types.elemtype(varargsFormal);
         while (argtypes.nonEmpty()) {
