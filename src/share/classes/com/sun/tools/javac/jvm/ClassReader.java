@@ -1933,7 +1933,9 @@ public class ClassReader extends ClassFile implements Completer {
                     }
                 } else {
                     if (sourceCompleter != null) {
-                        sourceCompleter.complete(c);
+                        if (!classfile.isNameCompatible("package-info", JavaFileObject.Kind.SOURCE)) {
+                            sourceCompleter.complete(c);
+                        }
                     } else {
                         throw new IllegalStateException("Source completer required to read "
                                                         + classfile.toUri());
