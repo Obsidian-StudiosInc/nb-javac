@@ -619,54 +619,60 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
 
         if ((enclScope.owner.flags_field & FROMCLASS) != 0) {
             for (Scope.Entry e = enclScope.lookup(tree.name); e.scope == enclScope; e = e.next()) {
-                if (e.sym.kind == MTH && (types.isSameType(m.type, e.sym.type) || m.name == names.init && (m.owner.name.isEmpty() || (m.owner.owner.kind & (VAR | MTH)) != 0))) {
-                    treeCleaner.scan(tree);
-                    tree.sym = (MethodSymbol)e.sym;
-                    localEnv = methodEnv(tree, env);
-                    tree.sym.flags_field |= FROMCLASS;
-                    if (tree.sym.type.tag == FORALL) {
-                        for(List<Type> tvars = ((ForAll)tree.sym.type).tvars; tvars.nonEmpty(); tvars = tvars.tail)
-                            localEnv.info.scope.enter(tvars.head.tsym);
-                    }
-                    List<VarSymbol> p = tree.sym.params();
-                    if (p != null) {
-                        List<JCVariableDecl> l = tree.params;
-                        while(l.nonEmpty() && p.nonEmpty()) {
-                            p.head.setName(l.head.name);
-                            if (l.head.getModifiers() != null && l.head.getModifiers().getFlags().contains(Modifier.FINAL)) {
-                                //copy the final flag, as the symbol might have come from the classfile:
-                                p.head.flags_field |= FINAL;
+                if (e.sym.kind == MTH) {
+                    boolean sameType = types.isSameType(m.type, e.sym.type);
+                    if (sameType || m.name == names.init && (m.owner.name.isEmpty() || (m.owner.owner.kind & (VAR | MTH)) != 0)) {
+                        treeCleaner.scan(tree);
+                        tree.sym = (MethodSymbol)e.sym;
+                        localEnv = methodEnv(tree, env);
+                        tree.sym.flags_field |= FROMCLASS;
+                        if (tree.sym.type.tag == FORALL) {
+                            for(List<Type> tvars = ((ForAll)tree.sym.type).tvars; tvars.nonEmpty(); tvars = tvars.tail)
+                                localEnv.info.scope.enter(tvars.head.tsym);
+                        }
+                        List<VarSymbol> p = tree.sym.params();
+                        if (p != null) {
+                            List<JCVariableDecl> l = tree.params;
+                            while(l.nonEmpty() && p.nonEmpty()) {
+                                if (sameType) {
+                                    p.head.setName(l.head.name);
+                                    if (l.head.getModifiers() != null && l.head.getModifiers().getFlags().contains(Modifier.FINAL)) {
+                                        //copy the final flag, as the symbol might have come from the classfile:
+                                        p.head.flags_field |= FINAL;
+                                    }
+                                }
+                                localEnv.info.scope.enter(p.head);
+                                p = p.tail;
+                                l = l.tail;
                             }
-                            localEnv.info.scope.enter(p.head);
-                            p = p.tail;
-                            l = l.tail;
+                            while(p.nonEmpty()) {
+                                p.head.setName(p.head.name);
+                                localEnv.info.scope.enter(p.head);
+                                p = p.tail;
+                            }
                         }
-                        while(p.nonEmpty()) {
-                            p.head.setName(p.head.name);
-                            p = p.tail;
+                        tree.sym.type = signature(tree.typarams, tree.params,
+                                tree.restype, tree.thrown,
+                                localEnv);
+                        tree.sym.flags_field &= ~FROMCLASS;
+                        localEnv.info.scope.leave();
+
+                        // Set m.params
+                        ListBuffer<VarSymbol> params = new ListBuffer<VarSymbol>();
+                        JCVariableDecl lastParam = null;
+                        for (List<JCVariableDecl> l = tree.params; l.nonEmpty(); l = l.tail) {
+                            JCVariableDecl param = lastParam = l.head;
+                            assert param.sym != null;
+                            params.append(param.sym);
                         }
+                        tree.sym.params = params.toList();
+
+                        // mark the method varargs, if necessary
+                        if (lastParam != null && (lastParam.mods.flags & Flags.VARARGS) != 0)
+                            tree.sym.flags_field |= Flags.VARARGS;
+
+                        break;
                     }
-                    tree.sym.type = signature(tree.typarams, tree.params,
-                            tree.restype, tree.thrown,
-                            localEnv);
-                    tree.sym.flags_field &= ~FROMCLASS;
-                    localEnv.info.scope.leave();
-
-                    // Set m.params
-                    ListBuffer<VarSymbol> params = new ListBuffer<VarSymbol>();
-                    JCVariableDecl lastParam = null;
-                    for (List<JCVariableDecl> l = tree.params; l.nonEmpty(); l = l.tail) {
-                        JCVariableDecl param = lastParam = l.head;
-                        assert param.sym != null;
-                        params.append(param.sym);
-                    }
-                    tree.sym.params = params.toList();
-
-                    // mark the method varargs, if necessary
-                    if (lastParam != null && (lastParam.mods.flags & Flags.VARARGS) != 0)
-                        tree.sym.flags_field |= Flags.VARARGS;
-
-                    break;
                 }
             }
             if (tree.sym == m) {
