@@ -899,6 +899,7 @@ public class ClassReader extends ClassFile implements Completer {
                 int firstParam = ((sym.flags() & STATIC) == 0) ? 1 : 0;
                 int endParam = firstParam + Code.width(sym.type.getParameterTypes());
                 int numEntries = nextChar();
+                int lastNameIndex = -1;
                 for (int i=0; i<numEntries; i++) {
                     int start_pc = nextChar();
                     int length = nextChar();
@@ -910,9 +911,14 @@ public class ClassReader extends ClassFile implements Completer {
                         register < endParam) {
                         int index = firstParam;
                         for (Type t : sym.type.getParameterTypes()) {
-                            if (index == register) {
-                                parameterNames = parameterNames.prepend(readName(nameIndex));
-                                break;
+                            if (index > lastNameIndex) {
+                                lastNameIndex = index;
+                                if (index == register) {
+                                    parameterNames = parameterNames.prepend(readName(nameIndex));
+                                    break;
+                                } else {
+                                    parameterNames = parameterNames.prepend(null);
+                                }
                             }
                             index += Code.width(t);
                         }
