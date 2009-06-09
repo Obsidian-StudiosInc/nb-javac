@@ -408,6 +408,7 @@ public class Repair extends TreeTranslator {
                     isErrClass = true;
                 }
                 if (hasError && err != null) {
+                    isErrClass = true;
                     classLevelErrTree = err.getTree();
                     classLevelErrMessage = err.getMessage(null);
                 } else if (c.type.isErroneous() && oldHasError && oldErr != null) {
