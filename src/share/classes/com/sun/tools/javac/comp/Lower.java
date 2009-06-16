@@ -2356,11 +2356,12 @@ public class Lower extends TreeTranslator {
             // recursively translate following local statements and
             // combine with this- or super-call
             List<JCStatement> stats = translate(tree.body.stats.tail);
-            if (target.initializeFieldsBeforeSuper())
-                tree.body.stats = stats.prepend(selfCall).prependList(added);
-            else
-                tree.body.stats = stats.prependList(added).prepend(selfCall);
-
+            if (stats != null) {
+                if (target.initializeFieldsBeforeSuper())
+                    tree.body.stats = stats.prepend(selfCall).prependList(added);
+                else
+                    tree.body.stats = stats.prependList(added).prepend(selfCall);
+            }
             outerThisStack = prevOuterThisStack;
         } else {
             super.visitMethodDef(tree);
