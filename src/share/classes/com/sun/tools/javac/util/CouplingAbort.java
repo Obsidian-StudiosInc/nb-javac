@@ -26,6 +26,7 @@
 package com.sun.tools.javac.util;
 
 import com.sun.source.tree.Tree;
+import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import javax.tools.JavaFileObject;
 
 /**
@@ -35,11 +36,13 @@ import javax.tools.JavaFileObject;
 public class CouplingAbort extends Abort {
 
     private JavaFileObject classFile;
+    private JavaFileObject sourceFile;
     private Tree t;
 
     /** Creates a new instance of CouplingAbort */
-    public CouplingAbort(JavaFileObject classFile, Tree t) {
-        this.classFile = classFile;
+    public CouplingAbort(ClassSymbol clazz, Tree t) {
+        this.classFile = clazz != null ? clazz.classfile : null;
+        this.sourceFile = clazz != null ? clazz.sourcefile : null;
         this.t = t;
 
         wasCouplingError = true;
@@ -47,6 +50,10 @@ public class CouplingAbort extends Abort {
 
     public JavaFileObject getClassFile() {
         return classFile;
+    }
+
+    public JavaFileObject getSourceFile() {
+        return sourceFile;
     }
 
     public Tree getTree() {
