@@ -58,6 +58,6 @@ public class LazyTreeLoader {
     }
 
     public void couplingError(ClassSymbol clazz, Tree t) {
-        throw new CouplingAbort(clazz != null ? clazz.classfile : null, t);
+        throw new CouplingAbort(clazz, t);
     }
 }
