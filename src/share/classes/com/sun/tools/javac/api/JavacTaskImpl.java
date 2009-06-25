@@ -173,8 +173,6 @@ public class JavacTaskImpl extends JavacTask {
             if (!filenames.isEmpty())
                 throw new IllegalArgumentException("Malformed arguments " + filenames.toString(" "));
             compiler = JavaCompiler.instance(context);
-            compiler.keepComments = true;
-            compiler.genEndPos = true;
             // NOTE: this value will be updated after annotation processing
             compiler.initProcessAnnotations(processors);
             notYetEntered = new HashMap<JavaFileObject, JCCompilationUnit>();
