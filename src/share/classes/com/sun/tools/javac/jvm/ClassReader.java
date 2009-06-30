@@ -1081,7 +1081,8 @@ public class ClassReader extends ClassFile implements Completer {
     void readClassAttr(ClassSymbol c, Name attrName, int attrLen) {
         if (attrName == names.SourceFile) {
             Name n = readName(nextChar());
-            c.sourcefile = new SourceFileObject(n, c.flatname);
+            if (c.sourcefile == null)
+                c.sourcefile = new SourceFileObject(n, c.flatname);
         } else if (attrName == names.InnerClasses) {
             readInnerClasses(c);
         } else if ((allowGenerics || ideMode) && attrName == names.Signature) {
