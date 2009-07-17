@@ -838,7 +838,7 @@ public class Flow extends TreeScanner {
         pendingExits = new ListBuffer<PendingExit>();
         do {
             Bits uninitsEntry = uninits.dup();
-            if (tree.cond != null) {
+            if (tree.cond != null && tree.cond.type != null) {
                 scanCond(tree.cond);
                 initsCond = initsWhenFalse;
                 uninitsCond = uninitsWhenFalse;
@@ -867,7 +867,7 @@ public class Flow extends TreeScanner {
         inits = initsCond;
         uninits = uninitsCond;
         alive = resolveBreaks(tree, prevPendingExits) ||
-            tree.cond != null && !tree.cond.type.isTrue();
+            tree.cond != null && tree.cond.type != null && !tree.cond.type.isTrue();
         nextadr = nextadrPrev;
     }
 
