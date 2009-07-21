@@ -504,9 +504,12 @@ public class Enter extends JCTree.Visitor {
         // Fill out class fields.
         boolean notYetCompleted = c.completer != null;
         c.completer = memberEnter;
+        boolean fromClass = (c.flags_field & FROMCLASS) != 0;
+        c.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, c, tree);
+        if (fromClass)
+            c.flags_field |= FROMCLASS;
         c.sourcefile = env.toplevel.sourcefile;
         if (notYetCompleted || (c.flags_field & FROMCLASS) == 0 && (enclScope.owner.flags_field & FROMCLASS) == 0) {
-            c.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, c, tree);
             c.members_field = new Scope(c);
             ClassType ct = (ClassType)c.type;
             if (owner.kind != PCK && (c.flags_field & STATIC) == 0) {
