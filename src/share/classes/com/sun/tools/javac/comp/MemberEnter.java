@@ -617,6 +617,7 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                         treeCleaner.scan(tree);
                         tree.sym = (MethodSymbol)e.sym;
                         localEnv = methodEnv(tree, env);
+                        tree.sym.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, tree.sym, tree);
                         tree.sym.flags_field |= FROMCLASS;
                         if (tree.sym.type.tag == FORALL) {
                             for(List<Type> tvars = ((ForAll)tree.sym.type).tvars; tvars.nonEmpty(); tvars = tvars.tail)
@@ -735,8 +736,8 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
         }
         if (v == null) {
             v = new VarSymbol(0, tree.name, tree.vartype.type, enclScope.owner);
-            v.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, v, tree);
         }
+        v.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, v, tree);
         tree.sym = v;
         if (tree.init != null) {
             v.flags_field |= HASINIT;
