@@ -638,7 +638,11 @@ public class Type implements PrimitiveType {
 
         public List<Type> allparams() {
             if (allparams_field == null) {
-                allparams_field = getTypeArguments().prependList(getEnclosingType().allparams());
+                final Type enclosingType = getEnclosingType();
+                if (enclosingType == null)
+                    allparams_field = getTypeArguments();
+                else
+                    allparams_field = getTypeArguments().prependList(enclosingType.allparams());
             }
             return allparams_field;
         }
