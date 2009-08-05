@@ -2266,6 +2266,20 @@ public class ClassReader extends ClassFile implements Completer {
                     extraFileActions(p, fo);
                 }
             }
+            if (classNamesOraculum != null && location == SOURCE_PATH) {
+                JavaFileObject[] sources = classNamesOraculum.divineSources(p.fullname.toString());
+                if (sources != null) {
+                    for (JavaFileObject fo : sources) {
+                        for (String binaryName : classNamesOraculum.divineClassName(fo)) {
+                            String simpleName = binaryName.substring(binaryName.lastIndexOf(".") + 1);
+                            if (SourceVersion.isIdentifier(simpleName) ||
+                                    simpleName.equals("package-info")) {
+                                includeClassFile(p, fo, binaryName);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
     /** Output for "-verbose" option.

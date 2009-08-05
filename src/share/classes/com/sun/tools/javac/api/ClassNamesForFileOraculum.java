@@ -38,5 +38,6 @@ import javax.tools.JavaFileObject;
 public interface ClassNamesForFileOraculum {
 
     public String[] divineClassName(JavaFileObject jfo);
-    
+
+    public JavaFileObject[] divineSources(String fqn);
 }
