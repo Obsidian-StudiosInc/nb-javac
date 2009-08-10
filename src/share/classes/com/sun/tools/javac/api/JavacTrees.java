@@ -293,7 +293,7 @@ public class JavacTrees extends Trees {
     }
 
     private Env<AttrContext> attribStatToTree(JCTree stat, Env<AttrContext>env, JCTree tree) {
-        JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
+        JavaFileObject prev = log.useSource(null);
         enter.shadowTypeEnvs(true);
         try {
             return attr.attribStatToTree(stat, env, tree);
@@ -304,7 +304,7 @@ public class JavacTrees extends Trees {
     }
 
     private Env<AttrContext> attribExprToTree(JCExpression expr, Env<AttrContext>env, JCTree tree) {
-        JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
+        JavaFileObject prev = log.useSource(null);
         try {
             return attr.attribExprToTree(expr, env, tree);
         } finally {
