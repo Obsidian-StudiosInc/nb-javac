@@ -2126,7 +2126,7 @@ public class ClassReader extends ClassFile implements Completer {
     protected JavaFileObject preferredFileObject(JavaFileObject a,
                                            JavaFileObject b) {
 
-        if (preferSource)
+        if (preferSource && !b.getName().toLowerCase().endsWith(".sig"))
             return (a.getKind() == JavaFileObject.Kind.SOURCE) ? a : b;
         else {
             long adate = a.getLastModified();
