@@ -29,9 +29,9 @@ diff_jars() {
 }
 
 load_into_cache junit-3.8.2.jar http://hg.netbeans.org/binaries/07E4CDE26B53A9A0E3FE5B00D1DBBC7CC1D46060-junit-3.8.2.jar
-API_JAR_NAME=`wget -q -O - http://hg.netbeans.org/main/raw-file/tip/libs.javacapi/external/javac-api-nb-7.0-b07.jar | cut -d ' ' -f 2 | cut -d '>' -f 1`
+API_JAR_NAME=`wget -q -O - http://hg.netbeans.org/main/raw-file/tip/libs.javacapi/external/binaries-list | tr ' ' '-'`
 load_into_cache javac-api-nb-7.0-b07.jar http://hg.netbeans.org/binaries/$API_JAR_NAME
-IMPL_JAR_NAME=`wget -q -O - http://hg.netbeans.org/main/raw-file/tip/libs.javacimpl/external/javac-impl-nb-7.0-b07.jar | cut -d ' ' -f 2 | cut -d '>' -f 1`
+IMPL_JAR_NAME=`wget -q -O - http://hg.netbeans.org/main/raw-file/tip/libs.javacimpl/external/binaries-list | tr ' ' '-'`
 load_into_cache javac-impl-nb-7.0-b07.jar http://hg.netbeans.org/binaries/$IMPL_JAR_NAME
 
 JUNIT_CP=$PWD/cache/junit-3.8.2.jar
