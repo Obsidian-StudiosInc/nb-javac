@@ -2715,7 +2715,7 @@ public class Lower extends TreeTranslator {
     }
 
     public void visitAssignop(final JCAssignOp tree) {
-        if (!tree.lhs.type.isPrimitive() &&
+        if (!tree.lhs.type.isPrimitive() && !tree.lhs.type.isErroneous() &&
             tree.operator.type.getReturnType().isPrimitive()) {
             // boxing required; need to rewrite as x = (unbox typeof x)(x op y);
             // or if x == (typeof x)z then z = (unbox typeof x)((typeof x)z op y)
