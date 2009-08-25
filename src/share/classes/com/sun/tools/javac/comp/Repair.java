@@ -218,15 +218,17 @@ public class Repair extends TreeTranslator {
                 tree.body.stats = List.<JCStatement>nil();
         }
         if (hasError && !hadDuplicateSymError) {
-            if (tree.sym != null) {
-                tree.sym.flags_field &= ~(Flags.ABSTRACT | Flags.NATIVE);
-                tree.sym.defaultValue = null;
-            }
-            tree.defaultValue = null;
-            if (tree.body == null) {
+            if (tree.body != null) {
+                if (tree.sym != null)
+                    tree.sym.flags_field &= ~(Flags.ABSTRACT | Flags.NATIVE);
+                tree.body.stats = List.of(generateErrStat(tree.pos(), err != null ? err.getMessage(null) : null));
+            } else if (tree.sym == null || (tree.sym.flags_field & Flags.ABSTRACT) == 0) {
                 tree.body = make.Block(0, List.<JCStatement>nil());
+                tree.body.stats = List.of(generateErrStat(tree.pos(), err != null ? err.getMessage(null) : null));
             }
-            tree.body.stats = List.of(generateErrStat(tree.pos(), err != null ? err.getMessage(null) : null));
+            if (tree.sym != null)
+                tree.sym.defaultValue = null;
+            tree.defaultValue = null;
             hasError = false;
             err = null;
         }
