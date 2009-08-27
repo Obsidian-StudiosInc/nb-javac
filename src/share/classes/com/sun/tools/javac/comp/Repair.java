@@ -186,6 +186,10 @@ public class Repair extends TreeTranslator {
     @Override
     public void visitVarDef(JCVariableDecl tree) {
         super.visitVarDef(tree);
+        if (!allowEnums && tree.sym != null && (tree.sym.flags_field & Flags.ENUM) != 0) {
+            tree.sym.flags_field &= ~Flags.ENUM;
+            tree.mods.flags &= ~Flags.ENUM;
+        }
         if (hasError) {
             JCTree parent = parents != null ? parents.tail.head : null;
             if (parent != null && parent.getTag() == JCTree.CLASSDEF) {
@@ -408,6 +412,13 @@ public class Repair extends TreeTranslator {
                 if (!hasError && (err = log.getErrDiag(tree)) != null) {
                     hasError = true;
                     isErrClass = true;
+                }
+                if (!allowEnums && (c.flags_field & Flags.ENUM) != 0) {
+                    c.flags_field &= ~Flags.ENUM;
+                    tree.mods.flags &= ~Flags.ENUM;
+                    hasError = true;
+                    isErrClass = true;
+                    classLevelErrTree = tree;
                 }
                 if (hasError && err != null) {
                     isErrClass = true;
