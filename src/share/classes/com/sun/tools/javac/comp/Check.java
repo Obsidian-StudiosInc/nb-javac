@@ -99,6 +99,8 @@ public class Check {
         allowAnnotations = source.allowAnnotations();
         allowCovariantReturns = source.allowCovariantReturns();
         complexInference = options.get("-complexinference") != null;
+        findDiamonds = options.get("findDiamond") != null &&
+                source.allowDiamond();
         skipAnnotations = options.get("skipAnnotations") != null;
         warnOnSyntheticConflicts = options.get("warnOnSyntheticConflicts") != null;
 
@@ -139,6 +141,11 @@ public class Check {
     /** Character for synthetic names
      */
     char syntheticNameChar;
+
+     /** Hidden option: generates a note if diamond can be safely applied
+      *  to a given new expression
+      */
+     boolean findDiamonds;
 
     /** A table mapping flat names of all compiled classes in this run to their
      *  symbols; maintained from outside.
@@ -585,6 +592,24 @@ public class Check {
                 JCDiagnostic d = ex.getDiagnostic();
                 log.error(pos, "cant.apply.diamond", t.getTypeArguments(), d);
                 return types.createErrorType(pt);
+            }
+        }
+        else if (t.getTypeArguments().nonEmpty() && findDiamonds) {
+            Type inferred = null;
+            try {
+                List<Type> newtvars = types.newInstances(t.tsym.type.allparams());
+                inferred = infer.instantiateExpr(new ForAll(newtvars, types.subst(t.tsym.type, t.tsym.type.allparams(), newtvars)), pt.tag == NONE ? syms.objectType : pt, Warner.noWarnings);
+            }
+            catch (Exception ex) {
+                inferred = syms.errType;
+            }
+            if (!inferred.isErroneous() &&
+                    inferred.tag != FORALL &&
+                    types.isAssignable(inferred, pt.tag == NONE ? t : pt, Warner.noWarnings)) {
+                String key = "diamond.redundant.args";
+                if (!types.isSameType(t, inferred))
+                    key += ".1";
+                log.note(pos, key, t, inferred);
             }
         }
         return checkClassType(pos, t, noBounds);
