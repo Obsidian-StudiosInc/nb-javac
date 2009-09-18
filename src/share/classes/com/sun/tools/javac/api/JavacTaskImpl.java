@@ -111,6 +111,11 @@ public class JavacTaskImpl extends JavacTask {
         this(tool, compilerMain, toArray(flags, classes), context, toList(fileObjects));
     }
 
+    JavacTaskImpl(Context context) {
+        this.context = context;
+        setLocale(Locale.getDefault());
+    }
+
     static private String[] toArray(Iterable<String> flags, Iterable<String> classes) {
         ListBuffer<String> result = new ListBuffer<String>();
         if (flags != null)
