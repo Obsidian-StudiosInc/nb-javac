@@ -150,8 +150,7 @@ public class JavacParser implements Parser {
         this.allowAnnotations = source.allowAnnotations();
         this.allowStringFolding = fac.options.get("disableStringFolding") == null; //NOI18N
         this.keepDocComments = keepDocComments;
-        if (keepDocComments)
-            docComments = new HashMap<JCTree,String>();
+        docComments = keepDocComments ? new HashMap<JCTree,String>() : null;
         this.keepLineMap = keepLineMap;
         this.errorTree = F.Erroneous();
         this.cancelService = cancelService;
@@ -391,7 +390,7 @@ public class JavacParser implements Parser {
      *  indexed by the tree nodes they refer to.
      *  defined only if option flag keepDocComment is set.
      */
-    Map<JCTree, String> docComments;
+    private final Map<JCTree, String> docComments;
 
     /** Make an entry into docComments hashtable,
      *  provided flag keepDocComments is set and given doc comment is non-null.
@@ -403,6 +402,10 @@ public class JavacParser implements Parser {
 //          System.out.println("doc comment = ");System.out.println(dc);//DEBUG
             docComments.put(tree, dc);
         }
+    }
+
+    public Map<JCTree, String> getDocComments() {
+        return docComments == null ? Collections.<JCTree,String>emptyMap() : Collections.unmodifiableMap(docComments);
     }
 
 /* -------- source positions ------- */
