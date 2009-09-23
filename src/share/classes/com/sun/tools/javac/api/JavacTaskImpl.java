@@ -775,13 +775,17 @@ public class JavacTaskImpl extends JavacTask {
         }
     }
 
-    public JCBlock reparseMethodBody(CompilationUnitTree topLevel, MethodTree methodToReparse, String newBodyText, int annonIndex) {
+    public JCBlock reparseMethodBody(CompilationUnitTree topLevel, MethodTree methodToReparse, String newBodyText, int annonIndex,
+            final Map<? super JCTree,? super String> docComments) {
         ParserFactory parserFactory = ParserFactory.instance(context);
         CharBuffer buf = CharBuffer.wrap((newBodyText+"\u0000").toCharArray(), 0, newBodyText.length());
-        Parser parser = parserFactory.newParser(buf, ((JCBlock)methodToReparse.getBody()).pos, annonIndex,  ((JCCompilationUnit)topLevel).endPositions);
+        JavacParser parser = (JavacParser) parserFactory.newParser(buf, ((JCBlock)methodToReparse.getBody()).pos, annonIndex,  ((JCCompilationUnit)topLevel).endPositions);
         final JCStatement statement = parser.parseStatement();
         if (statement.getKind() == Tree.Kind.BLOCK) {
-            return (JCBlock) statement;
+            if (docComments != null) {
+                docComments.putAll(parser.getDocComments());
+            }
+            return (JCBlock) statement;            
         }
         return null;
     }
