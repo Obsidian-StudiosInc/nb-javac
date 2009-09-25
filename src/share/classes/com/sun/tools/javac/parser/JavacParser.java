@@ -2209,6 +2209,8 @@ public class JavacParser implements Parser {
         if (S.token() == EQ) {
             S.nextToken();
             init = variableInitializer();
+            if (init.getTag() == JCTree.ERRONEOUS && ((JCErroneous)init).errs.isEmpty() && S.prevEndPos() < init.pos)
+                init.pos = S.prevEndPos();
         }
         else if (reqInit) syntaxError(S.pos(), "expected", EQ);
         JCVariableDecl result =
