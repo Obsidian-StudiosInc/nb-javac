@@ -810,7 +810,8 @@ public class Flow extends TreeScanner {
             uninitsCond = uninitsWhenFalse;
             inits = initsWhenTrue;
             uninits = uninitsWhenTrue;
-            alive = !tree.cond.type.isFalse();
+            if (tree.cond.type != null)
+                alive = !tree.cond.type.isFalse();
             scanStat(tree.body);
             alive |= resolveContinues(tree);
             if (log.nerrors != 0 ||
@@ -825,7 +826,7 @@ public class Flow extends TreeScanner {
         inits = initsCond;
         uninits = uninitsCond;
         alive = resolveBreaks(tree, prevPendingExits) ||
-            !tree.cond.type.isTrue();
+            tree.cond.type != null && !tree.cond.type.isTrue();
     }
 
     public void visitForLoop(JCForLoop tree) {

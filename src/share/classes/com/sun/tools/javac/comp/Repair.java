@@ -413,7 +413,8 @@ public class Repair extends TreeTranslator {
                     hasError = true;
                     isErrClass = true;
                 }
-                if (!allowEnums && (c.flags_field & Flags.ENUM) != 0) {
+                if ((!allowEnums || isErrClass)
+                        && ((c.flags_field & Flags.ENUM) != 0 || (tree.mods.flags & Flags.ENUM) != 0)) {
                     c.flags_field &= ~Flags.ENUM;
                     tree.mods.flags &= ~Flags.ENUM;
                     hasError = true;

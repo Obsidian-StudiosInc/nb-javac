@@ -2102,13 +2102,16 @@ public class ClassReader extends ClassFile implements Completer {
                 if (c.owner == p)  // it might be an inner class
                     p.members_field.enter(c);
             }
-        } else if (c.classfile != null && ((c.flags_field & seen) == 0 || isSigOverClass(c.classfile, file))) {
+        } else if (c.classfile != null && (c.flags_field & seen) == 0) {
             // if c.classfile == null, we are currently compiling this class
             // and no further action is necessary.
             // if (c.flags_field & seen) != 0, we have already encountered
             // a file of the same kind; again no further action is necessary.
-            if ((c.flags_field & (CLASS_SEEN | SOURCE_SEEN)) != 0)
+            if ((c.flags_field & (CLASS_SEEN | SOURCE_SEEN)) != 0) {
                 c.classfile = preferredFileObject(file, c.classfile);
+            }
+        } else if (c.classfile != null && isSigOverClass(c.classfile, file)) {
+            c.classfile = file;
         }
         c.flags_field |= seen;
     }
