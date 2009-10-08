@@ -1343,6 +1343,8 @@ public class Types {
                     Type x = asSuper(st, sym);
                     if (x != null)
                         return x;
+                } else if (st.tag == NONE && t.tsym.type.isErroneous()) {
+                    return t.tsym.type;
                 }
                 if (sym != null && (sym.flags() & INTERFACE) != 0) {
                     for (List<Type> l = interfaces(t); l.nonEmpty(); l = l.tail) {
