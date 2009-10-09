@@ -276,6 +276,9 @@ public class JavacTaskImpl extends JavacTask {
         assert file != null;
         Enter enter = Enter.instance(context);
         CompilationUnitTree tree = enter.getCompilationUnit(file);
+        if (tree == null && notYetEntered != null) {
+            tree = (CompilationUnitTree) notYetEntered.get(file);
+        }
         return tree;
     }
 
