@@ -400,7 +400,7 @@ public class Flow extends TreeScanner {
     void checkInit(DiagnosticPosition pos, VarSymbol sym) {
         if ((sym.adr >= firstadr || (sym.owner != null && sym.owner.kind != TYP)) &&
             trackable(sym) &&
-            !inits.isMember(sym.adr)) {
+            inits != null && !inits.isMember(sym.adr)) {
             log.error(pos, "var.might.not.have.been.initialized",
                       sym);
             inits.incl(sym.adr);
