@@ -53,7 +53,7 @@ public class JavacParser implements Parser {
     /**
      *Represents a scope for anon class number assignment
      */
-    static class AnonScope {
+    protected static class AnonScope {
         public boolean localClass;
         private final Name parentDecl;
         private int currentNumber;
@@ -98,7 +98,7 @@ public class JavacParser implements Parser {
         }
     }
 
-    final Stack<AnonScope> anonScopes = new Stack<AnonScope> ();
+    protected final Stack<AnonScope> anonScopes = new Stack<AnonScope> ();
 
     /** The number of precedence levels of infix operators.
      */
@@ -2006,7 +2006,7 @@ public class JavacParser implements Parser {
     JCModifiers modifiersOpt() {
         return modifiersOpt(null);
     }
-    JCModifiers modifiersOpt(JCModifiers partial) {
+    protected JCModifiers modifiersOpt(JCModifiers partial) {
         long flags = (partial == null) ? 0 : partial.flags;
         if (S.deprecatedFlag()) {
             flags |= Flags.DEPRECATED;

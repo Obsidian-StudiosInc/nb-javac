@@ -224,6 +224,14 @@ public class Log extends AbstractLog {
         return source == null ? null : source.getFile();
     }
 
+    public DiagnosticListener<? super JavaFileObject> getDiagnosticListener() {
+        return diagListener;
+    }
+
+    public void setDiagnosticListener(DiagnosticListener<? super JavaFileObject> diagListener) {
+        this.diagListener = diagListener;
+    }
+
     /** Get the current diagnostic formatter.
      */
     public DiagnosticFormatter<JCDiagnostic> getDiagnosticFormatter() {
