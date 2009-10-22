@@ -53,17 +53,13 @@ public class JavacParser implements Parser {
     /**
      *Represents a scope for anon class number assignment
      */
-    protected static class AnonScope {
+    private static class AnonScope {
         public boolean localClass;
         private final Name parentDecl;
         private int currentNumber;
         private Map<Name,Integer> localClasses;
 
-        public AnonScope (final Name name) {
-            this (name, 1);
-        }
-
-        public AnonScope (final Name name, final int startNumber) {
+        private AnonScope (final Name name, final int startNumber) {
             assert name != null;
             this.parentDecl = name;
             this.currentNumber = startNumber;
@@ -98,7 +94,23 @@ public class JavacParser implements Parser {
         }
     }
 
-    protected final Stack<AnonScope> anonScopes = new Stack<AnonScope> ();
+    private final Map<Name, AnonScope> anonScopeMap = new HashMap<Name, AnonScope>();
+    private final Stack<AnonScope> anonScopes = new Stack<AnonScope> ();
+
+    void newAnonScope(final Name name) {
+        newAnonScope(name, 1);
+    }
+
+    void newAnonScope(final Name name, final int startNumber) {
+        AnonScope parent = anonScopes.isEmpty() ? null : anonScopes.peek();
+        Name fqn = parent != null && parent.parentDecl != names.empty ? parent.parentDecl.append('.', name) : name;
+        AnonScope scope = anonScopeMap.get(fqn);
+        if (scope == null) {
+            scope = new AnonScope(name, startNumber);
+            anonScopeMap.put(fqn, scope);
+        }
+        anonScopes.push(scope);
+    }
 
     /** The number of precedence levels of infix operators.
      */
@@ -1516,7 +1528,7 @@ public class JavacParser implements Parser {
         List<JCExpression> args = arguments();
         JCClassDecl body = null;
         if (S.token() == LBRACE) {
-            this.anonScopes.push(new AnonScope(names.empty));
+            newAnonScope(names.empty);
             int pos = 0;
             List<JCTree> defs = null;
             JCModifiers mods = null;
@@ -2407,7 +2419,7 @@ public class JavacParser implements Parser {
             implementing = typeList();
         }
         List<JCTree> defs = null;
-        this.anonScopes.push (new AnonScope(name));
+        newAnonScope(name);
         try {
             defs = classOrInterfaceBody(name, false);
         } finally {
@@ -2443,7 +2455,7 @@ public class JavacParser implements Parser {
             extending = typeList();
         }
         List<JCTree> defs = null;
-        this.anonScopes.push (new AnonScope (name));
+        newAnonScope(name);
         try {
             defs = classOrInterfaceBody(name, true);
         } finally {
@@ -2483,7 +2495,7 @@ public class JavacParser implements Parser {
         }
 
         List<JCTree> defs = null;
-        this.anonScopes.push(new AnonScope (name));
+        newAnonScope(name);
         try {
             defs = enumBody(name);
         } finally {
@@ -2565,7 +2577,7 @@ public class JavacParser implements Parser {
         if (S.token() == LBRACE) {
             JCModifiers mods1 = null;
             List<JCTree> defs = null;
-            this.anonScopes.push(new AnonScope(names.empty));
+            newAnonScope(names.empty);
             try {
                 mods1 = F.at(Position.NOPOS).Modifiers(Flags.ENUM | Flags.STATIC);
                 defs = classOrInterfaceBody(names.empty, false);

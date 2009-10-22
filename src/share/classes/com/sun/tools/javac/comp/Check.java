@@ -641,6 +641,7 @@ public class Check {
               implicit |= sym.owner.flags_field & STRICTFP;
             break;
         case TYP:
+        case ERR:
             if (sym.isLocal()) {
                 mask = LocalClassFlags;
                 if (sym.name.isEmpty()) { // Anonymous class
@@ -653,7 +654,7 @@ public class Check {
                 if ((sym.owner.flags_field & STATIC) == 0 &&
                     (flags & ENUM) != 0)
                     log.error(pos, "enums.must.be.static");
-            } else if (sym.owner.kind == TYP) {
+            } else if (sym.owner.kind == TYP || sym.owner.kind == ERR) {
                 mask = MemberClassFlags;
                 if (sym.owner.owner.kind == PCK ||
                     (sym.owner.flags_field & STATIC) != 0)

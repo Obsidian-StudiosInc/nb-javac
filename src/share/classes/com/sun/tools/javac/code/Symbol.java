@@ -209,9 +209,9 @@ public abstract class Symbol implements Element {
      *  turn local to a method or variable initializer.
      */
     public boolean isLocal() {
-        return
-            (owner.kind & (VAR | MTH)) != 0 ||
-            (owner.kind == TYP && owner.isLocal());
+        return owner.kind != ERR &&
+            ((owner.kind & (VAR | MTH)) != 0 ||
+            (owner.kind == TYP && owner.isLocal()));
     }
 
     /** Is this symbol a constructor?
@@ -521,11 +521,12 @@ public abstract class Symbol implements Element {
          *  converting to flat representation
          */
         static public Name formFlatName(Name name, Symbol owner) {
-            if (owner == null ||
-                (owner.kind & (VAR | MTH)) != 0
-                || (owner.kind == TYP && owner.type.tag == TYPEVAR)
-                ) return name;
-            char sep = owner.kind == TYP ? '$' : '.';
+            if (owner == null) return name;
+            if (((owner.kind != ERR)) &&
+                ((owner.kind & (VAR | MTH)) != 0
+                 || (owner.kind == TYP && owner.type.tag == TYPEVAR)
+                 )) return name;
+            char sep = (owner.kind & TYP) != 0 ? '$' : '.';
             Name prefix = owner.flatName();
             if (prefix == null || prefix == prefix.table.names.empty)
                 return name;
