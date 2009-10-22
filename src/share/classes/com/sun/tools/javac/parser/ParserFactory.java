@@ -82,7 +82,7 @@ public class ParserFactory {
         Lexer lexer = scannerFactory.newScanner(input);
         ((Scanner)lexer).seek(startPos);
         JavacParser p = new EndPosParser(this, lexer, true, false, cancelSevice, endPos);
-        p.anonScopes.push(new JavacParser.AnonScope(names.empty,firstAnnonClassIndex));
+        p.newAnonScope(names.empty, firstAnnonClassIndex);
         return p;
     }
 
@@ -95,7 +95,7 @@ public class ParserFactory {
             p = new JavacParser(this, lexer, keepDocComments, keepLineMap, cancelSevice);
         }
         if (partial) {
-            p.anonScopes.push(new JavacParser.AnonScope(names.empty,-1));
+            p.newAnonScope(names.empty, -1);
         }
         return p;
     }

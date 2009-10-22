@@ -427,14 +427,14 @@ public class Enter extends JCTree.Visitor {
                     if (!tree.sym.isLocal() && uncompleted != null) uncompleted.append(tree.sym);
                     return;
                 }
-                if (owner.kind == TYP) {
+                if (owner.kind == TYP || owner.kind == ERR) {
                     // We are seeing a member class.
                     c = reader.enterClass(tree.name, (TypeSymbol)owner);
                     if ((owner.flags_field & INTERFACE) != 0) {
                         tree.mods.flags |= PUBLIC | STATIC;
                     }
                     Symbol q = owner;
-                    while(q != null && q.kind == TYP) {
+                    while(q != null && (q.kind & TYP) != 0) {
                         q = q.owner;
                     }
                     if (q != null && q.kind != PCK && chk.compiled.get(c.flatname) != null) {
@@ -478,15 +478,10 @@ public class Enter extends JCTree.Visitor {
             if (chk.compiled.get(c.flatname) != null) {
                 duplicateClass(tree.pos(), c);
                 result = types.createErrorType(tree.name, owner, Type.noType);
-                tree.sym  = (ClassSymbol)result.tsym;
-                Env<AttrContext> localEnv = classEnv(tree, env);
-                typeEnvs.put(tree.sym, localEnv);
-                tree.sym.completer = memberEnter;
-                ((ClassType)result).typarams_field = classEnter(tree.typarams, localEnv);
-                if (!tree.sym.isLocal() && uncompleted != null) uncompleted.append(tree.sym);
-                return;
+                tree.sym = c = (ClassSymbol)result.tsym;
+            } else {
+                chk.compiled.put(c.flatname, c);
             }
-            chk.compiled.put(c.flatname, c);
         }
         if (doEnterClass) {
             enclScope.enter(c);

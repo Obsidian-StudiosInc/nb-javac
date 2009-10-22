@@ -868,8 +868,10 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      * Parses a list of files.
      */
    public List<JCCompilationUnit> parseFiles(List<JavaFileObject> fileObjects) throws IOException {
-       if (errorCount() > 0)
+       if (errorCount() > 0) {
+           Logger.getLogger(JavaCompiler.class.getName()).warning("parseFiles stopped due to previous errors");
            return List.nil();
+       }
 
         //parse all files
         ListBuffer<JCCompilationUnit> trees = lb();
