@@ -84,7 +84,7 @@ public class AnnotateTest extends TestCase {
         }.scan(cut, null);
     }
 
-    public void XtestNotImportedAnnotationsAttributed156131() throws IOException {
+    public void testNotImportedAnnotationsAttributed156131() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
