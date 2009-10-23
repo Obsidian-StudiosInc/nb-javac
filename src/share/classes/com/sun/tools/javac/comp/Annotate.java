@@ -188,6 +188,28 @@ public class Annotate {
     Attribute enterAttributeValue(Type expected,
                                   JCExpression tree,
                                   Env<AttrContext> env) {
+        if (expected.isErroneous()) {
+            switch (tree.getTag()) {
+                case JCTree.ANNOTATION:
+                    return enterAnnotation((JCAnnotation)tree, expected, env);
+                case JCTree.NEWARRAY:
+                    JCNewArray na = (JCNewArray)tree;
+                    if (na.elemtype != null) {
+                        log.error(na.elemtype.pos(), "new.not.allowed.in.annotation");
+                        return new Attribute.Error(expected);
+                    }
+                    ListBuffer<Attribute> buf = new ListBuffer<Attribute>();
+                    for (List<JCExpression> l = na.elems; l.nonEmpty(); l=l.tail) {
+                        Attribute value = enterAttributeValue(types.elemtype(expected),
+                                l.head, env);
+                        if (!(value instanceof Attribute.Error))
+                            buf.append(value);
+                    }
+                    return new Attribute.Array(expected, buf.toArray(new Attribute[buf.length()]));
+                default:
+                    return new Attribute.Error(attr.attribExpr(tree, env, expected));
+            }
+        }
         if (expected.isPrimitive() || types.isSameType(expected, syms.stringType)) {
             Type result = attr.attribExpr(tree, env, expected);
             if (result.isErroneous())
@@ -251,8 +273,7 @@ public class Annotate {
             VarSymbol enumerator = (VarSymbol) sym;
             return new Attribute.Enum(expected, enumerator);
         }
-        if (!expected.isErroneous())
-            log.error(tree.pos(), "annotation.value.not.allowable.type");
+        log.error(tree.pos(), "annotation.value.not.allowable.type");
         return new Attribute.Error(attr.attribExpr(tree, env, expected));
     }
 }
