@@ -54,7 +54,7 @@ public class Pretty extends JCTree.Visitor {
     /** Set when we are producing source output.  If we're not
      *  producing source output, we can sometimes give more detail in
      *  the output even though that detail would not be valid java
-     *  soruce.
+     *  source.
      */
     private final boolean sourceOutput;
 
@@ -115,10 +115,11 @@ public class Pretty extends JCTree.Visitor {
         if (ownPrec < contextPrec) out.write(")");
     }
 
-    /** Print string, replacing all non-ascii character with unicode escapes.
+    /** Print string, possibly replacing all non-ascii character with unicode escapes.
      */
     public void print(Object s) throws IOException {
-        out.write(Convert.escapeUnicode(s.toString()));
+        String text = s.toString();
+        out.write(sourceOutput ? Convert.escapeUnicode(text) : text);
     }
 
     /** Print new line.
