@@ -35,10 +35,12 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ModifiersTree;
 import com.sun.source.tree.StatementTree;
+import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
 import com.sun.source.util.SourcePositions;
+import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.tools.javac.tree.JCTree;
@@ -277,6 +279,156 @@ public class ParserTest extends TestCase {
 
         assertEquals(Kind.ENHANCED_FOR_LOOP, forStatement.getKind());
         assertFalse(errors.isEmpty());
+    }
+
+    public void testPositionsSane() throws IOException {
+        performPositionsSanityTest("package test; class Test { private void method() { java.util.List<? extends java.util.List<? extends String>> l; } }");
+        performPositionsSanityTest("package test; class Test { private void method() { java.util.List<? super java.util.List<? super String>> l; } }");
+        performPositionsSanityTest("package test; class Test { private void method() { java.util.List<? super java.util.List<?>> l; } }");
+    }
+
+    private void performPositionsSanityTest(String code) throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        final List<Diagnostic<? extends JavaFileObject>> errors = new LinkedList<Diagnostic<? extends JavaFileObject>>();
+
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, new DiagnosticListener<JavaFileObject>() {
+            public void report(Diagnostic<? extends JavaFileObject> diagnostic) {
+                errors.add(diagnostic);
+            }
+        }, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+
+        final CompilationUnitTree cut = ct.parse().iterator().next();
+        final Trees trees = Trees.instance(ct);
+
+        new TreeScanner<Void, Void>() {
+            private long parentStart = 0;
+            private long parentEnd = Integer.MAX_VALUE;
+
+            @Override
+            public Void scan(Tree node, Void p) {
+                if (node == null) return null;
+
+                long start = trees.getSourcePositions().getStartPosition(cut, node);
+
+                if (start == (-1)) return null; //synthetic tree
+
+                assertTrue(node.toString() + ":" + start + "/" + parentStart, parentStart <= start);
+
+                long prevParentStart = parentStart;
+                
+                parentStart = start;
+
+                long end = trees.getSourcePositions().getEndPosition(cut, node);
+
+                assertTrue(node.toString() + ":" + end + "/" + parentEnd, end <= parentEnd);
+
+                long prevParentEnd = parentEnd;
+
+                parentEnd = end;
+                
+                super.scan(node, p);
+
+                parentStart = prevParentStart;
+                parentEnd = prevParentEnd;
+
+                return null;
+            }
+
+        }.scan(cut, null);
+    }
+
+    public void testCorrectWilcardPositions() throws IOException {
+        performWildcardPositionsTest("package test; import java.util.List; class Test { private void method() { List<? extends List<? extends String>> l; } }",
+                                     Arrays.asList("List<? extends List<? extends String>> l;",
+                                                   "List<? extends List<? extends String>>",
+                                                   "List",
+                                                   "? extends List<? extends String>",
+                                                   "List<? extends String>",
+                                                   "List",
+                                                   "? extends String",
+                                                   "String"));
+        performWildcardPositionsTest("package test; import java.util.List; class Test { private void method() { List<? super List<? super String>> l; } }",
+                                     Arrays.asList("List<? super List<? super String>> l;",
+                                                   "List<? super List<? super String>>",
+                                                   "List",
+                                                   "? super List<? super String>",
+                                                   "List<? super String>",
+                                                   "List",
+                                                   "? super String",
+                                                   "String"));
+        performWildcardPositionsTest("package test; import java.util.List; class Test { private void method() { List<? super List<?>> l; } }",
+                                     Arrays.asList("List<? super List<?>> l;",
+                                                   "List<? super List<?>>",
+                                                   "List",
+                                                   "? super List<?>",
+                                                   "List<?>",
+                                                   "List",
+                                                   "?"));
+        performWildcardPositionsTest("package test; import java.util.List; class Test { private void method() { List<? extends List<? extends List<? extends String>>> l; } }",
+                                     Arrays.asList("List<? extends List<? extends List<? extends String>>> l;",
+                                                   "List<? extends List<? extends List<? extends String>>>",
+                                                   "List",
+                                                   "? extends List<? extends List<? extends String>>",
+                                                   "List<? extends List<? extends String>>",
+                                                   "List",
+                                                   "? extends List<? extends String>",
+                                                   "List<? extends String>",
+                                                   "List",
+                                                   "? extends String",
+                                                   "String"));
+        performWildcardPositionsTest("package test; import java.util.List; class Test { private void method() { List<? extends List<? extends List<? extends String   >>> l; } }",
+                                     Arrays.asList("List<? extends List<? extends List<? extends String   >>> l;",
+                                                   "List<? extends List<? extends List<? extends String   >>>",
+                                                   "List",
+                                                   "? extends List<? extends List<? extends String   >>",
+                                                   "List<? extends List<? extends String   >>",
+                                                   "List",
+                                                   "? extends List<? extends String   >",
+                                                   "List<? extends String   >",
+                                                   "List",
+                                                   "? extends String",
+                                                   "String"));
+    }
+
+    public void performWildcardPositionsTest(final String code, List<String> golden) throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        final List<Diagnostic<? extends JavaFileObject>> errors = new LinkedList<Diagnostic<? extends JavaFileObject>>();
+
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, new DiagnosticListener<JavaFileObject>() {
+            public void report(Diagnostic<? extends JavaFileObject> diagnostic) {
+                errors.add(diagnostic);
+            }
+        }, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+
+        final CompilationUnitTree cut = ct.parse().iterator().next();
+        final List<String> content = new LinkedList<String>();
+        final Trees trees = Trees.instance(ct);
+
+        new TreeScanner<Void, Void>() {
+            @Override
+            public Void scan(Tree node, Void p) {
+                if (node == null) return null;
+
+                long start = trees.getSourcePositions().getStartPosition(cut, node);
+
+                if (start == (-1)) return null; //synthetic tree
+
+                long end = trees.getSourcePositions().getEndPosition(cut, node);
+
+                content.add(code.substring((int) start, (int) end));
+                
+                return super.scan(node, p);
+            }
+
+        }.scan(((MethodTree) ((ClassTree) cut.getTypeDecls().get(0)).getMembers().get(0)).getBody().getStatements().get(0), null);
+
+        assertEquals(golden.toString(), content.toString());
     }
 
 }
