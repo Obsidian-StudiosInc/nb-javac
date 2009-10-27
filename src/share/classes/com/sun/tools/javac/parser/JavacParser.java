@@ -101,7 +101,7 @@ public class JavacParser implements Parser {
         newAnonScope(name, 1);
     }
 
-    void newAnonScope(final Name name, final int startNumber) {
+    public void newAnonScope(final Name name, final int startNumber) {
         AnonScope parent = anonScopes.isEmpty() ? null : anonScopes.peek();
         Name fqn = parent != null && parent.parentDecl != names.empty ? parent.parentDecl.append('.', name) : name;
         AnonScope scope = anonScopeMap.get(fqn);
