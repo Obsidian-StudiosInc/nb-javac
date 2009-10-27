@@ -1346,11 +1346,13 @@ public class JavacParser implements Parser {
         if (S.token() == EXTENDS) {
             TypeBoundKind t = to(F.at(S.pos()).TypeBoundKind(BoundKind.EXTENDS));
             S.nextToken();
-            return F.at(pos).Wildcard(t, parseType());
+            JCExpression type = parseType();
+            return F.at(pos).Wildcard(t, type);
         } else if (S.token() == SUPER) {
             TypeBoundKind t = to(F.at(S.pos()).TypeBoundKind(BoundKind.SUPER));
             S.nextToken();
-            return F.at(pos).Wildcard(t, parseType());
+            JCExpression type = parseType();
+            return F.at(pos).Wildcard(t, type);
         } else if (S.token() == IDENTIFIER) {
             //error recovery
             TypeBoundKind t = F.at(Position.NOPOS).TypeBoundKind(BoundKind.UNBOUND);
