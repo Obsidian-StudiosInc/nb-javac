@@ -665,9 +665,10 @@ public class TreeInfo {
             return symbolFor(((JCMethodInvocation) node).meth);
         case JCTree.TYPEAPPLY:
             return symbolFor(((JCTypeApply) node).clazz);
+        case JCTree.ANNOTATION:
         case JCTree.TYPEPARAMETER:
-            if (((JCTypeParameter) node).type != null)
-                return ((JCTypeParameter) node).type.tsym;
+            if (node.type != null)
+                return node.type.tsym;
         default:
             return null;
         }
