@@ -2530,27 +2530,31 @@ public class JavacParser implements Parser {
         if (S.token() == COMMA) {
             S.nextToken();
         } else if (S.token() != RBRACE && S.token() != SEMI) {
-            defs.append(enumeratorDeclaration(enumName));
-            while (S.token() == COMMA) {
-                S.nextToken();
+            boolean hasError = false;
+            List<JCTree> decl = enumeratorDeclaration(enumName);
+            defs.appendList(decl);
+            if (decl.head.getTag() != JCTree.VARDEF || (((JCVariableDecl)decl.head).getModifiers().flags & Flags.ENUM) == 0)
+                hasError = true;
+            while (S.token() != RBRACE && S.token() != SEMI && !hasError) {
+                if (S.token() == COMMA)
+                    S.nextToken();
+                else
+                    syntaxError(S.pos(), "expected3", COMMA, RBRACE, SEMI);
                 if (S.token() == RBRACE || S.token() == SEMI) break;
-                defs.append(enumeratorDeclaration(enumName));
-            }
-            if (S.token() != SEMI && S.token() != RBRACE) {
-                defs.append(syntaxError(S.pos(), "expected3",
-                                COMMA, RBRACE, SEMI));
-                S.nextToken();
+                decl = enumeratorDeclaration(enumName);
+                defs.appendList(decl);
+                if (decl.head.getTag() != JCTree.VARDEF || (((JCVariableDecl)decl.head).getModifiers().flags & Flags.ENUM) == 0)
+                    hasError = true;
             }
         }
-        if (S.token() == SEMI) {
+        if (S.token() == SEMI)
             S.nextToken();
-            while (S.token() != RBRACE && S.token() != EOF) {
-                defs.appendList(classOrInterfaceBodyDeclaration(enumName,
-                                                                false));
-                if (S.pos() <= errorEndPos) {
-                    // error recovery
-                   skip(false, true, true, false);
-                }
+        while (S.token() != RBRACE && S.token() != EOF) {
+            defs.appendList(classOrInterfaceBodyDeclaration(enumName,
+                                                            false));
+            if (S.pos() <= errorEndPos) {
+                // error recovery
+               skip(false, true, true, false);
             }
         }
         accept(RBRACE);
@@ -2559,7 +2563,7 @@ public class JavacParser implements Parser {
 
     /** EnumeratorDeclaration = AnnotationsOpt [TypeArguments] IDENTIFIER [ Arguments ] [ "{" ClassBody "}" ]
      */
-    JCTree enumeratorDeclaration(Name enumName) {
+    List<JCTree> enumeratorDeclaration(Name enumName) {
         String dc = S.docComment();
         int flags = Flags.PUBLIC|Flags.STATIC|Flags.FINAL|Flags.ENUM;
         if (S.deprecatedFlag()) {
@@ -2572,30 +2576,109 @@ public class JavacParser implements Parser {
         List<JCExpression> typeArgs = typeArgumentsOpt();
         int identPos = S.pos();
         Name name = ident();
-        int createPos = S.pos();
-        List<JCExpression> args = (S.token() == LPAREN)
-            ? arguments() : List.<JCExpression>nil();
-        JCClassDecl body = null;
-        if (S.token() == LBRACE) {
-            JCModifiers mods1 = null;
-            List<JCTree> defs = null;
-            newAnonScope(names.empty);
-            try {
-                mods1 = F.at(Position.NOPOS).Modifiers(Flags.ENUM | Flags.STATIC);
-                defs = classOrInterfaceBody(names.empty, false);
-            } finally {
-                this.anonScopes.pop();
+        if (name != names.error) {
+            int createPos = S.pos();
+            List<JCExpression> args = (S.token() == LPAREN)
+                ? arguments() : List.<JCExpression>nil();
+            JCClassDecl body = null;
+            if (S.token() == LBRACE) {
+                JCModifiers mods1 = null;
+                List<JCTree> defs = null;
+                newAnonScope(names.empty);
+                try {
+                    mods1 = F.at(Position.NOPOS).Modifiers(Flags.ENUM | Flags.STATIC);
+                    defs = classOrInterfaceBody(names.empty, false);
+                } finally {
+                    this.anonScopes.pop();
+                }
+                body = toP(F.at(identPos).AnonymousClassDef(mods1, defs, this.anonScopes.peek().assignNumber()));
             }
-            body = toP(F.at(identPos).AnonymousClassDef(mods1, defs, this.anonScopes.peek().assignNumber()));
+            JCIdent ident = F.at(Position.NOPOS).Ident(enumName);
+            JCNewClass create = F.at(createPos).NewClass(null, typeArgs, ident, args, body);
+            if (createPos != Position.NOPOS)
+                storeEnd(create, S.prevEndPos());
+            ident = F.at(Position.NOPOS).Ident(enumName);
+            JCTree result = toP(F.at(pos).VarDef(mods, name, ident, create));
+            attach(result, dc);
+            return List.<JCTree>of(result);
         }
-        JCIdent ident = F.at(Position.NOPOS).Ident(enumName);
-        JCNewClass create = F.at(createPos).NewClass(null, typeArgs, ident, args, body);
-        if (createPos != Position.NOPOS)
-            storeEnd(create, S.prevEndPos());
-        ident = F.at(Position.NOPOS).Ident(enumName);
-        JCTree result = toP(F.at(pos).VarDef(mods, name, ident, create));
-        attach(result, dc);
-        return result;
+        // error recovery: not an EnumeratorDeclaration; let's try ClassBodyDeclaration
+        mods = annotations.isEmpty() ? modifiersOpt() : modifiersOpt(F.at(pos).Modifiers(0, annotations));
+        if (S.token() == CLASS ||
+            S.token() == INTERFACE ||
+            allowEnums && S.token() == ENUM) {
+            return List.<JCTree>of(classOrInterfaceOrEnumDeclaration(mods, dc));
+        } else if (S.token() == LBRACE &&
+                   (mods.flags & Flags.StandardFlags & ~Flags.STATIC) == 0 &&
+                   mods.annotations.isEmpty()) {
+            final AnonScope as = this.anonScopes.peek();
+            as.localClass=true;
+            try {
+                return List.<JCTree>of(block(pos, mods.flags));
+            } finally {
+                as.localClass=false;
+            }
+        } else {
+            pos = S.pos();
+            List<JCTypeParameter> typarams = typeParametersOpt();
+            // Hack alert:  if there are type arguments but no Modifiers, the start
+            // position will be lost unless we set the Modifiers position.  There
+            // should be an AST node for type parameters (BugId 5005090).
+            if (typarams.length() > 0 && mods.pos == Position.NOPOS) {
+                mods.pos = pos;
+            }
+            Token token = S.token();
+            name = S.name();
+            pos = S.pos();
+            JCExpression type;
+            boolean isVoid = token == VOID;
+            if (isVoid) {
+                type = to(F.at(pos).TypeIdent(TypeTags.VOID));
+                S.nextToken();
+            } else {
+                type = parseType();
+            }
+            if (S.token() == LPAREN && type.getTag() == JCTree.IDENT) {
+                if (name != enumName) {
+                    log.error(pos, "invalid.meth.decl.ret.type.req");
+                    return List.of(methodDeclaratorRest(
+                        pos, mods, null, name, typarams,
+                        false, true, dc));
+                }
+                return List.of(methodDeclaratorRest(
+                    pos, mods, null, names.init, typarams,
+                    false, true, dc));
+            } else {
+                pos = S.pos();
+                name = ident();
+                if (S.token() == LPAREN) {
+                    return List.of(methodDeclaratorRest(
+                        pos, mods, type, name, typarams,
+                        false, isVoid, dc));
+                } else if (token == ENUM &&  typarams.isEmpty() && (S.token() == LBRACE || S.token() == IMPLEMENTS)) {
+                    log.error(pos, "enums.not.supported.in.source", source.name);
+                    allowEnums = true;
+                    JCModifiers newMods =
+                        F.at(mods.pos).Modifiers(mods.flags|Flags.ENUM, mods.annotations);
+                    storeEnd(newMods, getEndPos(mods));
+                    return List.<JCTree>of(enumDeclaration(newMods, dc, pos, name));
+                } else if (!isVoid && typarams.isEmpty()) {
+                    List<JCTree> defs =
+                        variableDeclaratorsRest(pos, mods, type, name, false, dc,
+                                                new ListBuffer<JCTree>()).toList();
+                    accept(SEMI);
+                    storeEnd(defs.last(), S.prevEndPos());
+                    return defs;
+                } else {
+                    pos = S.pos();
+                    List<JCTree> err = isVoid
+                        ? List.<JCTree>of(toP(F.at(pos).MethodDef(mods, name, type, typarams,
+                            List.<JCVariableDecl>nil(), List.<JCExpression>nil(), null, null)))
+                        : List.<JCTree>nil();
+                    return List.<JCTree>of(syntaxError(S.pos(), err, "expected", LPAREN));
+                }
+            }
+        }
     }
 
     /** TypeList = Type {"," Type}
