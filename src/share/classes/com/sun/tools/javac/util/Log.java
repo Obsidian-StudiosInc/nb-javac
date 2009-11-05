@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2008 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 1999-2009 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,6 @@ import java.util.Set;
 import javax.tools.DiagnosticListener;
 import javax.tools.JavaFileObject;
 
-import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.api.DiagnosticFormatter;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
@@ -78,6 +77,10 @@ public class Log extends AbstractLog {
     /** Switch: emit warning messages.
      */
     public boolean emitWarnings;
+
+    /** Switch: suppress note messages.
+     */
+    public boolean suppressNotes;
 
     /** Print stack trace on errors?
      */
@@ -127,6 +130,7 @@ public class Log extends AbstractLog {
         this.dumpOnError = options.get("-doe") != null;
         this.promptOnError = options.get("-prompt") != null;
         this.emitWarnings = options.get("-Xlint:none") == null;
+        this.suppressNotes = options.get("suppressNotes") != null;
         this.MaxErrors = getIntOption(options, "-Xmaxerrs", 100);
         this.MaxWarnings = getIntOption(options, "-Xmaxwarns", 100);
 
@@ -256,7 +260,9 @@ public class Log extends AbstractLog {
      * source name and pos.
      */
     protected boolean shouldReport(JavaFileObject file, int pos) {
-        if (multipleErrors || file == null) {
+        if (file == null) {
+            return false;
+        } else if (multipleErrors) {
             return true;
         }
         else {
@@ -361,7 +367,7 @@ public class Log extends AbstractLog {
             // Print out notes only when we are permitted to report warnings
             // Notes are only generated at the end of a compilation, so should be small
             // in number.
-            if (emitWarnings || diagnostic.isMandatory()) {
+            if ((emitWarnings || diagnostic.isMandatory()) && !suppressNotes) {
                 writeDiagnostic(diagnostic);
             }
             break;
@@ -462,7 +468,7 @@ public class Log extends AbstractLog {
             JavaFileObject file = source.getFile();
             if (file != null)
                 printLines(errWriter,
-                           JavacFileManager.getJavacFileName(file) + ":" +
+                           file.getName() + ":" +
                            line + ": " + msg);
             printErrLine(pos, errWriter);
         }

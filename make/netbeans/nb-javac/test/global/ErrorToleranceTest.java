@@ -390,7 +390,7 @@ public class ErrorToleranceTest extends TestCase {
             assertTrue(jfo instanceof BaseFileObject);
             
             BaseFileObject bfo = (BaseFileObject) jfo;
-            File file = new File(bfo.getPath());
+            File file = new File(bfo.toUri());
             
             assertTrue(file.getAbsolutePath(), file.canRead());
             

@@ -25,8 +25,6 @@
 
 package com.sun.tools.javac.api;
 
-import com.sun.source.tree.BlockTree;
-import com.sun.source.tree.ClassTree;
 import java.io.IOException;
 import java.util.Map;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -37,10 +35,10 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.tools.Diagnostic;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Scope;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.SourcePositions;
@@ -53,12 +51,9 @@ import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.comp.Env;
-import com.sun.tools.javac.comp.Flow;
 import com.sun.tools.javac.comp.MemberEnter;
 import com.sun.tools.javac.comp.Resolve;
 import com.sun.tools.javac.model.JavacElements;
-import com.sun.tools.javac.parser.Parser;
-import com.sun.tools.javac.parser.Scanner;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.JCTree;
@@ -66,6 +61,7 @@ import com.sun.tools.javac.tree.TreeCopier;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Log;
@@ -322,6 +318,7 @@ public class JavacTrees extends Trees {
             super(M);
         }
 
+        @Override
         public <T extends JCTree> T copy(T t, JCTree leaf) {
             T t2 = super.copy(t, leaf);
             if (t == leaf)
@@ -354,5 +351,55 @@ public class JavacTrees extends Trees {
         }
 
         return com.sun.tools.javac.code.Type.noType;
+    }
+
+    /**
+     * Prints a message of the specified kind at the location of the
+     * tree within the provided compilation unit
+     *
+     * @param kind the kind of message
+     * @param msg  the message, or an empty string if none
+     * @param t    the tree to use as a position hint
+     * @param root the compilation unit that contains tree
+     */
+    public void printMessage(Diagnostic.Kind kind, CharSequence msg,
+            com.sun.source.tree.Tree t,
+            com.sun.source.tree.CompilationUnitTree root) {
+        JavaFileObject oldSource = null;
+        JavaFileObject newSource = null;
+        JCDiagnostic.DiagnosticPosition pos = null;
+
+        newSource = root.getSourceFile();
+        if (newSource != null) {
+            oldSource = log.useSource(newSource);
+            pos = ((JCTree) t).pos();
+        }
+
+        try {
+            switch (kind) {
+            case ERROR:
+                boolean prev = log.multipleErrors;
+                try {
+                    log.error(pos, "proc.messager", msg.toString());
+                } finally {
+                    log.multipleErrors = prev;
+                }
+                break;
+
+            case WARNING:
+                log.warning(pos, "proc.messager", msg.toString());
+                break;
+
+            case MANDATORY_WARNING:
+                log.mandatoryWarning(pos, "proc.messager", msg.toString());
+                break;
+
+            default:
+                log.note(pos, "proc.messager", msg.toString());
+            }
+        } finally {
+            if (oldSource != null)
+                log.useSource(oldSource);
+        }
     }
 }

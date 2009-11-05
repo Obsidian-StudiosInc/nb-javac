@@ -1,5 +1,5 @@
 /*
- * Copyright 1997-2008 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 1997-2009 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -297,7 +297,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
                         po instanceof SourcePositionImpl) {
                     URI uri = ((SourcePositionImpl) po).filename.toUri();
                     if ("file".equals(uri.getScheme())) {
-                        File f = new File(uri.getPath());
+                        File f = new File(uri);
                         File dir = f.getParentFile();
                         if (dir != null) {
                             File pf = new File(dir, "package.html");

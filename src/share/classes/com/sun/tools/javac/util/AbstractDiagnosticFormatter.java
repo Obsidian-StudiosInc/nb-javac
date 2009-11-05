@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2008-2009 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,8 +38,12 @@ import com.sun.tools.javac.api.DiagnosticFormatter.Configuration.DiagnosticPart;
 import com.sun.tools.javac.api.DiagnosticFormatter.Configuration.MultilineLimit;
 import com.sun.tools.javac.api.DiagnosticFormatter.PositionKind;
 import com.sun.tools.javac.api.Formattable;
-import com.sun.tools.javac.file.JavacFileManager;
+import com.sun.tools.javac.code.Printer;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.code.Type.CapturedType;
 
+import com.sun.tools.javac.file.BaseFileObject;
 import static com.sun.tools.javac.util.JCDiagnostic.DiagnosticType.*;
 
 /**
@@ -53,6 +57,10 @@ import static com.sun.tools.javac.util.JCDiagnostic.DiagnosticType.*;
  *  <li> Provides the formatting logic for rendering the arguments of a JCDiagnostic object.
  * <ul>
  *
+ * <p><b>This is NOT part of any API supported by Sun Microsystems.
+ * If you write code that depends on this, you do so at your own risk.
+ * This code and its internal interfaces are subject to change or
+ * deletion without notice.</b>
  */
 public abstract class AbstractDiagnosticFormatter implements DiagnosticFormatter<JCDiagnostic> {
 
@@ -60,8 +68,24 @@ public abstract class AbstractDiagnosticFormatter implements DiagnosticFormatter
      * JavacMessages object used by this formatter for i18n.
      */
     protected JavacMessages messages;
+
+    /**
+     * Configuration object used by this formatter
+     */
     private SimpleConfiguration config;
+
+    /**
+     * Current depth level of the disgnostic being formatted
+     * (!= 0 for subdiagnostics)
+     */
     protected int depth = 0;
+
+    /**
+     * All captured types that have been encountered during diagnostic formatting.
+     * This info is used by the FormatterPrinter in order to print friendly unique
+     * ids for captured types
+     */
+    private List<Type> allCaptured = List.nil();
 
     /**
      * Initialize an AbstractDiagnosticFormatter by setting its JavacMessages object.
@@ -83,6 +107,14 @@ public abstract class AbstractDiagnosticFormatter implements DiagnosticFormatter
         }
     }
 
+    @Override
+    public String format(JCDiagnostic d, Locale locale) {
+        allCaptured = List.nil();
+        return formatDiagnostic(d, locale);
+    }
+
+    protected abstract String formatDiagnostic(JCDiagnostic d, Locale locale);
+
     public String formatPosition(JCDiagnostic d, PositionKind pk,Locale l) {
         assert (d.getPosition() != Position.NOPOS);
         return String.valueOf(getPosition(d, pk));
@@ -101,8 +133,15 @@ public abstract class AbstractDiagnosticFormatter implements DiagnosticFormatter
     }
 
     public String formatSource(JCDiagnostic d, boolean fullname, Locale l) {
-        assert (d.getSource() != null);
-        return fullname ? d.getSourceName() : d.getSource().getName();
+        JavaFileObject fo = d.getSource();
+        if (fo == null)
+            throw new IllegalArgumentException(); // d should have source set
+        if (fullname)
+            return fo.getName();
+        else if (fo instanceof BaseFileObject)
+            return ((BaseFileObject) fo).getShortName();
+        else
+            return BaseFileObject.getSimpleName(fo);
     }
 
     /**
@@ -145,12 +184,21 @@ public abstract class AbstractDiagnosticFormatter implements DiagnosticFormatter
         else if (arg instanceof Iterable<?>) {
             return formatIterable(d, (Iterable<?>)arg, l);
         }
-        else if (arg instanceof JavaFileObject)
-            return JavacFileManager.getJavacBaseFileName((JavaFileObject)arg);
-        else if (arg instanceof Formattable)
+        else if (arg instanceof Type) {
+            return printer.visit((Type)arg, l);
+        }
+        else if (arg instanceof Symbol) {
+            return printer.visit((Symbol)arg, l);
+        }
+        else if (arg instanceof JavaFileObject) {
+            return ((JavaFileObject)arg).getName();
+        }
+        else if (arg instanceof Formattable) {
             return ((Formattable)arg).toString(l, messages);
-        else
+        }
+        else {
             return String.valueOf(arg);
+        }
     }
 
     /**
@@ -257,6 +305,10 @@ public abstract class AbstractDiagnosticFormatter implements DiagnosticFormatter
                 d.getIntPosition() != Position.NOPOS;
     }
 
+    public boolean isRaw() {
+        return false;
+    }
+
     /**
      * Creates a string with a given amount of empty spaces. Useful for
      * indenting the text of a diagnostic message.
@@ -321,26 +373,26 @@ public abstract class AbstractDiagnosticFormatter implements DiagnosticFormatter
             String showSource = null;
             if ((showSource = options.get("showSource")) != null) {
                 if (showSource.equals("true"))
-                    visibleParts.add(DiagnosticPart.SOURCE);
+                    setVisiblePart(DiagnosticPart.SOURCE, true);
                 else if (showSource.equals("false"))
-                    visibleParts.remove(DiagnosticPart.SOURCE);
+                    setVisiblePart(DiagnosticPart.SOURCE, false);
             }
             String diagOpts = options.get("diags");
             if (diagOpts != null) {//override -XDshowSource
                 Collection<String> args = Arrays.asList(diagOpts.split(","));
                 if (args.contains("short")) {
-                    visibleParts.remove(DiagnosticPart.DETAILS);
-                    visibleParts.remove(DiagnosticPart.SUBDIAGNOSTICS);
+                    setVisiblePart(DiagnosticPart.DETAILS, false);
+                    setVisiblePart(DiagnosticPart.SUBDIAGNOSTICS, false);
                 }
                 if (args.contains("source"))
-                    visibleParts.add(DiagnosticPart.SOURCE);
+                    setVisiblePart(DiagnosticPart.SOURCE, true);
                 if (args.contains("-source"))
-                    visibleParts.remove(DiagnosticPart.SOURCE);
+                    setVisiblePart(DiagnosticPart.SOURCE, false);
             }
             String multiPolicy = null;
             if ((multiPolicy = options.get("multilinePolicy")) != null) {
                 if (multiPolicy.equals("disabled"))
-                    visibleParts.remove(DiagnosticPart.SUBDIAGNOSTICS);
+                    setVisiblePart(DiagnosticPart.SUBDIAGNOSTICS, false);
                 else if (multiPolicy.startsWith("limit:")) {
                     String limitString = multiPolicy.substring("limit:".length());
                     String[] limits = limitString.split(":");
@@ -387,6 +439,13 @@ public abstract class AbstractDiagnosticFormatter implements DiagnosticFormatter
             visibleParts = EnumSet.copyOf(diagParts);
         }
 
+        public void setVisiblePart(DiagnosticPart diagParts, boolean enabled) {
+            if (enabled)
+                visibleParts.add(diagParts);
+            else
+                visibleParts.remove(diagParts);
+        }
+
         /**
          * Shows a '^' sign under the source line displayed by the formatter
          * (if applicable).
@@ -406,4 +465,39 @@ public abstract class AbstractDiagnosticFormatter implements DiagnosticFormatter
             return caretEnabled;
         }
     }
+
+    public Printer getPrinter() {
+        return printer;
+    }
+
+    public void setPrinter(Printer printer) {
+        this.printer = printer;
+    }
+
+    /**
+     * An enhanced printer for formatting types/symbols used by
+     * AbstractDiagnosticFormatter. Provides alternate numbering of captured
+     * types (they are numbered starting from 1 on each new diagnostic, instead
+     * of relying on the underlying hashcode() method which generates unstable
+     * output). Also detects cycles in wildcard messages (e.g. if the wildcard
+     * type referred by a given captured type C contains C itself) which might
+     * lead to infinite loops.
+     */
+    protected Printer printer = new Printer() {
+        @Override
+        protected String localize(Locale locale, String key, Object... args) {
+            return AbstractDiagnosticFormatter.this.localize(locale, key, args);
+        }
+        @Override
+        protected String capturedVarId(CapturedType t, Locale locale) {
+            return "" + (allCaptured.indexOf(t) + 1);
+        }
+        @Override
+        public String visitCapturedType(CapturedType t, Locale locale) {
+            if (!allCaptured.contains(t)) {
+                allCaptured = allCaptured.append(t);
+            }
+            return super.visitCapturedType(t, locale);
+        }
+    };
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2006 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2004-2009 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,7 @@ import com.sun.tools.javac.util.Pair;
  * <p> The "dynamic proxy return form" of an attribute element value is
  * the form used by sun.reflect.annotation.AnnotationInvocationHandler.
  */
-
+@SuppressWarnings("deprecation")
 class AnnotationProxyMaker {
 
     private final AptEnv env;

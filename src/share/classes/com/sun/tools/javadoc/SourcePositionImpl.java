@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2005 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2001-2009 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -95,7 +95,7 @@ public class SourcePositionImpl implements SourcePosition {
     public String toString() {
         // Backwards compatibility hack. ZipFileObjects use the format
         // zipfile(zipentry) but javadoc has been using zipfile/zipentry
-        String fn = filename.toString();
+        String fn = filename.getName();
         if (fn.endsWith(")")) {
             int paren = fn.lastIndexOf("(");
             if (paren != -1)
