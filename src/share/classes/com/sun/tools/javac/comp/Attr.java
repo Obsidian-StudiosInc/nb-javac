@@ -1511,6 +1511,8 @@ public class Attr extends JCTree.Visitor {
         Type clazztype = attribType(clazz, env);
         chk.validate(clazz, localEnv);
         clazztype = chk.checkNewClassType(clazz.pos(), clazztype, true, pt);
+        if (clazz.getTag() == JCTree.TYPEAPPLY && ((JCTypeApply)clazz).getTypeArguments().isEmpty())
+            tree.clazz.type = clazztype;
         if (tree.encl != null) {
             // We have to work in this case to store
             // symbol + type back into the attributed tree.
