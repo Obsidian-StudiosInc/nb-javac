@@ -303,6 +303,10 @@ public class JavacTaskImpl extends JavacTask {
             parsed = true;
             if (compiler != null && compiler.log != null)
                 compiler.log.flush();
+            for (JavaFileObject file : fileObjects) {
+                if (notYetEntered.get(file) == null)
+                    notYetEntered.remove(file);
+            }
         }
     }
 
