@@ -793,7 +793,8 @@ public class Flow extends TreeScanner {
         loopPassTwo = prevLoopPassTwo;
         inits = initsWhenFalse;
         uninits = uninitsWhenFalse;
-        alive = alive && !tree.cond.type.isTrue();
+        if (tree.cond.type != null)
+            alive = alive && !tree.cond.type.isTrue();
         alive |= resolveBreaks(tree, prevPendingExits);
     }
 
