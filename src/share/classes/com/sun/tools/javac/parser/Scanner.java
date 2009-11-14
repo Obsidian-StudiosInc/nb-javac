@@ -235,7 +235,7 @@ public class Scanner implements Lexer {
     /** Report an error at the given position using the provided arguments.
      */
     private void lexError(int pos, String key, Object... args) {
-        log.error(pos, key, args);
+        log.error(seek + pos, key, args);
         token = ERROR;
         errPos = pos;
     }
