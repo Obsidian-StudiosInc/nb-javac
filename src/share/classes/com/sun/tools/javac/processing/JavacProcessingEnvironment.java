@@ -61,6 +61,7 @@ import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.model.JavacElements;
 import com.sun.tools.javac.model.JavacTypes;
+import com.sun.tools.javac.model.LazyTreeLoader;
 import com.sun.tools.javac.parser.*;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
@@ -1045,6 +1046,18 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         throws IOException
     {
         Context next = new Context();
+
+        Context.Registrator registrator = context.get(Context.Registrator.class);
+        if (registrator != null) {
+            next.put(Context.Registrator.class, registrator);
+            registrator.register(next);
+        }
+
+        LazyTreeLoader loader = context.get(LazyTreeLoader.lazyTreeLoaderKey);
+        if (loader != null) {
+            next.put(LazyTreeLoader.lazyTreeLoaderKey, loader);
+            loader.updateContext(next);
+        }
 
         Options options = Options.instance(context);
         assert options != null;
