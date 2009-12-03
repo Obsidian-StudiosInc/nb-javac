@@ -142,6 +142,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
     private Context context;
 
+    private boolean isBackgroundCompilation;
+
     public JavacProcessingEnvironment(Context context, Iterable<? extends Processor> processors) {
         options = Options.instance(context);
         this.context = context;
@@ -165,6 +167,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         processorOptions = initProcessorOptions(context);
         unmatchedProcessorOptions = initUnmatchedProcessorOptions();
         messages = JavacMessages.instance(context);
+        isBackgroundCompilation = options.get("backgroundCompilation") != null;     //NOI18N
         initProcessorIterator(context, processors);
     }
 
@@ -1232,7 +1235,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
 
     private boolean moreToDo() {
-        return filer.newFiles();
+        return filer.newFiles() && isBackgroundCompilation;
     }
 
     /**
