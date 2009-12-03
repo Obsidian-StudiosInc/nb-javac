@@ -37,6 +37,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.tools.Diagnostic;
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.DiagnosticListener;
@@ -65,6 +66,7 @@ import static com.sun.tools.javac.util.ListBuffer.lb;
 import com.sun.tools.javac.parser.DocCommentScanner;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Queue;
 import javax.lang.model.SourceVersion;
 
@@ -600,6 +602,22 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             return keepComments || sourceOutput || stubOutput;
         }
 
+    private List<Diagnostic<? extends JavaFileObject>> tempDiags = List.nil();
+    private DiagnosticListener<? super JavaFileObject> temporaryDiagListener = new DiagnosticListener<JavaFileObject>() {
+        public void report(Diagnostic<? extends JavaFileObject> diagnostic) {
+            tempDiags = tempDiags.prepend(diagnostic);
+        }
+    };
+    public void flushTempDiags() {
+        DiagnosticListener<? super JavaFileObject> diagnosticListener = log.getDiagnosticListener();
+        if (diagnosticListener != null) {
+            tempDiags = tempDiags.reverse();
+            for (Diagnostic<? extends JavaFileObject> diagnostic : tempDiags) {
+                diagnosticListener.report(diagnostic);
+            }
+        }
+        tempDiags = List.nil();
+    }
 
     /** Parse contents of file.
      *  @param filename     The name of the file to be parsed.
@@ -799,7 +817,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             // These method calls must be chained to avoid memory leaks
             delegateCompiler = processAnnotations(enterTrees(stopIfError(parseFiles(sourceFileObjects))),
                                                   classnames);
-
+            delegateCompiler.flushTempDiags();
             delegateCompiler.compile2();
             delegateCompiler.close();
             elapsed_msec = delegateCompiler.elapsed_msec;
@@ -888,38 +906,46 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      * Also stores a list of all top level classes in rootClasses.
      */
     public List<JCCompilationUnit> enterTrees(List<JCCompilationUnit> roots) {
-        //enter symbols for all files
-        if (taskListener != null) {
-            for (JCCompilationUnit unit: roots) {
-                TaskEvent e = new TaskEvent(TaskEvent.Kind.ENTER, unit);
-                taskListener.started(e);
-            }
-        }
-
-        enter.main(roots);
-
-        if (taskListener != null) {
-            for (JCCompilationUnit unit: roots) {
-                TaskEvent e = new TaskEvent(TaskEvent.Kind.ENTER, unit);
-                taskListener.finished(e);
-            }
-        }
-
-        //If generating source, remember the classes declared in
-        //the original compilation units listed on the command line.
-        if (sourceOutput || stubOutput) {
-            ListBuffer<JCClassDecl> cdefs = lb();
-            for (JCCompilationUnit unit : roots) {
-                for (List<JCTree> defs = unit.defs;
-                     defs.nonEmpty();
-                     defs = defs.tail) {
-                    if (defs.head instanceof JCClassDecl)
-                        cdefs.append((JCClassDecl)defs.head);
+        DiagnosticListener<? super JavaFileObject> oldDiagListener = log.getDiagnosticListener();
+        log.setDiagnosticListener(temporaryDiagListener);
+        try {
+            //enter symbols for all files
+            if (taskListener != null) {
+                for (JCCompilationUnit unit : roots) {
+                    TaskEvent e = new TaskEvent(TaskEvent.Kind.ENTER, unit);
+                    taskListener.started(e);
                 }
             }
-            rootClasses = cdefs.toList();
+
+            enter.main(roots);
+
+            if (taskListener != null) {
+                for (JCCompilationUnit unit : roots) {
+                    TaskEvent e = new TaskEvent(TaskEvent.Kind.ENTER, unit);
+                    taskListener.finished(e);
+                }
+            }
+
+            //If generating source, remember the classes declared in
+            //the original compilation units listed on the command line.
+            if (sourceOutput || stubOutput) {
+                ListBuffer<JCClassDecl> cdefs = lb();
+                for (JCCompilationUnit unit : roots) {
+                    for (List<JCTree> defs = unit.defs;
+                            defs.nonEmpty();
+                            defs = defs.tail) {
+                        if (defs.head instanceof JCClassDecl) {
+                            cdefs.append((JCClassDecl) defs.head);
+
+                        }
+                    }
+                }
+                rootClasses = cdefs.toList();
+            }
+            return roots;
+        } finally {
+            log.setDiagnosticListener(oldDiagListener);
         }
-        return roots;
     }
 
     public void initNotYetEntered(Map<JavaFileObject, JCCompilationUnit> notYetEntered) {
