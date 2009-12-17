@@ -35,7 +35,9 @@ import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.tree.JCTree.*;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.tools.JavaFileObject;
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.TypeTags.*;
@@ -676,7 +678,22 @@ public class Flow extends TreeScanner {
     public void visitMethodDef(JCMethodDecl tree) {
         if (tree.body == null) return;
         if (tree.sym == null) {
-            Logger.getLogger(Flow.class.getName()).warning("Flow.visitMethodDef has a null tree.sym. Tree: [" + tree + "] Enclosing class: [" + classDef + "]"); //NOI18N
+            String methodName = String.valueOf(tree.name);
+            int methodStart = tree.getStartPosition();
+
+            if (classDef != null && classDef.sym != null) {
+                JavaFileObject file = classDef.sym.sourcefile != null ? classDef.sym.sourcefile : classDef.sym.classfile;
+                String source = file != null ? file.toUri().toASCIIString() : "<unknown>";
+                int classStart = classDef.getStartPosition();
+                String className = String.valueOf(classDef.sym.flatname);
+
+                Logger.getLogger(Flow.class.getName()).log(Level.WARNING, "Flow.visitMethodDef has a null tree.sym. Method name: {0}, offset: {1}, enclosing class name: {2}, offset: {3}, source file: {4}", new Object[] {methodName, methodStart, className, classStart, source}); //NOI18N
+            } else {
+                String className = classDef != null ? String.valueOf(classDef.name) : "<unknown>";
+
+                Logger.getLogger(Flow.class.getName()).log(Level.WARNING, "Flow.visitMethodDef has a null tree.sym. Method name: {0}, offset: {1}, enclosing class name: {2}", new Object[] {methodName, methodStart, className}); //NOI18N
+            }
+            Logger.getLogger(Flow.class.getName()).log(Level.FINER, "Flow.visitMethodDef has a null tree.sym. Tree: [{0}] Enclosing class: [{1}]", new Object[] {tree, classDef}); //NOI18N
             return;
         }
         List<Type> caughtPrev = caught;
@@ -749,7 +766,22 @@ public class Flow extends TreeScanner {
 
     public void visitVarDef(JCVariableDecl tree) {
         if (tree.sym == null) {
-            Logger.getLogger(Flow.class.getName()).warning("Flow.visitVarDef has a null tree.sym. Tree: [" + tree + "] Enclosing class: [" + classDef + "]"); //NOI18N
+            String variableName = String.valueOf(tree.name);
+            int variableStart = tree.getStartPosition();
+
+            if (classDef != null && classDef.sym != null) {
+                JavaFileObject file = classDef.sym.sourcefile != null ? classDef.sym.sourcefile : classDef.sym.classfile;
+                String source = file != null ? file.toUri().toASCIIString() : "<unknown>";
+                int classStart = classDef.getStartPosition();
+                String className = String.valueOf(classDef.sym.flatname);
+
+                Logger.getLogger(Flow.class.getName()).log(Level.WARNING, "Flow.visitVarDef has a null tree.sym. Variable name: {0}, offset: {1}, enclosing class name: {2}, offset: {3}, source file: {4}", new Object[] {variableName, variableStart, className, classStart, source}); //NOI18N
+            } else {
+                String className = classDef != null ? String.valueOf(classDef.name) : "<unknown>";
+
+                Logger.getLogger(Flow.class.getName()).log(Level.WARNING, "Flow.visitVarDef has a null tree.sym. Variable name: {0}, offset: {1}, enclosing class name: {2}", new Object[] {variableName, variableStart, className}); //NOI18N
+            }
+            Logger.getLogger(Flow.class.getName()).log(Level.FINER, "Flow.visitVarDef has a null tree.sym. Tree: [{0}] Enclosing class: [{1}]", new Object[] {tree, classDef}); //NOI18N
             return;
         }
         boolean track = trackable(tree.sym);
