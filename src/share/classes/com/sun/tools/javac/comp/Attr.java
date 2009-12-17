@@ -27,6 +27,7 @@ package com.sun.tools.javac.comp;
 
 import java.util.*;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.lang.model.element.ElementKind;
 import javax.tools.JavaFileObject;
@@ -375,10 +376,22 @@ public class Attr extends JCTree.Visitor {
             this.env = env;
             this.pkind = pkind;
             this.pt = pt;
-            if (tree == null)
-                Logger.getLogger(Attr.class.getName()).warning("Attr.attribTree has a null tree. Enclosing class: [" + env.enclClass + "]"); //NOI18N
-            else
+            if (tree == null) {
+                String source = env.toplevel.sourcefile != null ? env.toplevel.getSourceFile().toUri().toASCIIString() : "<unknown>";
+                
+                if (env.enclClass != null) {
+                    int start = env.enclClass.getStartPosition();
+                    String lineNumber = env.toplevel.getLineMap() != null ? "" + env.toplevel.getLineMap().getLineNumber(start) : "<unknown>";
+                    String name = String.valueOf(env.enclClass.name);
+                    
+                    Logger.getLogger(Attr.class.getName()).log(Level.WARNING, "Attr.attribTree has a null tree. Enclosing class: {0} starting on line {1} (offset {2}) in file {3}", new Object[] {name, lineNumber, start, source}); //NOI18N
+                } else {
+                    Logger.getLogger(Attr.class.getName()).log(Level.WARNING, "Attr.attribTree has a null tree. No enclosing class, file {3}", new Object[] {source}); //NOI18N
+                }
+                Logger.getLogger(Attr.class.getName()).log(Level.FINER, "Attr.attribTree has a null tree. Enclosing class: [{0}]", env.enclClass); //NOI18N
+            } else {
                 tree.accept(this);
+            }
             if (breakTree != null && tree == breakTree)
                 throw new BreakAttr(env);
             return result;
