@@ -62,6 +62,7 @@ import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.main.JavaCompiler.CompileState;
 import com.sun.tools.javac.model.JavacElements;
 import com.sun.tools.javac.model.JavacTypes;
+import com.sun.tools.javac.model.LazyTreeLoader;
 import com.sun.tools.javac.parser.*;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
@@ -145,6 +146,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
     private Context context;
 
+    private boolean isBackgroundCompilation;
+
     public JavacProcessingEnvironment(Context context, Iterable<? extends Processor> processors) {
         options = Options.instance(context);
         this.context = context;
@@ -169,6 +172,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         processorOptions = initProcessorOptions(context);
         unmatchedProcessorOptions = initUnmatchedProcessorOptions();
         messages = JavacMessages.instance(context);
+        isBackgroundCompilation = options.get("backgroundCompilation") != null;     //NOI18N
         initProcessorIterator(context, processors);
     }
 
@@ -1083,6 +1087,18 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     {
         Context next = new Context();
 
+        Context.Registrator registrator = context.get(Context.Registrator.class);
+        if (registrator != null) {
+            next.put(Context.Registrator.class, registrator);
+            registrator.register(next);
+        }
+
+        LazyTreeLoader loader = context.get(LazyTreeLoader.lazyTreeLoaderKey);
+        if (loader != null) {
+            next.put(LazyTreeLoader.lazyTreeLoaderKey, loader);
+            loader.updateContext(next);
+        }
+
         Options options = Options.instance(context);
         assert options != null;
         next.put(Options.optionsKey, options);
@@ -1260,7 +1276,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
 
     private boolean moreToDo() {
-        return filer.newFiles();
+        return filer.newFiles() && isBackgroundCompilation;
     }
 
     /**

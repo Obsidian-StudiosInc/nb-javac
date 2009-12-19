@@ -381,6 +381,8 @@ public class JavacTaskImpl extends JavacTask {
             if (notYetEntered.isEmpty())
                 compiler = compiler.processAnnotations(units);
 
+            compiler.flushTempDiags();
+
             ListBuffer<TypeElement> elements = new ListBuffer<TypeElement>();
             for (JCCompilationUnit unit : units) {
                 boolean isPkgInfo = unit.sourcefile.isNameCompatible("package-info",

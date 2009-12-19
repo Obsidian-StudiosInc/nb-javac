@@ -37,7 +37,7 @@ import com.sun.tools.javac.util.CouplingAbort;
 public class LazyTreeLoader {
 
     /** The context key for the parameter name resolver. */
-    protected static final Context.Key<LazyTreeLoader> lazyTreeLoaderKey =
+    public static final Context.Key<LazyTreeLoader> lazyTreeLoaderKey =
         new Context.Key<LazyTreeLoader>();
 
     public static LazyTreeLoader instance(Context context) {
@@ -59,5 +59,8 @@ public class LazyTreeLoader {
 
     public void couplingError(ClassSymbol clazz, Tree t) {
         throw new CouplingAbort(clazz, t);
+    }
+
+    public void updateContext(Context context) {
     }
 }
