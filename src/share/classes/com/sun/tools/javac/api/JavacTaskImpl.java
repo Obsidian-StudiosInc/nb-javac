@@ -378,8 +378,7 @@ public class JavacTaskImpl extends JavacTask {
         try {
             List<JCCompilationUnit> units = compiler.enterTrees(roots.toList());
 
-            if (notYetEntered.isEmpty())
-                compiler = compiler.processAnnotations(units);
+            compiler = compiler.processAnnotations(units);
 
             compiler.flushTempDiags();
 
