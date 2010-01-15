@@ -41,7 +41,10 @@ import java.io.StringWriter;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.util.*;
@@ -765,10 +768,23 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
          public Set<TypeElement> scan(Element e, Set<TypeElement> p) {
             for (AnnotationMirror annotationMirror :
                      elements.getAllAnnotationMirrors(e) ) {
-                Element e2 = annotationMirror.getAnnotationType().asElement();
-                p.add((TypeElement) e2);
+                if (isComplete(annotationMirror)) {
+                    Element e2 = annotationMirror.getAnnotationType().asElement();
+                    p.add((TypeElement) e2);
+                }
             }
             return super.scan(e, p);
+        }
+
+        private boolean isComplete(AnnotationMirror annotationMirror) {
+            Map<? extends ExecutableElement, ? extends AnnotationValue> elementValues = annotationMirror.getElementValues();
+            for (Element element : annotationMirror.getAnnotationType().asElement().getEnclosedElements()) {
+                if (element.getKind() == ElementKind.METHOD) {
+                    if (!elementValues.containsKey(element) && ((ExecutableElement)element).getDefaultValue() == null)
+                        return false;
+                }
+            }
+            return true;
         }
     }
 
