@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2008-2009 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import java.util.Locale;
 
 import com.sun.tools.javac.api.DiagnosticFormatter.Configuration.*;
 import com.sun.tools.javac.api.Formattable;
+import com.sun.tools.javac.file.BaseFileObject;
 import com.sun.tools.javac.util.AbstractDiagnosticFormatter.SimpleConfiguration;
 
 import static com.sun.tools.javac.api.DiagnosticFormatter.PositionKind.*;
@@ -39,6 +40,11 @@ import static com.sun.tools.javac.api.DiagnosticFormatter.PositionKind.*;
  * The raw formatter will format a diagnostic according to one of two format patterns, depending on whether
  * or not the source name and position are set. This formatter provides a standardized, localize-independent
  * implementation of a diagnostic formatter; as such, this formatter is best suited for testing purposes.
+ *
+ * <p><b>This is NOT part of any API supported by Sun Microsystems.
+ * If you write code that depends on this, you do so at your own risk.
+ * This code and its internal interfaces are subject to change or
+ * deletion without notice.</b>
  */
 public final class RawDiagnosticFormatter extends AbstractDiagnosticFormatter {
 
@@ -54,7 +60,7 @@ public final class RawDiagnosticFormatter extends AbstractDiagnosticFormatter {
     }
 
     //provide common default formats
-    public String format(JCDiagnostic d, Locale l) {
+    public String formatDiagnostic(JCDiagnostic d, Locale l) {
         try {
             StringBuffer buf = new StringBuffer();
             if (d.getPosition() != Position.NOPOS) {
@@ -82,17 +88,11 @@ public final class RawDiagnosticFormatter extends AbstractDiagnosticFormatter {
     public String formatMessage(JCDiagnostic d, Locale l) {
         StringBuilder buf = new StringBuilder();
         Collection<String> args = formatArguments(d, l);
-        buf.append(d.getCode());
-        String sep = ": ";
-        for (Object o : args) {
-            buf.append(sep);
-            buf.append(o);
-            sep = ", ";
-        }
+        buf.append(localize(null, d.getCode(), args.toArray()));
         if (d.isMultiline() && getConfiguration().getVisible().contains(DiagnosticPart.SUBDIAGNOSTICS)) {
             List<String> subDiags = formatSubdiagnostics(d, null);
             if (subDiags.nonEmpty()) {
-                sep = "";
+                String sep = "";
                 buf.append(",{");
                 for (String sub : formatSubdiagnostics(d, null)) {
                     buf.append(sep);
@@ -110,11 +110,31 @@ public final class RawDiagnosticFormatter extends AbstractDiagnosticFormatter {
         String s;
         if (arg instanceof Formattable)
             s = arg.toString();
+        else if (arg instanceof BaseFileObject)
+            s = ((BaseFileObject) arg).getShortName();
         else
             s = super.formatArgument(diag, arg, null);
         if (arg instanceof JCDiagnostic)
             return "(" + s + ")";
         else
             return s;
+    }
+
+    @Override
+    protected String localize(Locale l, String key, Object... args) {
+        StringBuilder buf = new StringBuilder();
+        buf.append(key);
+        String sep = ": ";
+        for (Object o : args) {
+            buf.append(sep);
+            buf.append(o);
+            sep = ", ";
+        }
+        return buf.toString();
+    }
+
+    @Override
+    public boolean isRaw() {
+        return true;
     }
 }
