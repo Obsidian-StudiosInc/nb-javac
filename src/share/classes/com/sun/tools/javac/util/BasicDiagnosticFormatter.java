@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2008 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2005-2009 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,6 +57,11 @@ import static com.sun.tools.javac.util.LayoutCharacters.*;
  * <li>%m: the text or the diagnostic, including any appropriate arguments
  * <li>%_: space delimiter, useful for formatting purposes
  * </ul>
+ *
+ * <p><b>This is NOT part of any API supported by Sun Microsystems.
+ * If you write code that depends on this, you do so at your own risk.
+ * This code and its internal interfaces are subject to change or
+ * deletion without notice.</b>
  */
 public class BasicDiagnosticFormatter extends AbstractDiagnosticFormatter {
 
@@ -82,7 +87,7 @@ public class BasicDiagnosticFormatter extends AbstractDiagnosticFormatter {
         super(msgs, new BasicConfiguration());
     }
 
-    public String format(JCDiagnostic d, Locale l) {
+    public String formatDiagnostic(JCDiagnostic d, Locale l) {
         if (l == null)
             l = messages.getCurrentLocale();
         String format = selectFormat(d);
@@ -209,6 +214,7 @@ public class BasicDiagnosticFormatter extends AbstractDiagnosticFormatter {
 
     @Override
     public BasicConfiguration getConfiguration() {
+        //the following cast is always safe - see init
         return (BasicConfiguration)super.getConfiguration();
     }
 

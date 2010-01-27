@@ -41,7 +41,7 @@ public class TestIndex extends JavadocTester {
 
     //Javadoc arguments.
     private static final String[] ARGS = new String[] {
-        "-d", BUG_ID, "-source", "1.5", "-sourcepath", SRC_DIR, "pkg", SRC_DIR + FS + "NoPackage.java"
+        "-d", BUG_ID, "-sourcepath", SRC_DIR, "pkg", SRC_DIR + FS + "NoPackage.java"
     };
 
     //Input for string search tests.
@@ -73,10 +73,10 @@ public class TestIndex extends JavadocTester {
         {BUG_ID + FS + "index-all.html",
             "<DT><A HREF=\"./pkg/C.html#Java\"><STRONG>Java</STRONG></A> - " + NL +
             "Static variable in class pkg.<A HREF=\"./pkg/C.html\" title=\"class in pkg\">C</A>" + NL +
-            "<DD>&nbsp;" + NL +
+            "</DT><DD>&nbsp;</DD>" + NL + NL +
             "<DT><A HREF=\"./pkg/C.html#JDK\"><STRONG>JDK</STRONG></A> - " + NL +
             "Static variable in class pkg.<A HREF=\"./pkg/C.html\" title=\"class in pkg\">C</A>" + NL +
-            "<DD>&nbsp;"},
+            "</DT><DD>&nbsp;</DD>"},
     };
     private static final String[][] NEGATED_TEST = NO_TEST;
 
