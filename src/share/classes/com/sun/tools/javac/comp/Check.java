@@ -1830,7 +1830,8 @@ public class Check {
     }
 
     void checkConflicts(DiagnosticPosition pos, Symbol sym, TypeSymbol c) {
-        for (Type ct = c.type; ct != Type.noType ; ct = types.supertype(ct)) {
+        Type previous = null;
+        for (Type ct = c.type; ct != Type.noType && ct != previous; previous = ct, ct = types.supertype(ct)) {
             for (Scope.Entry e = ct.tsym.members().lookup(sym.name); e.scope == ct.tsym.members(); e = e.next()) {
                 // VM allows methods and variables with differing types
                 if (sym.kind == e.sym.kind &&
