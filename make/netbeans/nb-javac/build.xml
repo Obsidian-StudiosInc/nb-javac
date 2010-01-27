@@ -71,7 +71,7 @@
     <target name="-javadoc-build"/>
     
     <target name="-post-init">
-        <available file="../../../../nbbuild/netbeans/java3/modules/ext" type="dir" property="modules.ext.exists"/>
+        <available file="../../../../nbbuild/netbeans/java/modules/ext" type="dir" property="modules.ext.exists"/>
     </target>
     
     <target name="-separate-jars">
@@ -93,9 +93,9 @@
     </target>
     
     <target name="-copy-jars-to-build" if="modules.ext.exists">
-        <copy file="${dist.dir}/javac-api.jar" tofile="../../../../nbbuild/netbeans/java3/modules/ext/javac-api-nb-7.0-b07.jar" />
-        <copy file="${dist.dir}/javac-impl.jar" tofile="../../../../nbbuild/netbeans/java3/modules/ext/javac-impl-nb-7.0-b07.jar" />
-        <touch file="../../../../nbbuild/netbeans/java3/.lastModified" />
+        <copy file="${dist.dir}/javac-api.jar" tofile="../../../../nbbuild/netbeans/java/modules/ext/javac-api-nb-7.0-b07.jar" />
+        <copy file="${dist.dir}/javac-impl.jar" tofile="../../../../nbbuild/netbeans/java/modules/ext/javac-impl-nb-7.0-b07.jar" />
+        <touch file="../../../../nbbuild/netbeans/java/.lastModified" />
     </target>
     <target name="-post-jar" depends="-post-init,-separate-jars,-copy-jars-to-build">
     </target>
