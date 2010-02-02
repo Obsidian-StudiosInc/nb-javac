@@ -28,6 +28,8 @@ package com.sun.tools.javac.processing;
 
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.*;
 
 import java.net.URL;
@@ -91,6 +93,9 @@ import static javax.tools.StandardLocation.*;
  * deletion without notice.</b>
  */
 public class JavacProcessingEnvironment implements ProcessingEnvironment, Closeable {
+
+    private static final Logger LOGGER = Logger.getLogger(JavacProcessingEnvironment.class.getName());
+
     Options options;
 
     private final boolean printProcessorInfo;
@@ -799,7 +804,10 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             log.error("proc.cant.access", ex.sym, ex.getDetailValue(), out.toString());
             return false;
         } catch (Throwable t) {
-            throw new AnnotationProcessingError(t);
+            if (t instanceof ThreadDeath)
+                throw (ThreadDeath)t;
+            LOGGER.log(Level.FINE, "Annotation processing error:", t);
+            return false;
         }
     }
 
@@ -817,13 +825,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         PrintWriter xout = context.get(Log.outKey);
         TaskListener taskListener = context.get(TaskListener.class);
 
-
-        AnnotationCollector collector = new AnnotationCollector();
-
         JavaCompiler compiler = JavaCompiler.instance(context);
-        compiler.todo.clear(); // free the compiler's resources
-
-        int round = 0;
 
         // List<JCAnnotation> annotationsPresentInSource = collector.findAnnotations(roots);
         List<ClassSymbol> topLevelClasses = getTopLevelClasses(roots);
@@ -888,21 +890,13 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     topLevelClasses  = List.nil();
                     packageInfoFiles = List.nil();
 
-                    compiler.close(false);
-                    currentContext = contextForNextRound(currentContext, true);
-
-                    JavaFileManager fileManager = currentContext.get(JavaFileManager.class);
-
                     List<JavaFileObject> fileObjects = List.nil();
                     for (JavaFileObject jfo : filer.getGeneratedSourceFileObjects() ) {
                         fileObjects = fileObjects.prepend(jfo);
                     }
 
-
-                    compiler = JavaCompiler.instance(currentContext);
                     List<JCCompilationUnit> parsedFiles = compiler.parseFiles(fileObjects);
                     roots = cleanTrees(roots).reverse();
-
 
                     for (JCCompilationUnit unit : parsedFiles)
                         roots = roots.prepend(unit);
@@ -936,9 +930,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
         runLastRound(xout, roundNumber, errorStatus, taskListener);
 
-        compiler.close(false);
-        currentContext = contextForNextRound(currentContext, true);
-        compiler = JavaCompiler.instance(currentContext);
         filer.newRound(currentContext, true);
         filer.warnIfUnclosedFiles();
         warnIfUnmatchedOptions();
@@ -956,9 +947,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         */
         errorStatus = errorStatus || messager.errorRaised();
 
-
         // Free resources
-        this.close();
+        this.close(false);
 
         if (taskListener != null)
             taskListener.finished(new TaskEvent(TaskEvent.Kind.ANNOTATION_PROCESSING));
@@ -967,14 +957,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             compiler.log.nerrors += messager.errorCount();
             if (compiler.errorCount() == 0)
                 compiler.log.nerrors++;
-        } else if (procOnly && !foundTypeProcessors) {
-            compiler.todo.clear();
-        } else { // Final compilation
-            compiler.close(false);
-            currentContext = contextForNextRound(currentContext, true);
-            this.context = currentContext;
+        } else if (!procOnly || foundTypeProcessors) { // Final compilation
             updateProcessingState(currentContext, true);
-            compiler = JavaCompiler.instance(currentContext);
             if (procOnly && foundTypeProcessors)
                 compiler.shouldStopPolicy = CompileState.FLOW;
 
@@ -1065,13 +1049,20 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     /**
      * Free resources related to annotation processing.
      */
+
     public void close() throws IOException {
+        close(true);
+    }
+
+    public void close(boolean dropProcessors) throws IOException {
         filer.close();
-        if (discoveredProcs != null) // Make calling close idempotent
-            discoveredProcs.close();
-        discoveredProcs = null;
-        if (processorClassLoader != null && processorClassLoader instanceof Closeable)
-            ((Closeable) processorClassLoader).close();
+        if (dropProcessors) {
+            if (discoveredProcs != null) // Make calling close idempotent
+                discoveredProcs.close();
+            discoveredProcs = null;
+            if (processorClassLoader != null && processorClassLoader instanceof Closeable)
+                ((Closeable) processorClassLoader).close();
+        }
     }
 
     private List<ClassSymbol> getTopLevelClasses(List<? extends JCCompilationUnit> units) {
@@ -1098,74 +1089,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         return packages.reverse();
     }
 
-    private Context contextForNextRound(Context context, boolean shareNames)
-        throws IOException
-    {
-        Context next = new Context();
-
-        Context.Registrator registrator = context.get(Context.Registrator.class);
-        if (registrator != null) {
-            next.put(Context.Registrator.class, registrator);
-            registrator.register(next);
-        }
-
-        LazyTreeLoader loader = context.get(LazyTreeLoader.lazyTreeLoaderKey);
-        if (loader != null) {
-            next.put(LazyTreeLoader.lazyTreeLoaderKey, loader);
-            loader.updateContext(next);
-        }
-
-        Options options = Options.instance(context);
-        assert options != null;
-        next.put(Options.optionsKey, options);
-
-        PrintWriter out = context.get(Log.outKey);
-        assert out != null;
-        next.put(Log.outKey, out);
-
-        if (shareNames) {
-            Names names = Names.instance(context);
-            assert names != null;
-            next.put(Names.namesKey, names);
-        }
-
-        DiagnosticListener<?> dl = context.get(DiagnosticListener.class);
-        if (dl != null)
-            next.put(DiagnosticListener.class, dl);
-
-        TaskListener tl = context.get(TaskListener.class);
-        if (tl != null)
-            next.put(TaskListener.class, tl);
-
-        JavaFileManager jfm = context.get(JavaFileManager.class);
-        assert jfm != null;
-        next.put(JavaFileManager.class, jfm);
-        if (jfm instanceof JavacFileManager) {
-            ((JavacFileManager)jfm).setContext(next);
-        }
-
-        Names names = Names.instance(context);
-        assert names != null;
-        next.put(Names.namesKey, names);
-
-        Keywords keywords = Keywords.instance(context);
-        assert(keywords != null);
-        next.put(Keywords.keywordsKey, keywords);
-
-        JavaCompiler oldCompiler = JavaCompiler.instance(context);
-        JavaCompiler nextCompiler = JavaCompiler.instance(next);
-        nextCompiler.initRound(oldCompiler);
-
-        JavacTaskImpl task = context.get(JavacTaskImpl.class);
-        if (task != null) {
-            next.put(JavacTaskImpl.class, task);
-            task.updateContext(next);
-        }
-
-        context.clear();
-        return next;
-    }
-
     /*
      * Called retroactively to determine if a class loader was required,
      * after we have failed to create one.
@@ -1174,7 +1097,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         if (procNames != null)
             return true;
 
-        String procPath;
         URL[] urls = new URL[1];
         for(File pathElement : workingpath) {
             try {
@@ -1249,7 +1171,10 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 super.visitTopLevel(node);
             }
             public void visitClassDef(JCClassDecl node) {
-                node.sym = null;
+                if (node.sym != null) {
+                    node.sym.flags_field |= Flags.APT_CLEANED;
+                    node.sym = null;
+                }
                 super.visitClassDef(node);
             }
             public void visitMethodDef(JCMethodDecl node) {

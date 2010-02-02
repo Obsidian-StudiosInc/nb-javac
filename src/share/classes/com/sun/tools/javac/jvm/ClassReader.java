@@ -71,7 +71,7 @@ import static com.sun.tools.javac.jvm.ClassFile.Version.*;
  */
 public class ClassReader implements Completer {
     /** The context key for the class reader. */
-    protected static final Context.Key<ClassReader> classReaderKey =
+    public static final Context.Key<ClassReader> classReaderKey =
         new Context.Key<ClassReader>();
 
     Annotate annotate;

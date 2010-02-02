@@ -1123,7 +1123,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                     annotationProcessingOccurred = c.annotationProcessingOccurred = true;
                 return c;
             } finally {
-                procEnvImpl.close();
+                procEnvImpl.close(false);
             }
         } catch (CompletionFailure ex) {
             log.error("cant.access", ex.sym, ex.getDetailValue());
@@ -1587,6 +1587,9 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         log.flush();
         try {
             fileManager.flush();
+            if (procEnvImpl != null)
+                procEnvImpl.close(true);
+            procEnvImpl = null;
         } catch (IOException e) {
             throw new Abort(e);
         } finally {
@@ -1633,6 +1636,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
     public void initRound(JavaCompiler prev) {
         keepComments = prev.keepComments;
         start_msec = prev.start_msec;
+        notYetEntered = prev.notYetEntered;
         hasBeenUsed = true;
     }
 

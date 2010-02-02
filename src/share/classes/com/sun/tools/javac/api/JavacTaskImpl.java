@@ -78,9 +78,11 @@ public class JavacTaskImpl extends JavacTask {
     private TaskListener taskListener;
     private AtomicBoolean used = new AtomicBoolean();
     private Iterable<? extends Processor> processors;
-
+    
     private Integer result = null;
 
+    public boolean skipAnnotationProcessing = false;
+    
     JavacTaskImpl(JavacTool tool,
                 Main compilerMain,
                 String[] args,
@@ -378,7 +380,8 @@ public class JavacTaskImpl extends JavacTask {
         try {
             List<JCCompilationUnit> units = compiler.enterTrees(roots.toList());
 
-            compiler = compiler.processAnnotations(units);
+            if (!skipAnnotationProcessing)
+                compiler = compiler.processAnnotations(units);
 
             compiler.flushTempDiags();
 

@@ -402,18 +402,19 @@ public class Enter extends JCTree.Visitor {
                         break;
                     }
                 }
-                if (c == null) {
-                    ClassSymbol cs = enclScope.owner.outermostClass();
-                    treeLoader.couplingError(cs, tree);
-                } else {
+                if (c != null) {
                     reattr = true;
                     if (owner.kind == TYP) {
                         if ((owner.flags_field & INTERFACE) != 0) {
                             tree.mods.flags |= PUBLIC | STATIC;
                         }
                     }
+                    doEnterClass = false;
+                } else if ((enclScope.owner.flags_field & APT_CLEANED) == 0) {
+                    ClassSymbol cs = enclScope.owner.outermostClass();
+                    treeLoader.couplingError(cs, tree);
+                    doEnterClass = false;
                 }
-                doEnterClass = false;
             }
             if (c == null) {
                 if (!tree.name.isEmpty() &&
@@ -474,7 +475,7 @@ public class Enter extends JCTree.Visitor {
         }
 
         // Enter class into `compiled' table and enclosing scope.
-        if (!reattr && !noctx) {
+        if (!reattr && !noctx && (c.flags_field & APT_CLEANED) == 0) {
             if (chk.compiled.get(c.flatname) != null) {
                 duplicateClass(tree.pos(), c);
                 result = types.createErrorType(tree.name, owner, Type.noType);
@@ -594,8 +595,10 @@ public class Enter extends JCTree.Visitor {
             }
             if (result != null)
                 return;
-            ClassSymbol cs = env.info.scope.owner.outermostClass();
-            treeLoader.couplingError(cs, tree);
+            if ((env.info.scope.owner.flags_field & APT_CLEANED) == 0) {
+                ClassSymbol cs = env.info.scope.owner.outermostClass();
+                treeLoader.couplingError(cs, tree);
+            }
         }
         TypeVar a = (tree.type != null)
         ? (TypeVar)tree.type
