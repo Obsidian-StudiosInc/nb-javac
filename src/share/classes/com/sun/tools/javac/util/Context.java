@@ -111,10 +111,6 @@ public class Context {
         T make();
     };
 
-    public static interface Registrator {
-        void register(Context context);
-    }
-
     /**
      * The underlying map storing the data.
      * We maintain the invariant that this table contains only

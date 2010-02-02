@@ -668,8 +668,28 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                 }
             }
             if (tree.sym == m) {
-                ClassSymbol cs = enclScope.owner.outermostClass();
-                treeLoader.couplingError(cs, tree);
+                if ((enclScope.owner.flags_field & APT_CLEANED) == 0) {
+                    ClassSymbol cs = enclScope.owner.outermostClass();
+                    treeLoader.couplingError(cs, tree);
+                } else {
+                    localEnv.info.scope.leave();
+                    // Set m.params
+                    ListBuffer<VarSymbol> params = new ListBuffer<VarSymbol>();
+                    JCVariableDecl lastParam = null;
+                    for (List<JCVariableDecl> l = tree.params; l.nonEmpty(); l = l.tail) {
+                        JCVariableDecl param = lastParam = l.head;
+                        assert param.sym != null;
+                        params.append(param.sym);
+                    }
+                    m.params = params.toList();
+
+                    // mark the method varargs, if necessary
+                    if (lastParam != null && (lastParam.mods.flags & Flags.VARARGS) != 0)
+                        m.flags_field |= Flags.VARARGS;
+
+                    if( chk.checkUnique(tree.pos(), m, enclScope))
+                        enclScope.enter(m);
+                }
             }
         } else {
             localEnv.info.scope.leave();
@@ -727,11 +747,13 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                     break;
                 }
             }
-            if (v == null) {
+            if (v != null) {
+                doEnterSymbol = false;
+            } else if ((enclScope.owner.flags_field & APT_CLEANED) == 0) {
                 ClassSymbol cs = enclScope.owner.outermostClass();
                 treeLoader.couplingError(cs, tree);
+                doEnterSymbol = false;
             }
-            doEnterSymbol = false;
         }
         if (v == null) {
             v = new VarSymbol(0, tree.name, tree.vartype.type, enclScope.owner);
