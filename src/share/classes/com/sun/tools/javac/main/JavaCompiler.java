@@ -673,6 +673,8 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         if (name.equals(""))
             return syms.errSymbol;
         JavaFileObject prev = log.useSource(null);
+        boolean old = log.suppressErrorsAndWarnings;
+        log.suppressErrorsAndWarnings = true;
         try {
             JCExpression tree = null;
             for (String s : name.split("\\.", -1)) {
@@ -686,6 +688,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             toplevel.packge = syms.unnamedPackage;
             return attr.attribIdent(tree, toplevel);
         } finally {
+            log.suppressErrorsAndWarnings = old;
             log.useSource(prev);
         }
     }

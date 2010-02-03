@@ -658,6 +658,8 @@ public class JavacTaskImpl extends JavacTask {
             throw new IllegalArgumentException();
         compiler = JavaCompiler.instance(context);
         JavaFileObject prev = compiler.log.useSource(null);
+        boolean old = compiler.log.suppressErrorsAndWarnings;
+        compiler.log.suppressErrorsAndWarnings = true;
         ParserFactory parserFactory = ParserFactory.instance(context);
         Attr attr = Attr.instance(context);
         try {
@@ -666,6 +668,7 @@ public class JavacTaskImpl extends JavacTask {
             JCTree tree = parser.parseType();
             return attr.attribType(tree, (Symbol.TypeSymbol)scope);
         } finally {
+            compiler.log.suppressErrorsAndWarnings = old;
             compiler.log.useSource(prev);
         }
     }
@@ -675,6 +678,8 @@ public class JavacTaskImpl extends JavacTask {
             throw new IllegalArgumentException();
         compiler = JavaCompiler.instance(context);
         JavaFileObject prev = compiler.log.useSource(null);
+        boolean old = compiler.log.suppressErrorsAndWarnings;
+        compiler.log.suppressErrorsAndWarnings = true;
         ParserFactory parserFactory = ParserFactory.instance(context);
         try {
             CharBuffer buf = CharBuffer.wrap((stmt+"\u0000").toCharArray(), 0, stmt.length());
@@ -686,6 +691,7 @@ public class JavacTaskImpl extends JavacTask {
             }
             return null;
         } finally {
+            compiler.log.suppressErrorsAndWarnings = old;
             compiler.log.useSource(prev);
         }
     }
@@ -695,6 +701,8 @@ public class JavacTaskImpl extends JavacTask {
             throw new IllegalArgumentException();
             compiler = JavaCompiler.instance(context);
         JavaFileObject prev = compiler.log.useSource(null);
+        boolean old = compiler.log.suppressErrorsAndWarnings;
+        compiler.log.suppressErrorsAndWarnings = true;
         ParserFactory parserFactory = ParserFactory.instance(context);
         try {
             CharBuffer buf = CharBuffer.wrap((expr+"\u0000").toCharArray(), 0, expr.length());
@@ -706,6 +714,7 @@ public class JavacTaskImpl extends JavacTask {
             }
             return null;
         } finally {
+            compiler.log.suppressErrorsAndWarnings = old;
             compiler.log.useSource(prev);
         }
     }
@@ -715,6 +724,8 @@ public class JavacTaskImpl extends JavacTask {
             throw new IllegalArgumentException();
             compiler = JavaCompiler.instance(context);
         JavaFileObject prev = compiler.log.useSource(null);
+        boolean old = compiler.log.suppressErrorsAndWarnings;
+        compiler.log.suppressErrorsAndWarnings = true;
         ParserFactory parserFactory = ParserFactory.instance(context);
         try {
             CharBuffer buf = CharBuffer.wrap((init+"\u0000").toCharArray(), 0, init.length());
@@ -726,6 +737,7 @@ public class JavacTaskImpl extends JavacTask {
             }
             return null;
         } finally {
+            compiler.log.suppressErrorsAndWarnings = old;
             compiler.log.useSource(prev);
         }
     }
@@ -735,6 +747,8 @@ public class JavacTaskImpl extends JavacTask {
             throw new IllegalArgumentException();
             compiler = JavaCompiler.instance(context);
         JavaFileObject prev = compiler.log.useSource(null);
+        boolean old = compiler.log.suppressErrorsAndWarnings;
+        compiler.log.suppressErrorsAndWarnings = true;
         ParserFactory parserFactory = ParserFactory.instance(context);
         try {
             CharBuffer buf = CharBuffer.wrap((block+"\u0000").toCharArray(), 0, block.length());
@@ -747,6 +761,7 @@ public class JavacTaskImpl extends JavacTask {
             }
             return null;
         } finally {
+            compiler.log.suppressErrorsAndWarnings = old;
             compiler.log.useSource(prev);
         }
     }
@@ -755,11 +770,14 @@ public class JavacTaskImpl extends JavacTask {
         Log log = Log.instance(context);
         Attr attr = Attr.instance(context);
         JavaFileObject prev = log.useSource(null);
+        boolean old = log.suppressErrorsAndWarnings;
+        log.suppressErrorsAndWarnings = true;
         try {
             if (tree instanceof JCExpression)
                 return attr.attribExpr(tree, env, Type.noType);
             return attr.attribStat(tree, env);
         } finally {
+            log.suppressErrorsAndWarnings = old;
             log.useSource(prev);
         }
     }
@@ -768,10 +786,13 @@ public class JavacTaskImpl extends JavacTask {
         Log log = Log.instance(context);
         Attr attr = Attr.instance(context);
         JavaFileObject prev = log.useSource(null);
+        boolean old = log.suppressErrorsAndWarnings;
+        log.suppressErrorsAndWarnings = true;
         try {
             Env<AttrContext> ret = tree instanceof JCExpression ? attr.attribExprToTree(tree, env, to) : attr.attribStatToTree(tree, env, to);
             return new JavacScope(ret);
         } finally {
+            log.suppressErrorsAndWarnings = old;
             log.useSource(prev);
         }
     }

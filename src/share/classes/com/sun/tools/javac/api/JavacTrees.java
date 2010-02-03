@@ -290,20 +290,26 @@ public class JavacTrees extends Trees {
 
     private Env<AttrContext> attribStatToTree(JCTree stat, Env<AttrContext>env, JCTree tree) {
         JavaFileObject prev = log.useSource(null);
+        boolean old = log.suppressErrorsAndWarnings;
+        log.suppressErrorsAndWarnings = true;
         enter.shadowTypeEnvs(true);
         try {
             return attr.attribStatToTree(stat, env, tree);
         } finally {
             enter.shadowTypeEnvs(false);
+            log.suppressErrorsAndWarnings = old;
             log.useSource(prev);
         }
     }
 
     private Env<AttrContext> attribExprToTree(JCExpression expr, Env<AttrContext>env, JCTree tree) {
         JavaFileObject prev = log.useSource(null);
+        boolean old = log.suppressErrorsAndWarnings;
+        log.suppressErrorsAndWarnings = true;
         try {
             return attr.attribExprToTree(expr, env, tree);
         } finally {
+            log.suppressErrorsAndWarnings = old;
             log.useSource(prev);
         }
     }

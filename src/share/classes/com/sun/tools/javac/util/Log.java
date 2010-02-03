@@ -82,6 +82,8 @@ public class Log extends AbstractLog {
      */
     public boolean suppressNotes;
 
+    public boolean suppressErrorsAndWarnings;
+
     /** Print stack trace on errors?
      */
     public boolean dumpOnError;
@@ -373,7 +375,7 @@ public class Log extends AbstractLog {
             break;
 
         case WARNING:
-            if (emitWarnings || diagnostic.isMandatory()) {
+            if ((emitWarnings || diagnostic.isMandatory()) && !suppressErrorsAndWarnings) {
                 if (nwarnings < MaxWarnings) {
                     writeDiagnostic(diagnostic);
                     nwarnings++;
@@ -382,12 +384,14 @@ public class Log extends AbstractLog {
             break;
 
         case ERROR:
-            if (diagnostic.getTree() != null && !errTrees.containsKey(diagnostic.getTree()))
-                errTrees.put(diagnostic.getTree(), diagnostic);
-            if (nerrors < MaxErrors
-                && shouldReport(diagnostic.getSource(), diagnostic.getIntPosition())) {
-                writeDiagnostic(diagnostic);
-                nerrors++;
+            if (!suppressErrorsAndWarnings) {
+                if (diagnostic.getTree() != null && !errTrees.containsKey(diagnostic.getTree()))
+                    errTrees.put(diagnostic.getTree(), diagnostic);
+                if (nerrors < MaxErrors
+                    && shouldReport(diagnostic.getSource(), diagnostic.getIntPosition())) {
+                    writeDiagnostic(diagnostic);
+                    nerrors++;
+                }
             }
             break;
         }
