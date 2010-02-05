@@ -255,11 +255,9 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
      */
     public static final int MODIFIERS = ANNOTATION + 1;
 
-    public static final int ANNOTATED_TYPE = MODIFIERS + 1;
-
     /** Error trees, of type Erroneous.
      */
-    public static final int ERRONEOUS = ANNOTATED_TYPE + 1;
+    public static final int ERRONEOUS = MODIFIERS + 1;
 
     /** Unary operators, of type Unary.
      */
@@ -317,6 +315,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
      */
     public static final int LETEXPR = MOD_ASG + 1;           // ala scheme
 
+    public static final int ANNOTATED_TYPE = LETEXPR + 1;
 
     /** The offset between assignment operators and normal operators.
      */
