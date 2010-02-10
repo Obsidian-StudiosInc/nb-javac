@@ -485,7 +485,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
             return null;
         Type sup = env.types.supertype(type);
         return TypeMaker.getType(env,
-                                 (sup != type) ? sup : env.syms.objectType);
+                (sup != type && (sup.tag == TypeTags.CLASS || sup.tag == TypeTags.ERROR)) ? sup : env.syms.objectType);
     }
 
     /**
