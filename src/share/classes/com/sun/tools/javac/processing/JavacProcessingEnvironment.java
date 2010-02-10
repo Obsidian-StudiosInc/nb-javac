@@ -806,7 +806,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         } catch (Throwable t) {
             if (t instanceof ThreadDeath)
                 throw (ThreadDeath)t;
-            LOGGER.log(Level.FINE, "Annotation processing error:", t);
+            LOGGER.log(Level.INFO, "Annotation processing error:", t);
             return false;
         }
     }
