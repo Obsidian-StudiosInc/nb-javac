@@ -1238,8 +1238,8 @@ public class JavacParser implements Parser {
                     t = toP(F.at(pos).Select(t, ident()));
                     break;
                 case ELLIPSIS:
-                    assert this.permitTypeAnnotationsPushBack;
-                    typeAnnotationsPushedBack = annos;
+                    if (this.permitTypeAnnotationsPushBack)
+                        typeAnnotationsPushedBack = annos;
                     break loop;
                 default:
                     break loop;
