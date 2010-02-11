@@ -475,7 +475,7 @@ public class Enter extends JCTree.Visitor {
         }
 
         // Enter class into `compiled' table and enclosing scope.
-        if (!reattr && !noctx && (c.flags_field & APT_CLEANED) == 0) {
+        if (!reattr && !noctx) {
             if (chk.compiled.get(c.flatname) != null) {
                 duplicateClass(tree.pos(), c);
                 result = types.createErrorType(tree.name, owner, Type.noType);
