@@ -608,8 +608,9 @@ public class Flow extends TreeScanner {
                 boolean firstConstructor = true;
                 for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
                     if (TreeInfo.isInitialConstructor(l.head)) {
-                        List<Type> mthrown =
-                            ((JCMethodDecl) l.head).sym.type.getThrownTypes();
+                        MethodSymbol sym = ((JCMethodDecl) l.head).sym;
+                        List<Type> mthrown = sym != null
+                                ? sym.type.getThrownTypes() : List.<Type>nil();
                         if (firstConstructor) {
                             caught = mthrown;
                             firstConstructor = false;

@@ -53,22 +53,19 @@ import javax.lang.model.util.*;
 import javax.tools.JavaFileManager;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.JavaFileObject;
-import javax.tools.DiagnosticListener;
 
 import com.sun.source.util.AbstractTypeProcessor;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
-import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.*;
+import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.main.JavaCompiler.CompileState;
 import com.sun.tools.javac.model.JavacElements;
 import com.sun.tools.javac.model.JavacTypes;
-import com.sun.tools.javac.model.LazyTreeLoader;
-import com.sun.tools.javac.parser.*;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.util.Abort;
@@ -152,6 +149,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
      */
     private JavacMessages messages;
 
+    private Check chk;
+
     private Context context;
 
     private boolean isBackgroundCompilation;
@@ -177,6 +176,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         messager = new JavacMessager(context, this);
         elementUtils = new JavacElements(context);
         typeUtils = new JavacTypes(context);
+        chk = Check.instance(context);
         processorOptions = initProcessorOptions(context);
         unmatchedProcessorOptions = initUnmatchedProcessorOptions();
         messages = JavacMessages.instance(context);
@@ -1154,13 +1154,13 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
     }
 
-    private static <T extends JCTree> List<T> cleanTrees(List<T> nodes) {
+    private <T extends JCTree> List<T> cleanTrees(List<T> nodes) {
         for (T node : nodes)
             treeCleaner.scan(node);
         return nodes;
     }
 
-    private static TreeScanner treeCleaner = new TreeScanner() {
+    private TreeScanner treeCleaner = new TreeScanner() {
             public void scan(JCTree node) {
                 super.scan(node);
                 if (node != null)
@@ -1173,6 +1173,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             public void visitClassDef(JCClassDecl node) {
                 if (node.sym != null) {
                     node.sym.flags_field |= Flags.APT_CLEANED;
+                    if (chk.compiled.get(node.sym.flatname) == node.sym)
+                        chk.compiled.remove(node.sym.flatname);
                     node.sym = null;
                 }
                 super.visitClassDef(node);
