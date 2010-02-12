@@ -230,7 +230,7 @@ public class Flags {
     public static final long PROPRIETARY = 1L<<38;
 
     public static final long FROMCLASS = 1L<<39;
-    public static final long APT_CLEANED = (1L<<40) | FROMCLASS;
+    public static final long APT_CLEANED = 1L<<40;
 
     /** Modifier masks.
      */

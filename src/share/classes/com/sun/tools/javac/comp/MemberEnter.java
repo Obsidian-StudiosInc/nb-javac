@@ -852,7 +852,7 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                        final Env<AttrContext> localEnv,
                        final Symbol s) {
         if (annotations.isEmpty()) return;
-        if (s.kind != PCK) s.attributes_field = null; // mark it incomplete for now
+        if (s.kind != PCK || (s.flags_field & APT_CLEANED) != 0) s.attributes_field = null; // mark it incomplete for now
         annotate.later(new Annotate.Annotator() {
                 public String toString() {
                     return "annotate " + annotations + " onto " + s + " in " + s.owner;
