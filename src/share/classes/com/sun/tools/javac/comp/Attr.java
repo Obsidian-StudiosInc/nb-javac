@@ -2866,7 +2866,7 @@ public class Attr extends JCTree.Visitor {
     /** Finish the attribution of a class. */
     private void attribClassBody(Env<AttrContext> env, ClassSymbol c) {
         JCClassDecl tree = (JCClassDecl)env.tree;
-        assert c == tree.sym;
+        assert c == tree.sym : "c = " + c + " tree.sym = " + tree.sym + " tree = " + tree;
 
         // Validate annotations
         chk.validateAnnotations(tree.mods.annotations, c);
