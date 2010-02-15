@@ -522,7 +522,7 @@ public class Enter extends JCTree.Visitor {
             // Enter type parameters.
             ct.typarams_field = classEnter(tree.typarams, localEnv);
         } else {
-            c.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, c, tree) | (c.flags_field & FROMCLASS);
+            c.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, c, tree) | (c.flags_field & (FROMCLASS | APT_CLEANED));
             ClassType ct = (ClassType)c.type;
             boolean wasNull = false;
             if (ct.typarams_field != null) {

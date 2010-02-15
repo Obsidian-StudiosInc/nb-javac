@@ -979,6 +979,9 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             // clauses have been seen.
             if (c.owner.kind == PCK) {
                 memberEnter(env.toplevel, env.enclosing(JCTree.TOPLEVEL));
+                if ((c.flags_field & APT_CLEANED) != 0) {
+                    todo.remove(c);
+                }
                 todo.append(env);
             }
 
