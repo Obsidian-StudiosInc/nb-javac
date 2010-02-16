@@ -3066,10 +3066,15 @@ public class JavacParser implements Parser {
                         return defs;
                     } else {
                         pos = S.pos();
-                        List<JCTree> err = isVoid
-                            ? List.<JCTree>of(toP(F.at(pos).MethodDef(mods, name, type, typarams,
-                                List.<JCVariableDecl>nil(), List.<JCExpression>nil(), null, null)))
-                            : List.<JCTree>nil();
+                        List<JCTree> err;
+                        if (isVoid) {
+                            JCMethodDecl meth = toP(F.at(pos).MethodDef(mods, name, type, typarams,
+                                List.<JCVariableDecl>nil(), List.<JCExpression>nil(), null, null));
+                            attach(meth, dc);
+                            err = List.<JCTree>of(meth);
+                        } else {
+                            err = List.<JCTree>nil();
+                        }
                         return List.<JCTree>of(syntaxError(S.pos(), err, "expected", LPAREN));
                     }
                 }
