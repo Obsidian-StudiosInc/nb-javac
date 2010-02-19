@@ -403,13 +403,17 @@ public class Enter extends JCTree.Visitor {
                     }
                 }
                 if (c != null) {
-                    reattr = true;
-                    if (owner.kind == TYP) {
-                        if ((owner.flags_field & INTERFACE) != 0) {
-                            tree.mods.flags |= PUBLIC | STATIC;
+                    if (chk.compiled.get(c.flatname) != null) {
+                        c = null;
+                    } else {
+                        reattr = true;
+                        if (owner.kind == TYP) {
+                            if ((owner.flags_field & INTERFACE) != 0) {
+                                tree.mods.flags |= PUBLIC | STATIC;
+                            }
                         }
+                        doEnterClass = false;
                     }
-                    doEnterClass = false;
                 } else if ((enclScope.owner.flags_field & APT_CLEANED) == 0) {
                     ClassSymbol cs = enclScope.owner.outermostClass();
                     treeLoader.couplingError(cs, tree);
@@ -475,14 +479,12 @@ public class Enter extends JCTree.Visitor {
         }
 
         // Enter class into `compiled' table and enclosing scope.
-        if (!reattr && !noctx) {
-            if (chk.compiled.get(c.flatname) != null) {
-                duplicateClass(tree.pos(), c);
-                result = types.createErrorType(tree.name, owner, Type.noType);
-                tree.sym = c = (ClassSymbol)result.tsym;
-            } else {
-                chk.compiled.put(c.flatname, c);
-            }
+        if (!reattr && !noctx && chk.compiled.get(c.flatname) != null) {
+            duplicateClass(tree.pos(), c);
+            result = types.createErrorType(tree.name, owner, Type.noType);
+            tree.sym = c = (ClassSymbol)result.tsym;
+        } else {
+            chk.compiled.put(c.flatname, c);
         }
         if (doEnterClass) {
             enclScope.enter(c);
