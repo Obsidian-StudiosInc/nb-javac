@@ -27,6 +27,9 @@ package com.sun.tools.javac.comp;
 
 import java.net.URI;
 import java.util.*;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.tools.JavaFileObject;
 import javax.tools.JavaFileManager;
 
@@ -41,6 +44,7 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.tree.JCTree.*;
+import javax.lang.model.util.ElementScanner6;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
@@ -475,7 +479,26 @@ public class Enter extends JCTree.Visitor {
             c.kind = TYP;
             c.type = new ClassType(Type.noType, List.<Type>nil(), c);
         } else if (reattr) {
-            c.flags_field |= FROMCLASS;
+            new ElementScanner6<Void, Void>() {
+                @Override
+                public Void visitType(TypeElement e, Void p) {
+                    if (e instanceof ClassSymbol)
+                        ((ClassSymbol) e).flags_field |= FROMCLASS;
+                    return super.visitType(e, p);
+                }
+                @Override
+                public Void visitExecutable(ExecutableElement e, Void p) {
+                    if (e instanceof MethodSymbol)
+                        ((MethodSymbol) e).flags_field |= FROMCLASS;
+                    return null;
+                }
+                @Override
+                public Void visitVariable(VariableElement e, Void p) {
+                    if (e instanceof VarSymbol)
+                        ((VarSymbol) e).flags_field |= FROMCLASS;
+                    return null;
+                }
+            }.scan(c);
         }
 
         // Enter class into `compiled' table and enclosing scope.

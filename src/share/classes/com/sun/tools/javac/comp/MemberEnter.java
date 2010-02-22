@@ -44,6 +44,7 @@ import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.TypeTags.*;
 import com.sun.tools.javac.model.LazyTreeLoader;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 
 /** This is the second phase of Enter, in which classes are completed
@@ -441,7 +442,8 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
     void finishClass(JCClassDecl tree, Env<AttrContext> env) {
         if ((tree.mods.flags & Flags.ENUM) != 0 &&
             (types.supertype(tree.sym.type).tsym.flags() & Flags.ENUM) == 0) {
-            addEnumMembers(tree, env);
+            if (tree.sym == null || (tree.sym.flags_field & Flags.FROMCLASS) == 0)
+                addEnumMembers(tree, env);
             memberEnter(tree.defs, env);
             chk.checkAllDefined(tree.pos(), tree.sym);
         } else {
@@ -613,56 +615,59 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                 if (e.sym.kind == MTH) {
                     boolean sameType = types.isSameType(m.type, e.sym.type);
                     if (sameType || m.name == names.init && (m.owner.name.isEmpty() || (m.owner.owner.kind & (VAR | MTH)) != 0)) {
-                        treeCleaner.scan(tree);
-                        tree.sym = (MethodSymbol)e.sym;
-                        localEnv = methodEnv(tree, env);
-                        tree.sym.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, tree.sym, tree);
-                        tree.sym.flags_field |= FROMCLASS;
-                        if (tree.sym.type.tag == FORALL) {
-                            for(List<Type> tvars = ((ForAll)tree.sym.type).tvars; tvars.nonEmpty(); tvars = tvars.tail)
-                                localEnv.info.scope.enter(tvars.head.tsym);
-                        }
-                        List<VarSymbol> p = tree.sym.params();
-                        if (p != null) {
-                            List<JCVariableDecl> l = tree.params;
-                            while(l.nonEmpty() && p.nonEmpty()) {
-                                if (sameType) {
-                                    p.head.setName(l.head.name);
-                                    if (l.head.getModifiers() != null && l.head.getModifiers().getFlags().contains(Modifier.FINAL)) {
-                                        //copy the final flag, as the symbol might have come from the classfile:
-                                        p.head.flags_field |= FINAL;
+                        if ((e.sym.flags_field & FROMCLASS) != 0) {
+                            treeCleaner.scan(tree);
+                            tree.sym = (MethodSymbol)e.sym;
+                            localEnv = methodEnv(tree, env);
+                            tree.sym.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, tree.sym, tree) | (tree.sym.flags_field & APT_CLEANED);
+                            tree.sym.flags_field |= FROMCLASS;
+                            if (tree.sym.type.tag == FORALL) {
+                                for(List<Type> tvars = ((ForAll)tree.sym.type).tvars; tvars.nonEmpty(); tvars = tvars.tail)
+                                    localEnv.info.scope.enter(tvars.head.tsym);
+                            }
+                            List<VarSymbol> p = tree.sym.params();
+                            if (p != null) {
+                                List<JCVariableDecl> l = tree.params;
+                                while(l.nonEmpty() && p.nonEmpty()) {
+                                    if (sameType) {
+                                        p.head.setName(l.head.name);
+                                        if (l.head.getModifiers() != null && l.head.getModifiers().getFlags().contains(Modifier.FINAL)) {
+                                            //copy the final flag, as the symbol might have come from the classfile:
+                                            p.head.flags_field |= FINAL;
+                                        }
                                     }
+                                    localEnv.info.scope.enter(p.head);
+                                    p.head.flags_field |= FROMCLASS;
+                                    p = p.tail;
+                                    l = l.tail;
                                 }
-                                localEnv.info.scope.enter(p.head);
-                                p = p.tail;
-                                l = l.tail;
+                                while(p.nonEmpty()) {
+                                    p.head.setName(p.head.name);
+                                    localEnv.info.scope.enter(p.head);
+                                    p = p.tail;
+                                }
                             }
-                            while(p.nonEmpty()) {
-                                p.head.setName(p.head.name);
-                                localEnv.info.scope.enter(p.head);
-                                p = p.tail;
+                            tree.sym.type = signature(tree.typarams, tree.params,
+                                    tree.restype, tree.thrown,
+                                    localEnv);
+                            tree.sym.flags_field &= ~FROMCLASS;
+                            localEnv.info.scope.leave();
+
+                            // Set m.params
+                            ListBuffer<VarSymbol> params = new ListBuffer<VarSymbol>();
+                            JCVariableDecl lastParam = null;
+                            for (List<JCVariableDecl> l = tree.params; l.nonEmpty(); l = l.tail) {
+                                JCVariableDecl param = lastParam = l.head;
+                                assert param.sym != null;
+                                params.append(param.sym);
                             }
+                            tree.sym.params = params.toList();
+
+                            // mark the method varargs, if necessary
+                            if (lastParam != null && (lastParam.mods.flags & Flags.VARARGS) != 0)
+                                tree.sym.flags_field |= Flags.VARARGS;
+                            tree.sym.flags_field &= ~APT_CLEANED;
                         }
-                        tree.sym.type = signature(tree.typarams, tree.params,
-                                tree.restype, tree.thrown,
-                                localEnv);
-                        tree.sym.flags_field &= ~FROMCLASS;
-                        localEnv.info.scope.leave();
-
-                        // Set m.params
-                        ListBuffer<VarSymbol> params = new ListBuffer<VarSymbol>();
-                        JCVariableDecl lastParam = null;
-                        for (List<JCVariableDecl> l = tree.params; l.nonEmpty(); l = l.tail) {
-                            JCVariableDecl param = lastParam = l.head;
-                            assert param.sym != null;
-                            params.append(param.sym);
-                        }
-                        tree.sym.params = params.toList();
-
-                        // mark the method varargs, if necessary
-                        if (lastParam != null && (lastParam.mods.flags & Flags.VARARGS) != 0)
-                            tree.sym.flags_field |= Flags.VARARGS;
-
                         break;
                     }
                 }
@@ -743,7 +748,10 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
         if ((enclScope.owner.flags_field & FROMCLASS) != 0) {
             for (Scope.Entry e = enclScope.lookup(tree.name); e.scope == enclScope; e = e.next()) {
                 if (e.sym.kind == VAR && types.isSameType(tree.vartype.type, e.sym.type)) {
-                    v = (VarSymbol)e.sym;
+                    if ((e.sym.flags_field & FROMCLASS) != 0) {
+                        v = (VarSymbol)e.sym;
+                        e.sym.flags_field &= ~FROMCLASS;
+                    }
                     break;
                 }
             }
@@ -768,10 +776,13 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                 v.setLazyConstValue(initEnv(tree, initEnv), log, attr, tree.init);
             }
         }
-        if (chk.checkUnique(tree.pos(), v, enclScope)) {
-            chk.checkTransparentVar(tree.pos(), v, enclScope);
-            if (doEnterSymbol)
+        if (doEnterSymbol) {
+            if (chk.checkUnique(tree.pos(), v, enclScope)) {
+                chk.checkTransparentVar(tree.pos(), v, enclScope);
                 enclScope.enter(v);
+            } else if (v.getKind() == ElementKind.LOCAL_VARIABLE) {
+                enclScope.enter(v);
+            }
         }
         annotateLater(tree.mods.annotations, localEnv, v);
         v.pos = tree.pos;
