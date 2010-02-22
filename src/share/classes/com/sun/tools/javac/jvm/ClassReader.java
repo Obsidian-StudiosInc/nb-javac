@@ -2164,7 +2164,7 @@ public class ClassReader implements Completer {
  ***********************************************************************/
 
     long adjustFieldFlags(long flags) {
-        return flags;
+        return flags | FROMCLASS;
     }
     long adjustMethodFlags(long flags) {
         if ((flags & ACC_BRIDGE) != 0) {
@@ -2177,9 +2177,11 @@ public class ClassReader implements Completer {
             flags &= ~ACC_VARARGS;
             flags |= VARARGS;
         }
+        flags |= FROMCLASS;
         return flags;
     }
     long adjustClassFlags(long flags) {
+        flags |= FROMCLASS;
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded
     }
 
@@ -2388,7 +2390,6 @@ public class ClassReader implements Completer {
                         missingTypeVariables = List.nil();
                         foundTypeVariables = List.nil();
                         filling = false;
-                        c.flags_field |= FROMCLASS;
                     }
                 } else {
                     if (sourceCompleter != null) {

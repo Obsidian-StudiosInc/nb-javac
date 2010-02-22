@@ -1184,11 +1184,18 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 super.visitClassDef(node);
             }
             public void visitMethodDef(JCMethodDecl node) {
-                node.sym = null;
+                if (node.sym != null) {
+                    node.sym.flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
+                    node.sym = null;
+                }
                 super.visitMethodDef(node);
             }
             public void visitVarDef(JCVariableDecl node) {
-                node.sym = null;
+                if (node.sym != null) {
+                    if (node.sym.getKind().isField())
+                        node.sym.flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
+                    node.sym = null;
+                }
                 super.visitVarDef(node);
             }
             public void visitNewClass(JCNewClass node) {
