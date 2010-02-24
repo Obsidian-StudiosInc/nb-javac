@@ -167,6 +167,10 @@ public class JavacTaskImpl extends JavacTask {
         this.processors = processors;
     }
 
+    public Iterable<? extends Processor> getProcessors() {
+        return processors;
+    }
+
     public void setLocale(Locale locale) {
         if (used.get())
             throw new IllegalStateException();
