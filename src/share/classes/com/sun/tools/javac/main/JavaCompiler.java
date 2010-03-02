@@ -325,6 +325,11 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
 
     protected Map<JavaFileObject, JCCompilationUnit> notYetEntered;
 
+    public boolean skipAnnotationProcessing = false;
+
+    private MemberEnter memberEnter;
+    private List<JCCompilationUnit> toProcessAnnotations = List.nil();
+
     /** Construct a new compiler using a shared context.
      */
     public JavaCompiler(final Context context) {
@@ -342,6 +347,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         make = TreeMaker.instance(context);
         writer = ClassWriter.instance(context);
         enter = Enter.instance(context);
+        memberEnter = MemberEnter.instance(context);
         todo = Todo.instance(context);
         flowListener = FlowListener.instance(context);
         memoryWatch = LowMemoryWatch.instance(context);
@@ -775,6 +781,20 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
 
         enter.complete(List.of(tree), c);
 
+        if (!skipAnnotationProcessing) {
+            if (memberEnter.halfcompleted.nonEmpty()) {
+                toProcessAnnotations = toProcessAnnotations.prepend(tree);
+            } else {
+                try {
+                    processAnnotations(List.of(tree));
+                } catch (IOException ex) {
+                    CompletionFailure cf = new CompletionFailure(c, ex.getLocalizedMessage());
+                    cf.initCause(ex);
+                    throw cf;
+                }
+            }
+        }
+
         if (taskListener != null) {
             TaskEvent e = new TaskEvent(TaskEvent.Kind.ENTER, tree);
             taskListener.finished(e);
@@ -948,7 +968,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             }
 
             enter.main(roots);
-
+            
             if (taskListener != null) {
                 for (JCCompilationUnit unit : roots) {
                     TaskEvent e = new TaskEvent(TaskEvent.Kind.ENTER, unit);
@@ -1121,6 +1141,10 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 }
             }
             try {
+                while(!toProcessAnnotations.isEmpty()) {
+                    roots = roots.prepend(toProcessAnnotations.head);
+                    toProcessAnnotations = toProcessAnnotations.tail;
+                }
                 JavaCompiler c = procEnvImpl.doProcessing(context, roots, classSymbols, pckSymbols);
                 if (c != this)
                     annotationProcessingOccurred = c.annotationProcessingOccurred = true;

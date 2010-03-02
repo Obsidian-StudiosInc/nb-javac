@@ -119,7 +119,7 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
     /** A queue for classes whose members still need to be entered into the
      *  symbol table.
      */
-    ListBuffer<Env<AttrContext>> halfcompleted = new ListBuffer<Env<AttrContext>>();
+    public ListBuffer<Env<AttrContext>> halfcompleted = new ListBuffer<Env<AttrContext>>();
 
     /** Set to true only when the first of a set of classes is
      *  processed from the halfcompleted queue.
