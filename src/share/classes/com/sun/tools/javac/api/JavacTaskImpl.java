@@ -81,8 +81,6 @@ public class JavacTaskImpl extends JavacTask {
     
     private Integer result = null;
 
-    public boolean skipAnnotationProcessing = false;
-    
     JavacTaskImpl(JavacTool tool,
                 Main compilerMain,
                 String[] args,
@@ -384,7 +382,7 @@ public class JavacTaskImpl extends JavacTask {
         try {
             List<JCCompilationUnit> units = compiler.enterTrees(roots.toList());
 
-            if (!skipAnnotationProcessing)
+            if (!compiler.skipAnnotationProcessing)
                 compiler = compiler.processAnnotations(units);
 
             compiler.flushTempDiags();
