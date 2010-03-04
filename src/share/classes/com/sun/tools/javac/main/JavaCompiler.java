@@ -782,7 +782,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         enter.complete(List.of(tree), c);
 
         if (!skipAnnotationProcessing) {
-            if (memberEnter.halfcompleted.nonEmpty()) {
+            if (memberEnter.halfcompleted.nonEmpty() || annotate.enterCount > 0) {
                 toProcessAnnotations = toProcessAnnotations.prepend(tree);
             } else {
                 try {

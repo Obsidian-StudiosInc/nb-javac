@@ -49,6 +49,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.PackageElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.util.*;
 import javax.tools.JavaFileManager;
 import javax.tools.StandardJavaFileManager;
@@ -1176,7 +1177,26 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             }
             public void visitClassDef(JCClassDecl node) {
                 if (node.sym != null) {
-                    node.sym.flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
+                    new ElementScanner6<Void, Void>() {
+                        @Override
+                        public Void visitType(TypeElement e, Void p) {
+                            if (e instanceof ClassSymbol)
+                                ((ClassSymbol) e).flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
+                            return super.visitType(e, p);
+                        }
+                        @Override
+                        public Void visitExecutable(ExecutableElement e, Void p) {
+                            if (e instanceof MethodSymbol)
+                                ((MethodSymbol) e).flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
+                            return null;
+                        }
+                        @Override
+                        public Void visitVariable(VariableElement e, Void p) {
+                            if (e.getKind().isField() && e instanceof VarSymbol)
+                                ((VarSymbol) e).flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
+                            return null;
+                        }
+                    }.scan(node.sym);
                     if (chk.compiled.get(node.sym.flatname) == node.sym)
                         chk.compiled.remove(node.sym.flatname);
                     node.sym = null;
@@ -1184,18 +1204,11 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 super.visitClassDef(node);
             }
             public void visitMethodDef(JCMethodDecl node) {
-                if (node.sym != null) {
-                    node.sym.flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
-                    node.sym = null;
-                }
+                node.sym = null;
                 super.visitMethodDef(node);
             }
             public void visitVarDef(JCVariableDecl node) {
-                if (node.sym != null) {
-                    if (node.sym.getKind().isField())
-                        node.sym.flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
-                    node.sym = null;
-                }
+                node.sym = null;
                 super.visitVarDef(node);
             }
             public void visitNewClass(JCNewClass node) {
