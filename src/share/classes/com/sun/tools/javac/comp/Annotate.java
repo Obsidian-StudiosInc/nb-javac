@@ -78,7 +78,7 @@ public class Annotate {
  * Queue maintenance
  *********************************************************************/
 
-    private int enterCount = 0;
+    public int enterCount = 0;
 
     ListBuffer<Annotator> q = new ListBuffer<Annotator>();
 
