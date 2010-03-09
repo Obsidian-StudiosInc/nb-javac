@@ -90,6 +90,35 @@ is divided into following sections:
                 <istrue value="${splashscreen.available}"/>
             </and>
         </condition>
+        <condition property="do.archive">
+            <not>
+                <istrue value="${jar.archive.disabled}"/>
+            </not>
+        </condition>
+        <condition property="do.archive+manifest.available">
+            <and>
+                <isset property="manifest.available"/>
+                <istrue value="${do.archive}"/>
+            </and>
+        </condition>
+        <condition property="do.archive+manifest.available+main.class">
+            <and>
+                <istrue value="${manifest.available+main.class}"/>
+                <istrue value="${do.archive}"/>
+            </and>
+        </condition>
+        <condition property="do.archive+manifest.available+main.class+mkdist.available">
+            <and>
+                <istrue value="${manifest.available+main.class+mkdist.available}"/>
+                <istrue value="${do.archive}"/>
+            </and>
+        </condition>
+        <condition property="do.archive+manifest.available+main.class+mkdist.available+splashscreen.available">
+            <and>
+                <istrue value="${manifest.available+main.class+mkdist.available+splashscreen.available}"/>
+                <istrue value="${do.archive}"/>
+            </and>
+        </condition>
         <condition property="have.tests">
             <or>
                 <available file="${test.test.dir}"/>
@@ -203,6 +232,7 @@ is divided into following sections:
                     <compilerarg value="-processorpath"/>
                     <compilerarg path="@{processorpath}"/>
                     <compilerarg line="${ap.processors.internal}"/>
+                    <compilerarg line="${annotation.processing.processor.options}"/>
                     <compilerarg value="-s"/>
                     <compilerarg path="@{apgeneratedsrcdir}"/>
                     <compilerarg line="${ap.proc.none.internal}"/>
@@ -428,6 +458,7 @@ is divided into following sections:
     <target name="-init-ap-cmdline-properties">
         <property name="annotation.processing.enabled" value="true"/>
         <property name="annotation.processing.processors.list" value=""/>
+        <property name="annotation.processing.processor.options" value=""/>
         <property name="annotation.processing.run.all.processors" value="true"/>
         <property name="javac.processorpath" value="${javac.classpath}"/>
         <property name="javac.test.processorpath" value="${javac.test.classpath}"/>
@@ -530,13 +561,13 @@ is divided into following sections:
         <!-- Empty placeholder for easier customization. -->
         <!-- You can override this target in the ../build.xml file. -->
     </target>
-    <target depends="init,compile,-pre-pre-jar,-pre-jar" name="-do-jar-without-manifest" unless="manifest.available">
+    <target depends="init,compile,-pre-pre-jar,-pre-jar" if="do.archive" name="-do-jar-without-manifest" unless="manifest.available">
         <j2seproject1:jar/>
     </target>
-    <target depends="init,compile,-pre-pre-jar,-pre-jar" if="manifest.available" name="-do-jar-with-manifest" unless="manifest.available+main.class">
+    <target depends="init,compile,-pre-pre-jar,-pre-jar" if="do.archive+manifest.available" name="-do-jar-with-manifest" unless="manifest.available+main.class">
         <j2seproject1:jar manifest="${manifest.file}"/>
     </target>
-    <target depends="init,compile,-pre-pre-jar,-pre-jar" if="manifest.available+main.class" name="-do-jar-with-mainclass" unless="manifest.available+main.class+mkdist.available">
+    <target depends="init,compile,-pre-pre-jar,-pre-jar" if="do.archive+manifest.available+main.class" name="-do-jar-with-mainclass" unless="manifest.available+main.class+mkdist.available">
         <j2seproject1:jar manifest="${manifest.file}">
             <j2seproject1:manifest>
                 <j2seproject1:attribute name="Main-Class" value="${main.class}"/>
@@ -551,7 +582,7 @@ is divided into following sections:
         </pathconvert>
         <echo>java -cp "${run.classpath.with.dist.jar}" ${main.class}</echo>
     </target>
-    <target depends="init,compile,-pre-pre-jar,-pre-jar,-init-macrodef-copylibs" if="manifest.available+main.class+mkdist.available+splashscreen.available" name="-do-jar-with-libraries-and-splashscreen">
+    <target depends="init,compile,-pre-pre-jar,-pre-jar,-init-macrodef-copylibs" if="do.archive+manifest.available+main.class+mkdist.available+splashscreen.available" name="-do-jar-with-libraries-and-splashscreen">
         <basename file="${application.splash}" property="splashscreen.basename"/>
         <mkdir dir="${build.classes.dir}/META-INF"/>
         <copy failonerror="false" file="${application.splash}" todir="${build.classes.dir}/META-INF"/>
@@ -565,7 +596,7 @@ is divided into following sections:
         <property location="${dist.jar}" name="dist.jar.resolved"/>
         <echo>java -jar "${dist.jar.resolved}"</echo>
     </target>
-    <target depends="init,compile,-pre-pre-jar,-pre-jar,-init-macrodef-copylibs" if="manifest.available+main.class+mkdist.available" name="-do-jar-with-libraries" unless="splashscreen.available">
+    <target depends="init,compile,-pre-pre-jar,-pre-jar,-init-macrodef-copylibs" if="do.archive+manifest.available+main.class+mkdist.available" name="-do-jar-with-libraries" unless="splashscreen.available">
         <j2seproject3:copylibs>
             <customize>
                 <attribute name="Main-Class" value="${main.class}"/>
