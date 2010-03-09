@@ -478,7 +478,7 @@ public class Enter extends JCTree.Visitor {
             c.flags_field &= ~FROMCLASS;
             c.kind = TYP;
             c.type = new ClassType(Type.noType, List.<Type>nil(), c);
-        } else if (reattr) {
+        } else if (reattr && c.completer == null) {
             new ElementScanner6<Void, Void>() {
                 @Override
                 public Void visitType(TypeElement e, Void p) {
