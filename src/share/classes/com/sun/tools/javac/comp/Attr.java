@@ -3019,7 +3019,7 @@ public class Attr extends JCTree.Visitor {
         }
         public void visitMethodDef(JCMethodDecl tree) {
             // need to check static methods
-            if ((tree.sym.flags() & Flags.STATIC) != 0) {
+            if (tree.sym != null && (tree.sym.flags() & Flags.STATIC) != 0) {
                 for (JCTypeAnnotation a : tree.receiverAnnotations) {
                     if (chk.isTypeAnnotation(a, false))
                         log.error(a.pos(), "annotation.type.not.applicable");
