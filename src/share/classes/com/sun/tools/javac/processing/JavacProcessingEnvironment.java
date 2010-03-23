@@ -501,6 +501,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     static class ProcessorState {
         public Processor processor;
         public boolean   contributed;
+        public boolean   invalid;
         private ArrayList<Pattern> supportedAnnotationPatterns;
         private ArrayList<String>  supportedOptionNames;
 
@@ -525,9 +526,11 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     if (checkOptionName(optionName, log))
                         supportedOptionNames.add(optionName);
                 }
-
+                invalid = false;
             } catch (Throwable t) {
-                throw new AnnotationProcessingError(t);
+                if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+                LOGGER.log(Level.INFO, "Annotation processing error:", t);
+                invalid = true;
             }
         }
 
@@ -633,7 +636,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     Set<TypeElement> emptyTypeElements = Collections.emptySet();
                     while(innerIter.hasNext()) {
                         ProcessorState ps = innerIter.next();
-                        if (ps.contributed)
+                        if (!ps.invalid && ps.contributed)
                             callProcessor(ps.processor, emptyTypeElements, re);
                     }
                 }
@@ -701,6 +704,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
         while(unmatchedAnnotations.size() > 0 && psi.hasNext() ) {
             ProcessorState ps = psi.next();
+            if (ps.invalid) continue;
             Set<String>  matchedNames = new HashSet<String>();
             Set<TypeElement> typeElements = new LinkedHashSet<TypeElement>();
             for (String unmatchedAnnotationName : unmatchedAnnotations.keySet()) {
