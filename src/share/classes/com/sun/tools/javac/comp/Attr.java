@@ -446,7 +446,7 @@ public class Attr extends JCTree.Visitor {
     /** Derived visitor method: attribute an expression tree.
      */
     public Type attribExpr(JCTree tree, Env<AttrContext> env, Type pt) {
-        return attribTree(tree, env, VAL, pt.tag != ERROR ? pt : Type.noType);
+        return attribTree(tree, env, VAL, pt != null && pt.tag != ERROR ? pt : Type.noType);
     }
 
     /** Derived visitor method: attribute an expression tree with
@@ -1257,16 +1257,17 @@ public class Attr extends JCTree.Visitor {
             // Attribute return expression, if it exists, and check that
             // it conforms to result type of enclosing method.
             Symbol m = env.enclMethod.sym;
-            if (m.type.getReturnType().tag == VOID) {
+            Type retType = m != null && m.type != null ? m.type.getReturnType() : null;
+            if (retType != null && retType.tag == VOID) {
                 if (tree.expr != null) {
                     log.error(tree.expr.pos(),
                               "cant.ret.val.from.meth.decl.void");
-                    attribExpr(tree.expr, env, m.type.getReturnType());
+                    attribExpr(tree.expr, env, retType);
                 }
             } else if (tree.expr == null) {
                 log.error(tree.pos(), "missing.ret.val");
             } else {
-                attribExpr(tree.expr, env, m.type.getReturnType());
+                attribExpr(tree.expr, env, retType);
             }
         }
         result = null;
