@@ -2214,7 +2214,7 @@ public class Check {
             JCMethodDecl meth = (JCMethodDecl) l.head;
             if (TreeInfo.name(app.meth) == names._this) {
                 callMap.put(meth.sym, TreeInfo.symbol(app.meth));
-            } else {
+            } else if (meth.sym != null) {
                 meth.sym.flags_field |= ACYCLIC;
             }
         }
