@@ -483,7 +483,7 @@ public class TransTypes extends TreeTranslator {
         for (Scope.Entry e = tree.sym.owner.members().lookup(tree.name);
              e.sym != null;
              e = e.next()) {
-            if (e.sym != tree.sym &&
+            if (e.sym != tree.sym && tree.type != null &&
                 types.isSameType(erasure(e.sym.type), tree.type)) {
                 log.error(tree.pos(),
                           "name.clash.same.erasure", tree.sym,
