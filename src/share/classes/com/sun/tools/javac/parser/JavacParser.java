@@ -50,68 +50,6 @@ import static com.sun.tools.javac.parser.Token.*;
  */
 public class JavacParser implements Parser {
 
-    /**
-     *Represents a scope for anon class number assignment
-     */
-    private static class AnonScope {
-        public boolean localClass;
-        private final Name parentDecl;
-        private int currentNumber;
-        private Map<Name,Integer> localClasses;
-
-        private AnonScope (final Name name, final int startNumber) {
-            assert name != null;
-            this.parentDecl = name;
-            this.currentNumber = startNumber;
-        }
-
-        public int assignNumber () {
-            int ret = this.currentNumber;
-            if (this.currentNumber != -1) {
-                this.currentNumber++;
-            }
-            return ret;
-        }
-
-        public int assignLocalNumber (final Name name) {
-            if (localClasses == null) {
-                localClasses = new HashMap<Name,Integer> ();
-            }
-            Integer num = localClasses.get(name);
-            if (num == null) {
-                num = 1;
-            }
-            else {
-                num += 1;
-            }
-            localClasses.put(name, num);
-            return num.intValue();
-        }
-
-        @Override
-        public String toString () {
-            return String.format("%s : %d",this.parentDecl.toString(), this.currentNumber);
-        }
-    }
-
-    private final Map<Name, AnonScope> anonScopeMap = new HashMap<Name, AnonScope>();
-    private final Stack<AnonScope> anonScopes = new Stack<AnonScope> ();
-
-    void newAnonScope(final Name name) {
-        newAnonScope(name, 1);
-    }
-
-    public void newAnonScope(final Name name, final int startNumber) {
-        AnonScope parent = anonScopes.isEmpty() ? null : anonScopes.peek();
-        Name fqn = parent != null && parent.parentDecl != names.empty ? parent.parentDecl.append('.', name) : name;
-        AnonScope scope = anonScopeMap.get(fqn);
-        if (scope == null) {
-            scope = new AnonScope(name, startNumber);
-            anonScopeMap.put(fqn, scope);
-        }
-        anonScopes.push(scope);
-    }
-
     /** The number of precedence levels of infix operators.
      */
     private static final int infixPrecedenceLevels = 10;
@@ -1756,18 +1694,13 @@ public class JavacParser implements Parser {
         List<JCExpression> args = arguments();
         JCClassDecl body = null;
         if (S.token() == LBRACE) {
-            newAnonScope(names.empty);
             int pos = 0;
             List<JCTree> defs = null;
             JCModifiers mods = null;
-            try {
-                pos = S.pos();
-                defs = classOrInterfaceBody(names.empty, false);
-                mods = F.at(Position.NOPOS).Modifiers(0);
-            } finally {
-                this.anonScopes.pop();
-            }
-            body = toP(F.at(pos).AnonymousClassDef(mods, defs, this.anonScopes.peek().assignNumber()));
+            pos = S.pos();
+            defs = classOrInterfaceBody(names.empty, false);
+            mods = F.at(Position.NOPOS).Modifiers(0);
+            body = toP(F.at(pos).AnonymousClassDef(mods, defs));
         }
         return toP(F.at(newpos).NewClass(encl, typeArgs, t, args, body));
     }
@@ -2493,67 +2426,65 @@ public class JavacParser implements Parser {
     /** CompilationUnit = [ { "@" Annotation } PACKAGE Qualident ";"] {ImportDeclaration} {TypeDeclaration}
      */
     public JCTree.JCCompilationUnit parseCompilationUnit() {
-        try {
-            int pos = S.pos();
-            JCExpression pid = null;
-            String toplevel_dc = S.docComment();
-            String dc = S.docComment();
-            JCModifiers mods = null;
-            List<JCAnnotation> packageAnnotations = List.nil();
-            ListBuffer<JCTree> defs = new ListBuffer<JCTree>();
-            boolean checkForPackage = true;
-            boolean checkForImports = true;
-            while (S.token() != EOF) {
-                if (S.pos() <= errorEndPos) {
-                    // error recovery
-                    skip(checkForImports, false, false, false);
-                    if (S.token() == EOF)
-                        break;
-                }
-                if (checkForPackage && S.token() == MONKEYS_AT) {
-                    mods = modifiersOpt();
-                } else if (S.token() == PACKAGE) {
-                    if (checkForPackage) {
-                        if (mods != null) {
-                            checkNoMods(mods.flags);
-                            packageAnnotations = mods.annotations;
-                            mods = null;
-                        }
-                        S.nextToken();
-                        pid = qualident();
-                        accept(SEMI);
-                        checkForPackage = false;
-                    } else {
-                        S.nextToken();
-                    }
-                    dc = null;
-                } else if (checkForImports && mods == null && S.token() == IMPORT) {
-                    defs.append(importDeclaration());
-                    checkForPackage = false;
-                    dc = null;
-                } else {
-                    JCTree def = typeDeclaration(mods, dc);
-                    defs.append(def);
-                    if (def instanceof JCClassDecl) {
-                        checkForPackage = false;
-                        checkForImports = false;
-                    }
-                    mods = null;
-                    dc = null;
-                }
+        int pos = S.pos();
+        JCExpression pid = null;
+        String toplevel_dc = S.docComment();
+        String dc = S.docComment();
+        JCModifiers mods = null;
+        List<JCAnnotation> packageAnnotations = List.nil();
+        ListBuffer<JCTree> defs = new ListBuffer<JCTree>();
+        boolean checkForPackage = true;
+        boolean checkForImports = true;
+        while (S.token() != EOF) {
+            if (S.pos() <= errorEndPos) {
+                // error recovery
+                skip(checkForImports, false, false, false);
+                if (S.token() == EOF)
+                    break;
             }
-            JCTree.JCCompilationUnit toplevel = F.at(pos).TopLevel(packageAnnotations, pid, defs.toList());
-            attach(toplevel, toplevel_dc);
-            if (defs.elems.isEmpty())
-                storeEnd(toplevel, S.prevEndPos());
-            if (keepDocComments)
-                toplevel.docComments = docComments;
-            if (keepLineMap)
-                toplevel.lineMap = S.getLineMap();
-            return toplevel;
-        } finally {
-            this.anonScopes.clear();
+            if (checkForPackage && S.token() == MONKEYS_AT) {
+                mods = modifiersOpt();
+            } else if (S.token() == PACKAGE) {
+                if (checkForPackage) {
+                    if (mods != null) {
+                        checkNoMods(mods.flags);
+                        packageAnnotations = mods.annotations;
+                        mods = null;
+                    }
+                    S.nextToken();
+                    pid = qualident();
+                    accept(SEMI);
+                    checkForPackage = false;
+                } else {
+                    S.nextToken();
+                }
+                dc = null;
+            } else if (checkForImports && mods == null && S.token() == IMPORT) {
+                defs.append(importDeclaration());
+                checkForPackage = false;
+                dc = null;
+            } else {
+                JCTree def = typeDeclaration(mods, dc);
+                defs.append(def);
+                if (def instanceof JCClassDecl) {
+                    checkForPackage = false;
+                    checkForImports = false;
+                }
+                mods = null;
+                dc = null;
+            }
         }
+        JCTree.JCCompilationUnit toplevel = F.at(pos).TopLevel(packageAnnotations, pid, defs.toList());
+        attach(toplevel, toplevel_dc);
+        if (defs.elems.isEmpty())
+            storeEnd(toplevel, S.prevEndPos());
+        if (keepDocComments)
+            toplevel.docComments = docComments;
+        if (keepLineMap)
+            toplevel.lineMap = S.getLineMap();
+
+        assignAnonymousClassIndices(names, toplevel, null, -1);
+        return toplevel;
     }
 
     /** ImportDeclaration = IMPORT [ STATIC ] Ident { "." Ident } [ "." "*" ] ";"
@@ -2667,18 +2598,9 @@ public class JavacParser implements Parser {
             S.nextToken();
             implementing = typeList();
         }
-        List<JCTree> defs = null;
-        newAnonScope(name);
-        try {
-            defs = classOrInterfaceBody(name, false);
-        } finally {
-            this.anonScopes.pop();
-        }
+        List<JCTree> defs = classOrInterfaceBody(name, false);
         JCClassDecl result = toP(F.at(pos).ClassDef(
                 mods, name, typarams, extending, implementing, defs));
-        if (!this.anonScopes.isEmpty() && this.anonScopes.peek().localClass) {
-            result.index = this.anonScopes.peek().assignLocalNumber(name);
-        }
         attach(result, dc);
         return result;
     }
@@ -2703,18 +2625,9 @@ public class JavacParser implements Parser {
             S.nextToken();
             extending = typeList();
         }
-        List<JCTree> defs = null;
-        newAnonScope(name);
-        try {
-            defs = classOrInterfaceBody(name, true);
-        } finally {
-            this.anonScopes.pop();
-        }
+        List<JCTree> defs = classOrInterfaceBody(name, true);
         JCClassDecl result = toP(F.at(pos).ClassDef(
             mods, name, typarams, null, extending, defs));
-        if (!this.anonScopes.isEmpty() && this.anonScopes.peek().localClass) {
-            result.index = this.anonScopes.peek().assignLocalNumber(name);
-        }
         attach(result, dc);
         return result;
     }
@@ -2743,20 +2656,11 @@ public class JavacParser implements Parser {
             implementing = typeList();
         }
 
-        List<JCTree> defs = null;
-        newAnonScope(name);
-        try {
-            defs = enumBody(name);
-        } finally {
-            this.anonScopes.pop();
-        }
+        List<JCTree> defs = enumBody(name);
 
         JCClassDecl result = toP(F.at(pos).
             ClassDef(mods, name, List.<JCTypeParameter>nil(),
                 null, implementing, defs));
-        if (!this.anonScopes.isEmpty() && this.anonScopes.peek().localClass) {
-            result.index = this.anonScopes.peek().assignLocalNumber(name);
-        }
 
         attach(result, dc);
         return result;
@@ -2829,16 +2733,9 @@ public class JavacParser implements Parser {
                 ? arguments() : List.<JCExpression>nil();
             JCClassDecl body = null;
             if (S.token() == LBRACE) {
-                JCModifiers mods1 = null;
-                List<JCTree> defs = null;
-                newAnonScope(names.empty);
-                try {
-                    mods1 = F.at(Position.NOPOS).Modifiers(Flags.ENUM | Flags.STATIC);
-                    defs = classOrInterfaceBody(names.empty, false);
-                } finally {
-                    this.anonScopes.pop();
-                }
-                body = toP(F.at(identPos).AnonymousClassDef(mods1, defs, this.anonScopes.peek().assignNumber()));
+                JCModifiers mods1 = F.at(Position.NOPOS).Modifiers(Flags.ENUM | Flags.STATIC);
+                List<JCTree> defs = classOrInterfaceBody(names.empty, false);
+                body = toP(F.at(identPos).AnonymousClassDef(mods1, defs));
             }
             JCIdent ident = F.at(Position.NOPOS).Ident(enumName);
             JCNewClass create = F.at(createPos).NewClass(null, typeArgs, ident, args, body);
@@ -2858,13 +2755,7 @@ public class JavacParser implements Parser {
         } else if (S.token() == LBRACE &&
                    (mods.flags & Flags.StandardFlags & ~Flags.STATIC) == 0 &&
                    mods.annotations.isEmpty()) {
-            final AnonScope as = this.anonScopes.peek();
-            as.localClass=true;
-            try {
-                return List.<JCTree>of(block(pos, mods.flags));
-            } finally {
-                as.localClass=false;
-            }
+            return List.<JCTree>of(block(pos, mods.flags));
         } else {
             pos = S.pos();
             List<JCTypeParameter> typarams = typeParametersOpt();
@@ -2999,13 +2890,7 @@ public class JavacParser implements Parser {
             } else if (S.token() == LBRACE && !isInterface &&
                        (mods.flags & Flags.StandardFlags & ~Flags.STATIC) == 0 &&
                        mods.annotations.isEmpty()) {
-                final AnonScope as = this.anonScopes.peek();
-                as.localClass=true;
-                try {
-                    return List.<JCTree>of(block(pos, mods.flags));
-                } finally {
-                    as.localClass=false;
-                }
+                return List.<JCTree>of(block(pos, mods.flags));
             } else {
                 pos = S.pos();
                 List<JCTypeParameter> typarams = typeParametersOpt();
@@ -3128,13 +3013,7 @@ public class JavacParser implements Parser {
         JCBlock body = null;
         JCExpression defaultValue;
         if (S.token() == LBRACE) {
-            final AnonScope as = this.anonScopes.peek();
-            as.localClass=true;
-            try {
-                body = block();
-            } finally {
-                as.localClass=false;
-            }
+            body = block();
             defaultValue = null;
         } else {
             if (S.token() == DEFAULT) {
@@ -3148,13 +3027,7 @@ public class JavacParser implements Parser {
                 // error recovery
                 skip(false, true, false, false);
                 if (S.token() == LBRACE) {
-                    final AnonScope as = this.anonScopes.peek();
-                    as.localClass=true;
-                    try {
-                        body = block();
-                    } finally {
-                        as.localClass=false;
-                    }
+                    body = block();
                 }
             }
         }
@@ -3499,6 +3372,117 @@ public class JavacParser implements Parser {
         if (!allowTypeAnnotations) {
             log.error(S.pos(), "type.annotations.not.supported.in.source", source.name);
             allowTypeAnnotations = true;
+        }
+    }
+
+    public static void assignAnonymousClassIndices(Names names, JCTree tree, Name name, int startNumber) {
+        AssignAnonymousIndices aai = new AssignAnonymousIndices(names);
+
+        if (name != null) {
+            aai.newAnonScope(name, startNumber);
+        }
+
+        aai.scan(tree);
+    }
+    
+    private static final class AssignAnonymousIndices extends TreeScanner {
+        private final Names names;
+
+        public AssignAnonymousIndices(Names names) {
+            this.names = names;
+        }
+        
+        /**
+         *Represents a scope for anon class number assignment
+         */
+        private static class AnonScope {
+            public boolean localClass;
+            private final Name parentDecl;
+            private int currentNumber;
+            private Map<Name,Integer> localClasses;
+
+            private AnonScope (final Name name, final int startNumber) {
+                assert name != null;
+                this.parentDecl = name;
+                this.currentNumber = startNumber;
+            }
+
+            public int assignNumber () {
+                int ret = this.currentNumber;
+                if (this.currentNumber != -1) {
+                    this.currentNumber++;
+                }
+                return ret;
+            }
+
+            public int assignLocalNumber (final Name name) {
+                if (localClasses == null) {
+                    localClasses = new HashMap<Name,Integer> ();
+                }
+                Integer num = localClasses.get(name);
+                if (num == null) {
+                    num = 1;
+                }
+                else {
+                    num += 1;
+                }
+                localClasses.put(name, num);
+                return num.intValue();
+            }
+
+            @Override
+            public String toString () {
+                return String.format("%s : %d",this.parentDecl.toString(), this.currentNumber);
+            }
+        }
+
+        private final Map<Name, AnonScope> anonScopeMap = new HashMap<Name, AnonScope>();
+        private final Stack<AnonScope> anonScopes = new Stack<AnonScope> ();
+
+        void newAnonScope(final Name name) {
+            newAnonScope(name, 1);
+        }
+
+        public void newAnonScope(final Name name, final int startNumber) {
+            AnonScope parent = anonScopes.isEmpty() ? null : anonScopes.peek();
+            Name fqn = parent != null && parent.parentDecl != names.empty ? parent.parentDecl.append('.', name) : name;
+            AnonScope scope = anonScopeMap.get(fqn);
+            if (scope == null) {
+                scope = new AnonScope(name, startNumber);
+                anonScopeMap.put(fqn, scope);
+            }
+            anonScopes.push(scope);
+        }
+
+        @Override
+        public void visitClassDef(JCClassDecl tree) {
+            if (tree.name == names.empty) {
+                tree.index = this.anonScopes.peek().assignNumber();
+            }
+            newAnonScope(names.empty);
+            try {
+                super.visitClassDef(tree);
+            } finally {
+                this.anonScopes.pop();
+            }
+            if (!this.anonScopes.isEmpty() && this.anonScopes.peek().localClass) {
+                tree.index = this.anonScopes.peek().assignLocalNumber(tree.name);
+            }
+        }
+        @Override
+        public void visitMethodDef(JCMethodDecl tree) {
+            final AnonScope as = this.anonScopes.peek();
+            as.localClass=true;
+            try {
+                super.visitMethodDef(tree);
+            } finally {
+                as.localClass=false;
+            }
+        }
+        @Override
+        public void visitApply(JCMethodInvocation tree) {
+            scan(tree.args);
+            scan(tree.meth);
         }
     }
 }
