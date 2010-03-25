@@ -516,8 +516,7 @@ public class TreeMaker implements JCTree.Factory {
  ****************************************************************************/
 
     public JCClassDecl AnonymousClassDef(JCModifiers mods,
-                                         List<JCTree> defs,
-                                         int index)
+                                         List<JCTree> defs)
     {
         final JCTree.JCClassDecl classDecl =  ClassDef(mods,
                         names.empty,
@@ -525,7 +524,6 @@ public class TreeMaker implements JCTree.Factory {
                         null,
                         List.<JCExpression>nil(),
                         defs);
-        classDecl.index = index;
         return classDecl;
     }
 
