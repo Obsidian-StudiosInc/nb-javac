@@ -2285,7 +2285,7 @@ public class ClassReader implements Completer {
     public void complete(Symbol sym) throws CompletionFailure {
         if (sym.kind == TYP) {
             ClassSymbol c = (ClassSymbol)sym;
-            c.members_field = new Scope.ErrorScope(c); // make sure it's always defined
+            Scope tempScope = c.members_field = new Scope.ErrorScope(c); // make sure it's always defined
             boolean saveSuppressFlush = suppressFlush;
             suppressFlush = true;
             try {
@@ -2294,7 +2294,9 @@ public class ClassReader implements Completer {
             } finally {
                 suppressFlush = saveSuppressFlush;
             }
-            fillIn(c);
+            if (c.members_field == tempScope) { // do not fill in when already completed as a result of completing owners
+                fillIn(c);
+            }
         } else if (sym.kind == PCK) {
             PackageSymbol p = (PackageSymbol)sym;
             try {
