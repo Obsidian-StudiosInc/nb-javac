@@ -3375,6 +3375,10 @@ public class JavacParser implements Parser {
         }
     }
 
+    //XXX: transient, for compatibility
+    @Deprecated
+    protected final void newAnonScope(Name n, int i) {}
+
     public static void assignAnonymousClassIndices(Names names, JCTree tree, Name name, int startNumber) {
         AssignAnonymousIndices aai = new AssignAnonymousIndices(names);
 
