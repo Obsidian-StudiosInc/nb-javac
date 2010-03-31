@@ -514,6 +514,10 @@ public class TreeInfo {
                 if (that.type != null && that.type.tsym == sym) result = that;
                 else super.visitTypeParameter(that);
             }
+            @Override
+            public void visitErroneous(JCErroneous tree) {
+                scan(tree.getErrorTrees());
+            }
         }
         DeclScanner s = new DeclScanner();
         tree.accept(s);
