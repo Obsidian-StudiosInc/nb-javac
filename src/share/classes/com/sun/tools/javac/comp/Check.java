@@ -2105,7 +2105,7 @@ public class Check {
 
         // all the remaining ones better have default values
         for (MethodSymbol m : members)
-            if (m.defaultValue == null && !m.type.isErroneous())
+            if (m.defaultValue == null && !m.type.isErroneous() && m.name != m.name.table.names.clinit)
                 log.error(a.pos(), "annotation.missing.default.value",
                           a.type, m.name);
 
