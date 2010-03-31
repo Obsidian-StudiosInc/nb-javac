@@ -444,11 +444,8 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             (types.supertype(tree.sym.type).tsym.flags() & Flags.ENUM) == 0) {
             if (tree.sym == null || (tree.sym.flags_field & Flags.FROMCLASS) == 0)
                 addEnumMembers(tree, env);
-            memberEnter(tree.defs, env);
-            chk.checkAllDefined(tree.pos(), tree.sym);
-        } else {
-            memberEnter(tree.defs, env);
         }
+        memberEnter(tree.defs, env);
     }
 
     /** Add the implicit members for an enum type
