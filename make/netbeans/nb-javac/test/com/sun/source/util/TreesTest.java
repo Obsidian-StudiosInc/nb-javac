@@ -27,14 +27,17 @@ package com.sun.source.util;
 
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Scope;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.tools.javac.api.JavacTrees;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
@@ -184,4 +187,46 @@ public class TreesTest extends TestCase {
 
     }
 
+    public void testGetTree() throws IOException {
+        String code = "package test;\n" +
+                  "public class Test {\n" +
+                  "    public Test() {\n" +
+                  "        method();\n" +
+                  "    }\n" +
+                  "    protected void method\n\n" +
+                  "}\n";
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-XDide"), null, Arrays.asList(new MyFileObject(code)));
+
+        CompilationUnitTree cut = ct.parse().iterator().next();
+
+        ct.analyze();
+
+        final Trees trees = JavacTrees.instance(ct);
+        final AtomicBoolean found = new AtomicBoolean();
+
+        new TreePathScanner<Void, Void>() {
+            @Override
+            public Void visitMethod(MethodTree node, Void p) {
+                if ("method".equals(node.getName().toString())) {
+                    assertEquals(Kind.ERRONEOUS, getCurrentPath().getParentPath().getLeaf().getKind());
+                    Element e = trees.getElement(getCurrentPath());
+
+                    System.err.println(getCurrentPath().getLeaf());
+                    System.err.println(getCurrentPath().getParentPath().getLeaf());
+                    System.err.println(getCurrentPath().getParentPath().getParentPath().getLeaf());
+                    assertNotNull(e);
+                    assertNotNull(trees.getTree(e));
+                    assertNotNull(trees.getPath(e));
+
+                    found.set(true);
+                }
+                return super.visitMethod(node, p);
+            }
+        }.scan(cut, null);
+
+        assertTrue(found.get());
+    }
 }

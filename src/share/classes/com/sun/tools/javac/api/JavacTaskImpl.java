@@ -820,8 +820,9 @@ public class JavacTaskImpl extends JavacTask {
             final Map<? super JCTree,? super String> docComments) {
         ParserFactory parserFactory = ParserFactory.instance(context);
         CharBuffer buf = CharBuffer.wrap((newBodyText+"\u0000").toCharArray(), 0, newBodyText.length());
-        JavacParser parser = (JavacParser) parserFactory.newParser(buf, ((JCBlock)methodToReparse.getBody()).pos, annonIndex,  ((JCCompilationUnit)topLevel).endPositions);
+        JavacParser parser = (JavacParser) parserFactory.newParser(buf, ((JCBlock)methodToReparse.getBody()).pos, ((JCCompilationUnit)topLevel).endPositions);
         final JCStatement statement = parser.parseStatement();
+        JavacParser.assignAnonymousClassIndices(Names.instance(context), statement, Names.instance(context).empty, annonIndex);
         if (statement.getKind() == Tree.Kind.BLOCK) {
             if (docComments != null) {
                 docComments.putAll(parser.getDocComments());
