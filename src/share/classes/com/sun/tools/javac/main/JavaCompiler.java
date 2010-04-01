@@ -1171,6 +1171,19 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         if (compileStates.isDone(env, CompileState.ATTR))
             return env;
 
+        if (log == null) {
+            Logger.getLogger(JavaCompiler.class.getName()).warning("Null log");
+        }
+        if (env == null) {
+            Logger.getLogger(JavaCompiler.class.getName()).warning("Null env");
+        } else if (env.enclClass == null) {
+            Logger.getLogger(JavaCompiler.class.getName()).warning("Null env.enclClass " + env);
+        } else if (env.enclClass.sym == null) {
+            Logger.getLogger(JavaCompiler.class.getName()).warning("Null env.enclClass.sym " + env.enclClass);
+        } else if (env.toplevel == null) {
+            Logger.getLogger(JavaCompiler.class.getName()).warning("Null env.toplevel " + env);
+        }
+
         if (verboseCompilePolicy)
             log.printLines(log.noticeWriter, "[attribute " + env.enclClass.sym + "]");
         if (verbose)
