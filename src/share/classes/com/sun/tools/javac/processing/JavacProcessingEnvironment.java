@@ -26,8 +26,10 @@
 package com.sun.tools.javac.processing;
 
 
+import com.sun.source.util.TreePath;
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.*;
@@ -58,6 +60,7 @@ import javax.tools.JavaFileObject;
 import com.sun.source.util.AbstractTypeProcessor;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
+import com.sun.tools.javac.api.JavacTrees;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.comp.Check;
@@ -669,7 +672,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     private void discoverAndRunProcs(Context context,
                                      Set<TypeElement> annotationsPresent,
                                      List<ClassSymbol> topLevelClasses,
-                                     List<PackageSymbol> packageInfoFiles) {
+                                     List<PackageSymbol> packageInfoFiles,
+                                     Map<AbstractTypeProcessor, Set<TypeElement>> typeProcessor2Types) {
         // Writer for -XprintRounds and -XprintProcessorInfo data
         PrintWriter xout = context.get(Log.outKey);
 
@@ -718,6 +722,15 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
             if (matchedNames.size() > 0 || ps.contributed) {
                 foundTypeProcessors = foundTypeProcessors || (ps.processor instanceof AbstractTypeProcessor);
+                if (ps.processor instanceof AbstractTypeProcessor) {
+                    Set<TypeElement> types = typeProcessor2Types.get((AbstractTypeProcessor) ps.processor);
+
+                    if (types == null) {
+                        typeProcessor2Types.put((AbstractTypeProcessor) ps.processor, types = new HashSet<TypeElement>());
+                    }
+
+                    types.addAll(ElementFilter.typesIn(renv.getRootElements()));
+                }
                 boolean processingResult = callProcessor(ps.processor, typeElements, renv);
                 ps.contributed = true;
                 ps.removeSupportedOptions(unmatchedProcessorOptions);
@@ -852,6 +865,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             annotationComputer.scan(classSym, annotationsPresent);
         for (PackageSymbol pkgSym : packageInfoFiles)
             annotationComputer.scan(pkgSym, annotationsPresent);
+        Map<AbstractTypeProcessor, Set<TypeElement>> typeProcessor2Types = new HashMap<AbstractTypeProcessor, Set<TypeElement>>();
 
         Context currentContext = context;
 
@@ -873,7 +887,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 taskListener.started(new TaskEvent(TaskEvent.Kind.ANNOTATION_PROCESSING_ROUND));
 
             try {
-                discoverAndRunProcs(currentContext, annotationsPresent, topLevelClasses, packageInfoFiles);
+                discoverAndRunProcs(currentContext, annotationsPresent, topLevelClasses, packageInfoFiles, typeProcessor2Types);
             } finally {
                 if (taskListener != null)
                     taskListener.finished(new TaskEvent(TaskEvent.Kind.ANNOTATION_PROCESSING_ROUND));
@@ -976,6 +990,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 roots = null;
                 compiler.enterTrees(compiler.parseFiles(fileObjects.reverse()));
             }
+
+            prepareAbstractTypeProcessorListener(context, typeProcessor2Types);
         }
 
         return compiler;
@@ -1425,4 +1441,110 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
         return true;
     }
+
+    private void prepareAbstractTypeProcessorListener(Context context, Map<AbstractTypeProcessor, Set<TypeElement>> typeProcessor2Types) {
+        if (typeProcessor2Types.isEmpty()) return;
+        
+        TaskListener otherListener = context.get(TaskListener.class);
+        if (otherListener != null) {
+            context.put(TaskListener.class, (TaskListener)null);
+        }
+        context.put(TaskListener.class, new AttributionTaskListener(context, typeProcessor2Types, otherListener));
+    }
+
+    /**
+     * A task listener that invokes the type processors whenever a class is fully
+     * analyzed.
+     */
+    private static final class AttributionTaskListener implements TaskListener {
+
+        private final Context context;
+        private final Map<AbstractTypeProcessor, Set<TypeElement>> typeProcessor2Types;
+        private final TaskListener previous;
+        private boolean hasInvokedTypeProcessingOver = false;
+
+        public AttributionTaskListener(Context context, Map<AbstractTypeProcessor, Set<TypeElement>> typeProcessor2Types, TaskListener previous) {
+            this.context = context;
+            this.typeProcessor2Types = typeProcessor2Types;
+            this.previous = previous;
+        }
+
+        @Override
+        public void finished(TaskEvent e) {
+            if (previous != null) previous.finished(e);
+
+            Log log = Log.instance(context);
+
+            maybeInvokeProcessingOver();
+
+            if (e.getKind() != TaskEvent.Kind.ANALYZE)
+                return;
+
+            if (e.getTypeElement() == null)
+                throw new AssertionError("event task without a type element");
+            if (e.getCompilationUnit() == null)
+                throw new AssertionError("even task without compilation unit");
+
+            if (log.nerrors != 0) //???seems wrong
+                return;
+            
+            TypeElement elem = e.getTypeElement();
+            TreePath p = JavacTrees.instance(context).getPath(elem);
+
+            for (Entry<AbstractTypeProcessor, Set<TypeElement>> entry : typeProcessor2Types.entrySet()) {
+                if (entry.getValue().remove(elem)) {
+                    try {
+                        entry.getKey().typeProcess(elem, p);
+                    } catch (CompletionFailure ex) {
+                        StringWriter out = new StringWriter();
+                        ex.printStackTrace(new PrintWriter(out));
+                        log.error("proc.cant.access", ex.sym, ex.getDetailValue(), out.toString());
+                        return ;
+                    } catch (Throwable t) {
+                        if (t instanceof ThreadDeath)
+                            throw (ThreadDeath)t;
+                        LOGGER.log(Level.INFO, "Annotation processing error:", t);
+                        return ;
+                    }
+                }
+            }
+
+            maybeInvokeProcessingOver();
+        }
+
+        private void maybeInvokeProcessingOver() {
+            if (hasInvokedTypeProcessingOver) return;
+
+            Log log = Log.instance(context);
+
+            if (log.nerrors != 0) return;
+            
+            for (Set<TypeElement> types : typeProcessor2Types.values()) {
+                if (!types.isEmpty()) return;
+            }
+
+            for (AbstractTypeProcessor p : typeProcessor2Types.keySet()) {
+                try {
+                    p.typeProcessingOver();
+                } catch (CompletionFailure ex) {
+                    StringWriter out = new StringWriter();
+                    ex.printStackTrace(new PrintWriter(out));
+                    log.error("proc.cant.access", ex.sym, ex.getDetailValue(), out.toString());
+                    return ;
+                } catch (Throwable t) {
+                    if (t instanceof ThreadDeath)
+                        throw (ThreadDeath)t;
+                    LOGGER.log(Level.INFO, "Annotation processing error:", t);
+                    return ;
+                }
+            }
+        }
+
+        @Override
+        public void started(TaskEvent e) {
+            if (previous != null) previous.started(e);
+        }
+
+    }
+
 }
