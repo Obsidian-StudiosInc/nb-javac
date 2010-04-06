@@ -442,6 +442,10 @@ public class Repair extends TreeTranslator {
                         hasError = false;
                         err = null;
                         l.head = translate(l.head);
+                        if ((l.head.getTag() == JCTree.METHODDEF && ((JCMethodDecl)l.head).sym == null)
+                                || (l.head.getTag() == JCTree.VARDEF && ((JCVariableDecl)l.head).sym == null)) {
+                            hasError = true;
+                        }
                         if (hasError) {
                             if (l.head.getTag() == JCTree.CLASSDEF && tree.sym.members_field.includes(((JCClassDecl)l.head).sym)) {
                                 last = l;
