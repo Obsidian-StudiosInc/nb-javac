@@ -66,7 +66,7 @@ import static com.sun.tools.javac.util.ListBuffer.lb;
 import com.sun.tools.javac.parser.DocCommentScanner;
 
 import java.util.HashMap;
-import java.util.LinkedList;
+import java.util.Iterator;
 import java.util.Queue;
 import javax.lang.model.SourceVersion;
 
@@ -994,6 +994,8 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      */
     private JavacProcessingEnvironment procEnvImpl = null;
 
+    private Iterable<? extends Processor> processors = null;
+
     /**
      * Check if we should process annotations.
      * If so, and if no scanner is yet registered, then set up the DocCommentScanner
@@ -1007,6 +1009,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 throws IOException {
         // Process annotations if processing is not disabled and there
         // is at least one Processor available.
+        this.processors = processors;
         Options options = Options.instance(context);
         if (options.get("-proc:none") != null) {
             processAnnotations = false;
@@ -1032,7 +1035,26 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
     // TODO: called by JavacTaskImpl
     public JavaCompiler processAnnotations(List<JCCompilationUnit> roots)
             throws IOException {
-        return processAnnotations(roots, List.<String>nil());
+        boolean checkForNullSyms = true;
+        for (Iterator<Env<AttrContext>> it = todo.iterator(); it.hasNext();) {
+            if (it.next().enclClass.sym == null) {
+                checkForNullSyms = false;
+                break;
+            }
+        }
+        try {
+            return processAnnotations(roots, List.<String>nil());
+        } finally {
+            if (checkForNullSyms) {
+                for (Iterator<Env<AttrContext>> it = todo.iterator(); it.hasNext();) {
+                    Env<AttrContext> env = it.next();
+                    if (env.enclClass.sym == null) {
+                        Logger.getLogger(JavaCompiler.class.getName()).warning("JavaCompiler: symbol cleaned from: " + env.enclClass + "\nannotation processors: " + processors);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -1171,17 +1193,8 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         if (compileStates.isDone(env, CompileState.ATTR))
             return env;
 
-        if (log == null) {
-            Logger.getLogger(JavaCompiler.class.getName()).warning("Null log");
-        }
-        if (env == null) {
-            Logger.getLogger(JavaCompiler.class.getName()).warning("Null env");
-        } else if (env.enclClass == null) {
-            Logger.getLogger(JavaCompiler.class.getName()).warning("Null env.enclClass " + env);
-        } else if (env.enclClass.sym == null) {
-            Logger.getLogger(JavaCompiler.class.getName()).warning("Null env.enclClass.sym " + env.enclClass);
-        } else if (env.toplevel == null) {
-            Logger.getLogger(JavaCompiler.class.getName()).warning("Null env.toplevel " + env);
+        if (env.enclClass.sym == null) {
+            Logger.getLogger(JavaCompiler.class.getName()).warning("JavaCompiler: null env.enclClass.sym:" + env.enclClass + "\nannotation processors: " + processors);
         }
 
         if (verboseCompilePolicy)
