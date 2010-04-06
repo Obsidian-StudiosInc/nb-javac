@@ -901,18 +901,16 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     }
 
                     List<JCCompilationUnit> parsedFiles = compiler.parseFiles(fileObjects);
-                    roots = cleanTrees(roots).reverse();
-
-                    for (JCCompilationUnit unit : parsedFiles)
-                        roots = roots.prepend(unit);
-                    roots = roots.reverse();
-
                     // Check for errors after parsing
                     if (compiler.parseErrors()) {
                         errorStatus = true;
                         break runAround;
                     } else {
                         ListBuffer<ClassSymbol> classes = enterNewClassFiles(currentContext);
+                        roots = cleanTrees(roots).reverse();
+                        for (JCCompilationUnit unit : parsedFiles)
+                            roots = roots.prepend(unit);
+                        roots = roots.reverse();
                         compiler.enterTrees(roots);
 
                         // annotationsPresentInSource =
