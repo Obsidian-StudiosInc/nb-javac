@@ -396,7 +396,7 @@ public class JavacTaskImpl extends JavacTask {
                         elements.append(unit.packge.package_info);
                 } else {
                     for (JCTree node : unit.defs)
-                        if (node.getTag() == JCTree.CLASSDEF)
+                        if (node.getTag() == JCTree.CLASSDEF && ((JCTree.JCClassDecl) node).sym != null)
                             elements.append(((JCTree.JCClassDecl) node).sym);
                 }
             }
