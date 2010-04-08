@@ -73,6 +73,7 @@ import com.sun.tools.javac.model.JavacTypes;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.util.Abort;
+import com.sun.tools.javac.util.CancelAbort;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
@@ -980,7 +981,16 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 compiler.shouldStopPolicy = CompileState.FLOW;
 
             if (true) {
-                compiler.enterTrees(cleanTrees(roots));
+                try {
+                    compiler.enterTrees(cleanTrees(roots));
+                } catch (Throwable t) {
+                    LOGGER.log(Level.INFO, "Error while re-entering:", t);
+                    if (t instanceof ThreadDeath)
+                        throw (ThreadDeath)t;
+                    if (t instanceof CancelAbort)
+                        throw (CancelAbort)t;
+                    throw new Abort(t);
+                }
             } else {
                 List<JavaFileObject> fileObjects = List.nil();
                 for (JCCompilationUnit unit : roots)

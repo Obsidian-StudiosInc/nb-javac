@@ -66,7 +66,6 @@ import static com.sun.tools.javac.util.ListBuffer.lb;
 import com.sun.tools.javac.parser.DocCommentScanner;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Queue;
 import javax.lang.model.SourceVersion;
 
@@ -994,8 +993,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      */
     private JavacProcessingEnvironment procEnvImpl = null;
 
-    private Iterable<? extends Processor> processors = null;
-
     /**
      * Check if we should process annotations.
      * If so, and if no scanner is yet registered, then set up the DocCommentScanner
@@ -1009,7 +1006,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 throws IOException {
         // Process annotations if processing is not disabled and there
         // is at least one Processor available.
-        this.processors = processors;
         Options options = Options.instance(context);
         if (options.get("-proc:none") != null) {
             processAnnotations = false;
@@ -1035,26 +1031,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
     // TODO: called by JavacTaskImpl
     public JavaCompiler processAnnotations(List<JCCompilationUnit> roots)
             throws IOException {
-        boolean checkForNullSyms = true;
-        for (Iterator<Env<AttrContext>> it = todo.iterator(); it.hasNext();) {
-            if (it.next().enclClass.sym == null) {
-                checkForNullSyms = false;
-                break;
-            }
-        }
-        try {
-            return processAnnotations(roots, List.<String>nil());
-        } finally {
-            if (checkForNullSyms) {
-                for (Iterator<Env<AttrContext>> it = todo.iterator(); it.hasNext();) {
-                    Env<AttrContext> env = it.next();
-                    if (env.enclClass.sym == null) {
-                        Logger.getLogger(JavaCompiler.class.getName()).warning("JavaCompiler: symbol cleaned from: " + env.enclClass + "\nannotation processors: " + processors);
-                        break;
-                    }
-                }
-            }
-        }
+        return processAnnotations(roots, List.<String>nil());
     }
 
     /**
@@ -1192,10 +1169,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
     public Env<AttrContext> attribute(Env<AttrContext> env) {
         if (compileStates.isDone(env, CompileState.ATTR))
             return env;
-
-        if (env.enclClass.sym == null) {
-            Logger.getLogger(JavaCompiler.class.getName()).warning("JavaCompiler: null env.enclClass.sym:" + env.enclClass + "\nannotation processors: " + processors);
-        }
 
         if (verboseCompilePolicy)
             log.printLines(log.noticeWriter, "[attribute " + env.enclClass.sym + "]");
