@@ -26,6 +26,7 @@
 package com.sun.tools.javac.main;
 
 import java.io.*;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
@@ -1118,11 +1119,22 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 }
             }
             try {
+                JavaCompiler c;
+                fileManager.handleOption("apt-origin", Collections.singleton(roots.head.getSourceFile().toUri().toString()).iterator());    //NOI18N
+                try {
+                    c = procEnvImpl.doProcessing(context, roots, classSymbols, pckSymbols);
+                } finally {
+                    fileManager.handleOption("apt-origin", Collections.singletonList("").iterator());   //NOI18N
+                }
                 while(!toProcessAnnotations.isEmpty()) {
-                    roots = roots.prepend(toProcessAnnotations.head);
+                    fileManager.handleOption("apt-origin", Collections.singleton(toProcessAnnotations.head.getSourceFile().toUri().toString()).iterator()); //NOI18N
+                    try {
+                        procEnvImpl.doProcessing(context, List.of(toProcessAnnotations.head), classSymbols, pckSymbols);
+                    } finally {
+                        fileManager.handleOption("apt-origin", Collections.singletonList("").iterator());   //NOI18N
+                    }
                     toProcessAnnotations = toProcessAnnotations.tail;
                 }
-                JavaCompiler c = procEnvImpl.doProcessing(context, roots, classSymbols, pckSymbols);
                 if (c != this)
                     annotationProcessingOccurred = c.annotationProcessingOccurred = true;
                 return c;
