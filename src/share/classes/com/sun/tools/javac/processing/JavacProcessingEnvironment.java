@@ -984,11 +984,11 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 try {
                     compiler.enterTrees(cleanTrees(roots));
                 } catch (Throwable t) {
-                    LOGGER.log(Level.INFO, "Error while re-entering:", t);
                     if (t instanceof ThreadDeath)
                         throw (ThreadDeath)t;
                     if (t instanceof CancelAbort)
                         throw (CancelAbort)t;
+                    LOGGER.log(Level.INFO, "Error while re-entering:", t);
                     throw new Abort(t);
                 }
             } else {
