@@ -202,6 +202,15 @@ public class Log extends AbstractLog {
      *  source file name and source code position of the error is added to the set.
      */
     private Set<Pair<JavaFileObject, Integer>> recorded = new HashSet<Pair<JavaFileObject,Integer>>();
+    private Set<Pair<JavaFileObject, Integer>> recordedOverlay = null;
+
+    public void setRecordedOverlay(Set<Pair<JavaFileObject, Integer>> overlay) {
+        this.recordedOverlay = overlay;
+    }
+
+    public void pushRecordedOverlay(Set<Pair<JavaFileObject, Integer>> recordedOverlay) {
+        recorded.addAll(recordedOverlay);
+    }
 
     public boolean hasDiagnosticListener() {
         return diagListener != null;
@@ -277,9 +286,11 @@ public class Log extends AbstractLog {
                 return shouldReport;
             }
             else {
-                boolean shouldReport = !recorded.contains(coords);
-                if (shouldReport)
-                    recorded.add(coords);
+                boolean shouldReport = !recorded.contains(coords) && (recordedOverlay == null || !recordedOverlay.contains(coords));
+                if (shouldReport) {
+                    if (recordedOverlay != null) recordedOverlay.add(coords);
+                    else recorded.add(coords);
+                }
                 return shouldReport;
             }
         }
