@@ -3463,7 +3463,7 @@ public class JavacParser implements Parser {
             if (tree.name == names.empty) {
                 tree.index = this.anonScopes.peek().assignNumber();
             }
-            newAnonScope(names.empty);
+            newAnonScope(tree.name);
             try {
                 super.visitClassDef(tree);
             } finally {
