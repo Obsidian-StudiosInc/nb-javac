@@ -92,4 +92,79 @@ public class AnonymousNumberingTest extends TestCase {
         assertEquals("java.lang.Runnable", ((TypeElement) ((DeclaredType) second.getInterfaces().get(0)).asElement()).getQualifiedName().toString());
     }
 
+    public void testCorrectAnonymousIndicesForMultipleMethods() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test;\n" +
+                      "public class Test {\n" +
+                      "    public Test main1(Object o) {\n" +
+                      "        new Runnable() {\n" +
+                      "            public void run() {\n" +
+                      "                throw new UnsupportedOperationException();\n" +
+                      "            }\n" +
+                      "        };" +
+                      "    }" +
+                      "    public Test main2(Object o) {\n" +
+                      "        new Iterable() {\n" +
+                      "            public java.util.Iterator iterator() {\n" +
+                      "                throw new UnsupportedOperationException();\n" +
+                      "            }\n" +
+                      "        };\n" +
+                      "    }\n" +
+                      "    public Test main3(Object o) {\n" +
+                      "        new java.util.ArrayList() {};\n" +
+                      "    }\n" +
+                      "}";
+
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+
+        ct.analyze();
+
+        Symtab symTab = Symtab.instance(ct.getContext());
+        TypeElement first = symTab.classes.get(ct.getElements().getName("test.Test$1"));
+        TypeElement second = symTab.classes.get(ct.getElements().getName("test.Test$2"));
+        TypeElement third = symTab.classes.get(ct.getElements().getName("test.Test$3"));
+
+        assertEquals("java.lang.Runnable", ((TypeElement) ((DeclaredType) first.getInterfaces().get(0)).asElement()).getQualifiedName().toString());
+        assertEquals("java.lang.Iterable", ((TypeElement) ((DeclaredType) second.getInterfaces().get(0)).asElement()).getQualifiedName().toString());
+        assertEquals("java.util.ArrayList", ((TypeElement) ((DeclaredType) third.getSuperclass()).asElement()).getQualifiedName().toString());
+    }
+
+    public void testCorrectNameForAnonymous() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test;\n" +
+                      "public class Test {\n" +
+                      "    public Test main1(Object o) {\n" +
+                      "        new Runnable() {\n" +
+                      "            public void run() {\n" +
+                      "                throw new UnsupportedOperationException();\n" +
+                      "            }\n" +
+                      "        };" +
+                      "        new Iterable() {\n" +
+                      "            public java.util.Iterator iterator() {\n" +
+                      "                new java.util.ArrayList() {};\n" +
+                      "            }\n" +
+                      "        };\n" +
+                      "    }\n" +
+                      "}";
+
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+
+        ct.analyze();
+
+        Symtab symTab = Symtab.instance(ct.getContext());
+        TypeElement first = symTab.classes.get(ct.getElements().getName("test.Test$1"));
+        TypeElement second = symTab.classes.get(ct.getElements().getName("test.Test$2"));
+        TypeElement third = symTab.classes.get(ct.getElements().getName("test.Test$2$1"));
+
+        assertEquals("java.lang.Runnable", ((TypeElement) ((DeclaredType) first.getInterfaces().get(0)).asElement()).getQualifiedName().toString());
+        assertEquals("java.lang.Iterable", ((TypeElement) ((DeclaredType) second.getInterfaces().get(0)).asElement()).getQualifiedName().toString());
+        assertEquals("java.util.ArrayList", ((TypeElement) ((DeclaredType) third.getSuperclass()).asElement()).getQualifiedName().toString());
+    }
+
 }
