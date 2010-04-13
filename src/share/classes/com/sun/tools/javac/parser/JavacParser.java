@@ -3469,7 +3469,7 @@ public class JavacParser implements Parser {
             } finally {
                 this.anonScopes.pop();
             }
-            if (!this.anonScopes.isEmpty() && this.anonScopes.peek().localClass) {
+            if (!this.anonScopes.isEmpty() && this.anonScopes.peek().localClass && tree.name != names.empty) {
                 tree.index = this.anonScopes.peek().assignLocalNumber(tree.name);
             }
         }
