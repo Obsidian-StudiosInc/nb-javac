@@ -624,6 +624,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
 
     private List<Diagnostic<? extends JavaFileObject>> tempDiags = List.nil();
     private Set<Pair<JavaFileObject, Integer>> recordedOverlay;
+    private Map<JCTree, JCDiagnostic> errTreesOverlay;
     private DiagnosticListener<? super JavaFileObject> temporaryDiagListener = new DiagnosticListener<JavaFileObject>() {
         public void report(Diagnostic<? extends JavaFileObject> diagnostic) {
             tempDiags = tempDiags.prepend(diagnostic);
@@ -639,6 +640,8 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         }
         log.pushRecordedOverlay(recordedOverlay);
         recordedOverlay = null;
+        log.pushErrTreesOverlay(errTreesOverlay);
+        errTreesOverlay = null;
         tempDiags = List.nil();
     }
 
@@ -947,6 +950,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         DiagnosticListener<? super JavaFileObject> oldDiagListener = log.getDiagnosticListener();
         tempDiags = List.nil();
         log.setRecordedOverlay(recordedOverlay = new HashSet<Pair<JavaFileObject,Integer>>());
+        log.setErrTreesOverlay(errTreesOverlay = new HashMap<JCTree, JCDiagnostic>());
         log.setDiagnosticListener(temporaryDiagListener);
         try {
             //enter symbols for all files
@@ -979,6 +983,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             return roots;
         } finally {
             log.setRecordedOverlay(null);
+            log.setErrTreesOverlay(null);
             log.setDiagnosticListener(oldDiagListener);
         }
     }
