@@ -117,6 +117,7 @@ public class Log extends AbstractLog {
 
     private final Set<Pair<JavaFileObject, Integer>> partialReparseRecorded = new HashSet<Pair<JavaFileObject,Integer>>();
     private final Map<JCTree, JCDiagnostic> errTrees = new HashMap<JCTree, JCDiagnostic>();
+    private Map<JCTree, JCDiagnostic> errTreesOverlay = null;
 
     /** Construct a log with given I/O redirections.
      */
@@ -210,6 +211,14 @@ public class Log extends AbstractLog {
 
     public void pushRecordedOverlay(Set<Pair<JavaFileObject, Integer>> recordedOverlay) {
         recorded.addAll(recordedOverlay);
+    }
+
+    public void setErrTreesOverlay(Map<JCTree, JCDiagnostic> overlay) {
+        this.errTreesOverlay = overlay;
+    }
+
+    public void pushErrTreesOverlay(Map<JCTree, JCDiagnostic> overlay) {
+        this.errTrees.putAll(overlay);
     }
 
     public boolean hasDiagnosticListener() {
@@ -396,8 +405,13 @@ public class Log extends AbstractLog {
 
         case ERROR:
             if (!suppressErrorsAndWarnings) {
-                if (diagnostic.getTree() != null && !errTrees.containsKey(diagnostic.getTree()))
-                    errTrees.put(diagnostic.getTree(), diagnostic);
+                if (diagnostic.getTree() != null && !errTrees.containsKey(diagnostic.getTree())
+                        && (errTreesOverlay == null || !errTreesOverlay.containsKey(diagnostic.getTree()))) {
+                    if (errTreesOverlay != null)
+                        errTreesOverlay.put(diagnostic.getTree(), diagnostic);
+                    else
+                        errTrees.put(diagnostic.getTree(), diagnostic);
+                }
                 if (nerrors < MaxErrors
                     && shouldReport(diagnostic.getSource(), diagnostic.getIntPosition())) {
                     writeDiagnostic(diagnostic);
