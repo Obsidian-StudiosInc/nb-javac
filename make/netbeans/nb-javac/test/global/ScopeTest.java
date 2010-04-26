@@ -29,6 +29,7 @@ import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.JavacTask;
+import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Scope;
@@ -134,6 +135,48 @@ public class ScopeTest extends TestCase {
                 for (Scope.Entry e = et.tsym.members().lookup(et.tsym.name.table.fromString("XYZ")); e.sym != null; e = e.next());
             }
         }
+    }
+
+    public void testScope180164() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test;\n" +
+                      "public class Test {\n" +
+                       "    private final Object o = new Runnable() {\n" +
+                       "        public void run() {\n" +
+                       "            String u = null;\n" +
+                       "            String n = u;\n" +
+                       "        }\n" +
+                       "    };\n" +
+                      "}\n";
+
+        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+	Iterable<? extends CompilationUnitTree> cut = ct.parse();
+        ct.analyze();
+
+	final TreePath[] paths = new TreePath[1];
+	final Element[] el = new Element[1];
+	
+	new TreePathScanner<Void, Void>() {
+	    @Override
+	    public Void visitIdentifier(IdentifierTree node, Void p) {
+		if (node.getName().contentEquals("u")) {
+		    paths[0] = getCurrentPath();
+		    el[0] = Trees.instance(ct).getElement(getCurrentPath());
+		}
+		return super.visitIdentifier(node, p);
+	    }
+	}.scan(cut, null);
+
+	assertNotNull(paths[0]);
+	
+	assertNotNull(Trees.instance(ct).getPath(el[0]));
+
+	Trees.instance(ct).getScope(paths[0]);
+
+	assertNotNull(Trees.instance(ct).getPath(el[0]));
     }
 
 }
