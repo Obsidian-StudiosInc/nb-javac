@@ -306,9 +306,11 @@ public class JavacTrees extends Trees {
         JavaFileObject prev = log.useSource(null);
         boolean old = log.suppressErrorsAndWarnings;
         log.suppressErrorsAndWarnings = true;
+        enter.shadowTypeEnvs(true);
         try {
             return attr.attribExprToTree(expr, env, tree);
         } finally {
+            enter.shadowTypeEnvs(false);
             log.suppressErrorsAndWarnings = old;
             log.useSource(prev);
         }
