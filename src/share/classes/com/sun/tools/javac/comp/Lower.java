@@ -2651,6 +2651,8 @@ public class Lower extends TreeTranslator {
     /** Expand a boxing or unboxing conversion if needed. */
     @SuppressWarnings("unchecked") // XXX unchecked
     <T extends JCTree> T boxIfNeeded(T tree, Type type) {
+        if (type == null)
+            return tree;
         boolean havePrimitive = tree.type != null ? tree.type.isPrimitive() : false;
         if (havePrimitive == type.isPrimitive())
             return tree;
