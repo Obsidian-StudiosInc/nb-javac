@@ -481,6 +481,9 @@ public class JavacTaskImpl extends JavacTask {
                 };
                 f.run(compiler.todo, classes);
             }
+            if (!compiler.skipAnnotationProcessing)
+                compiler = compiler.processAnnotations(List.<JCCompilationUnit>nil());
+            compiler.flushTempDiags();
         } finally {
             compiler.log.flush();
         }

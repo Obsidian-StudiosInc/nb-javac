@@ -324,7 +324,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
     public boolean skipAnnotationProcessing = false;
 
     private MemberEnter memberEnter;
-    private List<JCCompilationUnit> toProcessAnnotations = List.nil();
+    public List<JCCompilationUnit> toProcessAnnotations = List.nil();
 
     /** Construct a new compiler using a shared context.
      */
@@ -638,10 +638,14 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 diagnosticListener.report(diagnostic);
             }
         }
-        log.pushRecordedOverlay(recordedOverlay);
-        recordedOverlay = null;
-        log.pushErrTreesOverlay(errTreesOverlay);
-        errTreesOverlay = null;
+        if (recordedOverlay != null) {
+            log.pushRecordedOverlay(recordedOverlay);
+            recordedOverlay = null;
+        }
+        if (errTreesOverlay != null) {
+            log.pushErrTreesOverlay(errTreesOverlay);
+            errTreesOverlay = null;
+        }
         tempDiags = List.nil();
     }
 
@@ -773,7 +777,9 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
 
         taskStarted(new TaskEvent(TaskEvent.Kind.ENTER, tree));
 
-        enter.complete(List.of(tree), c);
+        complete(List.of(tree), c);
+
+        taskFinished(new TaskEvent(TaskEvent.Kind.ENTER, tree));
 
         if (!skipAnnotationProcessing) {
             if (memberEnter.halfcompleted.nonEmpty() || annotate.enterCount > 0) {
@@ -781,6 +787,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             } else {
                 try {
                     processAnnotations(List.of(tree));
+                    flushTempDiags();
                 } catch (IOException ex) {
                     CompletionFailure cf = new CompletionFailure(c, ex.getLocalizedMessage());
                     cf.initCause(ex);
@@ -788,8 +795,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 }
             }
         }
-
-        taskFinished(new TaskEvent(TaskEvent.Kind.ENTER, tree));
 
         if (enter.getEnv(c) == null) {
             boolean isPkgInfo =
@@ -947,40 +952,43 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      * Also stores a list of all top level classes in rootClasses.
      */
     public List<JCCompilationUnit> enterTrees(List<JCCompilationUnit> roots) {
+        //enter symbols for all files
+        for (JCCompilationUnit unit : roots) {
+            taskStarted(new TaskEvent(TaskEvent.Kind.ENTER, unit));
+        }
+
+        complete(roots, null);
+
+        for (JCCompilationUnit unit : roots) {
+            taskFinished(new TaskEvent(TaskEvent.Kind.ENTER, unit));
+        }
+
+        //If generating source, remember the classes declared in
+        //the original compilation units listed on the command line.
+        if (sourceOutput || stubOutput) {
+            ListBuffer<JCClassDecl> cdefs = lb();
+            for (JCCompilationUnit unit : roots) {
+                for (List<JCTree> defs = unit.defs;
+                        defs.nonEmpty();
+                        defs = defs.tail) {
+                    if (defs.head instanceof JCClassDecl) {
+                        cdefs.append((JCClassDecl) defs.head);
+                    }
+                }
+            }
+            rootClasses = cdefs.toList();
+        }
+        return roots;
+    }
+
+    private void complete(List<JCCompilationUnit> roots, ClassSymbol c) {
         DiagnosticListener<? super JavaFileObject> oldDiagListener = log.getDiagnosticListener();
         tempDiags = List.nil();
-        log.setRecordedOverlay(recordedOverlay = new HashSet<Pair<JavaFileObject,Integer>>());
+        log.setRecordedOverlay(recordedOverlay = new HashSet<Pair<JavaFileObject, Integer>>());
         log.setErrTreesOverlay(errTreesOverlay = new HashMap<JCTree, JCDiagnostic>());
         log.setDiagnosticListener(temporaryDiagListener);
         try {
-            //enter symbols for all files
-            for (JCCompilationUnit unit : roots) {
-                taskStarted(new TaskEvent(TaskEvent.Kind.ENTER, unit));
-            }
-
-            enter.main(roots);
-
-            for (JCCompilationUnit unit : roots) {
-                taskFinished(new TaskEvent(TaskEvent.Kind.ENTER, unit));
-            }
-
-            //If generating source, remember the classes declared in
-            //the original compilation units listed on the command line.
-            if (sourceOutput || stubOutput) {
-                ListBuffer<JCClassDecl> cdefs = lb();
-                for (JCCompilationUnit unit : roots) {
-                    for (List<JCTree> defs = unit.defs;
-                            defs.nonEmpty();
-                            defs = defs.tail) {
-                        if (defs.head instanceof JCClassDecl) {
-                            cdefs.append((JCClassDecl) defs.head);
-
-                        }
-                    }
-                }
-                rootClasses = cdefs.toList();
-            }
-            return roots;
+            enter.complete(roots, c);
         } finally {
             log.setRecordedOverlay(null);
             log.setErrTreesOverlay(null);
@@ -1130,14 +1138,16 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 }
             }
             try {
-                JavaCompiler c;
-                fileManager.handleOption("apt-origin", Collections.singleton(roots.head.getSourceFile().toUri().toString()).iterator());    //NOI18N
-                try {
-                    c = procEnvImpl.doProcessing(context, roots, classSymbols, pckSymbols);
-                } finally {
-                    fileManager.handleOption("apt-origin", Collections.singletonList("").iterator());   //NOI18N
+                JavaCompiler c = this;
+                if (roots.nonEmpty()) {
+                    fileManager.handleOption("apt-origin", Collections.singleton(roots.head.getSourceFile().toUri().toString()).iterator());    //NOI18N
+                    try {
+                        c = procEnvImpl.doProcessing(context, roots, classSymbols, pckSymbols);
+                    } finally {
+                        fileManager.handleOption("apt-origin", Collections.singletonList("").iterator());   //NOI18N
+                    }
                 }
-                while(!toProcessAnnotations.isEmpty()) {
+                while(toProcessAnnotations.nonEmpty()) {
                     fileManager.handleOption("apt-origin", Collections.singleton(toProcessAnnotations.head.getSourceFile().toUri().toString()).iterator()); //NOI18N
                     try {
                         procEnvImpl.doProcessing(context, List.of(toProcessAnnotations.head), classSymbols, pckSymbols);
