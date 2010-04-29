@@ -1147,14 +1147,16 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                         fileManager.handleOption("apt-origin", Collections.singletonList("").iterator());   //NOI18N
                     }
                 }
-                while(toProcessAnnotations.nonEmpty()) {
-                    fileManager.handleOption("apt-origin", Collections.singleton(toProcessAnnotations.head.getSourceFile().toUri().toString()).iterator()); //NOI18N
+                List<JCCompilationUnit> currentAnnotations = toProcessAnnotations;
+                toProcessAnnotations = List.nil();
+                while(currentAnnotations.nonEmpty()) {
+                    fileManager.handleOption("apt-origin", Collections.singleton(currentAnnotations.head.getSourceFile().toUri().toString()).iterator()); //NOI18N
                     try {
-                        procEnvImpl.doProcessing(context, List.of(toProcessAnnotations.head), classSymbols, pckSymbols);
+                        procEnvImpl.doProcessing(context, List.of(currentAnnotations.head), classSymbols, pckSymbols);
                     } finally {
                         fileManager.handleOption("apt-origin", Collections.singletonList("").iterator());   //NOI18N
                     }
-                    toProcessAnnotations = toProcessAnnotations.tail;
+                    currentAnnotations = currentAnnotations.tail;
                 }
                 if (c != this)
                     annotationProcessingOccurred = c.annotationProcessingOccurred = true;
