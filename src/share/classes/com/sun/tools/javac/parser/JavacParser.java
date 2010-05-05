@@ -2952,7 +2952,7 @@ public class JavacParser implements Parser {
                     } else {
                         pos = S.pos();
                         List<JCTree> err;
-                        if (isVoid) {
+                        if (isVoid || typarams.nonEmpty()) {
                             JCMethodDecl meth = toP(F.at(pos).MethodDef(mods, name, type, typarams,
                                 List.<JCVariableDecl>nil(), List.<JCExpression>nil(), null, null));
                             attach(meth, dc);

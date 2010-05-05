@@ -2564,7 +2564,7 @@ public class Attr extends JCTree.Visitor {
     }
 
     private void assertConvertible(JCTree tree, Type actual, Type formal, Warner warn) {
-        if (types.isConvertible(actual, formal, warn))
+        if (actual == null || formal == null || types.isConvertible(actual, formal, warn))
             return;
 
         if (formal.isCompound()

@@ -598,7 +598,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
             ProcessorStateIterator(DiscoveredProcessors psi) {
                 this.psi = psi;
-                this.innerIter = psi.procStateList.iterator();
+                this.innerIter = new ArrayList<ProcessorState>(psi.procStateList).iterator();
                 this.onProcInterator = false;
             }
 
