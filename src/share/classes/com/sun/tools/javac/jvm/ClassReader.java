@@ -1120,7 +1120,12 @@ public class ClassReader implements Completer {
             new AttributeReader(names._org_netbeans_ParameterNames, V49, CLASS_OR_MEMBER_ATTRIBUTE) {
                 void read(Symbol sym, int attrLen) {
                     List<Name> parameterNames = List.nil();
-                    int numParams = sym.type.getParameterTypes().length();
+                    int numParams = 0;
+                    if (sym.type != null) {
+                        List<Type> parameterTypes = sym.type.getParameterTypes();
+                        if (parameterTypes != null)
+                            numParams = parameterTypes.length();
+                    }
                     for (int i = 0; i < numParams; i++)
                         parameterNames = parameterNames.prepend(readName(nextChar()));
                     parameterNames = parameterNames.reverse();
