@@ -1953,7 +1953,7 @@ public class ClassReader implements Completer {
      */
     void setParameterNames(MethodSymbol sym, Type jvmType) {
         // if no names were found in the class file, there's nothing more to do
-        if (!haveParameterNameIndices || sym.type == null)
+        if (!haveParameterNameIndices || sym.type == null || sym.type.getParameterTypes() == null)
             return;
 
         int firstParam = ((sym.flags() & STATIC) == 0) ? 1 : 0;
