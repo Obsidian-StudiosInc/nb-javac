@@ -1405,12 +1405,15 @@ public class JavacParser implements Parser {
             case GTGT:
                 S.token(GT);
                 break;
+            case GT:
+                S.nextToken();
+                break;
             default:
-                accept(GT);
+                args.append(syntaxError(S.pos(), "expected", GT));
                 break;
             }
         } else {
-            syntaxError(S.pos(), "expected", LT);
+            args.append(syntaxError(S.pos(), "expected", LT));
         }
         return args.toList();
     }
