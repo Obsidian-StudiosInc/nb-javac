@@ -106,6 +106,7 @@ public class Enter extends JCTree.Visitor {
     MemberEnter memberEnter;
     Types types;
     Lint lint;
+    Names names;
     JavaFileManager fileManager;
     private final CancelService cancelService;
     private final LowMemoryWatch memoryWatch;
@@ -133,6 +134,7 @@ public class Enter extends JCTree.Visitor {
         types = Types.instance(context);
         annotate = Annotate.instance(context);
         lint = Lint.instance(context);
+        names = Names.instance(context);
         cancelService = CancelService.instance(context);
         memoryWatch = LowMemoryWatch.instance(context);
         treeLoader = LazyTreeLoader.instance(context);
@@ -306,6 +308,7 @@ public class Enter extends JCTree.Visitor {
         return ts.toList();
     }
 
+    @Override
     public void visitTopLevel(JCCompilationUnit tree) {
         JavaFileObject prev = log.useSource(tree.sourcefile);
         boolean addEnv = false;
@@ -326,13 +329,13 @@ public class Enter extends JCTree.Visitor {
             tree.packge = syms.unnamedPackage;
         }
         tree.packge.complete(); // Find all classes in package.
-        Env<AttrContext> env = topLevelEnv(tree);
+        Env<AttrContext> topEnv = topLevelEnv(tree);
 
         // Save environment of package-info.java file.
         if (isPkgInfo) {
             Env<AttrContext> env0 = typeEnvs.get(tree.packge);
             if (env0 == null) {
-                typeEnvs.put(tree.packge, env);
+                typeEnvs.put(tree.packge, topEnv);
             } else {
                 JCCompilationUnit tree0 = env0.toplevel;
                 if (!fileManager.isSameFile(tree.sourcefile, tree0.sourcefile)) {
@@ -343,15 +346,26 @@ public class Enter extends JCTree.Visitor {
                     if (addEnv || (tree0.packageAnnotations.isEmpty() &&
                                    tree.docComments != null &&
                                    tree.docComments.get(tree) != null)) {
-                        typeEnvs.put(tree.packge, env);
+                        typeEnvs.put(tree.packge, topEnv);
                     }
                 }
             }
+
+            for (Symbol q = tree.packge; q != null && q.kind == PCK; q = q.owner)
+                q.flags_field |= EXISTS;
+
+            Name name = names.package_info;
+            ClassSymbol c = reader.enterClass(name, tree.packge);
+            c.flatname = names.fromString(tree.packge + "." + name);
+            c.sourcefile = tree.sourcefile;
+            c.completer = null;
+            c.members_field = new Scope(c);
+            tree.packge.package_info = c;
         }
         compilationUnits.put(tree.sourcefile.toUri(), tree);
-        classEnter(tree.defs, env);
+        classEnter(tree.defs, topEnv);
         if (addEnv) {
-            todo.append(env);
+            todo.append(topEnv);
         }
         log.useSource(prev);
         result = null;
@@ -380,6 +394,8 @@ public class Enter extends JCTree.Visitor {
         }
     }
 
+
+    @Override
     public void visitClassDef(JCClassDecl tree) {
         cancelService.abortIfCanceled();
         Symbol owner = env.info.scope.owner;
@@ -608,6 +624,7 @@ public class Enter extends JCTree.Visitor {
      *  Enter a symbol for type parameter in local scope, after checking that it
      *  is unique.
      */
+    @Override
     public void visitTypeParameter(JCTypeParameter tree) {
         result = null;
         if ((env.info.scope.owner.flags_field & FROMCLASS) != 0) {
@@ -637,6 +654,7 @@ public class Enter extends JCTree.Visitor {
 
     /** Default class enter visitor method: do nothing.
      */
+    @Override
     public void visitTree(JCTree tree) {
         result = null;
     }
@@ -679,10 +697,8 @@ public class Enter extends JCTree.Visitor {
                 for (JCCompilationUnit tree : trees) {
                     if (tree.starImportScope.elems == null) {
                         JavaFileObject prev = log.useSource(tree.sourcefile);
-                        Env<AttrContext> env = typeEnvs.get(tree);
-                        if (env == null)
-                            env = topLevelEnv(tree);
-                        memberEnter.memberEnter(tree, env);
+                        Env<AttrContext> topEnv = topLevelEnv(tree);
+                        memberEnter.memberEnter(tree, topEnv);
                         log.useSource(prev);
                         memoryWatch.abortIfMemoryLow();
                     }
