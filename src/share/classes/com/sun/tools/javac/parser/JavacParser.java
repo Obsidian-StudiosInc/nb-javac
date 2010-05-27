@@ -2224,7 +2224,7 @@ public class JavacParser implements Parser {
     JCModifiers modifiersOpt() {
         return modifiersOpt(null);
     }
-    JCModifiers modifiersOpt(JCModifiers partial) {
+    protected JCModifiers modifiersOpt(JCModifiers partial) {
         long flags;
         ListBuffer<JCAnnotation> annotations = new ListBuffer<JCAnnotation>();
         int pos;
