@@ -197,6 +197,11 @@ public class Repair extends TreeTranslator {
                 hasError = false;
                 err = null;
             }
+        } else if (tree.sym == null) {
+            JCTree parent = parents != null ? parents.tail.head : null;
+            if (parent != null && parent.getTag() != JCTree.CLASSDEF) {
+                hasError = true;
+            }
         }
     }
 
