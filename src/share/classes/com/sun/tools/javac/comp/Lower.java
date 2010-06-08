@@ -2202,7 +2202,7 @@ public class Lower extends TreeTranslator {
                          tree.sym.type,
                          List.of(syms.stringType));
         assert (valueOfSym.flags() & STATIC) != 0;
-        VarSymbol nameArgSym = valueOfSym.params.head;
+        VarSymbol nameArgSym = valueOfSym.params().head;
         JCIdent nameVal = make.Ident(nameArgSym);
         JCStatement enum_ValueOf =
             make.Return(make.TypeCast(tree.sym.type,
