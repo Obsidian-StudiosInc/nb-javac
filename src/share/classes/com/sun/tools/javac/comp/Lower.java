@@ -2568,9 +2568,13 @@ public class Lower extends TreeTranslator {
                 List<JCVariableDecl> params = currentMethodDef.params;
                 if (currentMethodSym.owner.hasOuterInstance())
                     params = params.tail; // drop this$n
-                tree.args = tree.args
-                    .prepend(make_at(tree.pos()).Ident(params.tail.head.sym)) // ordinal
-                    .prepend(make.Ident(params.head.sym)); // name
+                if (params.isEmpty()) {
+                    tree.args = tree.args.prepend(makeNull()).prepend(makeNull());
+                } else {
+                    tree.args = tree.args
+                        .prepend(make_at(tree.pos()).Ident(params.tail.head.sym)) // ordinal
+                        .prepend(make.Ident(params.head.sym)); // name
+                }
             }
 
             // If we are calling a constructor of a class with an outer
