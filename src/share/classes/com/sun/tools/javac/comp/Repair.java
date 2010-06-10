@@ -105,6 +105,7 @@ public class Repair extends TreeTranslator {
     private List<JCTree> parents;
     private Set<ClassSymbol> repairedClasses = new HashSet<ClassSymbol>();
     private boolean isErrClass;
+    private boolean insideErrEnum;
     
     private Repair(Context context) {
         context.put(repairKey, this);
@@ -196,6 +197,11 @@ public class Repair extends TreeTranslator {
                 tree.init = err != null ? generateErrExpr(err.getTree(), err.getMessage(null)) : generateErrExpr(tree.init, null);
                 hasError = false;
                 err = null;
+            }
+        } else if (tree.sym == null) {
+            JCTree parent = parents != null ? parents.tail.head : null;
+            if (parent != null && parent.getTag() != JCTree.CLASSDEF) {
+                hasError = true;
             }
         }
     }
@@ -390,6 +396,7 @@ public class Repair extends TreeTranslator {
             make = make.forToplevel(attrEnv.toplevel);
             boolean oldHasError = hasError;
             boolean oldIsErrClass = isErrClass;
+            boolean oldInsideErrEnum = insideErrEnum;
             JCDiagnostic oldErr = err;
             JCTree oldClassLevelErrTree = classLevelErrTree;
             String oldClassLevelErrMessage = classLevelErrMessage;
@@ -413,8 +420,9 @@ public class Repair extends TreeTranslator {
                     hasError = true;
                     isErrClass = true;
                 }
-                if ((!allowEnums || isErrClass)
+                if ((!allowEnums || isErrClass || insideErrEnum)
                         && ((c.flags_field & Flags.ENUM) != 0 || (tree.mods.flags & Flags.ENUM) != 0)) {
+                    insideErrEnum = true;
                     c.flags_field &= ~Flags.ENUM;
                     tree.mods.flags &= ~Flags.ENUM;
                     hasError = true;
@@ -492,6 +500,7 @@ public class Repair extends TreeTranslator {
                 classLevelErrMessage = oldClassLevelErrMessage;
                 err = oldErr;
                 isErrClass = oldIsErrClass;
+                insideErrEnum = oldInsideErrEnum;
                 hasError = oldHasError;
                 make = oldMake;
             }
@@ -505,6 +514,7 @@ public class Repair extends TreeTranslator {
             attrEnv = env;
             make = localMake;
             hasError = false;
+            insideErrEnum = false;
             parents = List.nil();
             return translate(tree);
         } finally {

@@ -2197,7 +2197,7 @@ public class Lower extends TreeTranslator {
                          tree.sym.type,
                          List.of(syms.stringType));
         assert (valueOfSym.flags() & STATIC) != 0;
-        VarSymbol nameArgSym = valueOfSym.params.head;
+        VarSymbol nameArgSym = valueOfSym.params().head;
         JCIdent nameVal = make.Ident(nameArgSym);
         JCStatement enum_ValueOf =
             make.Return(make.TypeCast(tree.sym.type,
@@ -2563,9 +2563,13 @@ public class Lower extends TreeTranslator {
                 List<JCVariableDecl> params = currentMethodDef.params;
                 if (currentMethodSym.owner.hasOuterInstance())
                     params = params.tail; // drop this$n
-                tree.args = tree.args
-                    .prepend(make_at(tree.pos()).Ident(params.tail.head.sym)) // ordinal
-                    .prepend(make.Ident(params.head.sym)); // name
+                if (params.isEmpty()) {
+                    tree.args = tree.args.prepend(makeNull()).prepend(makeNull());
+                } else {
+                    tree.args = tree.args
+                        .prepend(make_at(tree.pos()).Ident(params.tail.head.sym)) // ordinal
+                        .prepend(make.Ident(params.head.sym)); // name
+                }
             }
 
             // If we are calling a constructor of a class with an outer
@@ -2612,7 +2616,7 @@ public class Lower extends TreeTranslator {
         if (parameters.isEmpty()) return args;
         boolean anyChanges = false;
         ListBuffer<JCExpression> result = new ListBuffer<JCExpression>();
-        while (parameters.tail.nonEmpty()) {
+        while (parameters.tail.nonEmpty() && args.nonEmpty()) {
             JCExpression arg = translate(args.head, parameters.head);
             anyChanges |= (arg != args.head);
             result.append(arg);
