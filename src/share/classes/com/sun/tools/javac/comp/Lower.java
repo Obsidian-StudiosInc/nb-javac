@@ -2621,7 +2621,7 @@ public class Lower extends TreeTranslator {
         if (parameters.isEmpty()) return args;
         boolean anyChanges = false;
         ListBuffer<JCExpression> result = new ListBuffer<JCExpression>();
-        while (parameters.tail.nonEmpty()) {
+        while (parameters.tail.nonEmpty() && args.nonEmpty()) {
             JCExpression arg = translate(args.head, parameters.head);
             anyChanges |= (arg != args.head);
             result.append(arg);
