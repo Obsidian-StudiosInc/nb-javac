@@ -494,6 +494,20 @@ public class Pretty extends JCTree.Visitor {
                 print("/*public static final*/ ");
                 print(tree.name);
                 if (tree.init != null) {
+                    if (sourceOutput && tree.init.getTag() == JCTree.NEWCLASS) {
+                        print(" /*enum*/ ");
+                        JCNewClass init = (JCNewClass) tree.init;
+                        if (init.args != null && init.args.nonEmpty()) {
+                            print("(");
+                            print(init.args);
+                            print(")");
+                        }
+                        if (init.def != null && init.def.defs != null) {
+                            print(" ");
+                            printBlock(init.def.defs);
+                        }
+                        return;
+                    }
                     print(" /* = ");
                     printExpr(tree.init);
                     print(" */");
@@ -1139,20 +1153,7 @@ public class Pretty extends JCTree.Visitor {
 
     // Prints the inner element type of a nested array
     private void printBaseElementType(JCTree tree) throws IOException {
-        switch (tree.getTag()) {
-        case JCTree.TYPEARRAY:
-            printBaseElementType(((JCArrayTypeTree)tree).elemtype);
-            return;
-        case JCTree.WILDCARD:
-            printBaseElementType(((JCWildcard)tree).inner);
-            return;
-        case JCTree.ANNOTATED_TYPE:
-            printBaseElementType(((JCAnnotatedType)tree).underlyingType);
-            return;
-        default:
-            printExpr(tree);
-            return;
-        }
+        printExpr(TreeInfo.innermostType(tree));
     }
 
     // prints the brackets of a nested array in reverse order
@@ -1177,6 +1178,14 @@ public class Pretty extends JCTree.Visitor {
             print("<");
             printExprs(tree.arguments);
             print(">");
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    public void visitTypeDisjoint(JCTypeDisjoint tree) {
+        try {
+            printExprs(tree.components, " | ");
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

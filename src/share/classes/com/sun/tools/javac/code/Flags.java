@@ -113,6 +113,7 @@ public class Flags {
     public static final int ENUM         = 1<<14;
 
     public static final int StandardFlags = 0x0fff;
+    public static final int ModifierFlags = StandardFlags & ~INTERFACE;
 
     // Because the following access flags are overloaded with other
     // bit positions, we translate them when reading and writing class
@@ -229,8 +230,13 @@ public class Flags {
      */
     public static final long PROPRIETARY = 1L<<38;
 
-    public static final long FROMCLASS = 1L<<39;
-    public static final long APT_CLEANED = 1L<<40;
+    /**
+     * Flag that marks a disjoint var in a multi-catch clause
+     */
+    public static final long DISJOINT = 1L<<39;
+
+    public static final long FROMCLASS = 1L<<40;
+    public static final long APT_CLEANED = 1L<<41;
 
     /** Modifier masks.
      */

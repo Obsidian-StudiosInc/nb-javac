@@ -201,6 +201,11 @@ public class Check {
             sunApiHandler.report(pos, msg, args);
     }
 
+    public void warnStatic(DiagnosticPosition pos, String msg, Object... args) {
+        if (lint.isEnabled(LintCategory.STATIC))
+            log.warning(pos, msg, args);
+    }
+
     /**
      * Report any deferred diagnostics.
      */
@@ -392,6 +397,8 @@ public class Check {
     public Type checkType(DiagnosticPosition pos, Type found, Type req) {
         if (req.tag == ERROR)
             return req;
+        if (found.tag == FORALL)
+            return instantiatePoly(pos, (ForAll)found, req, convertWarner(pos, found, req));
         if (req.tag == NONE)
             return found;
         if (types.isAssignable(found, req, convertWarner(pos, found, req)))
@@ -409,33 +416,6 @@ public class Check {
         return typeError(pos, diags.fragment("incompatible.types"), found, req);
     }
 
-    Type checkReturnType(DiagnosticPosition pos, Type found, Type req) {
-        if (found.tag == FORALL) {
-            try {
-                return instantiatePoly(pos, (ForAll) found, req, convertWarner(pos, found, req));
-            } catch (Infer.NoInstanceException ex) {
-                if (ex.isAmbiguous) {
-                    JCDiagnostic d = ex.getDiagnostic();
-                    log.error(pos,
-                            "undetermined.type" + (d != null ? ".1" : ""),
-                            found, d);
-                    return types.createErrorType(req);
-                } else {
-                    JCDiagnostic d = ex.getDiagnostic();
-                    return typeError(pos,
-                            diags.fragment("incompatible.types" + (d != null ? ".1" : ""), d),
-                            found, req);
-                }
-            } catch (Infer.InvalidInstanceException ex) {
-                JCDiagnostic d = ex.getDiagnostic();
-                log.error(pos, "invalid.inferred.types", ((ForAll)found).tvars, d);
-                return types.createErrorType(req);
-            }
-        } else {
-            return checkType(pos, found, req);
-        }
-    }
-
     /** Instantiate polymorphic type to some prototype, unless
      *  prototype is `anyPoly' in which case polymorphic type
      *  is returned unchanged.
@@ -449,9 +429,28 @@ public class Check {
         } else if (pt.tag == ERROR) {
             return pt;
         } else {
-            return infer.instantiateExpr(t, pt, warn);
+            try {
+                return infer.instantiateExpr(t, pt, warn);
+            } catch (Infer.NoInstanceException ex) {
+                if (ex.isAmbiguous) {
+                    JCDiagnostic d = ex.getDiagnostic();
+                    log.error(pos,
+                              "undetermined.type" + (d!=null ? ".1" : ""),
+                              t, d);
+                    return types.createErrorType(pt);
+                } else {
+                    JCDiagnostic d = ex.getDiagnostic();
+                    return typeError(pos,
+                                     diags.fragment("incompatible.types" + (d!=null ? ".1" : ""), d),
+                                     t, pt);
+                }
+            } catch (Infer.InvalidInstanceException ex) {
+                JCDiagnostic d = ex.getDiagnostic();
+                log.error(pos, "invalid.inferred.types", t.tvars, d);
+                return types.createErrorType(pt);
+            }
         }
-     }
+    }
 
     /** Check that a given type can be cast to a given target type.
      *  Return the result of the cast.
@@ -574,47 +573,6 @@ public class Check {
         return t;
     }
 
-    /** Check that type is a valid type for a new expression. If the type contains
-     * some uninferred type variables, instantiate them exploiting the expected
-     * type.
-     *
-     *  @param pos           Position to be used for error reporting.
-     *  @param t             The type to be checked.
-     *  @param noBounds    True if type bounds are illegal here.
-     *  @param pt          Expected type (used with diamond operator)
-     */
-    Type checkNewClassType(DiagnosticPosition pos, Type t, boolean noBounds, Type pt) {
-        if (t.tag == FORALL) {
-            try {
-                t = instantiatePoly(pos, (ForAll)t, pt, Warner.noWarnings);
-            }
-            catch (Infer.NoInstanceException ex) {
-                JCDiagnostic d = ex.getDiagnostic();
-                log.error(pos, "cant.apply.diamond", t.getTypeArguments(), d);
-                return types.createErrorType(pt);
-            }
-        }
-        else if (t.getTypeArguments().nonEmpty() && findDiamonds) {
-            Type inferred = null;
-            try {
-                List<Type> newtvars = types.newInstances(t.tsym.type.allparams());
-                inferred = infer.instantiateExpr(new ForAll(newtvars, types.subst(t.tsym.type, t.tsym.type.allparams(), newtvars)), pt.tag == NONE ? syms.objectType : pt, Warner.noWarnings);
-            }
-            catch (Exception ex) {
-                inferred = syms.errType;
-            }
-            if (!inferred.isErroneous() &&
-                    inferred.tag != FORALL &&
-                    types.isAssignable(inferred, pt.tag == NONE ? t : pt, Warner.noWarnings)) {
-                String key = "diamond.redundant.args";
-                if (!types.isSameType(t, inferred))
-                    key += ".1";
-                log.note(pos, key, t, inferred);
-            }
-        }
-        return checkClassType(pos, t, noBounds);
-    }
-
     /** Check that type is a reifiable class, interface or array type.
      *  @param pos           Position to be used for error reporting.
      *  @param t             The type to be checked.
@@ -702,6 +660,56 @@ public class Check {
             return false;
         } else
             return true;
+    }
+
+    /** Check that the type inferred using the diamond operator does not contain
+     *  non-denotable types such as captured types or intersection types.
+     *  @param t the type inferred using the diamond operator
+     */
+    List<Type> checkDiamond(ClassType t) {
+        DiamondTypeChecker dtc = new DiamondTypeChecker();
+        ListBuffer<Type> buf = ListBuffer.lb();
+        for (Type arg : t.getTypeArguments()) {
+            if (!dtc.visit(arg, null)) {
+                buf.append(arg);
+            }
+        }
+        return buf.toList();
+    }
+
+    static class DiamondTypeChecker extends Types.SimpleVisitor<Boolean, Void> {
+        public Boolean visitType(Type t, Void s) {
+            return true;
+        }
+        @Override
+        public Boolean visitClassType(ClassType t, Void s) {
+            if (t.isCompound()) {
+                return false;
+            }
+            for (Type targ : t.getTypeArguments()) {
+                if (!visit(targ, s)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        @Override
+        public Boolean visitCapturedType(CapturedType t, Void s) {
+            return false;
+        }
+    }
+
+    /**
+     * Check that vararg method call is sound
+     * @param pos Position to be used for error reporting.
+     * @param argtypes Actual arguments supplied to vararg method.
+     */
+    void checkVararg(DiagnosticPosition pos, List<Type> argtypes) {
+        Type argtype = argtypes.last();
+        if (!types.isReifiable(argtype))
+            warnUnchecked(pos,
+                              "unchecked.generic.array.creation",
+                              argtype);
     }
 
     /** Check that given modifiers are legal for given symbol and
@@ -901,6 +909,7 @@ public class Check {
     void checkRaw(JCTree tree, Env<AttrContext> env) {
         if (lint.isEnabled(Lint.LintCategory.RAW) &&
             tree.type.tag == CLASS &&
+            !TreeInfo.isDiamond(tree) &&
             !env.enclClass.name.isEmpty() &&  //anonymous or intersection
             tree.type.isRaw()) {
             log.warning(tree.pos(), "raw.class.use", tree.type, tree.type.tsym.type);
@@ -930,7 +939,7 @@ public class Check {
                 List<Type> actuals = tree.type.allparams();
                 List<JCExpression> args = tree.arguments;
                 List<Type> forms = tree.type.tsym.type.getTypeArguments();
-                ListBuffer<TypeVar> tvars_buf = new ListBuffer<TypeVar>();
+                ListBuffer<Type> tvars_buf = new ListBuffer<Type>();
 
                 // For matching pairs of actual argument types `a' and
                 // formal type parameters with declared bound `b' ...
@@ -961,19 +970,21 @@ public class Check {
                 }
 
                 args = tree.arguments;
-                List<TypeVar> tvars = tvars_buf.toList();
+                List<Type> tvars = tvars_buf.toList();
 
                 while (args.nonEmpty() && tvars.nonEmpty()) {
+                    Type actual = types.subst(args.head.type,
+                        tree.type.tsym.type.getTypeArguments(),
+                        tvars_buf.toList());
                     checkExtends(args.head.pos(),
-                                 args.head.type,
-                                 tvars.head);
+                                 actual,
+                                 (TypeVar)tvars.head);
                     args = args.tail;
                     tvars = tvars.tail;
                 }
 
                 checkCapture(tree);
-            }
-            if (tree.type.tag == CLASS || tree.type.tag == FORALL) {
+
                 // Check that this type is either fully parameterized, or
                 // not parameterized at all.
                 if (tree.type.getEnclosingType().isRaw())
@@ -2098,7 +2109,7 @@ public class Check {
             Symbol m = TreeInfo.symbol(assign.lhs);
             if (m == null || m.type.isErroneous()) continue;
             if (!members.remove(m))
-                log.error(arg.pos(), "duplicate.annotation.member.value",
+                log.error(assign.lhs.pos(), "duplicate.annotation.member.value",
                           m.name, a.type);
             if (assign.rhs.getTag() == ANNOTATION)
                 validateAnnotation((JCAnnotation)assign.rhs);

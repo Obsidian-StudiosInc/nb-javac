@@ -444,6 +444,12 @@ public class TreeMaker implements JCTree.Factory {
         return tree;
     }
 
+    public JCTypeDisjoint TypeDisjoint(List<JCExpression> components) {
+        JCTypeDisjoint tree = new JCTypeDisjoint(components);
+        tree.pos = pos;
+        return tree;
+    }
+
     public JCTypeParameter TypeParameter(Name name, List<JCExpression> bounds) {
         return TypeParameter(name, bounds, List.<JCTypeAnnotation>nil());
     }
@@ -480,7 +486,7 @@ public class TreeMaker implements JCTree.Factory {
 
     public JCModifiers Modifiers(long flags, List<JCAnnotation> annotations) {
         JCModifiers tree = new JCModifiers(flags, annotations);
-        boolean noFlags = (flags & Flags.StandardFlags) == 0;
+        boolean noFlags = (flags & Flags.ModifierFlags) == 0;
         tree.pos = (noFlags && annotations.isEmpty()) ? Position.NOPOS : pos;
         return tree;
     }
