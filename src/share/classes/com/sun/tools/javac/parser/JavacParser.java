@@ -3153,7 +3153,7 @@ public class JavacParser implements Parser {
     /** FormalParameter = { FINAL | '@' Annotation } Type VariableDeclaratorId
      *  LastFormalParameter = { FINAL | '@' Annotation } Type '...' Ident | FormalParameter
      */
-    JCVariableDecl formalParameter() {
+    protected JCVariableDecl formalParameter() {
         JCModifiers mods = optFinal(Flags.PARAMETER);
         // need to distinguish between vararg annos and array annos
         // look at typeAnnotaitonsPushedBack comment
