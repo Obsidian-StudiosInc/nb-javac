@@ -2066,7 +2066,7 @@ public class JavacParser implements Parser {
 
     /** CatchClause     = CATCH "(" FormalParameter ")" Block
      */
-    JCCatch catchClause() {
+    protected JCCatch catchClause() {
         int pos = S.pos();
         accept(CATCH);
         accept(LPAREN);
