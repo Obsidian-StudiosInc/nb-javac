@@ -281,6 +281,21 @@ public class ParserTest extends TestCase {
         assertFalse(errors.isEmpty());
     }
 
+    public void testPositionAnnotationNoPackage187551() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "\n@interface Test {}";
+
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
+        Trees t = Trees.instance(ct);
+
+        assertEquals(1, t.getSourcePositions().getStartPosition(cut, clazz));
+    }
+
     public void testPositionsSane() throws IOException {
         performPositionsSanityTest("package test; class Test { private void method() { java.util.List<? extends java.util.List<? extends String>> l; } }");
         performPositionsSanityTest("package test; class Test { private void method() { java.util.List<? super java.util.List<? super String>> l; } }");
