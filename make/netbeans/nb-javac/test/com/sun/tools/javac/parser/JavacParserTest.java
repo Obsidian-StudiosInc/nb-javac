@@ -57,9 +57,9 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
 import junit.framework.TestCase;
 
-public class ParserTest extends TestCase {
+public class JavacParserTest extends TestCase {
 
-    public ParserTest(String testName) {
+    public JavacParserTest(String testName) {
         super(testName);
     }
 
