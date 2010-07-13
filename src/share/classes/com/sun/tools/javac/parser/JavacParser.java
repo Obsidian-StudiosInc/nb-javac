@@ -2205,7 +2205,7 @@ public class JavacParser implements Parser {
         }
         ListBuffer<JCAnnotation> annotations = new ListBuffer<JCAnnotation>();
         if (partial != null) annotations.appendList(partial.annotations);
-        int pos = S.pos();
+        int pos = partial == null ? S.pos() : partial.pos;
         int lastPos = Position.NOPOS;
     loop:
         while (true) {
