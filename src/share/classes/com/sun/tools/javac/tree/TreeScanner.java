@@ -193,6 +193,7 @@ public class TreeScanner extends Visitor {
     }
 
     public void visitApply(JCMethodInvocation tree) {
+        scan(tree.typeargs);
         scan(tree.meth);
         scan(tree.args);
     }
@@ -200,6 +201,7 @@ public class TreeScanner extends Visitor {
     public void visitNewClass(JCNewClass tree) {
         scan(tree.encl);
         scan(tree.clazz);
+        scan(tree.typeargs);
         scan(tree.args);
         scan(tree.def);
     }
@@ -271,6 +273,10 @@ public class TreeScanner extends Visitor {
     public void visitTypeApply(JCTypeApply tree) {
         scan(tree.clazz);
         scan(tree.arguments);
+    }
+
+    public void visitTypeDisjoint(JCTypeDisjoint tree) {
+        scan(tree.components);
     }
 
     public void visitTypeParameter(JCTypeParameter tree) {

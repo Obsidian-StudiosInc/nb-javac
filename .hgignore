@@ -5,3 +5,4 @@
 ^build/
 ^dist/
 ^make/netbeans/nb-javac/ext/
+/nbproject/private/

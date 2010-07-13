@@ -27,6 +27,8 @@
 
 package com.sun.tools.javac.comp;
 
+import java.util.HashMap;
+
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.util.*;
@@ -187,6 +189,7 @@ public class Flow extends TreeScanner {
     private final Check chk;
     private       TreeMaker make;
     private       Lint lint;
+    private final boolean allowRethrowAnalysis;
 
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
@@ -197,13 +200,14 @@ public class Flow extends TreeScanner {
 
     protected Flow(Context context) {
         context.put(flowKey, this);
-
         names = Names.instance(context);
         log = Log.instance(context);
         syms = Symtab.instance(context);
         types = Types.instance(context);
         chk = Check.instance(context);
         lint = Lint.instance(context);
+        Source source = Source.instance(context);
+        allowRethrowAnalysis = source.allowMulticatch();
     }
 
     /** A flag that indicates whether the last statement could
@@ -218,6 +222,8 @@ public class Flow extends TreeScanner {
     /** The set of definitely unassigned variables.
      */
     Bits uninits;
+
+    HashMap<Symbol, List<Type>> multicatchTypes;
 
     /** The set of variables that are definitely unassigned everywhere
      *  in current try block. This variable is maintained lazily; it is
@@ -361,8 +367,14 @@ public class Flow extends TreeScanner {
         if (sym.adr >= firstadr && trackable(sym)) {
             if ((sym.flags() & FINAL) != 0) {
                 if ((sym.flags() & PARAMETER) != 0) {
-                    log.error(pos, "final.parameter.may.not.be.assigned",
+                    if ((sym.flags() & DISJOINT) != 0) { //multi-catch parameter
+                        log.error(pos, "multicatch.parameter.may.not.be.assigned",
+                                  sym);
+                    }
+                    else {
+                        log.error(pos, "final.parameter.may.not.be.assigned",
                               sym);
+                    }
                 } else if (!uninits.isMember(sym.adr)) {
                     log.error(pos,
                               loopPassTwo
@@ -1005,8 +1017,12 @@ public class Flow extends TreeScanner {
         List<Type> thrownPrev = thrown;
         thrown = List.nil();
         for (List<JCCatch> l = tree.catchers; l.nonEmpty(); l = l.tail) {
-            if (l.head.param.type != null)
-                caught = chk.incl(l.head.param.type, caught);
+            List<JCExpression> subClauses = TreeInfo.isMultiCatch(l.head) ?
+                    ((JCTypeDisjoint)l.head.param.vartype).components :
+                    List.of(l.head.param.vartype);
+            for (JCExpression ct : subClauses) {
+                caught = chk.incl(ct.type, caught);
+            }
         }
         Bits uninitsTryPrev = uninitsTry;
         ListBuffer<PendingExit> prevPendingExits = pendingExits;
@@ -1027,29 +1043,39 @@ public class Flow extends TreeScanner {
         for (List<JCCatch> l = tree.catchers; l.nonEmpty(); l = l.tail) {
             alive = true;
             JCVariableDecl param = l.head.param;
-            Type exc = param.type;
-            if (exc == null || param.sym == null)
-                continue;
-            if (chk.subset(exc, caughtInTry)) {
-                log.error(l.head.pos(),
-                          "except.already.caught", exc);
-            } else if (!chk.isUnchecked(l.head.pos(), exc) &&
-                       exc.tsym != syms.throwableType.tsym &&
-                       exc.tsym != syms.exceptionType.tsym &&
-                       !chk.intersects(exc, thrownInTry)) {
-                log.error(l.head.pos(),
-                          "except.never.thrown.in.try", exc);
+            List<JCExpression> subClauses = TreeInfo.isMultiCatch(l.head) ?
+                    ((JCTypeDisjoint)l.head.param.vartype).components :
+                    List.of(l.head.param.vartype);
+            List<Type> ctypes = List.nil();
+            List<Type> rethrownTypes = chk.diff(thrownInTry, caughtInTry);
+            for (JCExpression ct : subClauses) {
+                Type exc = ct.type;
+                ctypes = ctypes.append(exc);
+                if (types.isSameType(exc, syms.objectType))
+                    continue;
+                if (chk.subset(exc, caughtInTry)) {
+                    log.error(l.head.pos(),
+                              "except.already.caught", exc);
+                } else if (!chk.isUnchecked(l.head.pos(), exc) &&
+                           exc.tsym != syms.throwableType.tsym &&
+                           exc.tsym != syms.exceptionType.tsym &&
+                           !chk.intersects(exc, thrownInTry)) {
+                    log.error(l.head.pos(),
+                              "except.never.thrown.in.try", exc);
+                }
+                caughtInTry = chk.incl(exc, caughtInTry);
             }
-            caughtInTry = chk.incl(exc, caughtInTry);
             inits = initsTry.dup();
             uninits = uninitsTry.dup();
             scan(param);
             inits.incl(param.sym.adr);
             uninits.excl(param.sym.adr);
+            multicatchTypes.put(param.sym, chk.intersect(ctypes, rethrownTypes));
             scanStat(l.head.body);
             initsEnd.andSet(inits);
             uninitsEnd.andSet(uninits);
             nextadr = nextadrCatch;
+            multicatchTypes.remove(param.sym);
             aliveEnd |= alive;
         }
         if (tree.finalizer != null) {
@@ -1177,7 +1203,19 @@ public class Flow extends TreeScanner {
 
     public void visitThrow(JCThrow tree) {
         scanExpr(tree.expr);
-        markThrown(tree, tree.expr.type);
+        Symbol sym = TreeInfo.symbol(tree.expr);
+        if (sym != null &&
+            sym.kind == VAR &&
+            (sym.flags() & FINAL) != 0 &&
+            multicatchTypes.get(sym) != null &&
+            allowRethrowAnalysis) {
+            for (Type t : multicatchTypes.get(sym)) {
+                markThrown(tree, t);
+            }
+        }
+        else {
+            markThrown(tree, tree.expr.type);
+        }
         markDead();
     }
 
@@ -1364,6 +1402,7 @@ public class Flow extends TreeScanner {
         firstadr = 0;
         nextadr = 0;
         pendingExits = new ListBuffer<PendingExit>();
+        multicatchTypes = new HashMap<Symbol, List<Type>>();
         alive = true;
         this.thrown = this.caught = null;
         this.classDef = null;

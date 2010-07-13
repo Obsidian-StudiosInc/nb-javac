@@ -110,9 +110,6 @@ public enum Source {
     }
 
     /** Allow encoding errors, giving only warnings. */
-    public boolean allowStringsInSwitch() {
-        return compareTo(JDK1_7) >= 0;
-    }
     public boolean allowEncodingErrors() {
         return compareTo(JDK1_6) < 0;
     }
@@ -126,6 +123,9 @@ public enum Source {
         return compareTo(JDK1_5) >= 0;
     }
     public boolean allowDiamond() {
+        return compareTo(JDK1_7) >= 0;
+    }
+    public boolean allowMulticatch() {
         return compareTo(JDK1_7) >= 0;
     }
     public boolean allowEnums() {
@@ -166,6 +166,9 @@ public enum Source {
         return compareTo(JDK1_7) >= 0;
     }
     public boolean allowUnderscoresInLiterals() {
+        return compareTo(JDK1_7) >= 0;
+    }
+    public boolean allowStringsInSwitch() {
         return compareTo(JDK1_7) >= 0;
     }
     public static SourceVersion toSourceVersion(Source source) {
