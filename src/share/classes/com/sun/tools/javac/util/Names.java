@@ -1,12 +1,12 @@
 /*
- * Copyright 1999-2008 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 1999, 2008, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javac.util;
@@ -29,8 +29,8 @@ package com.sun.tools.javac.util;
  * Access to the compiler's name table.  STandard names are defined,
  * as well as methods to create new names.
  *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.  If
- *  you write code that depends on this, you do so at your own risk.
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
@@ -103,6 +103,7 @@ public class Names {
     public final Name RuntimeInvisibleTypeAnnotations;
     public final Name RuntimeVisibleParameterAnnotations;
     public final Name RuntimeInvisibleParameterAnnotations;
+    public final Name PolymorphicSignature;
     public final Name Value;
     public final Name EnclosingMethod;
     public final Name _org_netbeans_TypeSignature;
@@ -119,7 +120,6 @@ public class Names {
     public final Name value;
     public final Name getMessage;
     public final Name getClass;
-    public final Name invoke;
     public final Name TYPE;
     public final Name TYPE_USE;
     public final Name TYPE_PARAMETER;
@@ -152,6 +152,8 @@ public class Names {
     public final Name getDeclaringClass;
     public final Name ex;
     public final Name finalize;
+    public final Name java_lang_AutoCloseable;
+    public final Name close;
 
     public final Name.Table table;
 
@@ -216,6 +218,7 @@ public class Names {
         RuntimeInvisibleTypeAnnotations = fromString("RuntimeInvisibleTypeAnnotations");
         RuntimeVisibleParameterAnnotations = fromString("RuntimeVisibleParameterAnnotations");
         RuntimeInvisibleParameterAnnotations = fromString("RuntimeInvisibleParameterAnnotations");
+        PolymorphicSignature = fromString("PolymorphicSignature");
         Value = fromString("Value");
         EnclosingMethod = fromString("EnclosingMethod");
         _org_netbeans_TypeSignature = fromString("org.netbeans.TypeSignature");
@@ -234,7 +237,6 @@ public class Names {
         value = fromString("value");
         getMessage = fromString("getMessage");
         getClass = fromString("getClass");
-        invoke = fromString("invoke");
 
         TYPE = fromString("TYPE");
         TYPE_USE = fromString("TYPE_USE");
@@ -270,6 +272,9 @@ public class Names {
         getDeclaringClass = fromString("getDeclaringClass");
         ex = fromString("ex");
         finalize = fromString("finalize");
+
+        java_lang_AutoCloseable = fromString("java.lang.AutoCloseable");
+        close = fromString("close");
     }
 
     protected Name.Table createTable(Context context) {

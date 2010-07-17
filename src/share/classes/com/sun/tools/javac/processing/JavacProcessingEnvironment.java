@@ -1,12 +1,12 @@
 /*
- * Copyright 2005-2009 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 2005, 2009, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javac.processing;
@@ -89,7 +89,7 @@ import static javax.tools.StandardLocation.*;
  * Objects of this class hold and manage the state needed to support
  * annotation processing.
  *
- * <p><b>This is NOT part of any API supported by Sun Microsystems.
+ * <p><b>This is NOT part of any supported API.
  * If you write code that depends on this, you do so at your own risk.
  * This code and its internal interfaces are subject to change or
  * deletion without notice.</b>
@@ -675,9 +675,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                                      List<ClassSymbol> topLevelClasses,
                                      List<PackageSymbol> packageInfoFiles,
                                      Map<AbstractTypeProcessor, Set<TypeElement>> typeProcessor2Types) {
-        // Writer for -XprintRounds and -XprintProcessorInfo data
-        PrintWriter xout = context.get(Log.outKey);
-
         Map<String, TypeElement> unmatchedAnnotations =
             new HashMap<String, TypeElement>(annotationsPresent.size());
 
@@ -739,10 +736,10 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 ps.removeSupportedOptions(unmatchedProcessorOptions);
 
                 if (printProcessorInfo || verbose) {
-                    xout.println(Log.getLocalizedString("x.print.processor.info",
-                                                        ps.processor.getClass().getName(),
-                                                        matchedNames.toString(),
-                                                        processingResult));
+                    log.printNoteLines("x.print.processor.info",
+                            ps.processor.getClass().getName(),
+                            matchedNames.toString(),
+                            processingResult);
                 }
 
                 if (processingResult) {
@@ -776,7 +773,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
      * Leave class public for external testing purposes.
      */
     public static class ComputeAnnotationSet extends
-        ElementScanner6<Set<TypeElement>, Set<TypeElement>> {
+        ElementScanner7<Set<TypeElement>, Set<TypeElement>> {
         final Elements elements;
 
         public ComputeAnnotationSet(Elements elements) {
@@ -842,8 +839,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         throws IOException {
 
         log = Log.instance(context);
-        // Writer for -XprintRounds and -XprintProcessorInfo data
-        PrintWriter xout = context.get(Log.outKey);
         TaskListener taskListener = context.get(TaskListener.class);
 
         JavaCompiler compiler = JavaCompiler.instance(context);
@@ -884,7 +879,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
             this.context = currentContext;
             roundNumber++;
-            printRoundInfo(xout, roundNumber, topLevelClasses, annotationsPresent, false);
+            printRoundInfo(roundNumber, topLevelClasses, annotationsPresent, false);
 
             if (taskListener != null)
                 taskListener.started(new TaskEvent(TaskEvent.Kind.ANNOTATION_PROCESSING_ROUND));
@@ -946,7 +941,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     break runAround; // No new files
             }
         }
-        roots = runLastRound(xout, roundNumber, errorStatus, compiler, roots, taskListener);
+        roots = runLastRound(roundNumber, errorStatus, compiler, roots, taskListener);
         // Set error status for any files compiled and generated in
         // the last round
         if (log.unrecoverableError)
@@ -1020,8 +1015,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     }
 
     // Call the last round of annotation processing
-    private List<JCCompilationUnit> runLastRound(PrintWriter xout,
-                                                 int roundNumber,
+    private List<JCCompilationUnit> runLastRound(int roundNumber,
                                                  boolean errorStatus,
                                                  JavaCompiler compiler,
                                                  List<JCCompilationUnit> roots,
@@ -1029,7 +1023,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         roundNumber++;
         List<ClassSymbol> noTopLevelClasses = List.nil();
         Set<TypeElement> noAnnotations =  Collections.emptySet();
-        printRoundInfo(xout, roundNumber, noTopLevelClasses, noAnnotations, true);
+        printRoundInfo(roundNumber, noTopLevelClasses, noAnnotations, true);
 
         Set<Element> emptyRootElements = Collections.emptySet(); // immutable
         RoundEnvironment renv = new JavacRoundEnvironment(true,
@@ -1070,17 +1064,16 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
     }
 
-    private void printRoundInfo(PrintWriter xout,
-                                int roundNumber,
+    private void printRoundInfo(int roundNumber,
                                 List<ClassSymbol> topLevelClasses,
                                 Set<TypeElement> annotationsPresent,
                                 boolean lastRound) {
         if (printRounds || verbose) {
-            xout.println(Log.getLocalizedString("x.print.rounds",
-                                                roundNumber,
-                                                "{" + topLevelClasses.toString(", ") + "}",
-                                                annotationsPresent,
-                                                lastRound));
+            log.printNoteLines("x.print.rounds",
+                    roundNumber,
+                    "{" + topLevelClasses.toString(", ") + "}",
+                    annotationsPresent,
+                    lastRound);
         }
     }
 
@@ -1435,7 +1428,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     }
 
     /**
-     * For internal use by Sun Microsystems only.  This method will be
+     * For internal use only.  This method will be
      * removed without warning.
      */
     public Context getContext() {

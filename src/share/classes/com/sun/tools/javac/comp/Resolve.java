@@ -1,12 +1,12 @@
 /*
- * Copyright 1999-2008 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 1999, 2008, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javac.comp;
@@ -47,8 +47,8 @@ import java.util.HashMap;
 
 /** Helper class for name resolution, used mostly by the attribution phase.
  *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.  If
- *  you write code that depends on this, you do so at your own risk.
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
@@ -67,7 +67,7 @@ public class Resolve {
     JCDiagnostic.Factory diags;
     public final boolean boxingEnabled; // = source.allowBoxing();
     public final boolean varargsEnabled; // = source.allowVarargs();
-    public final boolean allowInvokedynamic; // = options.get("invokedynamic");
+    public final boolean allowPolymorphicSignature;
     private final boolean debugResolve;
     private final boolean ideMode;
 
@@ -106,7 +106,7 @@ public class Resolve {
         varargsEnabled = source.allowVarargs();
         Options options = Options.instance(context);
         debugResolve = options.get("debugresolve") != null;
-        allowInvokedynamic = options.get("invokedynamic") != null;
+        allowPolymorphicSignature = source.allowPolymorphicSignature() || options.get("invokedynamic") != null;
         this.ideMode = options.get("ide") != null;
     }
 
@@ -305,6 +305,7 @@ public class Resolve {
                         boolean useVarargs,
                         Warner warn)
         throws Infer.InferenceException {
+        assert ((m.flags() & (POLYMORPHIC_SIGNATURE|HYPOTHETICAL)) != POLYMORPHIC_SIGNATURE);
         if (useVarargs && (m.flags() & VARARGS) == 0) return null;
         Type mt = types.memberType(site, m);
 
@@ -352,6 +353,7 @@ public class Resolve {
             infer.instantiateMethod(env,
                                     tvars,
                                     (MethodType)mt,
+                                    m,
                                     argtypes,
                                     allowBoxing,
                                     useVarargs,
@@ -580,6 +582,14 @@ public class Resolve {
         if (sym.kind == ERR) return bestSoFar;
         if (!sym.isInheritedIn(site.tsym, types)) return bestSoFar;
         assert sym.kind < AMBIGUOUS;
+        if ((sym.flags() & POLYMORPHIC_SIGNATURE) != 0 && allowPolymorphicSignature) {
+            assert(site.tag == CLASS);
+            // Never match a MethodHandle.invoke directly.
+            if (useVarargs | allowBoxing | operator)
+                return bestSoFar;
+            // Supply an exactly-typed implicit method instead.
+            sym = findPolymorphicSignatureInstance(env, sym.owner.type, sym.name, (MethodSymbol) sym, argtypes, typeargtypes);
+        }
         try {
             if (rawInstantiate(env, site, sym, argtypes, typeargtypes,
                                allowBoxing, useVarargs, Warner.noWarnings) == null) {
@@ -750,6 +760,14 @@ public class Resolve {
                       boolean allowBoxing,
                       boolean useVarargs,
                       boolean operator) {
+        Symbol bestSoFar = methodNotFound;
+        if ((site.tsym.flags() & POLYMORPHIC_SIGNATURE) != 0 &&
+            allowPolymorphicSignature &&
+            site.tag == CLASS &&
+            !(useVarargs | allowBoxing | operator)) {
+            // supply an exactly-typed implicit method in java.dyn.InvokeDynamic
+            bestSoFar = findPolymorphicSignatureInstance(env, site, name, null, argtypes, typeargtypes);
+        }
         return findMethod(env,
                           site,
                           name,
@@ -757,7 +775,7 @@ public class Resolve {
                           typeargtypes,
                           site.tsym.type,
                           true,
-                          methodNotFound,
+                          bestSoFar,
                           allowBoxing,
                           useVarargs,
                           operator);
@@ -901,13 +919,14 @@ public class Resolve {
      *  @param argtypes  The method's value arguments.
      *  @param typeargtypes The method's type arguments
      */
-    Symbol findImplicitMethod(Env<AttrContext> env,
-                              Type site,
-                              Name name,
-                              List<Type> argtypes,
-                              List<Type> typeargtypes) {
-        assert allowInvokedynamic;
-        assert site == syms.invokeDynamicType || (site == syms.methodHandleType && name == names.invoke);
+    Symbol findPolymorphicSignatureInstance(Env<AttrContext> env,
+                                            Type site,
+                                            Name name,
+                                            MethodSymbol spMethod,  // sig. poly. method or null if none
+                                            List<Type> argtypes,
+                                            List<Type> typeargtypes) {
+        assert allowPolymorphicSignature;
+        //assert site == syms.invokeDynamicType || site == syms.methodHandleType : site;
         ClassSymbol c = (ClassSymbol) site.tsym;
         Scope implicit = c.members().next;
         if (implicit == null) {
@@ -922,12 +941,22 @@ public class Resolve {
                 return methodNotFound;
         }
         List<Type> paramtypes = Type.map(argtypes, implicitArgType);
+        long flags;
+        List<Type> exType;
+        if (spMethod != null) {
+            exType = spMethod.getThrownTypes();
+            flags = spMethod.flags() & AccessFlags;
+        } else {
+            // make it throw all exceptions
+            //assert(site == syms.invokeDynamicType);
+            exType = List.of(syms.throwableType);
+            flags = PUBLIC | STATIC;
+        }
         MethodType mtype = new MethodType(paramtypes,
                                           restype,
-                                          List.<Type>nil(),
+                                          exType,
                                           syms.methodClass);
-        int flags = PUBLIC | ABSTRACT;
-        if (site == syms.invokeDynamicType)  flags |= STATIC;
+        flags |= ABSTRACT | HYPOTHETICAL | POLYMORPHIC_SIGNATURE;
         Symbol m = null;
         for (Scope.Entry e = implicit.lookup(name);
              e.scope != null;
@@ -1346,14 +1375,6 @@ public class Resolve {
                     env.info.varArgs = steps.head.isVarargsRequired(), false);
             methodResolutionCache.put(steps.head, sym);
             steps = steps.tail;
-        }
-        if (sym.kind >= AMBIGUOUS &&
-            allowInvokedynamic &&
-            (site == syms.invokeDynamicType ||
-             site == syms.methodHandleType && name == names.invoke)) {
-            // lookup failed; supply an exactly-typed implicit method
-            sym = findImplicitMethod(env, site, name, argtypes, typeargtypes);
-            env.info.varArgs = false;
         }
         if (sym.kind >= AMBIGUOUS) {//if nothing is found return the 'first' error
             MethodResolutionPhase errPhase =

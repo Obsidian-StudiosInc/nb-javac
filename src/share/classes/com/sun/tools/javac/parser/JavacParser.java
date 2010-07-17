@@ -1,12 +1,12 @@
 /*
- * Copyright 1999-2009 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 1999, 2009, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javac.parser;
@@ -43,8 +43,8 @@ import static com.sun.tools.javac.parser.Token.*;
  *  operator precedence scheme is used for parsing binary operation
  *  expressions.
  *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.  If
- *  you write code that depends on this, you do so at your own risk.
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
@@ -134,6 +134,7 @@ public class JavacParser implements Parser {
         this.allowForeach = source.allowForeach();
         this.allowStaticImport = source.allowStaticImport();
         this.allowAnnotations = source.allowAnnotations();
+        this.allowTWR = source.allowTryWithResources();
         this.allowDiamond = source.allowDiamond();
         this.allowMulticatch = source.allowMulticatch();
         this.allowTypeAnnotations = source.allowTypeAnnotations();
@@ -189,6 +190,10 @@ public class JavacParser implements Parser {
     /** Switch: should we recognize type annotations?
      */
     boolean allowTypeAnnotations;
+
+    /** Switch: should we recognize automatic resource management?
+     */
+    boolean allowTWR;
 
     /** Switch: should we fold strings?
      */
@@ -1186,8 +1191,12 @@ public class JavacParser implements Parser {
                     t = toP(F.at(pos).Select(t, ident()));
                     break;
                 case ELLIPSIS:
-                    if (this.permitTypeAnnotationsPushBack)
-                        typeAnnotationsPushedBack = annos;
+                    if (this.permitTypeAnnotationsPushBack) {
+                        this.typeAnnotationsPushedBack = annos;
+                    } else if (annos.nonEmpty()) {
+                        // Don't return here -- error recovery attempt
+                        illegal(annos.head.pos);
+                    }
                     break loop;
                 default:
                     break loop;
@@ -1895,6 +1904,7 @@ public class JavacParser implements Parser {
      *     | WHILE ParExpression Statement
      *     | DO Statement WHILE ParExpression ";"
      *     | TRY Block ( Catches | [Catches] FinallyPart )
+     *     | TRY "(" ResourceSpecification ")" Block [Catches] [FinallyPart]
      *     | SWITCH ParExpression "{" SwitchBlockStatementGroups "}"
      *     | SYNCHRONIZED ParExpression Block
      *     | RETURN [Expression] ";"
@@ -1973,6 +1983,13 @@ public class JavacParser implements Parser {
         }
         case TRY: {
             S.nextToken();
+            List<JCTree> resources = List.<JCTree>nil();
+            if (S.token() == LPAREN) {
+                checkAutomaticResourceManagement();
+                S.nextToken();
+                resources = resources();
+                accept(RPAREN);
+            }
             JCBlock body = block();
             ListBuffer<JCCatch> catchers = new ListBuffer<JCCatch>();
             JCBlock finalizer = null;
@@ -1984,9 +2001,13 @@ public class JavacParser implements Parser {
                     finalizer = block();
                 }
             } else {
-                err = "try.without.catch.or.finally";
+                if (allowTWR) {
+                    if (resources.isEmpty())
+                        err = "try.without.catch.finally.or.resource.decls";
+                } else
+                    err = "try.without.catch.or.finally";
             }
-            JCTry t = F.at(pos).Try(body, catchers.toList(), finalizer);
+            JCTry t = F.at(pos).Try(resources, body, catchers.toList(), finalizer);
             if (err != null)
                 log.error(t, err);
             return t;
@@ -2459,6 +2480,39 @@ public class JavacParser implements Parser {
         if ((mods.flags & Flags.VARARGS) == 0)
             type = bracketsOpt(type);
         return toP(F.at(pos).VarDef(mods, name, type, null));
+    }
+
+    /** Resources = Resource { ";" Resources }
+     */
+    List<JCTree> resources() {
+        ListBuffer<JCTree> defs = new ListBuffer<JCTree>();
+        defs.append(resource());
+        while (S.token() == SEMI) {
+            // All but last of multiple declarators subsume a semicolon
+            storeEnd(defs.elems.last(), S.endPos());
+            S.nextToken();
+            defs.append(resource());
+        }
+        return defs.toList();
+    }
+
+    /** Resource =
+     *    VariableModifiers Type VariableDeclaratorId = Expression
+     *  | Expression
+     */
+    JCTree resource() {
+        int pos = S.pos();
+        if (S.token() == FINAL || S.token() == MONKEYS_AT) {
+            return variableDeclaratorRest(pos, optFinal(0), parseType(),
+                                          ident(), true, null);
+        } else {
+            JCExpression t = term(EXPR | TYPE);
+            if ((lastmode & TYPE) != 0 && S.token() == IDENTIFIER)
+                return variableDeclaratorRest(pos, toP(F.at(pos).Modifiers(Flags.FINAL)), t,
+                                              ident(), true, null);
+            else
+                return t;
+        }
     }
 
     /** CompilationUnit = [ { "@" Annotation } PACKAGE Qualident ";"] {ImportDeclaration} {TypeDeclaration}
@@ -3427,7 +3481,13 @@ public class JavacParser implements Parser {
         if (!allowMulticatch) {
             log.error(S.pos(), "multicatch.not.supported.in.source", source.name);
             allowMulticatch = true;
-            }
+        }
+    }
+    void checkAutomaticResourceManagement() {
+        if (!allowTWR) {
+            log.error(S.pos(), "automatic.resource.management.not.supported.in.source", source.name);
+            allowTWR = true;
+        }
     }
 
     //XXX: transient, for compatibility
