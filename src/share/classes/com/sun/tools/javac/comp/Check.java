@@ -1,12 +1,12 @@
 /*
- * Copyright 1999-2009 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 1999, 2009, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javac.comp;
@@ -48,8 +48,8 @@ import javax.lang.model.element.ElementKind;
 
 /** Type checking helper class for the attribution phase.
  *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.  If
- *  you write code that depends on this, you do so at your own risk.
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
@@ -65,6 +65,7 @@ public class Check {
     private final JCDiagnostic.Factory diags;
     private final boolean skipAnnotations;
     private boolean warnOnSyntheticConflicts;
+    private boolean suppressAbortOnBadClassFile;
     private final TreeInfo treeinfo;
 
     // The set of lint options currently in effect. It is initialized
@@ -103,12 +104,14 @@ public class Check {
                 source.allowDiamond();
         skipAnnotations = options.get("skipAnnotations") != null;
         warnOnSyntheticConflicts = options.get("warnOnSyntheticConflicts") != null;
+        suppressAbortOnBadClassFile = options.get("suppressAbortOnBadClassFile") != null;
 
         Target target = Target.instance(context);
         syntheticNameChar = target.syntheticNameChar();
 
         boolean verboseDeprecated = lint.isEnabled(LintCategory.DEPRECATION);
         boolean verboseUnchecked = lint.isEnabled(LintCategory.UNCHECKED);
+        boolean verboseVarargs = lint.isEnabled(LintCategory.VARARGS);
         boolean verboseSunApi = lint.isEnabled(LintCategory.SUNAPI);
         boolean enforceMandatoryWarnings = source.enforceMandatoryWarnings();
 
@@ -116,6 +119,8 @@ public class Check {
                 enforceMandatoryWarnings, "deprecated");
         uncheckedHandler = new MandatoryWarningHandler(log, verboseUnchecked,
                 enforceMandatoryWarnings, "unchecked");
+        unsafeVarargsHandler = new MandatoryWarningHandler(log, verboseVarargs,
+                enforceMandatoryWarnings, "varargs");
         sunApiHandler = new MandatoryWarningHandler(log, verboseSunApi,
                 enforceMandatoryWarnings, "sunapi");
 
@@ -160,7 +165,11 @@ public class Check {
      */
     private MandatoryWarningHandler uncheckedHandler;
 
-    /** A handler for messages about using Sun proprietary API.
+    /** A handler for messages about unchecked or unsafe vararg method decl.
+     */
+    private MandatoryWarningHandler unsafeVarargsHandler;
+
+    /** A handler for messages about using proprietary API.
      */
     private MandatoryWarningHandler sunApiHandler;
 
@@ -192,7 +201,16 @@ public class Check {
             uncheckedHandler.report(pos, msg, args);
     }
 
-    /** Warn about using Sun proprietary API.
+    /** Warn about unsafe vararg method decl.
+     *  @param pos        Position to be used for error reporting.
+     *  @param sym        The deprecated symbol.
+     */
+    void warnUnsafeVararg(DiagnosticPosition pos, Type elemType) {
+        if (!lint.isSuppressed(LintCategory.VARARGS))
+            unsafeVarargsHandler.report(pos, "varargs.non.reifiable.type", elemType);
+    }
+
+    /** Warn about using proprietary API.
      *  @param pos        Position to be used for error reporting.
      *  @param msg        A string describing the problem.
      */
@@ -212,6 +230,7 @@ public class Check {
     public void reportDeferredDiagnostics() {
         deprecationHandler.reportDeferredDiagnostic();
         uncheckedHandler.reportDeferredDiagnostic();
+        unsafeVarargsHandler.reportDeferredDiagnostic();
         sunApiHandler.reportDeferredDiagnostic();
     }
 
@@ -222,7 +241,8 @@ public class Check {
      */
     public Type completionError(DiagnosticPosition pos, CompletionFailure ex) {
         log.error(pos, "cant.access", ex.sym, ex.getDetailValue());
-        if (!ideMode && (ex instanceof ClassReader.BadClassFile)) throw new Abort();
+        if (!ideMode && (ex instanceof ClassReader.BadClassFile)
+                && !suppressAbortOnBadClassFile) throw new Abort();
         else return syms.errType;
     }
 
@@ -395,6 +415,10 @@ public class Check {
      *  @param req        The type that was required.
      */
     public Type checkType(DiagnosticPosition pos, Type found, Type req) {
+        return checkType(pos, found, req, "incompatible.types");
+    }
+
+    Type checkType(DiagnosticPosition pos, Type found, Type req, String errKey) {
         if (req.tag == ERROR)
             return req;
         if (found.tag == FORALL)
@@ -413,7 +437,7 @@ public class Check {
             log.error(pos, "assignment.to.extends-bound", req);
             return types.createErrorType(found);
         }
-        return typeError(pos, diags.fragment("incompatible.types"), found, req);
+        return typeError(pos, diags.fragment(errKey), found, req);
     }
 
     /** Instantiate polymorphic type to some prototype, unless
@@ -565,7 +589,7 @@ public class Check {
             while (args.nonEmpty()) {
                 if (args.head.tag == WILDCARD)
                     return typeTagError(pos,
-                                        Log.getLocalizedString("type.req.exact"),
+                                        diags.fragment("type.req.exact"),
                                         args.head);
                 args = args.tail;
             }
@@ -699,17 +723,33 @@ public class Check {
         }
     }
 
+    void checkVarargMethodDecl(JCMethodDecl tree) {
+        MethodSymbol m = tree.sym;
+        //check the element type of the vararg
+        if (m.isVarArgs()) {
+            Type varargElemType = types.elemtype(tree.params.last().type);
+            if (!types.isReifiable(varargElemType)) {
+                warnUnsafeVararg(tree.params.head.pos(), varargElemType);
+            }
+        }
+    }
+
     /**
      * Check that vararg method call is sound
      * @param pos Position to be used for error reporting.
      * @param argtypes Actual arguments supplied to vararg method.
      */
-    void checkVararg(DiagnosticPosition pos, List<Type> argtypes) {
+    void checkVararg(DiagnosticPosition pos, List<Type> argtypes, Symbol msym, Env<AttrContext> env) {
+        Env<AttrContext> calleeLintEnv = env;
+        while (calleeLintEnv.info.lint == null)
+            calleeLintEnv = calleeLintEnv.next;
+        Lint calleeLint = calleeLintEnv.info.lint.augment(msym.attributes_field, msym.flags());
         Type argtype = argtypes.last();
-        if (!types.isReifiable(argtype))
+        if (!types.isReifiable(argtype) && !calleeLint.isSuppressed(Lint.LintCategory.VARARGS)) {
             warnUnchecked(pos,
                               "unchecked.generic.array.creation",
                               argtype);
+        }
     }
 
     /** Check that given modifiers are legal for given symbol and
