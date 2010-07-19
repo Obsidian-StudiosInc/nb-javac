@@ -1356,7 +1356,7 @@ public class Types {
                     Type x = asSuper(st, sym);
                     if (x != null)
                         return x;
-                } else if (st.tag == NONE && t.tsym.type.isErroneous()) {
+                } else if (st.tag == NONE && t.tsym.type.isErroneous() && t.tsym.flatName() != names.java_lang_Object) {
                     return t.tsym.type;
                 }
                 if (sym != null && (sym.flags() & INTERFACE) != 0) {
