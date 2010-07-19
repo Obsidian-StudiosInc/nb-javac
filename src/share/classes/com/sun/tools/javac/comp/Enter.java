@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.comp;
 
+import com.sun.tools.javac.api.DuplicateClassChecker;
 import java.net.URI;
 import java.util.*;
 import javax.lang.model.element.ExecutableElement;
@@ -110,6 +111,7 @@ public class Enter extends JCTree.Visitor {
     private final CancelService cancelService;
     private final LowMemoryWatch memoryWatch;
     private final LazyTreeLoader treeLoader;
+    private final DuplicateClassChecker duplicateClassChecker;
     private final Source source;
 
     private final Todo todo;
@@ -136,6 +138,7 @@ public class Enter extends JCTree.Visitor {
         cancelService = CancelService.instance(context);
         memoryWatch = LowMemoryWatch.instance(context);
         treeLoader = LazyTreeLoader.instance(context);
+        duplicateClassChecker = context.get(DuplicateClassChecker.class);
 
         predefClassDef = make.ClassDef(
             make.Modifiers(PUBLIC),
@@ -502,7 +505,8 @@ public class Enter extends JCTree.Visitor {
         }
 
         // Enter class into `compiled' table and enclosing scope.
-        if (!reattr && !noctx && chk.compiled.get(c.flatname) != null) {
+        if (!reattr && !noctx && (chk.compiled.get(c.flatname) != null
+                || (!c.fullname.isEmpty() && duplicateClassChecker != null && duplicateClassChecker.check(c.fullname, env.toplevel.getSourceFile())))) {
             duplicateClass(tree.pos(), c);
             result = types.createErrorType(tree.name, owner, Type.noType);
             tree.sym = c = (ClassSymbol)result.tsym;
