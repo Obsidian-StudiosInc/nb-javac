@@ -1,12 +1,12 @@
 /*
- * Copyright 2003-2008 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 2003, 2008, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javac.comp;
@@ -51,8 +51,8 @@ import javax.lang.model.element.Modifier;
  *  by entering their members into the class scope using
  *  MemberEnter.complete().  See Enter for an overview.
  *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.  If
- *  you write code that depends on this, you do so at your own risk.
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
@@ -917,6 +917,12 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                 && s.owner.kind != MTH
                 && types.isSameType(c.type, syms.deprecatedType))
                 s.flags_field |= Flags.DEPRECATED;
+            // Internally to java.dyn, a @PolymorphicSignature annotation
+            // translates to a classfile attribute.
+            if (!c.type.isErroneous()
+                && types.isSameType(c.type, syms.polymorphicSignatureType)) {
+                s.flags_field |= Flags.POLYMORPHIC_SIGNATURE;
+            }
             if (!annotated.add(a.type.tsym))
                 log.error(a.pos, "duplicate.annotation");
         }
@@ -1219,11 +1225,6 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             for (List<JCTypeAnnotation> dimAnnos : tree.dimAnnotations)
                 annotate(tree, dimAnnos);
             super.visitNewArray(tree);
-        }
-        @Override
-        public void visitApply(JCMethodInvocation tree) {
-            super.visitApply(tree);
-            scan(tree.typeargs);
         }
         @Override
         public void visitMethodDef(JCMethodDecl tree) {

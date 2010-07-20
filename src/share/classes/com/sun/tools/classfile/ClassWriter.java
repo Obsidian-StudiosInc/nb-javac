@@ -1,13 +1,13 @@
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 2008, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -19,9 +19,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.classfile;
@@ -41,8 +41,8 @@ import static com.sun.tools.classfile.StackMapTable_attribute.verification_type_
 /**
  * Write a ClassFile data structure to a file or stream.
  *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.  If
- *  you write code that depends on this, you do so at your own risk.
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
@@ -449,25 +449,6 @@ public class ClassWriter {
             out.writeShort(entry.index);
         }
 
-        public Void visitModule(Module_attribute attr, ClassOutputStream out) {
-            out.writeShort(attr.module_name);
-            return null;
-        }
-
-        public Void visitModuleExportTable(ModuleExportTable_attribute attr, ClassOutputStream out) {
-            out.writeShort(attr.export_type_table.length);
-            for (int i: attr.export_type_table)
-                out.writeShort(i);
-            return null;
-        }
-
-        public Void visitModuleMemberTable(ModuleMemberTable_attribute attr, ClassOutputStream out) {
-            out.writeShort(attr.package_member_table.length);
-            for (int i: attr.package_member_table)
-                out.writeShort(i);
-            return null;
-        }
-
         public Void visitRuntimeVisibleAnnotations(RuntimeVisibleAnnotations_attribute attr, ClassOutputStream out) {
             annotationWriter.write(attr.annotations, out);
             return null;
@@ -763,6 +744,7 @@ public class ClassWriter {
                 out.writeByte(p.type_index);
                 break;
             case CLASS_LITERAL:
+            case CLASS_LITERAL_GENERIC_OR_ARRAY:
                 out.writeShort(p.offset);
                 break;
             // method parameter: not specified

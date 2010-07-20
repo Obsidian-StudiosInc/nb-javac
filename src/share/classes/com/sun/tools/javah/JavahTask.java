@@ -1,12 +1,12 @@
 /*
- * Copyright 2002-2009 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 2002, 2009, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javah;
@@ -59,7 +59,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVisitor;
 import javax.lang.model.util.ElementFilter;
-import javax.lang.model.util.SimpleTypeVisitor6;
+import javax.lang.model.util.SimpleTypeVisitor7;
 import javax.lang.model.util.Types;
 
 import javax.tools.Diagnostic;
@@ -76,7 +76,7 @@ import javax.tools.ToolProvider;
  * Javah generates support files for native methods.
  * Parse commandline options & Invokes javadoc to execute those commands.
  *
- * <p><b>This is NOT part of any API supported by Sun Microsystems.
+ * <p><b>This is NOT part of any supported API.
  * If you write code that depends on this, you do so at your own
  * risk.  This code and its internal interfaces are subject to change
  * or deletion without notice.</b></p>
@@ -255,9 +255,11 @@ public class JavahTask implements NativeHeaderTool.NativeHeaderTask {
         }
 
         this.classes = new ArrayList<String>();
-        for (String classname: classes) {
-            classname.getClass(); // null-check
-            this.classes.add(classname);
+        if (classes != null) {
+            for (String classname: classes) {
+                classname.getClass(); // null-check
+                this.classes.add(classname);
+            }
         }
     }
 
@@ -347,8 +349,7 @@ public class JavahTask implements NativeHeaderTool.NativeHeaderTask {
             fileManager = getDefaultFileManager(diagnosticListener, log);
 
         Iterator<String> iter = args.iterator();
-        if (!iter.hasNext())
-            help = true;
+        noArgs = !iter.hasNext();
 
         while (iter.hasNext()) {
             String arg = iter.next();
@@ -365,7 +366,7 @@ public class JavahTask implements NativeHeaderTool.NativeHeaderTask {
         }
 
         if ((classes == null || classes.size() == 0) &&
-                !(help || version || fullVersion)) {
+                !(noArgs || help || version || fullVersion)) {
             throw new BadArgs("err.no.classes.specified");
         }
 
@@ -409,9 +410,9 @@ public class JavahTask implements NativeHeaderTool.NativeHeaderTask {
 
         Util util = new Util(log, diagnosticListener);
 
-        if (help) {
+        if (noArgs || help) {
             showHelp();
-            return true;
+            return help; // treat noArgs as an error for purposes of exit code
         }
 
         if (version || fullVersion) {
@@ -629,6 +630,7 @@ public class JavahTask implements NativeHeaderTool.NativeHeaderTask {
     String usercp;
     List<String> classes;
     boolean verbose;
+    boolean noArgs;
     boolean help;
     boolean trace;
     boolean version;
@@ -703,7 +705,7 @@ public class JavahTask implements NativeHeaderTool.NativeHeaderTask {
         }
 
         private TypeVisitor<Void,Types> checkMethodParametersVisitor =
-                new SimpleTypeVisitor6<Void,Types>() {
+                new SimpleTypeVisitor7<Void,Types>() {
             @Override
             public Void visitArray(ArrayType t, Types types) {
                 visit(t.getComponentType(), types);
