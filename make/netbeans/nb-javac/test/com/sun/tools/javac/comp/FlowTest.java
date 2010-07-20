@@ -161,5 +161,19 @@ public class FlowTest extends TestCase {
         }
         assertEquals(c.getDiagnostics().toString(), 4, c.getDiagnostics().size());
     }
-    
+
+    /*requires java.lang.AutoCloseable:
+     */
+    public void XtestErrorAndAutoCloseable() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test; public class Test { { try (InputStream in = new FileInputStream(\"\")) {} }}";
+
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+
+        assertNotNull("Must run on JDK7 with ARM", ct.getElements().getTypeElement("java.lang.AutoCloseable"));
+        ct.analyze();
+    }
 }

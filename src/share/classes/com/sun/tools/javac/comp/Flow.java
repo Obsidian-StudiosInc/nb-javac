@@ -1056,6 +1056,7 @@ public class Flow extends TreeScanner {
             for (Type sup : closeableSupertypes) {
                 if (types.asSuper(sup, syms.autoCloseableType.tsym) != null) {
                     MethodSymbol closeMethod = types.implementation(topCloseMethod, sup.tsym, types, true);
+                    if (closeMethod == null) continue;
                     for (Type t : closeMethod.getThrownTypes()) {
                         markThrown(tree.body, t);
                     }
