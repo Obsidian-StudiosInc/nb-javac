@@ -2300,7 +2300,7 @@ public class JavacParser implements Parser {
 
         /* A modifiers tree with no modifier tokens or annotations
          * has no text position. */
-        if ((flags & Flags.ModifierFlags) == 0 && annotations.isEmpty())
+        if ((flags & (Flags.ModifierFlags | Flags.ANNOTATION)) == 0 && annotations.isEmpty())
             pos = Position.NOPOS;
 
         switch (S.token()) {
