@@ -388,7 +388,7 @@ public class Resolve {
                                 boolean useVarargs,
                                 Warner warn) {
         Type varargsFormal = useVarargs ? formals.last() : null;
-        while (argtypes.nonEmpty() && formals.head != varargsFormal) {
+        while (argtypes.nonEmpty() && formals.nonEmpty() && formals.head != varargsFormal) {
             boolean works = allowBoxing
                 ? types.isConvertible(argtypes.head, formals.head, warn)
                 : types.isSubtypeUnchecked(argtypes.head, formals.head, warn);
