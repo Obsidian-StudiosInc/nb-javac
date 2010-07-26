@@ -2507,11 +2507,14 @@ public class JavacParser implements Parser {
                                           ident(), true, null);
         } else {
             JCExpression t = term(EXPR | TYPE);
-            if ((lastmode & TYPE) != 0 && S.token() == IDENTIFIER)
-                return variableDeclaratorRest(pos, toP(F.at(pos).Modifiers(Flags.FINAL)), t,
+            if ((lastmode & TYPE) != 0 && S.token() == IDENTIFIER) {
+                JCModifiers mods = F.at(pos).Modifiers(Flags.FINAL);
+                storeEnd(mods, pos);
+                return variableDeclaratorRest(pos, mods, t,
                                               ident(), true, null);
-            else
+            } else {
                 return t;
+            }
         }
     }
 
