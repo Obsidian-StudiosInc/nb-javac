@@ -44,6 +44,7 @@ import com.sun.tools.javac.code.Symbol.*;
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.TypeTags.*;
+import javax.lang.model.element.ElementKind;
 
 /** Type checking helper class for the attribution phase.
  *
@@ -72,6 +73,8 @@ public class Check {
     // visits all the various parts of the trees during attribution.
     private Lint lint;
 
+    private final boolean ideMode;
+
     public static Check instance(Context context) {
         Check instance = context.get(checkKey);
         if (instance == null)
@@ -97,6 +100,8 @@ public class Check {
         allowAnnotations = source.allowAnnotations();
         allowCovariantReturns = source.allowCovariantReturns();
         complexInference = options.get("-complexinference") != null;
+        findDiamonds = options.get("findDiamond") != null &&
+                source.allowDiamond();
         skipAnnotations = options.get("skipAnnotations") != null;
         warnOnSyntheticConflicts = options.get("warnOnSyntheticConflicts") != null;
         suppressAbortOnBadClassFile = options.get("suppressAbortOnBadClassFile") != null;
@@ -118,6 +123,8 @@ public class Check {
                 enforceMandatoryWarnings, "varargs", LintCategory.VARARGS);
         sunApiHandler = new MandatoryWarningHandler(log, verboseSunApi,
                 enforceMandatoryWarnings, "sunapi", null);
+
+        ideMode = options.get("ide") != null;
     }
 
     /** Switch: generics enabled?
@@ -139,6 +146,11 @@ public class Check {
     /** Character for synthetic names
      */
     char syntheticNameChar;
+
+     /** Hidden option: generates a note if diamond can be safely applied
+      *  to a given new expression
+      */
+     boolean findDiamonds;
 
     /** A table mapping flat names of all compiled classes in this run to their
      *  symbols; maintained from outside.
@@ -229,7 +241,7 @@ public class Check {
      */
     public Type completionError(DiagnosticPosition pos, CompletionFailure ex) {
         log.error(pos, "cant.access", ex.sym, ex.getDetailValue());
-        if (ex instanceof ClassReader.BadClassFile
+        if (!ideMode && (ex instanceof ClassReader.BadClassFile)
                 && !suppressAbortOnBadClassFile) throw new Abort();
         else return syms.errType;
     }
@@ -348,8 +360,9 @@ public class Check {
      */
     boolean checkUniqueClassName(DiagnosticPosition pos, Name name, Scope s) {
         for (Scope.Entry e = s.lookup(name); e.scope == s; e = e.next()) {
-            if (e.sym.kind == TYP && e.sym.name != names.error) {
-                duplicateError(pos, e.sym);
+            if (e.sym.kind == TYP) {
+                if (e.sym.name != names.error)
+                    duplicateError(pos, e.sym);
                 return false;
             }
         }
@@ -382,6 +395,15 @@ public class Check {
         }
     }
 
+
+    Name localClassName (final ClassSymbol enclClass, final Name name, final int index) {
+        Name flatname = names.
+            fromString("" + enclClass.flatname +
+                       syntheticNameChar + index +
+                       name);
+        return flatname;
+    }
+
 /* *************************************************************************
  * Type Checking
  **************************************************************************/
@@ -392,7 +414,7 @@ public class Check {
      *  @param found      The type that was found.
      *  @param req        The type that was required.
      */
-    Type checkType(DiagnosticPosition pos, Type found, Type req) {
+    public Type checkType(DiagnosticPosition pos, Type found, Type req) {
         return checkType(pos, found, req, "incompatible.types");
     }
 
@@ -744,7 +766,7 @@ public class Check {
         long implicit = 0;
         switch (sym.kind) {
         case VAR:
-            if (sym.owner.kind != TYP)
+            if (sym.owner.kind != TYP && sym.owner.kind != ERR)
                 mask = LocalVarFlags;
             else if ((sym.owner.flags_field & INTERFACE) != 0)
                 mask = implicit = InterfaceVarFlags;
@@ -771,6 +793,7 @@ public class Check {
               implicit |= sym.owner.flags_field & STRICTFP;
             break;
         case TYP:
+        case ERR:
             if (sym.isLocal()) {
                 mask = LocalClassFlags;
                 if (sym.name.isEmpty()) { // Anonymous class
@@ -783,7 +806,7 @@ public class Check {
                 if ((sym.owner.flags_field & STATIC) == 0 &&
                     (flags & ENUM) != 0)
                     log.error(pos, "enums.must.be.static");
-            } else if (sym.owner.kind == TYP) {
+            } else if (sym.owner.kind == TYP || sym.owner.kind == ERR) {
                 mask = MemberClassFlags;
                 if (sym.owner.owner.kind == PCK ||
                     (sym.owner.flags_field & STATIC) != 0)
@@ -952,7 +975,7 @@ public class Check {
 
         @Override
         public void visitTypeApply(JCTypeApply tree) {
-            if (tree.type.tag == CLASS) {
+            if (tree.type != null && tree.type.tag == CLASS) {
                 List<Type> formals = tree.type.tsym.type.allparams();
                 List<Type> actuals = tree.type.allparams();
                 List<JCExpression> args = tree.arguments;
@@ -1149,9 +1172,10 @@ public class Check {
      */
     boolean isUnchecked(Type exc) {
         return
+            (exc == null) ? true :
             (exc.tag == TYPEVAR) ? isUnchecked(types.supertype(exc)) :
             (exc.tag == CLASS) ? isUnchecked((ClassSymbol)exc.tsym) :
-            exc.tag == BOT;
+            exc.tag == BOT || exc.tag == ERROR;
     }
 
     /** Same, but handling completion failures.
@@ -1804,6 +1828,13 @@ public class Check {
         void checkImplementations(JCClassDecl tree, ClassSymbol ic) {
             ClassSymbol origin = tree.sym;
             for (List<Type> l = types.closure(ic.type); l.nonEmpty(); l = l.tail) {
+                ElementKind kind = l.head.tsym.getKind();
+
+                if (!kind.isClass() && !kind.isInterface()) {
+                    //not a class: an error should have already been reported, ignore.
+                    continue;
+                }
+
                 ClassSymbol lc = (ClassSymbol)l.head.tsym;
                 if ((allowGenerics || origin != lc) && (lc.flags() & ABSTRACT) != 0) {
                     for (Scope.Entry e=lc.members().elems; e != null; e=e.sibling) {
@@ -1851,7 +1882,8 @@ public class Check {
     }
 
     void checkConflicts(DiagnosticPosition pos, Symbol sym, TypeSymbol c) {
-        for (Type ct = c.type; ct != Type.noType ; ct = types.supertype(ct)) {
+        Type previous = null;
+        for (Type ct = c.type; ct != Type.noType && ct != previous; previous = ct, ct = types.supertype(ct)) {
             for (Scope.Entry e = ct.tsym.members().lookup(sym.name); e.scope == ct.tsym.members(); e = e.next()) {
                 // VM allows methods and variables with differing types
                 if (sym.kind == e.sym.kind &&
@@ -2126,7 +2158,7 @@ public class Check {
 
         // all the remaining ones better have default values
         for (MethodSymbol m : members)
-            if (m.defaultValue == null && !m.type.isErroneous())
+            if (m.defaultValue == null && !m.type.isErroneous() && m.name != m.name.table.names.clinit)
                 log.error(a.pos(), "annotation.missing.default.value",
                           a.type, m.name);
 
@@ -2236,7 +2268,7 @@ public class Check {
             JCMethodDecl meth = (JCMethodDecl) l.head;
             if (TreeInfo.name(app.meth) == names._this) {
                 callMap.put(meth.sym, TreeInfo.symbol(app.meth));
-            } else {
+            } else if (meth.sym != null) {
                 meth.sym.flags_field |= ACYCLIC;
             }
         }

@@ -27,6 +27,7 @@ package com.sun.tools.javac.util;
 
 import java.io.*;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -81,6 +82,8 @@ public class Log extends AbstractLog {
      */
     public boolean suppressNotes;
 
+    public boolean suppressErrorsAndWarnings;
+
     /** Print stack trace on errors?
      */
     public boolean dumpOnError;
@@ -109,6 +112,12 @@ public class Log extends AbstractLog {
      * JavacMessages object used for localization.
      */
     private JavacMessages messages;
+
+    private boolean partialReparse;
+
+    private final Set<Pair<JavaFileObject, Integer>> partialReparseRecorded = new HashSet<Pair<JavaFileObject,Integer>>();
+    private final Map<JCTree, JCDiagnostic> errTrees = new HashMap<JCTree, JCDiagnostic>();
+    private Map<JCTree, JCDiagnostic> errTreesOverlay = null;
 
     /** Construct a log with given I/O redirections.
      */
@@ -215,6 +224,23 @@ public class Log extends AbstractLog {
      *  source file name and source code position of the error is added to the set.
      */
     private Set<Pair<JavaFileObject, Integer>> recorded = new HashSet<Pair<JavaFileObject,Integer>>();
+    private Set<Pair<JavaFileObject, Integer>> recordedOverlay = null;
+
+    public void setRecordedOverlay(Set<Pair<JavaFileObject, Integer>> overlay) {
+        this.recordedOverlay = overlay;
+    }
+
+    public void pushRecordedOverlay(Set<Pair<JavaFileObject, Integer>> recordedOverlay) {
+        recorded.addAll(recordedOverlay);
+    }
+
+    public void setErrTreesOverlay(Map<JCTree, JCDiagnostic> overlay) {
+        this.errTreesOverlay = overlay;
+    }
+
+    public void pushErrTreesOverlay(Map<JCTree, JCDiagnostic> overlay) {
+        this.errTrees.putAll(overlay);
+    }
 
     public boolean hasDiagnosticListener() {
         return diagListener != null;
@@ -225,10 +251,30 @@ public class Log extends AbstractLog {
         getSource(name).setEndPosTable(table);
     }
 
+    public void startPartialReparse () {
+        assert partialReparseRecorded.isEmpty();
+        this.nerrors = 0;
+        this.nwarnings = 0;
+        this.partialReparse = true;
+    }
+
+    public void endPartialReparse () {
+        this.partialReparseRecorded.clear();
+        this.partialReparse = false;
+    }
+
     /** Return current sourcefile.
      */
     public JavaFileObject currentSourceFile() {
         return source == null ? null : source.getFile();
+    }
+
+    public DiagnosticListener<? super JavaFileObject> getDiagnosticListener() {
+        return diagListener;
+    }
+
+    public void setDiagnosticListener(DiagnosticListener<? super JavaFileObject> diagListener) {
+        this.diagListener = diagListener;
     }
 
     /** Get the current diagnostic formatter.
@@ -255,14 +301,29 @@ public class Log extends AbstractLog {
      * source name and pos.
      */
     protected boolean shouldReport(JavaFileObject file, int pos) {
-        if (multipleErrors || file == null)
+        if (file == null) {
+            return false;
+        } else if (multipleErrors) {
             return true;
-
-        Pair<JavaFileObject,Integer> coords = new Pair<JavaFileObject,Integer>(file, pos);
-        boolean shouldReport = !recorded.contains(coords);
-        if (shouldReport)
-            recorded.add(coords);
-        return shouldReport;
+        }
+        else {
+            Pair<JavaFileObject,Integer> coords = new Pair<JavaFileObject,Integer>(file, pos);
+            if (partialReparse) {
+                boolean shouldReport = !partialReparseRecorded.contains(coords);
+                if (shouldReport) {
+                    partialReparseRecorded.add(coords);
+                }
+                return shouldReport;
+            }
+            else {
+                boolean shouldReport = !recorded.contains(coords) && (recordedOverlay == null || !recordedOverlay.contains(coords));
+                if (shouldReport) {
+                    if (recordedOverlay != null) recordedOverlay.add(coords);
+                    else recorded.add(coords);
+                }
+                return shouldReport;
+            }
+        }
     }
 
     /** Prompt user after an error.
@@ -370,7 +431,7 @@ public class Log extends AbstractLog {
             break;
 
         case WARNING:
-            if (emitWarnings || diagnostic.isMandatory()) {
+            if ((emitWarnings || diagnostic.isMandatory()) && !suppressErrorsAndWarnings) {
                 if (nwarnings < MaxWarnings) {
                     writeDiagnostic(diagnostic);
                     nwarnings++;
@@ -379,10 +440,19 @@ public class Log extends AbstractLog {
             break;
 
         case ERROR:
-            if (nerrors < MaxErrors
-                && shouldReport(diagnostic.getSource(), diagnostic.getIntPosition())) {
-                writeDiagnostic(diagnostic);
-                nerrors++;
+            if (!suppressErrorsAndWarnings) {
+                if (diagnostic.getTree() != null && !errTrees.containsKey(diagnostic.getTree())
+                        && (errTreesOverlay == null || !errTreesOverlay.containsKey(diagnostic.getTree()))) {
+                    if (errTreesOverlay != null)
+                        errTreesOverlay.put(diagnostic.getTree(), diagnostic);
+                    else
+                        errTrees.put(diagnostic.getTree(), diagnostic);
+                }
+                if (nerrors < MaxErrors
+                    && shouldReport(diagnostic.getSource(), diagnostic.getIntPosition())) {
+                    writeDiagnostic(diagnostic);
+                    nerrors++;
+                }
             }
             break;
         }
@@ -505,5 +575,8 @@ public class Log extends AbstractLog {
     public static String format(String fmt, Object... args) {
         return String.format((java.util.Locale)null, fmt, args);
     }
-
+    
+    public JCDiagnostic getErrDiag(JCTree tree) {
+        return errTrees.get(tree);
+    }
 }

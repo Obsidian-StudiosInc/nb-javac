@@ -204,6 +204,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
         case DECLARED:
         case ERROR:
         case TYPEVAR:
+        case OTHER:
             return new Type.WildcardType(bound, bkind, syms.boundClass);
         default:
             throw new IllegalArgumentException(bound.toString());

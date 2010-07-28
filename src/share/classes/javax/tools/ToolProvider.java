@@ -143,7 +143,8 @@ public class ToolProvider {
             throws MalformedURLException, ClassNotFoundException
         {
             try {
-                return enableAsserts(Class.forName(defaultJavaCompilerName, false, null));
+                ClassLoader cl = Thread.currentThread().getContextClassLoader();
+                return enableAsserts(Class.forName(defaultJavaCompilerName, false, cl));
             } catch (ClassNotFoundException e) {
                 trace(FINE, e);
             }

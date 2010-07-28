@@ -34,6 +34,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 import javax.lang.model.SourceVersion;
 import javax.tools.JavaFileObject;
 import javax.tools.JavaFileManager;
@@ -42,6 +43,7 @@ import javax.tools.StandardJavaFileManager;
 
 import static javax.tools.StandardLocation.*;
 
+import com.sun.tools.javac.api.ClassNamesForFileOraculum;
 import com.sun.tools.javac.comp.Annotate;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Type.*;
@@ -69,7 +71,7 @@ import static com.sun.tools.javac.jvm.ClassFile.Version.*;
  */
 public class ClassReader implements Completer {
     /** The context key for the class reader. */
-    protected static final Context.Key<ClassReader> classReaderKey =
+    public static final Context.Key<ClassReader> classReaderKey =
         new Context.Key<ClassReader>();
 
     Annotate annotate;
@@ -138,6 +140,9 @@ public class ClassReader implements Completer {
     /** Factory for diagnostics
      */
     JCDiagnostic.Factory diagFactory;
+
+    private final ClassNamesForFileOraculum classNamesOraculum;
+    private final boolean ideMode;
 
     /** Can be reassigned from outside:
      *  the completer to be used for ".java" files. If this remains unassigned
@@ -249,7 +254,8 @@ public class ClassReader implements Completer {
         if (fileManager == null)
             throw new AssertionError("FileManager initialization error");
         diagFactory = JCDiagnostic.Factory.instance(context);
-
+        classNamesOraculum = context.get(ClassNamesForFileOraculum.class);
+        
         init(syms, definitive);
         log = Log.instance(context);
 
@@ -257,6 +263,7 @@ public class ClassReader implements Completer {
         annotate = Annotate.instance(context);
         verbose        = options.get("-verbose")        != null;
         checkClassFile = options.get("-checkclassfile") != null;
+        ideMode = options.get("ide") != null;
         Source source = Source.instance(context);
         allowGenerics    = source.allowGenerics();
         allowVarargs     = source.allowVarargs();
@@ -602,6 +609,7 @@ public class ClassReader implements Completer {
         case 'J':
             sigp++;
             return syms.longType;
+        case 'R':
         case 'L':
             {
                 // int oldsigp = sigp;
@@ -657,9 +665,10 @@ public class ClassReader implements Completer {
     /** Convert class signature to type, where signature is implicit.
      */
     Type classSigToType() {
-        if (signature[sigp] != 'L')
+        if (signature[sigp] != 'L' && signature[sigp] != 'R')
             throw badClassFile("bad.class.signature",
                                Convert.utf2string(signature, sigp, 10));
+        boolean err = signature[sigp] == 'R';
         sigp++;
         Type outer = Type.noType;
         int startSbp = sbp;
@@ -672,7 +681,9 @@ public class ClassReader implements Completer {
                 ClassSymbol t = enterClass(names.fromUtf(signatureBuffer,
                                                          startSbp,
                                                          sbp - startSbp));
-                if (outer == Type.noType)
+                if (err)
+                    outer = new ErrorType(Type.noType, t, false);
+                else if (outer == Type.noType)
                     outer = t.erasure(types);
                 else
                     outer = new ClassType(outer, List.<Type>nil(), t);
@@ -994,7 +1005,7 @@ public class ClassReader implements Completer {
             new AttributeReader(names.Signature, V49, CLASS_OR_MEMBER_ATTRIBUTE) {
                 @Override
                 boolean accepts(AttributeKind kind) {
-                    return super.accepts(kind) && allowGenerics;
+                    return super.accepts(kind) && (allowGenerics || ideMode);
                 }
 
                 void read(Symbol sym, int attrLen) {
@@ -1059,7 +1070,7 @@ public class ClassReader implements Completer {
 
             new AttributeReader(names.Annotation, V49, CLASS_OR_MEMBER_ATTRIBUTE) {
                 void read(Symbol sym, int attrLen) {
-                    if (allowAnnotations)
+                    if (allowAnnotations || ideMode)
                         sym.flags_field |= ANNOTATION;
                 }
             },
@@ -1080,7 +1091,7 @@ public class ClassReader implements Completer {
 
             new AttributeReader(names.Varargs, V49, CLASS_OR_MEMBER_ATTRIBUTE) {
                 void read(Symbol sym, int attrLen) {
-                    if (allowVarargs)
+                    if (allowVarargs || ideMode)
                         sym.flags_field |= VARARGS;
                 }
             },
@@ -1104,6 +1115,41 @@ public class ClassReader implements Completer {
                 }
             },
 
+            // nb-javac attributes
+
+            new AttributeReader(names._org_netbeans_TypeSignature, V49, CLASS_OR_MEMBER_ATTRIBUTE) {
+                void read(Symbol sym, int attrLen) {
+                    sym.type = readType(nextChar());
+                }
+            },
+            
+            new AttributeReader(names._org_netbeans_ParameterNames, V49, CLASS_OR_MEMBER_ATTRIBUTE) {
+                void read(Symbol sym, int attrLen) {
+                    List<Name> parameterNames = List.nil();
+                    int numParams = 0;
+                    if (sym.type != null) {
+                        List<Type> parameterTypes = sym.type.getParameterTypes();
+                        if (parameterTypes != null)
+                            numParams = parameterTypes.length();
+                    }
+                    for (int i = 0; i < numParams; i++)
+                        parameterNames = parameterNames.prepend(readName(nextChar()));
+                    parameterNames = parameterNames.reverse();
+                    ((MethodSymbol)sym).savedParameterNames = parameterNames;
+                }
+            },
+
+            new AttributeReader(names._org_netbeans_SourceLevelAnnotations, V49, CLASS_OR_MEMBER_ATTRIBUTE) {
+                void read(Symbol sym, int attrLen) {
+                    attachAnnotations(sym);
+                }
+            },
+
+            new AttributeReader(names._org_netbeans_SourceLevelParameterAnnotations, V49, CLASS_OR_MEMBER_ATTRIBUTE) {
+                void read(Symbol sym, int attrLen) {
+                    attachParameterAnnotations(sym);
+                }
+            },
 
             // The following attributes for a Code attribute are not currently handled
             // StackMapTable
@@ -1134,7 +1180,12 @@ public class ClassReader implements Completer {
         ClassSymbol c = readClassSymbol(nextChar());
         NameAndType nt = (NameAndType)readPool(nextChar());
 
-        MethodSymbol m = findMethod(nt, c.members_field, self.flags());
+        MethodSymbol m = null;
+        if (c.members_field != null) {
+            m = findMethod(nt, c.members_field, self.flags());
+        } else {
+            Logger.getLogger(ClassReader.class.getName()).warning("ClassWriter.readEnclosingMethodAttr:" + (c.completer != null ? "uncompleted" : "") + " symbol [" + c + "] of kind [" + c.kind + "] has null members_field."); //NOI18N
+        }
         if (nt != null && m == null)
             throw badClassFile("bad.enclosing.method", self);
 
@@ -1165,8 +1216,12 @@ public class ClassReader implements Completer {
     }
 
     // See java.lang.Class
-    private Name simpleBinaryName(Name self, Name enclosing) {
-        String simpleBinaryName = self.toString().substring(enclosing.toString().length());
+    protected Name simpleBinaryName(Name self, Name enclosing) {
+        String selfStr = self.toString();
+        String enclStr = enclosing.toString();
+        if (selfStr.length() <= enclStr.length())
+            throw badClassFile("bad.enclosing.method", self);
+        String simpleBinaryName = selfStr.substring(enclStr.length());
         if (simpleBinaryName.length() < 1 || simpleBinaryName.charAt(0) != '$')
             throw badClassFile("bad.enclosing.method", self);
         int index = 1;
@@ -1207,7 +1262,7 @@ public class ClassReader implements Completer {
     }
 
     /** Similar to Types.isSameType but avoids completion */
-    private boolean isSameBinaryType(MethodType mt1, MethodType mt2) {
+    protected boolean isSameBinaryType(MethodType mt1, MethodType mt2) {
         List<Type> types1 = types.erasure(mt1.getParameterTypes())
             .prepend(types.erasure(mt1.getReturnType()));
         List<Type> types2 = mt2.getParameterTypes().prepend(mt2.getReturnType());
@@ -1518,7 +1573,7 @@ public class ClassReader implements Completer {
         void visitCompoundAnnotationProxy(CompoundAnnotationProxy proxy);
     }
 
-    static class EnumAttributeProxy extends Attribute {
+    protected static class EnumAttributeProxy extends Attribute {
         Type enumType;
         Name enumerator;
         public EnumAttributeProxy(Type enumType, Name enumerator) {
@@ -1533,9 +1588,9 @@ public class ClassReader implements Completer {
         }
     }
 
-    static class ArrayAttributeProxy extends Attribute {
+    protected static class ArrayAttributeProxy extends Attribute {
         List<Attribute> values;
-        ArrayAttributeProxy(List<Attribute> values) {
+        public ArrayAttributeProxy(List<Attribute> values) {
             super(null);
             this.values = values;
         }
@@ -1548,7 +1603,7 @@ public class ClassReader implements Completer {
 
     /** A temporary proxy representing a compound attribute.
      */
-    static class CompoundAnnotationProxy extends Attribute {
+    protected static class CompoundAnnotationProxy extends Attribute {
         final List<Pair<Name,Attribute>> values;
         public CompoundAnnotationProxy(Type type,
                                       List<Pair<Name,Attribute>> values) {
@@ -1733,7 +1788,7 @@ public class ClassReader implements Completer {
         }
     }
 
-    class AnnotationDefaultCompleter extends AnnotationDeproxy implements Annotate.Annotator {
+    protected class AnnotationDefaultCompleter extends AnnotationDeproxy implements Annotate.Annotator {
         final MethodSymbol sym;
         final Attribute value;
         final JavaFileObject classFile = currentClassFile;
@@ -1741,7 +1796,7 @@ public class ClassReader implements Completer {
         public String toString() {
             return " ClassReader store default for " + sym.owner + "." + sym + " is " + value;
         }
-        AnnotationDefaultCompleter(MethodSymbol sym, Attribute value) {
+        public AnnotationDefaultCompleter(MethodSymbol sym, Attribute value) {
             this.sym = sym;
             this.value = value;
         }
@@ -1757,7 +1812,7 @@ public class ClassReader implements Completer {
         }
     }
 
-    class AnnotationCompleter extends AnnotationDeproxy implements Annotate.Annotator {
+    protected class AnnotationCompleter extends AnnotationDeproxy implements Annotate.Annotator {
         final Symbol sym;
         final List<CompoundAnnotationProxy> l;
         final JavaFileObject classFile;
@@ -1765,7 +1820,7 @@ public class ClassReader implements Completer {
         public String toString() {
             return " ClassReader annotate " + sym.owner + "." + sym + " with " + l;
         }
-        AnnotationCompleter(Symbol sym, List<CompoundAnnotationProxy> l) {
+        public AnnotationCompleter(Symbol sym, List<CompoundAnnotationProxy> l) {
             this.sym = sym;
             this.l = l;
             this.classFile = currentClassFile;
@@ -1909,7 +1964,7 @@ public class ClassReader implements Completer {
      */
     void setParameterNames(MethodSymbol sym, Type jvmType) {
         // if no names were found in the class file, there's nothing more to do
-        if (!haveParameterNameIndices)
+        if (!haveParameterNameIndices || sym.type == null || sym.type.getParameterTypes() == null)
             return;
 
         int firstParam = ((sym.flags() & STATIC) == 0) ? 1 : 0;
@@ -2120,7 +2175,7 @@ public class ClassReader implements Completer {
  ***********************************************************************/
 
     long adjustFieldFlags(long flags) {
-        return flags;
+        return flags | FROMCLASS;
     }
     long adjustMethodFlags(long flags) {
         if ((flags & ACC_BRIDGE) != 0) {
@@ -2133,9 +2188,11 @@ public class ClassReader implements Completer {
             flags &= ~ACC_VARARGS;
             flags |= VARARGS;
         }
+        flags |= FROMCLASS;
         return flags;
     }
     long adjustClassFlags(long flags) {
+        flags |= FROMCLASS;
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded
     }
 
@@ -2163,6 +2220,23 @@ public class ClassReader implements Completer {
             c = defineClass(name, owner);
             classes.put(flatname, c);
         } else if ((c.name != name || c.owner != owner) && owner.kind == TYP && c.owner.kind == PCK) {
+            // reassign fields of classes that might have been loaded with
+            // their flat names.
+            c.owner.members().remove(c);
+            c.name = name;
+            c.owner = owner;
+            c.fullname = ClassSymbol.formFullName(name, owner);
+        }
+        return c;
+    }
+
+    public ClassSymbol enterClass(Name flatname, Name name, Symbol owner) {
+        ClassSymbol c = classes.get(flatname);
+        if (c == null) {
+            c = defineClass(name, owner);
+            c.flatname = flatname;
+            classes.put(flatname, c);
+        } else if ((c.name != name || c.owner != owner) && (c.owner.kind & (PCK | TYP)) != 0) {
             // reassign fields of classes that might have been loaded with
             // their flat names.
             c.owner.members().remove(c);
@@ -2222,7 +2296,7 @@ public class ClassReader implements Completer {
     public void complete(Symbol sym) throws CompletionFailure {
         if (sym.kind == TYP) {
             ClassSymbol c = (ClassSymbol)sym;
-            c.members_field = new Scope.ErrorScope(c); // make sure it's always defined
+            Scope tempScope = c.members_field = new Scope.ErrorScope(c); // make sure it's always defined
             boolean saveSuppressFlush = suppressFlush;
             suppressFlush = true;
             try {
@@ -2231,7 +2305,9 @@ public class ClassReader implements Completer {
             } finally {
                 suppressFlush = saveSuppressFlush;
             }
-            fillIn(c);
+            if (c.members_field == tempScope) { // do not fill in when already completed as a result of completing owners
+                fillIn(c);
+            }
         } else if (sym.kind == PCK) {
             PackageSymbol p = (PackageSymbol)sym;
             try {
@@ -2278,7 +2354,7 @@ public class ClassReader implements Completer {
     /** Fill in definition of class `c' from corresponding class or
      *  source file.
      */
-    private void fillIn(ClassSymbol c) {
+    protected void fillIn(ClassSymbol c) {
         if (completionFailureName == c.fullname) {
             throw new CompletionFailure(c, "user-selected completion failure by class name");
         }
@@ -2287,9 +2363,16 @@ public class ClassReader implements Completer {
         if (classfile != null) {
             JavaFileObject previousClassFile = currentClassFile;
             try {
-                assert !filling :
-                    "Filling " + classfile.toUri() +
-                    " during " + previousClassFile;
+                if (filling) {
+                    StringBuilder sb = new StringBuilder();
+                    for (StackTraceElement[] trace : Thread.getAllStackTraces().values()) {
+                        for (StackTraceElement element : trace)
+                            sb.append(element).append('\n');
+                        sb.append('\n');
+                    }
+                    assert false : "Filling " + classfile.toUri() +
+                    " during " + previousClassFile + "\n" + sb;
+                }
                 currentClassFile = classfile;
                 if (verbose) {
                     printVerbose("loading", currentClassFile.toString());
@@ -2323,7 +2406,9 @@ public class ClassReader implements Completer {
                     }
                 } else {
                     if (sourceCompleter != null) {
-                        sourceCompleter.complete(c);
+                        if (!classfile.isNameCompatible("package-info", JavaFileObject.Kind.SOURCE)) {
+                            sourceCompleter.complete(c);
+                        }
                     } else {
                         throw new IllegalStateException("Source completer required to read "
                                                         + classfile.toUri());
@@ -2343,14 +2428,14 @@ public class ClassReader implements Completer {
         }
     }
     // where
-        private static byte[] readInputStream(byte[] buf, InputStream s) throws IOException {
+        static byte[] readInputStream(byte[] buf, InputStream s) throws IOException {
             try {
                 buf = ensureCapacity(buf, s.available());
                 int r = s.read(buf);
                 int bp = 0;
                 while (r != -1) {
                     bp += r;
-                    buf = ensureCapacity(buf, bp);
+                    buf = ensureCapacity(buf, buf.length == bp ? bp + 1 : bp); //see ClassReaderTest
                     r = s.read(buf, bp, buf.length - bp);
                 }
                 return buf;
@@ -2445,12 +2530,19 @@ public class ClassReader implements Completer {
         return enterPackage(TypeSymbol.formFullName(name, owner));
     }
 
+    //TODO: for compatibility, remove eventually
+    protected void includeClassFile(PackageSymbol p, JavaFileObject file) {
+        String binaryName = fileManager.inferBinaryName(currentLoc, file);
+        
+        includeClassFile(p, file, binaryName);
+    }
+
     /** Include class corresponding to given class file in package,
      *  unless (1) we already have one the same kind (.class or .java), or
      *         (2) we have one of the other kind, and the given class file
      *             is older.
      */
-    protected void includeClassFile(PackageSymbol p, JavaFileObject file) {
+    protected void includeClassFile(PackageSymbol p, JavaFileObject file, String binaryName) {
         if ((p.flags_field & EXISTS) == 0)
             for (Symbol q = p; q != null && q.kind == PCK; q = q.owner)
                 q.flags_field |= EXISTS;
@@ -2460,7 +2552,6 @@ public class ClassReader implements Completer {
             seen = CLASS_SEEN;
         else
             seen = SOURCE_SEEN;
-        String binaryName = fileManager.inferBinaryName(currentLoc, file);
         int lastDot = binaryName.lastIndexOf(".");
         Name classname = names.fromString(binaryName.substring(lastDot + 1));
         boolean isPkgInfo = classname == names.package_info;
@@ -2482,10 +2573,19 @@ public class ClassReader implements Completer {
             // and no further action is necessary.
             // if (c.flags_field & seen) != 0, we have already encountered
             // a file of the same kind; again no further action is necessary.
-            if ((c.flags_field & (CLASS_SEEN | SOURCE_SEEN)) != 0)
+            if ((c.flags_field & (CLASS_SEEN | SOURCE_SEEN)) != 0) {
                 c.classfile = preferredFileObject(file, c.classfile);
+            }
+        } else if (c.classfile != null && isSigOverClass(c.classfile, file)) {
+            c.classfile = file;
         }
         c.flags_field |= seen;
+    }
+
+    private boolean isSigOverClass(final JavaFileObject a, final JavaFileObject b) {
+        String patha = a.getName().toLowerCase();
+        String pathb = b.getName().toLowerCase();
+        return pathb.endsWith(".sig") && patha.endsWith(".class");  //NOI18N
     }
 
     /** Implement policy to choose to derive information from a source
@@ -2495,7 +2595,7 @@ public class ClassReader implements Completer {
     protected JavaFileObject preferredFileObject(JavaFileObject a,
                                            JavaFileObject b) {
 
-        if (preferSource)
+        if (preferSource && !b.getName().toLowerCase().endsWith(".sig"))
             return (a.getKind() == JavaFileObject.Kind.SOURCE) ? a : b;
         else {
             long adate = a.getLastModified();
@@ -2608,17 +2708,45 @@ public class ClassReader implements Completer {
                 switch (fo.getKind()) {
                 case CLASS:
                 case SOURCE: {
-                    // TODO pass binaryName to includeClassFile
-                    String binaryName = fileManager.inferBinaryName(currentLoc, fo);
-                    String simpleName = binaryName.substring(binaryName.lastIndexOf(".") + 1);
-                    if (SourceVersion.isIdentifier(simpleName) ||
-                        fo.getKind() == JavaFileObject.Kind.CLASS ||
-                        simpleName.equals("package-info"))
-                        includeClassFile(p, fo);
+                    String[] binaryNames = null;
+                    
+                    if (classNamesOraculum != null) {
+                        binaryNames = classNamesOraculum.divineClassName(fo);
+                    }
+                    
+                    if (binaryNames == null) {
+                        String binaryName = fileManager.inferBinaryName(currentLoc, fo);
+                        if (binaryName != null) {
+                            binaryNames = new String[] {binaryName};
+                        }
+                    }
+                    if (binaryNames != null) {
+                        for (String binaryName : binaryNames) {
+                            String simpleName = binaryName.substring(binaryName.lastIndexOf(".") + 1);
+                            if (SourceVersion.isIdentifier(simpleName) ||
+                                fo.getKind() == JavaFileObject.Kind.CLASS ||
+                                simpleName.equals("package-info"))
+                                includeClassFile(p, fo);
+                        }
+                    }
                     break;
                 }
                 default:
                     extraFileActions(p, fo);
+                }
+            }
+            if (classNamesOraculum != null && location == SOURCE_PATH) {
+                JavaFileObject[] sources = classNamesOraculum.divineSources(p.fullname.toString());
+                if (sources != null) {
+                    for (JavaFileObject fo : sources) {
+                        for (String binaryName : classNamesOraculum.divineClassName(fo)) {
+                            String simpleName = binaryName.substring(binaryName.lastIndexOf(".") + 1);
+                            if (SourceVersion.isIdentifier(simpleName) ||
+                                    simpleName.equals("package-info")) {
+                                includeClassFile(p, fo, binaryName);
+                            }
+                        }
+                    }
                 }
             }
         }
