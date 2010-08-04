@@ -771,7 +771,6 @@ public class Attr extends JCTree.Visitor {
             }
             localEnv.info.scope.leave();
             result = tree.type = m.type;
-            chk.validateAnnotations(tree.mods.annotations, m);
         }
         finally {
             chk.setLint(prevLint);
@@ -824,7 +823,6 @@ public class Attr extends JCTree.Visitor {
                 }
             }
             result = tree.type = v.type;
-            chk.validateAnnotations(tree.mods.annotations, v);
         }
         finally {
             chk.setLint(prevLint);
@@ -2868,9 +2866,6 @@ public class Attr extends JCTree.Visitor {
     private void attribClassBody(Env<AttrContext> env, ClassSymbol c) {
         JCClassDecl tree = (JCClassDecl)env.tree;
         assert c == tree.sym : "c = " + c + " tree.sym = " + tree.sym + " tree = " + tree;
-
-        // Validate annotations
-        chk.validateAnnotations(tree.mods.annotations, c);
 
         // Validate type parameters, supertype and interfaces.
         attribBounds(tree.typarams);
