@@ -876,6 +876,16 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                                       "already.annotated",
                                       kindName(s), s);
                         enterAnnotations(annotations, localEnv, s);
+                        annotate.later(new Annotate.Annotator() {
+                            public void enterAnnotation() {
+                                JavaFileObject prev = log.useSource(localEnv.toplevel.sourcefile);
+                                try {
+                                    chk.validateAnnotations(annotations, s);
+                                } finally {
+                                    log.useSource(prev);
+                                }
+                            }
+                        });
                     } finally {
                         log.useSource(prev);
                     }
