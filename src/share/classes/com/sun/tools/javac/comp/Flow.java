@@ -37,6 +37,7 @@ import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
 import com.sun.tools.javac.code.Symbol.*;
+import com.sun.tools.javac.comp.Resolve;
 import com.sun.tools.javac.tree.JCTree.*;
 
 import java.util.logging.Level;
@@ -190,6 +191,8 @@ public class Flow extends TreeScanner {
     private final Types types;
     private final Check chk;
     private       TreeMaker make;
+    private final Resolve rs;
+    private Env<AttrContext> attrEnv;
     private       Lint lint;
     private final boolean allowRethrowAnalysis;
 
@@ -208,6 +211,7 @@ public class Flow extends TreeScanner {
         types = Types.instance(context);
         chk = Check.instance(context);
         lint = Lint.instance(context);
+        rs = Resolve.instance(context);
         Source source = Source.instance(context);
         allowRethrowAnalysis = source.allowMulticatch();
     }
@@ -1050,16 +1054,21 @@ public class Flow extends TreeScanner {
             }
         }
         for (JCTree resource : tree.resources) {
-            MethodSymbol topCloseMethod = (MethodSymbol)syms.autoCloseableType.tsym.members().lookup(names.close).sym;
             List<Type> closeableSupertypes = resource.type.isCompound() ?
                 types.interfaces(resource.type).prepend(types.supertype(resource.type)) :
                 List.of(resource.type);
             for (Type sup : closeableSupertypes) {
                 if (types.asSuper(sup, syms.autoCloseableType.tsym) != null) {
-                    MethodSymbol closeMethod = types.implementation(topCloseMethod, sup.tsym, types, true);
-                    if (closeMethod == null) continue;
-                    for (Type t : closeMethod.getThrownTypes()) {
-                        markThrown(tree.body, t);
+                    Symbol closeMethod = rs.resolveInternalMethod(tree,
+                            attrEnv,
+                            sup,
+                            names.close,
+                            List.<Type>nil(),
+                            List.<Type>nil());
+                    if (closeMethod.kind == MTH) {
+                        for (Type t : ((MethodSymbol)closeMethod).getThrownTypes()) {
+                            markThrown(tree.body, t);
+                        }
                     }
                 }
             }
@@ -1491,8 +1500,10 @@ public class Flow extends TreeScanner {
 
     /** Perform definite assignment/unassignment analysis on a tree.
      */
-    public void analyzeTree(JCTree tree, TreeMaker make) {
+    public void analyzeTree(Env<AttrContext> env, TreeMaker make) {
         try {
+            attrEnv = env;
+            JCTree tree = env.tree;
             init(make);
             scan(tree);
         } finally {

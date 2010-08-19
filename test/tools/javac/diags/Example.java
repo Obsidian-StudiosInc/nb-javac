@@ -421,7 +421,7 @@ class Example implements Comparable<Example> {
             if (verbose)
                 System.err.println("run_simple: " + opts + " " + files);
 
-            List<String> args = new ArrayList<String>(opts);
+            List<String> args = new ArrayList<String>();
 
             if (keys != null || raw)
                 args.add("-XDrawDiagnostics");
@@ -502,11 +502,16 @@ class Example implements Comparable<Example> {
         }
 
         static class MessageTracker extends JavacMessages {
-            static void preRegister(Context c, final Set<String> keys) {
+
+            MessageTracker(Context context) {
+                super(context);
+            }
+
+            static void preRegister(final Context c, final Set<String> keys) {
                 if (keys != null) {
                     c.put(JavacMessages.messagesKey, new Context.Factory<JavacMessages>() {
                         public JavacMessages make() {
-                            return new MessageTracker() {
+                            return new MessageTracker(c) {
                                 @Override
                                 public String getLocalizedString(Locale l, String key, Object... args) {
                                     keys.add(key);
