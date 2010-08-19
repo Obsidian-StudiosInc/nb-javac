@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.comp;
 
+import com.sun.source.tree.AssignmentTree;
 import java.util.*;
 import java.util.Set;
 
@@ -341,7 +342,7 @@ public class Check {
             for (Scope.Entry e = s.next.lookup(c.name);
                  e.scope != null && e.sym.owner == c.owner;
                  e = e.next()) {
-                if (e.sym.kind == TYP &&
+                if (e.sym.kind == TYP && e.sym.type.tag != TYPEVAR &&
                     (e.sym.owner.kind & (VAR | MTH)) != 0 &&
                     c.name != names.error) {
                     duplicateError(pos, e.sym);
@@ -928,33 +929,15 @@ public class Check {
      *
      *  and we can't make sure that the bound is already attributed because
      *  of possible cycles.
-     */
-    private Validator validator = new Validator();
-
-    /** Visitor method: Validate a type expression, if it is not null, catching
+     *
+     * Visitor method: Validate a type expression, if it is not null, catching
      *  and reporting any completion failures.
      */
     void validate(JCTree tree, Env<AttrContext> env) {
-        try {
-            if (tree != null) {
-                validator.env = env;
-                tree.accept(validator);
-                checkRaw(tree, env);
-            }
-        } catch (CompletionFailure ex) {
-            completionError(tree.pos(), ex);
-        }
+        validate(tree, env, true);
     }
-    //where
-    void checkRaw(JCTree tree, Env<AttrContext> env) {
-        if (lint.isEnabled(Lint.LintCategory.RAW) &&
-            tree.type.tag == CLASS &&
-            !TreeInfo.isDiamond(tree) &&
-            !env.enclClass.name.isEmpty() &&  //anonymous or intersection
-            tree.type.isRaw()) {
-            log.warning(Lint.LintCategory.RAW,
-                    tree.pos(), "raw.class.use", tree.type, tree.type.tsym.type);
-        }
+    void validate(JCTree tree, Env<AttrContext> env, boolean checkRaw) {
+        new Validator(env).validateTree(tree, checkRaw, true);
     }
 
     /** Visitor method: Validate a list of type expressions.
@@ -968,9 +951,16 @@ public class Check {
      */
     class Validator extends JCTree.Visitor {
 
+        boolean isOuter;
+        Env<AttrContext> env;
+
+        Validator(Env<AttrContext> env) {
+            this.env = env;
+        }
+
         @Override
         public void visitTypeArray(JCArrayTypeTree tree) {
-            validate(tree.elemtype, env);
+            tree.elemtype.accept(this);
         }
 
         @Override
@@ -982,10 +972,14 @@ public class Check {
                 List<Type> forms = tree.type.tsym.type.getTypeArguments();
                 ListBuffer<Type> tvars_buf = new ListBuffer<Type>();
 
+                boolean is_java_lang_Class = tree.type.tsym.flatName() == names.java_lang_Class;
+
                 // For matching pairs of actual argument types `a' and
                 // formal type parameters with declared bound `b' ...
                 while (args.nonEmpty() && forms.nonEmpty()) {
-                    validate(args.head, env);
+                    validateTree(args.head,
+                            !(isOuter && is_java_lang_Class),
+                            false);
 
                     // exact type arguments needs to know their
                     // bounds (for upper and lower bound
@@ -1037,14 +1031,14 @@ public class Check {
 
         @Override
         public void visitTypeParameter(JCTypeParameter tree) {
-            validate(tree.bounds, env);
+            validateTrees(tree.bounds, true, isOuter);
             checkClassBounds(tree.pos(), tree.type);
         }
 
         @Override
         public void visitWildcard(JCWildcard tree) {
             if (tree.inner != null)
-                validate(tree.inner, env);
+                validateTree(tree.inner, true, isOuter);
         }
 
         @Override
@@ -1082,7 +1076,34 @@ public class Check {
         public void visitTree(JCTree tree) {
         }
 
-        Env<AttrContext> env;
+        public void validateTree(JCTree tree, boolean checkRaw, boolean isOuter) {
+            try {
+                if (tree != null) {
+                    this.isOuter = isOuter;
+                    tree.accept(this);
+                    if (checkRaw)
+                        checkRaw(tree, env);
+                }
+            } catch (CompletionFailure ex) {
+                completionError(tree.pos(), ex);
+            }
+        }
+
+        public void validateTrees(List<? extends JCTree> trees, boolean checkRaw, boolean isOuter) {
+            for (List<? extends JCTree> l = trees; l.nonEmpty(); l = l.tail)
+                validateTree(l.head, checkRaw, isOuter);
+        }
+
+        void checkRaw(JCTree tree, Env<AttrContext> env) {
+            if (lint.isEnabled(Lint.LintCategory.RAW) &&
+                tree.type.tag == CLASS &&
+                !TreeInfo.isDiamond(tree) &&
+                !env.enclClass.name.isEmpty() &&  //anonymous or intersection
+                tree.type.isRaw()) {
+                log.warning(Lint.LintCategory.RAW,
+                        tree.pos(), "raw.class.use", tree.type, tree.type.tsym.type);
+            }
+        }
     }
 
 /* *************************************************************************
@@ -1961,6 +1982,20 @@ public class Check {
  * Check annotations
  **************************************************************************/
 
+    /**
+     * Recursively validate annotations values
+     */
+    void validateAnnotationTree(JCTree tree) {
+        class AnnotationValidator extends TreeScanner {
+            @Override
+            public void visitAnnotation(JCAnnotation tree) {
+                super.visitAnnotation(tree);
+                validateAnnotation(tree);
+            }
+        }
+        tree.accept(new AnnotationValidator());
+    }
+
     /** Annotation types are restricted to primitives, String, an
      *  enum, an annotation, Class, Class<?>, Class<? extends
      *  Anything>, arrays of the preceding.
@@ -2024,7 +2059,7 @@ public class Check {
     /** Check an annotation of a symbol.
      */
     public void validateAnnotation(JCAnnotation a, Symbol s) {
-        validateAnnotation(a);
+        validateAnnotationTree(a);
 
         if (!annotationApplicable(a, s))
             log.error(a.pos(), "annotation.type.not.applicable");
@@ -2038,7 +2073,7 @@ public class Check {
     public void validateTypeAnnotation(JCTypeAnnotation a, boolean isTypeParameter) {
         if (a.type == null)
             throw new AssertionError("annotation tree hasn't been attributed yet: " + a);
-        validateAnnotation(a);
+        validateAnnotationTree(a);
 
         if (!isTypeAnnotation(a, isTypeParameter))
             log.error(a.pos(), "annotation.type.not.applicable");
@@ -2135,8 +2170,12 @@ public class Check {
     public void validateAnnotation(JCAnnotation a) {
         if (a.type.isErroneous()) return;
 
-        // collect an inventory of the members
-        Set<MethodSymbol> members = new HashSet<MethodSymbol>();
+        // collect an inventory of the members (sorted alphabetically)
+        Set<MethodSymbol> members = new TreeSet<MethodSymbol>(new Comparator<Symbol>() {
+            public int compare(Symbol t, Symbol t1) {
+                return t.name.compareTo(t1.name);
+            }
+        });
         for (Scope.Entry e = a.annotationType.type.tsym.members().elems;
              e != null;
              e = e.sibling)
@@ -2152,15 +2191,21 @@ public class Check {
             if (!members.remove(m))
                 log.error(assign.lhs.pos(), "duplicate.annotation.member.value",
                           m.name, a.type);
-            if (assign.rhs.getTag() == ANNOTATION)
-                validateAnnotation((JCAnnotation)assign.rhs);
         }
 
         // all the remaining ones better have default values
-        for (MethodSymbol m : members)
-            if (m.defaultValue == null && !m.type.isErroneous() && m.name != m.name.table.names.clinit)
-                log.error(a.pos(), "annotation.missing.default.value",
-                          a.type, m.name);
+        ListBuffer<Name> missingDefaults = ListBuffer.lb();
+        for (MethodSymbol m : members) {
+            if (m.defaultValue == null && !m.type.isErroneous() && m.name != m.name.table.names.clinit) {
+                missingDefaults.append(m.name);
+            }
+        }
+        if (missingDefaults.nonEmpty()) {
+            String key = (missingDefaults.size() > 1)
+                    ? "annotation.missing.default.value.1"
+                    : "annotation.missing.default.value";
+            log.error(a.pos(), key, a.type, missingDefaults);
+        }
 
         // special case: java.lang.annotation.Target must not have
         // repeated values in its value member

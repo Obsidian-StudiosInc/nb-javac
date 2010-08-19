@@ -1267,7 +1267,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 if (flowListener != null) {
                     flowListener.flowStarted (env);
                 }
-                flow.analyzeTree(env.tree, localMake);
+                flow.analyzeTree(env, localMake);
                 if (flowListener != null) {
                     flowListener.flowFinished (env);
                 }

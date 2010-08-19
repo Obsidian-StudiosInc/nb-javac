@@ -21,18 +21,32 @@
  * questions.
  */
 
-// key: compiler.err.invalid.inferred.types
-// key: compiler.misc.inferred.do.not.conform.to.bounds
-
+import java.io.*;
 import java.util.*;
+import javax.annotation.processing.*;
+import javax.lang.model.*;
+import javax.lang.model.element.*;
+import javax.tools.*;
 
-class InvalidInferredTypes {
-
-    <T extends List<? super T>> T makeList() {
-        return null;
+@SupportedAnnotationTypes("*")
+public class AnnoProc extends AbstractProcessor {
+    public boolean process(Set<? extends TypeElement> elems, RoundEnvironment renv) {
+        if (renv.processingOver()) {
+            Filer filer = processingEnv.getFiler();
+            Messager messager = processingEnv.getMessager();
+            try {
+                JavaFileObject fo = filer.createSourceFile("Gen");
+                Writer out = fo.openWriter();
+                out.write("class Gen { }");
+                out.close();
+            } catch (IOException e) {
+                messager.printMessage(Diagnostic.Kind.ERROR, e.toString());
+            }
+        }
+        return false;
     }
 
-    public void test() {
-        List<? super String> l = makeList();
+    public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latest();
     }
 }
