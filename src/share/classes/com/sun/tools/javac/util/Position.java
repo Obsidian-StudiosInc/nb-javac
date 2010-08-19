@@ -142,12 +142,12 @@ public class Position {
         int getColumnNumber(int pos);
     }
 
-    static class LineMapImpl implements LineMap {
+    public static class LineMapImpl implements LineMap {
         protected int[] startPosition; // start position of each line
 
         protected LineMapImpl() {}
 
-        protected void build(char[] src, int max, char replacedCharacter) {
+        public void build(char[] src, int max, char replacedCharacter) {
             int c = 0;
             int i = 0;
             int[] linebuf = new int[src.length + 1];
