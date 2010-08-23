@@ -2209,7 +2209,7 @@ public class JavacParser implements Parser {
         int lastPos = Position.NOPOS;
     loop:
         while (true) {
-            long flag;
+            long flag = 0;
             switch (S.token()) {
             case PRIVATE     : flag = Flags.PRIVATE; break;
             case PROTECTED   : flag = Flags.PROTECTED; break;
@@ -2223,6 +2223,7 @@ public class JavacParser implements Parser {
             case SYNCHRONIZED: flag = Flags.SYNCHRONIZED; break;
             case STRICTFP    : flag = Flags.STRICTFP; break;
             case MONKEYS_AT  : flag = Flags.ANNOTATION; break;
+            case ERROR       : S.nextToken(); break;
             default: break loop;
             }
             if ((flags & flag) != 0) log.error(S.pos(), "repeated.modifier");
