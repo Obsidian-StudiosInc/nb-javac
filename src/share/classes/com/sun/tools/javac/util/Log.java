@@ -1,12 +1,12 @@
 /*
- * Copyright 1999-2009 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 1999, 2009, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javac.util;
@@ -42,8 +42,8 @@ import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
 /** A class for error logs. Reports errors and warnings, and
  *  keeps track of error numbers and positions.
  *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.  If
- *  you write code that depends on this, you do so at your own risk.
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
@@ -134,8 +134,8 @@ public class Log extends AbstractLog {
         this.promptOnError = options.get("-prompt") != null;
         this.emitWarnings = options.get("-Xlint:none") == null;
         this.suppressNotes = options.get("suppressNotes") != null;
-        this.MaxErrors = getIntOption(options, "-Xmaxerrs", 100);
-        this.MaxWarnings = getIntOption(options, "-Xmaxwarns", 100);
+        this.MaxErrors = getIntOption(options, "-Xmaxerrs", getDefaultMaxErrors());
+        this.MaxWarnings = getIntOption(options, "-Xmaxwarns", getDefaultMaxWarnings());
 
         boolean rawDiagnostics = options.get("rawDiagnostics") != null;
         messages = JavacMessages.instance(context);
@@ -154,11 +154,26 @@ public class Log extends AbstractLog {
         private int getIntOption(Options options, String optionName, int defaultValue) {
             String s = options.get(optionName);
             try {
-                if (s != null) return Integer.parseInt(s);
+                if (s != null) {
+                    int n = Integer.parseInt(s);
+                    return (n <= 0 ? Integer.MAX_VALUE : n);
+                }
             } catch (NumberFormatException e) {
                 // silently ignore ill-formed numbers
             }
             return defaultValue;
+        }
+
+        /** Default value for -Xmaxerrs.
+         */
+        protected int getDefaultMaxErrors() {
+            return 100;
+        }
+
+        /** Default value for -Xmaxwarns.
+         */
+        protected int getDefaultMaxWarnings() {
+            return 100;
         }
 
     /** The default writer for diagnostics
@@ -197,6 +212,12 @@ public class Log extends AbstractLog {
     /** The number of warnings encountered so far.
      */
     public int nwarnings = 0;
+
+    /**
+     * Whether or not an unrecoverable error has been seen.
+     * Unrecoverable errors prevent subsequent annotation processing.
+     */
+    public boolean unrecoverableError;
 
     /** A set of all errors generated so far. This is used to avoid printing an
      *  error message more than once. For each error, a pair consisting of the
@@ -309,7 +330,7 @@ public class Log extends AbstractLog {
      */
     public void prompt() {
         if (promptOnError) {
-            System.err.println(getLocalizedString("resume.abort"));
+            System.err.println(localize("resume.abort"));
             char ch;
             try {
                 while (true) {
@@ -357,8 +378,23 @@ public class Log extends AbstractLog {
         if (msg.length() != 0) writer.println(msg);
     }
 
+    /** Print the text of a message to the errWriter stream,
+     *  translating newlines appropriately for the platform.
+     */
+    public void printErrLines(String key, Object... args) {
+        printLines(errWriter, localize(key, args));
+    }
+
+
+    /** Print the text of a message to the noticeWriter stream,
+     *  translating newlines appropriately for the platform.
+     */
+    public void printNoteLines(String key, Object... args) {
+        printLines(noticeWriter, localize(key, args));
+    }
+
     protected void directError(String key, Object... args) {
-        printLines(errWriter, getLocalizedString(key, args));
+        printErrLines(key, args);
         errWriter.flush();
     }
 
@@ -475,11 +511,21 @@ public class Log extends AbstractLog {
     }
 
     /** Find a localized string in the resource bundle.
+     *  Because this method is static, it ignores the locale.
+     *  Use localize(key, args) when possible.
      *  @param key    The key for the localized string.
      *  @param args   Fields to substitute into the string.
      */
     public static String getLocalizedString(String key, Object ... args) {
         return JavacMessages.getDefaultLocalizedString("compiler.misc." + key, args);
+    }
+
+    /** Find a localized string in the resource bundle.
+     *  @param key    The key for the localized string.
+     *  @param args   Fields to substitute into the string.
+     */
+    public String localize(String key, Object... args) {
+        return messages.getLocalizedString("compiler.misc." + key, args);
     }
 
 /***************************************************************************

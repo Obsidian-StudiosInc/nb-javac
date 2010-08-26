@@ -1,12 +1,12 @@
 /*
- * Copyright 2005-2009 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 2005, 2009, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javac.util;
@@ -58,7 +58,7 @@ import static com.sun.tools.javac.util.LayoutCharacters.*;
  * <li>%_: space delimiter, useful for formatting purposes
  * </ul>
  *
- * <p><b>This is NOT part of any API supported by Sun Microsystems.
+ * <p><b>This is NOT part of any supported API.
  * If you write code that depends on this, you do so at your own risk.
  * This code and its internal interfaces are subject to change or
  * deletion without notice.</b>
@@ -73,7 +73,6 @@ public class BasicDiagnosticFormatter extends AbstractDiagnosticFormatter {
      * @param opts list of command-line options
      * @param msgs JavacMessages object used for i18n
      */
-    @SuppressWarnings("fallthrough")
     public BasicDiagnosticFormatter(Options options, JavacMessages msgs) {
         super(msgs, new BasicConfiguration(options));
     }
@@ -189,6 +188,8 @@ public class BasicDiagnosticFormatter extends AbstractDiagnosticFormatter {
             }
             case 'm':
                 return formatMessage(d, l);
+            case 'L':
+                return formatLintCategory(d, l);
             case '_':
                 return " ";
             case '%':
@@ -201,7 +202,7 @@ public class BasicDiagnosticFormatter extends AbstractDiagnosticFormatter {
     private String selectFormat(JCDiagnostic d) {
         DiagnosticSource source = d.getDiagnosticSource();
         String format = getConfiguration().getFormat(BasicFormatKind.DEFAULT_NO_POS_FORMAT);
-        if (source != null) {
+        if (source != null && source != DiagnosticSource.NO_SOURCE) {
             if (d.getIntPosition() != Position.NOPOS) {
                 format = getConfiguration().getFormat(BasicFormatKind.DEFAULT_POS_FORMAT);
             } else if (source.getFile() != null &&
@@ -244,9 +245,9 @@ public class BasicDiagnosticFormatter extends AbstractDiagnosticFormatter {
                         setFormat(BasicFormatKind.DEFAULT_POS_FORMAT, formats[0]);
                 }
             }
-            String sourcePosition = null;
-            if ((((sourcePosition = options.get("sourcePosition")) != null)) &&
-                    sourcePosition.equals("bottom"))
+            String srcPos = null;
+            if ((((srcPos = options.get("sourcePosition")) != null)) &&
+                    srcPos.equals("bottom"))
                     setSourcePosition(SourcePosition.BOTTOM);
             else
                 setSourcePosition(SourcePosition.AFTER_SUMMARY);
@@ -289,9 +290,9 @@ public class BasicDiagnosticFormatter extends AbstractDiagnosticFormatter {
         //where
         private void initFormat() {
             availableFormats = new HashMap<BasicFormatKind, String>();
-            setFormat(BasicFormatKind.DEFAULT_POS_FORMAT, "%f:%l:%_%t%m");
-            setFormat(BasicFormatKind.DEFAULT_NO_POS_FORMAT, "%p%m");
-            setFormat(BasicFormatKind.DEFAULT_CLASS_FORMAT, "%f:%_%t%m");
+            setFormat(BasicFormatKind.DEFAULT_POS_FORMAT, "%f:%l:%_%t%L%m");
+            setFormat(BasicFormatKind.DEFAULT_NO_POS_FORMAT, "%p%L%m");
+            setFormat(BasicFormatKind.DEFAULT_CLASS_FORMAT, "%f:%_%t%L%m");
         }
         //where
         private void initIndentation() {

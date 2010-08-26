@@ -1,12 +1,12 @@
 /*
- * Copyright 2007-2008 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 2007, 2008, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javap;
@@ -54,8 +54,8 @@ import static com.sun.tools.classfile.AccessFlags.*;
 /*
  *  The main javap class to write the contents of a class file as text.
  *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.  If
- *  you write code that depends on this, you do so at your own risk.
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
@@ -225,15 +225,15 @@ public class ClassWriter extends BasicWriter {
         writeModifiers(flags.getFieldModifiers());
         Signature_attribute sigAttr = getSignature(f.attributes);
         if (sigAttr == null)
-            print(getFieldType(f.descriptor));
+            print(getJavaFieldType(f.descriptor));
         else {
             try {
                 Type t = sigAttr.getParsedSignature().getType(constant_pool);
-                print(t);
+                print(getJavaName(t.toString()));
             } catch (ConstantPoolException e) {
                 // report error?
                 // fall back on non-generic descriptor
-                print(getFieldType(f.descriptor));
+                print(getJavaFieldType(f.descriptor));
             }
         }
         print(" ");
@@ -314,14 +314,14 @@ public class ClassWriter extends BasicWriter {
         }
         if (getName(m).equals("<init>")) {
             print(getJavaName(classFile));
-            print(getParameterTypes(d, flags));
+            print(getJavaParameterTypes(d, flags));
         } else if (getName(m).equals("<clinit>")) {
             print("{}");
         } else {
-            print(getReturnType(d));
+            print(getJavaReturnType(d));
             print(" ");
             print(getName(m));
-            print(getParameterTypes(d, flags));
+            print(getJavaParameterTypes(d, flags));
         }
 
         Attribute e_attr = m.attributes.get(Attribute.Exceptions);
@@ -460,9 +460,9 @@ public class ClassWriter extends BasicWriter {
         }
     }
 
-    String getFieldType(Descriptor d) {
+    String getJavaFieldType(Descriptor d) {
         try {
-            return d.getFieldType(constant_pool);
+            return getJavaName(d.getFieldType(constant_pool));
         } catch (ConstantPoolException e) {
             return report(e);
         } catch (DescriptorException e) {
@@ -470,9 +470,9 @@ public class ClassWriter extends BasicWriter {
         }
     }
 
-    String getReturnType(Descriptor d) {
+    String getJavaReturnType(Descriptor d) {
         try {
-            return d.getReturnType(constant_pool);
+            return getJavaName(d.getReturnType(constant_pool));
         } catch (ConstantPoolException e) {
             return report(e);
         } catch (DescriptorException e) {
@@ -480,9 +480,9 @@ public class ClassWriter extends BasicWriter {
         }
     }
 
-    String getParameterTypes(Descriptor d, AccessFlags flags) {
+    String getJavaParameterTypes(Descriptor d, AccessFlags flags) {
         try {
-            return adjustVarargs(flags, d.getParameterTypes(constant_pool));
+            return getJavaName(adjustVarargs(flags, d.getParameterTypes(constant_pool)));
         } catch (ConstantPoolException e) {
             return report(e);
         } catch (DescriptorException e) {
