@@ -862,8 +862,10 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         // Use annotation processing to compute the set of annotations present
         Set<TypeElement> annotationsPresent = new LinkedHashSet<TypeElement>();
         ComputeAnnotationSet annotationComputer = new ComputeAnnotationSet(elementUtils);
-        for (ClassSymbol classSym : topLevelClasses)
+        for (ClassSymbol classSym : topLevelClasses) {
+            classSym.complete();            
             annotationComputer.scan(classSym, annotationsPresent);
+        }
         for (PackageSymbol pkgSym : packageInfoFiles)
             annotationComputer.scan(pkgSym, annotationsPresent);
         Map<AbstractTypeProcessor, Set<TypeElement>> typeProcessor2Types = new HashMap<AbstractTypeProcessor, Set<TypeElement>>();
@@ -1209,9 +1211,9 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                         @Override
                         public Void visitType(TypeElement e, Void p) {
                             if (e instanceof ClassSymbol)
-                                ((ClassSymbol) e).flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
-                            return super.visitType(e, p);
-                        }
+                                ((ClassSymbol) e).flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);                                
+                                return ((Symbol)e).completer == null ? super.visitType(e, p) : null;
+                            }
                         @Override
                         public Void visitExecutable(ExecutableElement e, Void p) {
                             if (e instanceof MethodSymbol)
