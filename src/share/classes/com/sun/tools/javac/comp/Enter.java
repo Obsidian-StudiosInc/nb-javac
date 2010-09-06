@@ -44,6 +44,7 @@ import com.sun.tools.javac.util.List;
 
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.code.Symbol.*;
+import com.sun.tools.javac.main.RecognizedOptions.PkgInfo;
 import com.sun.tools.javac.tree.JCTree.*;
 import javax.lang.model.util.ElementScanner6;
 
@@ -109,6 +110,8 @@ public class Enter extends JCTree.Visitor {
     Lint lint;
     Names names;
     JavaFileManager fileManager;
+    PkgInfo pkginfoOpt;
+    
     private final CancelService cancelService;
     private final LowMemoryWatch memoryWatch;
     private final LazyTreeLoader treeLoader;
@@ -149,6 +152,8 @@ public class Enter extends JCTree.Visitor {
         todo = Todo.instance(context);
         fileManager = context.get(JavaFileManager.class);
 
+        Options options = Options.instance(context);
+        pkginfoOpt = PkgInfo.get(options);
         source = Source.instance(context);
     }
 
@@ -320,7 +325,7 @@ public class Enter extends JCTree.Visitor {
         if (tree.pid != null) {
             tree.packge = reader.enterPackage(TreeInfo.fullName(tree.pid));
             PackageAttributer.attrib(tree.pid, tree.packge);
-            if (tree.packageAnnotations.nonEmpty()) {
+            if (tree.packageAnnotations.nonEmpty() || pkginfoOpt == PkgInfo.ALWAYS) {
                 if (isPkgInfo) {
                     addEnv = true;
                 } else {

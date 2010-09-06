@@ -2969,10 +2969,8 @@ public class JavacParser implements Parser {
      */
     public List<JCTree> classOrInterfaceBodyDeclaration(Name className, boolean isInterface) {
         if (S.token() == SEMI) {
-            JCTree block = F.at(S.pos()).Block(0, List.<JCStatement>nil());
-            storeEnd(block, S.endPos());
             S.nextToken();
-            return List.<JCTree>of(block);
+            return List.<JCTree>nil();
         } else {
             String dc = S.docComment();
             int pos = S.pos();
