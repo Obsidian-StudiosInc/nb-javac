@@ -1,12 +1,12 @@
 /*
- * Copyright 1999-2008 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 1999, 2008, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javac.code;
@@ -50,8 +50,8 @@ import static com.sun.tools.javac.code.TypeTags.*;
  *  types, packages. Each subclass is represented as a static inner class
  *  inside Symbol.
  *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.  If
- *  you write code that depends on this, you do so at your own risk.
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
@@ -163,7 +163,7 @@ public abstract class Symbol implements Element {
      * the default package; otherwise, the owner symbol is returned
      */
     public Symbol location() {
-        if (owner.name == null || (owner.name.isEmpty() && owner.kind == PCK)) {
+        if (owner.name == null || (owner.name.isEmpty() && owner.kind != PCK && owner.kind != TYP)) {
             return null;
         }
         return owner;
@@ -224,6 +224,13 @@ public abstract class Symbol implements Element {
         return owner.kind != ERR &&
             ((owner.kind & (VAR | MTH)) != 0 ||
             (owner.kind == TYP && owner.isLocal()));
+    }
+
+    /** Has this symbol an empty name? This includes anonymous
+     *  inner classses.
+     */
+    public boolean isAnonymous() {
+        return name.isEmpty();
     }
 
     /** Is this symbol a constructor?
@@ -574,6 +581,9 @@ public abstract class Symbol implements Element {
 
         public java.util.List<Symbol> getEnclosedElements() {
             List<Symbol> list = List.nil();
+            if (kind == TYP && type.tag == TYPEVAR) {
+                return list;
+            }
             for (Scope.Entry e = members().elems; e != null; e = e.sibling) {
                 try {
                     if (e.sym != null && (e.sym.flags() & SYNTHETIC) == 0 && e.sym.owner == this)
@@ -663,6 +673,11 @@ public abstract class Symbol implements Element {
 
         public List<Attribute.Compound> getAnnotationMirrors() {
             if (completer != null) complete();
+            if (package_info != null && package_info.completer != null) {
+                package_info.complete();
+                if (attributes_field.isEmpty())
+                    attributes_field = package_info.attributes_field;
+            }
             assert attributes_field != null;
             return attributes_field;
         }
@@ -1004,12 +1019,17 @@ public abstract class Symbol implements Element {
             return data == ElementKind.EXCEPTION_PARAMETER;
         }
 
+        public boolean isResourceVariable() {
+            return data == ElementKind.RESOURCE_VARIABLE;
+        }
+
         public Object getConstValue() {
             // TODO: Consider if getConstValue and getConstantValue can be collapsed
-            if (data == ElementKind.EXCEPTION_PARAMETER) {
+            if (data == ElementKind.EXCEPTION_PARAMETER ||
+                data == ElementKind.RESOURCE_VARIABLE) {
                 return null;
             } else if (data instanceof Callable<?>) {
-                // In this case, this is final a variable, with an as
+                // In this case, this is a final variable, with an as
                 // yet unevaluated initializer.
                 Callable<?> eval = (Callable<?>)data;
                 data = null; // to make sure we don't evaluate this twice.

@@ -1,12 +1,12 @@
 /*
- * Copyright 1999-2009 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 1999, 2009, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javac.main;
@@ -28,6 +28,9 @@ package com.sun.tools.javac.main;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URL;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
 import java.util.MissingResourceException;
 
 import com.sun.tools.javac.code.Source;
@@ -44,8 +47,8 @@ import javax.annotation.processing.Processor;
 
 /** This class provides a commandline interface to the GJC compiler.
  *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.  If
- *  you write code that depends on this, you do so at your own risk.
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
@@ -278,9 +281,15 @@ public class Main {
                 }
             }
         }
-        if (target.hasInvokedynamic()) {
-            options.put("invokedynamic",  "invokedynamic");
+
+        // handle this here so it works even if no other options given
+        String showClass = options.get("showClass");
+        if (showClass != null) {
+            if (showClass.equals("showClass")) // no value given for option
+                showClass = "com.sun.tools.javac.Main";
+            showClass(showClass);
         }
+
         return filenames.toList();
     }
     // where
@@ -458,10 +467,13 @@ public class Main {
         ex.printStackTrace(out);
     }
 
-    /** Print a message reporting an fatal error.
+    /** Print a message reporting a fatal error.
      */
     void feMessage(Throwable ex) {
         Log.printLines(out, ex.getMessage());
+        if (ex.getCause() != null && options.get("dev") != null) {
+            ex.getCause().printStackTrace(out);
+        }
     }
 
     /** Print a message reporting an input/output error.
@@ -486,6 +498,37 @@ public class Main {
         Log.printLines(out,
                        getLocalizedString("msg.proc.annotation.uncaught.exception"));
         ex.getCause().printStackTrace();
+    }
+
+    /** Display the location and checksum of a class. */
+    void showClass(String className) {
+        out.println("javac: show class: " + className);
+        URL url = getClass().getResource('/' + className.replace('.', '/') + ".class");
+        if (url == null)
+            out.println("  class not found");
+        else {
+            out.println("  " + url);
+            try {
+                final String algorithm = "MD5";
+                byte[] digest;
+                MessageDigest md = MessageDigest.getInstance(algorithm);
+                DigestInputStream in = new DigestInputStream(url.openStream(), md);
+                try {
+                    byte[] buf = new byte[8192];
+                    int n;
+                    do { n = in.read(buf); } while (n > 0);
+                    digest = md.digest();
+                } finally {
+                    in.close();
+                }
+                StringBuilder sb = new StringBuilder();
+                for (byte b: digest)
+                    sb.append(String.format("%02x", b));
+                out.println("  " + algorithm + " checksum: " + sb);
+            } catch (Exception e) {
+                out.println("  cannot compute digest: " + e);
+            }
+        }
     }
 
     private JavaFileManager fileManager;

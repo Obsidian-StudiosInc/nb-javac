@@ -34,7 +34,7 @@ public class MissingPlatformError extends FatalError {
     /** Construct a <code>FatalError</code> with no detail message.
      */
     public MissingPlatformError() {
-        super();
+        this("A Java Platform is Missing");
     }
 
     /** Construct a <code>FatalError</code> with the specified detail message.

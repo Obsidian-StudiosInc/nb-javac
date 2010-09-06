@@ -1,12 +1,12 @@
 /*
- * Copyright 2007-2008 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 2007, 2008, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javap;
@@ -45,9 +45,6 @@ import com.sun.tools.classfile.InnerClasses_attribute;
 import com.sun.tools.classfile.LineNumberTable_attribute;
 import com.sun.tools.classfile.LocalVariableTable_attribute;
 import com.sun.tools.classfile.LocalVariableTypeTable_attribute;
-import com.sun.tools.classfile.ModuleExportTable_attribute;
-import com.sun.tools.classfile.ModuleMemberTable_attribute;
-import com.sun.tools.classfile.Module_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleAnnotations_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleParameterAnnotations_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleTypeAnnotations_attribute;
@@ -67,8 +64,8 @@ import static com.sun.tools.classfile.AccessFlags.*;
 /*
  *  A writer for writing Attributes as text.
  *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.  If
- *  you write code that depends on this, you do so at your own risk.
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
@@ -370,63 +367,6 @@ public class AttributeWriter extends BasicWriter
         }
         indent(-1);
         return null;
-    }
-
-    public Void visitModule(Module_attribute attr, Void ignore) {
-        print("Module: #" + attr.module_name);
-        tab();
-        println("// " + getModuleName(attr));
-        return null;
-    }
-
-    String getModuleName(Module_attribute attr) {
-        try {
-            return attr.getModuleName(constant_pool);
-        } catch (ConstantPoolException e) {
-            return report(e);
-        }
-    }
-
-    public Void visitModuleExportTable(ModuleExportTable_attribute attr, Void ignore) {
-        println("ModuleExportTable:");
-        indent(+1);
-        println("Types: (" + attr.export_type_table.length + ")");
-        for (int i = 0; i < attr.export_type_table.length; i++) {
-            print("#" + attr.export_type_table[i]);
-            tab();
-            println("// " + getExportTypeName(attr, i));
-        }
-        indent(-1);
-        return null;
-    }
-
-    String getExportTypeName(ModuleExportTable_attribute attr, int index) {
-        try {
-            return attr.getExportTypeName(index, constant_pool);
-        } catch (ConstantPoolException e) {
-            return report(e);
-        }
-    }
-
-    public Void visitModuleMemberTable(ModuleMemberTable_attribute attr, Void ignore) {
-        println("ModuleMemberTable:");
-        indent(+1);
-        println("Packages: (" + attr.package_member_table.length + ")");
-        for (int i = 0; i < attr.package_member_table.length; i++) {
-            print("#" + attr.package_member_table[i]);
-            tab();
-            println("// " + getPackageMemberName(attr, i));
-        }
-        indent(-1);
-        return null;
-    }
-
-    String getPackageMemberName(ModuleMemberTable_attribute attr, int index) {
-        try {
-            return attr.getPackageMemberName(index, constant_pool);
-        } catch (ConstantPoolException e) {
-            return report(e);
-        }
     }
 
     public Void visitRuntimeVisibleAnnotations(RuntimeVisibleAnnotations_attribute attr, Void ignore) {

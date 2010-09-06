@@ -1,12 +1,12 @@
 /*
- * Copyright 2003-2009 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 2003, 2009, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javac.code;
@@ -32,6 +32,7 @@ import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.List;
 
 import com.sun.tools.javac.jvm.ClassReader;
+import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.comp.Check;
 import java.util.logging.Logger;
 import javax.lang.model.type.TypeKind;
@@ -60,7 +61,7 @@ import static com.sun.tools.javac.util.ListBuffer.lb;
  * <dd>A second list of types should be named ss.</dd>
  * </dl>
  *
- * <p><b>This is NOT part of any API supported by Sun Microsystems.
+ * <p><b>This is NOT part of any supported API.
  * If you write code that depends on this, you do so at your own risk.
  * This code and its internal interfaces are subject to change or
  * deletion without notice.</b>
@@ -598,10 +599,21 @@ public class Types {
                 case BYTE: case CHAR: case SHORT: case INT: case LONG: case FLOAT:
                 case DOUBLE: case BOOLEAN: case VOID: case BOT: case NONE:
                     return t.tag == s.tag;
-                case TYPEVAR:
-                    return s.isSuperBound()
-                        && !s.isExtendsBound()
-                        && visit(t, upperBound(s));
+                case TYPEVAR: {
+                    if (s.tag == TYPEVAR) {
+                        //type-substitution does not preserve type-var types
+                        //check that type var symbols and bounds are indeed the same
+                        return t.tsym == s.tsym &&
+                                visit(t.getUpperBound(), s.getUpperBound());
+                    }
+                    else {
+                        //special case for s == ? super X, where upper(s) = u
+                        //check that u == t, where u has been set by Type.withTypeVar
+                        return s.isSuperBound() &&
+                                !s.isExtendsBound() &&
+                                visit(t, upperBound(s));
+                    }
+                }
                 default:
                     throw new AssertionError("isSameType " + t.tag);
                 }
@@ -913,7 +925,7 @@ public class Types {
             return true;
 
         if (t.isPrimitive() != s.isPrimitive())
-            return allowBoxing && isConvertible(t, s, warn);
+            return allowBoxing && (isConvertible(t, s, warn) || isConvertible(s, t, warn));
 
         if (warn != warnStack.head) {
             try {
@@ -959,7 +971,7 @@ public class Types {
                     return true;
 
                 if (s.tag == TYPEVAR) {
-                    if (isCastable(s.getUpperBound(), t, Warner.noWarnings)) {
+                    if (isCastable(t, s.getUpperBound(), Warner.noWarnings)) {
                         warnStack.head.warnUnchecked();
                         return true;
                     } else {
@@ -1029,7 +1041,12 @@ public class Types {
                                 && !disjointTypes(aHigh.allparams(), lowSub.allparams())
                                 && !disjointTypes(aLow.allparams(), highSub.allparams())
                                 && !disjointTypes(aLow.allparams(), lowSub.allparams())) {
-                                if (upcast ? giveWarning(a, b) :
+                                if (s.isInterface() &&
+                                        !t.isInterface() &&
+                                        t.isFinal() &&
+                                        !isSubtype(t, s)) {
+                                    return false;
+                                } else if (upcast ? giveWarning(a, b) :
                                     giveWarning(b, a))
                                     warnStack.head.warnUnchecked();
                                 return true;
@@ -1229,18 +1246,23 @@ public class Types {
         if (t == s) return false;
         if (t.tag == TYPEVAR) {
             TypeVar tv = (TypeVar) t;
-            if (s.tag == TYPEVAR)
-                s = s.getUpperBound();
             return !isCastable(tv.bound,
-                               s,
+                               relaxBound(s),
                                Warner.noWarnings);
         }
         if (s.tag != WILDCARD)
             s = upperBound(s);
-        if (s.tag == TYPEVAR)
-            s = s.getUpperBound();
 
-        return !isSubtype(t, s);
+        return !isSubtype(t, relaxBound(s));
+    }
+
+    private Type relaxBound(Type t) {
+        if (t.tag == TYPEVAR) {
+            while (t.tag == TYPEVAR)
+                t = t.getUpperBound();
+            t = rewriteQuantifiers(t, true, true);
+        }
+        return t;
     }
     // </editor-fold>
 
@@ -1862,13 +1884,16 @@ public class Types {
 
     /**
      * Same as {@link #setBounds(Type.TypeVar,List,Type)}, except that
-     * third parameter is computed directly.  Note that this test
-     * might cause a symbol completion.  Hence, this version of
+     * third parameter is computed directly, as follows: if all
+     * all bounds are interface types, the computed supertype is Object,
+     * otherwise the supertype is simply left null (in this case, the supertype
+     * is assumed to be the head of the bound list passed as second argument).
+     * Note that this check might cause a symbol completion. Hence, this version of
      * setBounds may not be called during a classfile read.
      */
     public void setBounds(TypeVar t, List<Type> bounds) {
         Type supertype = (bounds.head.tsym.flags() & INTERFACE) != 0 ?
-            supertype(bounds.head) : null;
+            syms.objectType : null;
         setBounds(t, bounds, supertype);
         t.rank_field = -1;
     }
@@ -2523,7 +2548,7 @@ public class Types {
             }
             @Override
             public int hashCode() {
-                return 127 * Types.this.hashCode(t1) + Types.this.hashCode(t2);
+                return 127 * Types.hashCode(t1) + Types.hashCode(t2);
             }
             @Override
             public boolean equals(Object obj) {
@@ -2952,6 +2977,13 @@ public class Types {
     public Type capture(Type t) {
         if (t.tag != CLASS)
             return t;
+        if (t.getEnclosingType() != Type.noType) {
+            Type capturedEncl = capture(t.getEnclosingType());
+            if (capturedEncl != t.getEnclosingType()) {
+                Type type1 = memberType(capturedEncl, t.tsym);
+                t = subst(type1, t.tsym.type.getTypeArguments(), t.getTypeArguments());
+            }
+        }
         ClassType cls = (ClassType)t;
         if (cls.isRaw() || !cls.isParameterized())
             return cls;
@@ -3279,7 +3311,7 @@ public class Types {
      * quantifiers) only
      */
     private Type rewriteQuantifiers(Type t, boolean high, boolean rewriteTypeVars) {
-        return new Rewriter(high, rewriteTypeVars).rewrite(t);
+        return new Rewriter(high, rewriteTypeVars).visit(t);
     }
 
     class Rewriter extends UnaryVisitor<Type> {
@@ -3292,25 +3324,21 @@ public class Types {
             this.rewriteTypeVars = rewriteTypeVars;
         }
 
-        Type rewrite(Type t) {
-            ListBuffer<Type> from = new ListBuffer<Type>();
-            ListBuffer<Type> to = new ListBuffer<Type>();
-            adaptSelf(t, from, to);
+        @Override
+        public Type visitClassType(ClassType t, Void s) {
             ListBuffer<Type> rewritten = new ListBuffer<Type>();
-            List<Type> formals = from.toList();
             boolean changed = false;
-            for (Type arg : to.toList()) {
+            for (Type arg : t.allparams()) {
                 Type bound = visit(arg);
                 if (arg != bound) {
                     changed = true;
-                    bound = high ? makeExtendsWildcard(bound, (TypeVar)formals.head)
-                              : makeSuperWildcard(bound, (TypeVar)formals.head);
                 }
                 rewritten.append(bound);
-                formals = formals.tail;
             }
             if (changed)
-                return subst(t.tsym.type, from.toList(), rewritten.toList());
+                return subst(t.tsym.type,
+                        t.tsym.type.allparams(),
+                        rewritten.toList());
             else
                 return t;
         }
@@ -3321,13 +3349,22 @@ public class Types {
 
         @Override
         public Type visitCapturedType(CapturedType t, Void s) {
-            return visitWildcardType(t.wildcard, null);
+            Type bound = visitWildcardType(t.wildcard, null);
+            return (bound.contains(t)) ?
+                    (high ? syms.objectType : syms.botType) :
+                        bound;
         }
 
         @Override
         public Type visitTypeVar(TypeVar t, Void s) {
-            if (rewriteTypeVars)
-                return high ? t.bound : syms.botType;
+            if (rewriteTypeVars) {
+                Type bound = high ?
+                    (t.bound.contains(t) ?
+                        syms.objectType :
+                        visit(t.bound)) :
+                    syms.botType;
+                return rewriteAsWildcardType(bound, t);
+            }
             else
                 return t;
         }
@@ -3337,10 +3374,30 @@ public class Types {
             Type bound = high ? t.getExtendsBound() :
                                 t.getSuperBound();
             if (bound == null)
-                bound = high ? syms.objectType : syms.botType;
-            return bound;
+            bound = high ? syms.objectType : syms.botType;
+            return rewriteAsWildcardType(visit(bound), t.bound);
+        }
+
+        private Type rewriteAsWildcardType(Type bound, TypeVar formal) {
+            return high ?
+                makeExtendsWildcard(B(bound), formal) :
+                makeSuperWildcard(B(bound), formal);
+        }
+
+        Type B(Type t) {
+            while (t.tag == WILDCARD) {
+                WildcardType w = (WildcardType)t;
+                t = high ?
+                    w.getExtendsBound() :
+                    w.getSuperBound();
+                if (t == null) {
+                    t = high ? syms.objectType : syms.botType;
+                }
+            }
+            return t;
         }
     }
+
 
     /**
      * Create a wildcard with the given upper (extends) bound; create
@@ -3395,7 +3452,7 @@ public class Types {
             this.t = t;
         }
         public int hashCode() {
-            return Types.this.hashCode(t);
+            return Types.hashCode(t);
         }
         public boolean equals(Object obj) {
             return (obj instanceof SingletonType) &&
@@ -3516,6 +3573,26 @@ public class Types {
     public static class MapVisitor<S> extends DefaultTypeVisitor<Type,S> {
         final public Type visit(Type t) { return t.accept(this, null); }
         public Type visitType(Type t, S s) { return t; }
+    }
+    // </editor-fold>
+
+
+    // <editor-fold defaultstate="collapsed" desc="Annotation support">
+
+    public RetentionPolicy getRetention(Attribute.Compound a) {
+        RetentionPolicy vis = RetentionPolicy.CLASS; // the default
+        Attribute.Compound c = a.type.tsym.attribute(syms.retentionType.tsym);
+        if (c != null) {
+            Attribute value = c.member(names.value);
+            if (value != null && value instanceof Attribute.Enum) {
+                Name levelName = ((Attribute.Enum)value).value.name;
+                if (levelName == names.SOURCE) vis = RetentionPolicy.SOURCE;
+                else if (levelName == names.CLASS) vis = RetentionPolicy.CLASS;
+                else if (levelName == names.RUNTIME) vis = RetentionPolicy.RUNTIME;
+                else ;// /* fail soft */ throw new AssertionError(levelName);
+            }
+        }
+        return vis;
     }
     // </editor-fold>
 }

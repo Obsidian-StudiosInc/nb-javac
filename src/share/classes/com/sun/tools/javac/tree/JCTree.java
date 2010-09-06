@@ -1,12 +1,12 @@
 /*
- * Copyright 1999-2009 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 1999, 2009, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javac.tree;
@@ -65,7 +65,7 @@ import static com.sun.tools.javac.code.BoundKind.*;
  * <p>To avoid ambiguities with the Tree API in com.sun.source all sub
  * classes should, by convention, start with JC (javac).
  *
- * <p><b>This is NOT part of any API supported by Sun Microsystems.
+ * <p><b>This is NOT part of any supported API.
  * If you write code that depends on this, you do so at your own risk.
  * This code and its internal interfaces are subject to change or
  * deletion without notice.</b>
@@ -235,9 +235,13 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
      */
     public static final int TYPEAPPLY = TYPEARRAY + 1;
 
+    /** Disjunctive types, of type TypeDisjoint.
+     */
+    public static final int TYPEDISJOINT = TYPEAPPLY + 1;
+
     /** Formal type parameters, of type TypeParameter.
      */
-    public static final int TYPEPARAMETER = TYPEAPPLY + 1;
+    public static final int TYPEPARAMETER = TYPEDISJOINT + 1;
 
     /** Type argument.
      */
@@ -334,6 +338,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     public abstract int getTag();
 
     /** Convert a tree to a pretty-printed string. */
+    @Override
     public String toString() {
         StringWriter s = new StringWriter();
         try {
@@ -369,6 +374,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
 
     /** Return a shallow copy of this tree.
      */
+    @Override
     public Object clone() {
         try {
             return super.clone();
@@ -587,7 +593,17 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         @Override
         public void accept(Visitor v) { v.visitClassDef(this); }
 
-        public Kind getKind() { return Kind.CLASS; }
+        public Kind getKind() {
+            if ((mods.flags & Flags.ANNOTATION) != 0)
+                return Kind.ANNOTATION_TYPE;
+            else if ((mods.flags & Flags.INTERFACE) != 0)
+                return Kind.INTERFACE;
+            else if ((mods.flags & Flags.ENUM) != 0)
+                return Kind.ENUM;
+            else
+                return Kind.CLASS;
+        }
+
         public JCModifiers getModifiers() { return mods; }
         public Name getSimpleName() { return name; }
         public List<JCTypeParameter> getTypeParameters() {
@@ -1022,10 +1038,15 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public JCBlock body;
         public List<JCCatch> catchers;
         public JCBlock finalizer;
-        protected JCTry(JCBlock body, List<JCCatch> catchers, JCBlock finalizer) {
+        public List<JCTree> resources;
+        protected JCTry(List<JCTree> resources,
+                        JCBlock body,
+                        List<JCCatch> catchers,
+                        JCBlock finalizer) {
             this.body = body;
             this.catchers = catchers;
             this.finalizer = finalizer;
+            this.resources = resources;
         }
         @Override
         public void accept(Visitor v) { v.visitTry(this); }
@@ -1039,6 +1060,10 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         @Override
         public <R,D> R accept(TreeVisitor<R,D> v, D d) {
             return v.visitTry(this, d);
+        }
+        @Override
+        public List<? extends JCTree> getResources() {
+            return resources;
         }
         @Override
         public int getTag() {
@@ -1868,6 +1893,34 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     }
 
     /**
+     * A disjoint type, T1 | T2 | ... Tn (used in multicatch statements)
+     */
+    public static class JCTypeDisjoint extends JCExpression implements DisjointTypeTree {
+
+        public List<JCExpression> components;
+
+        protected JCTypeDisjoint(List<JCExpression> components) {
+            this.components = components;
+        }
+        @Override
+        public void accept(Visitor v) { v.visitTypeDisjoint(this); }
+
+        public Kind getKind() { return Kind.DISJOINT_TYPE; }
+
+        public List<JCExpression> getTypeComponents() {
+            return components;
+        }
+        @Override
+        public <R,D> R accept(TreeVisitor<R,D> v, D d) {
+            return v.visitDisjointType(this, d);
+        }
+        @Override
+        public int getTag() {
+            return TYPEDISJOINT;
+        }
+    }
+
+    /**
      * A formal class parameter.
      * @param name name
      * @param bounds bounds
@@ -2135,6 +2188,10 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         JCCase Case(JCExpression pat, List<JCStatement> stats);
         JCSynchronized Synchronized(JCExpression lock, JCBlock body);
         JCTry Try(JCBlock body, List<JCCatch> catchers, JCBlock finalizer);
+        JCTry Try(List<JCTree> resources,
+                  JCBlock body,
+                  List<JCCatch> catchers,
+                  JCBlock finalizer);
         JCCatch Catch(JCVariableDecl param, JCBlock body);
         JCConditional Conditional(JCExpression cond,
                                 JCExpression thenpart,
@@ -2225,6 +2282,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public void visitTypeIdent(JCPrimitiveTypeTree that) { visitTree(that); }
         public void visitTypeArray(JCArrayTypeTree that)     { visitTree(that); }
         public void visitTypeApply(JCTypeApply that)         { visitTree(that); }
+        public void visitTypeDisjoint(JCTypeDisjoint that)   { visitTree(that); }
         public void visitTypeParameter(JCTypeParameter that) { visitTree(that); }
         public void visitWildcard(JCWildcard that)           { visitTree(that); }
         public void visitTypeBoundKind(TypeBoundKind that)   { visitTree(that); }

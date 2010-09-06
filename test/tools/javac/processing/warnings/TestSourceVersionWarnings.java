@@ -1,5 +1,5 @@
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 2006, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -16,9 +16,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 /*
@@ -27,15 +27,15 @@
  * @summary Test that warnings about source versions are output as expected.
  * @author  Joseph D. Darcy
  * @compile TestSourceVersionWarnings.java
- * @compile/ref=gold_0.out             -XDrawDiagnostics -XDstdout -processor TestSourceVersionWarnings -proc:only                           -source 1.5 HelloWorld.java
- * @compile/ref=gold_sv_warn_0_2.out   -XDrawDiagnostics -XDstdout -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_0 -source 1.2 HelloWorld.java
- * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -XDstdout -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_2 -source 1.2 HelloWorld.java
- * @compile/ref=gold_sv_warn_2_3.out   -XDrawDiagnostics -XDstdout -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_2 -source 1.3 HelloWorld.java
- * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -XDstdout -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_5 -source 1.5 HelloWorld.java
- * @compile/ref=gold_sv_warn_5_6.out   -XDrawDiagnostics -XDstdout -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_5 -source 1.6 HelloWorld.java
- * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -XDstdout -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_6 -source 1.6 HelloWorld.java
- * @compile/ref=gold_unsp_warn.out     -XDrawDiagnostics -XDstdout -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_6 -source 1.6 -Aunsupported HelloWorld.java
- * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -XDstdout -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_7 -source 1.7 HelloWorld.java
+ * @compile/ref=gold_0.out             -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only                           -source 1.5 HelloWorld.java
+ * @compile/ref=gold_sv_warn_0_2.out   -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_0 -source 1.2 HelloWorld.java
+ * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_2 -source 1.2 HelloWorld.java
+ * @compile/ref=gold_sv_warn_2_3.out   -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_2 -source 1.3 HelloWorld.java
+ * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_5 -source 1.5 HelloWorld.java
+ * @compile/ref=gold_sv_warn_5_6.out   -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_5 -source 1.6 HelloWorld.java
+ * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_6 -source 1.6 HelloWorld.java
+ * @compile/ref=gold_unsp_warn.out     -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_6 -source 1.6 -Aunsupported HelloWorld.java
+ * @compile/ref=gold_sv_none.out       -XDrawDiagnostics -processor TestSourceVersionWarnings -proc:only -ASourceVersion=RELEASE_7 -source 1.7 HelloWorld.java
  */
 
 import java.util.Set;

@@ -1,12 +1,12 @@
 /*
- * Copyright 1999-2009 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 1999, 2009, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.javac.comp;
@@ -37,8 +37,8 @@ import static com.sun.tools.javac.code.TypeTags.*;
 
 /** Helper class for type parameter inference, used by the attribution phase.
  *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.  If
- *  you write code that depends on this, you do so at your own risk.
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
@@ -138,23 +138,72 @@ public class Infer {
     /** A mapping that returns its type argument with every UndetVar replaced
      *  by its `inst' field. Throws a NoInstanceException
      *  if this not possible because an `inst' field is null.
+     *  Note: mutually referring undertvars will be left uninstantiated
+     *  (that is, they will be replaced by the underlying type-variable).
      */
+
     Mapping getInstFun = new Mapping("getInstFun") {
             public Type apply(Type t) {
                 switch (t.tag) {
-                case UNKNOWN:
-                    throw ambiguousNoInstanceException
-                        .setMessage("undetermined.type");
-                case UNDETVAR:
-                    UndetVar that = (UndetVar) t;
-                    if (that.inst == null)
+                    case UNKNOWN:
                         throw ambiguousNoInstanceException
-                            .setMessage("type.variable.has.undetermined.type",
-                                        that.qtype);
-                    return apply(that.inst);
-                default:
-                    return t.map(this);
+                            .setMessage("undetermined.type");
+                    case UNDETVAR:
+                        UndetVar that = (UndetVar) t;
+                        if (that.inst == null)
+                            throw ambiguousNoInstanceException
+                                .setMessage("type.variable.has.undetermined.type",
+                                            that.qtype);
+                        return isConstraintCyclic(that) ?
+                            that.qtype :
+                            apply(that.inst);
+                        default:
+                            return t.map(this);
                 }
+            }
+
+            private boolean isConstraintCyclic(UndetVar uv) {
+                Types.UnaryVisitor<Boolean> constraintScanner =
+                        new Types.UnaryVisitor<Boolean>() {
+
+                    List<Type> seen = List.nil();
+
+                    Boolean visit(List<Type> ts) {
+                        for (Type t : ts) {
+                            if (visit(t)) return true;
+                        }
+                        return false;
+                    }
+
+                    public Boolean visitType(Type t, Void ignored) {
+                        return false;
+                    }
+
+                    @Override
+                    public Boolean visitClassType(ClassType t, Void ignored) {
+                        if (t.isCompound()) {
+                            return visit(types.supertype(t)) ||
+                                    visit(types.interfaces(t));
+                        } else {
+                            return visit(t.getTypeArguments());
+                        }
+                    }
+                    @Override
+                    public Boolean visitWildcardType(WildcardType t, Void ignored) {
+                        return visit(t.type);
+                    }
+
+                    @Override
+                    public Boolean visitUndetVar(UndetVar t, Void ignored) {
+                        if (seen.contains(t)) {
+                            return true;
+                        } else {
+                            seen = seen.prepend(t);
+                            return visit(t.inst);
+                        }
+                    }
+                };
+                return constraintScanner.visit(uv);
             }
         };
 
@@ -256,11 +305,10 @@ public class Infer {
             UndetVar uv = (UndetVar) l.head;
             TypeVar tv = (TypeVar)uv.qtype;
             ListBuffer<Type> hibounds = new ListBuffer<Type>();
-            for (Type t : that.getConstraints(tv, ConstraintKind.EXTENDS).prependList(types.getBounds(tv))) {
-                if (!t.containsSome(that.tvars) && t.tag != BOT) {
-                    hibounds.append(t);
-                }
+            for (Type t : that.getConstraints(tv, ConstraintKind.EXTENDS)) {
+                hibounds.append(types.subst(t, that.tvars, undetvars));
             }
+
             List<Type> inst = that.getConstraints(tv, ConstraintKind.EQUAL);
             if (inst.nonEmpty() && inst.head.tag != BOT) {
                 uv.inst = inst.head;
@@ -279,16 +327,40 @@ public class Infer {
 
         // check bounds
         List<Type> targs = Type.map(undetvars, getInstFun);
-        targs = types.subst(targs, that.tvars, targs);
-        checkWithinBounds(that.tvars, targs, warn);
+        if (Type.containsAny(targs, that.tvars)) {
+            //replace uninferred type-vars
+            targs = types.subst(targs,
+                    that.tvars,
+                    instaniateAsUninferredVars(undetvars, that.tvars));
+        }
         return chk.checkType(warn.pos(), that.inst(targs, types), to);
+    }
+    //where
+    private List<Type> instaniateAsUninferredVars(List<Type> undetvars, List<Type> tvars) {
+        ListBuffer<Type> new_targs = ListBuffer.lb();
+        //step 1 - create syntethic captured vars
+        for (Type t : undetvars) {
+            UndetVar uv = (UndetVar)t;
+            Type newArg = new CapturedType(t.tsym.name, t.tsym, uv.inst, syms.botType, null);
+            new_targs = new_targs.append(newArg);
+        }
+        //step 2 - replace synthetic vars in their bounds
+        for (Type t : new_targs.toList()) {
+            CapturedType ct = (CapturedType)t;
+            ct.bound = types.subst(ct.bound, tvars, new_targs.toList());
+            WildcardType wt = new WildcardType(ct.bound, BoundKind.EXTENDS, syms.boundClass);
+            ct.wildcard = wt;
+        }
+        return new_targs.toList();
     }
 
     /** Instantiate method type `mt' by finding instantiations of
      *  `tvars' so that method can be applied to `argtypes'.
      */
-    public Type instantiateMethod(List<Type> tvars,
+    public Type instantiateMethod(final Env<AttrContext> env,
+                                  List<Type> tvars,
                                   MethodType mt,
+                                  final Symbol msym,
                                   final List<Type> argtypes,
                                   final boolean allowBoxing,
                                   final boolean useVarargs,
@@ -396,7 +468,7 @@ public class Infer {
                         UndetVar uv = (UndetVar)t;
                         if (uv.qtype == tv) {
                             switch (ck) {
-                                case EXTENDS: return uv.hibounds;
+                                case EXTENDS: return uv.hibounds.appendList(types.subst(types.getBounds(tv), all_tvars, inferredTypes));
                                 case SUPER: return uv.lobounds;
                                 case EQUAL: return uv.inst != null ? List.of(uv.inst) : List.<Type>nil();
                             }
@@ -416,6 +488,9 @@ public class Infer {
                     // check that inferred bounds conform to their bounds
                     checkWithinBounds(all_tvars,
                            types.subst(inferredTypes, tvars, inferred), warn);
+                    if (useVarargs) {
+                        chk.checkVararg(env.tree.pos(), formals, msym, env);
+                    }
                     return super.inst(inferred, types);
             }};
             return mt2;
@@ -453,7 +528,7 @@ public class Infer {
 
     /** check that type parameters are within their bounds.
      */
-    private void checkWithinBounds(List<Type> tvars,
+    void checkWithinBounds(List<Type> tvars,
                                    List<Type> arguments,
                                    Warner warn)
         throws InvalidInstanceException {

@@ -1,12 +1,12 @@
 /*
- * Copyright 2007-2009 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 2007, 2009, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.classfile;
@@ -33,14 +33,14 @@ import java.util.Iterator;
 /**
  * See JVMS3, section 4.5.
  *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.  If
- *  you write code that depends on this, you do so at your own risk.
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
 public class ConstantPool {
 
-    public class InvalidIndex extends ConstantPoolException {
+    public static class InvalidIndex extends ConstantPoolException {
         private static final long serialVersionUID = -4350294289300939730L;
         InvalidIndex(int index) {
             super(index);
@@ -53,7 +53,7 @@ public class ConstantPool {
         }
     }
 
-    public class UnexpectedEntry extends ConstantPoolException {
+    public static class UnexpectedEntry extends ConstantPoolException {
         private static final long serialVersionUID = 6986335935377933211L;
         UnexpectedEntry(int index, int expected_tag, int found_tag) {
             super(index);
@@ -71,7 +71,7 @@ public class ConstantPool {
         public final int found_tag;
     }
 
-    public class InvalidEntry extends ConstantPoolException {
+    public static class InvalidEntry extends ConstantPoolException {
         private static final long serialVersionUID = 1000087545585204447L;
         InvalidEntry(int index, int tag) {
             super(index);
@@ -87,7 +87,7 @@ public class ConstantPool {
         public final int tag;
     }
 
-    public class EntryNotFound extends ConstantPoolException {
+    public static class EntryNotFound extends ConstantPoolException {
         private static final long serialVersionUID = 2885537606468581850L;
         EntryNotFound(Object value) {
             super(-1);
@@ -694,7 +694,7 @@ public class ConstantPool {
         public int byteLength() {
             class SizeOutputStream extends OutputStream {
                 @Override
-                public void write(int b) throws IOException {
+                public void write(int b) {
                     size++;
                 }
                 int size;

@@ -1,12 +1,12 @@
 /*
- * Copyright 2009 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 2009, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
+ * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -18,9 +18,9 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 package com.sun.tools.classfile;
@@ -36,8 +36,8 @@ import static com.sun.tools.classfile.ExtendedAnnotation.TargetAttribute.*;
 /**
  * See JSR 308 specification, section 4.1
  *
- *  <p><b>This is NOT part of any API supported by Sun Microsystems.  If
- *  you write code that depends on this, you do so at your own risk.
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
@@ -123,11 +123,14 @@ public class ExtendedAnnotation {
          // Class extends and implements clauses
         case CLASS_EXTENDS:
         case CLASS_EXTENDS_GENERIC_OR_ARRAY:
-            position.type_index = cr.readUnsignedByte();
+            int in = cr.readUnsignedShort();
+            if (in == 0xFFFF)
+                in = -1;
+            position.type_index = in;
             break;
         // throws
         case THROWS:
-            position.type_index = cr.readUnsignedByte();
+            position.type_index = cr.readUnsignedShort();
             break;
         case CLASS_LITERAL:
         case CLASS_LITERAL_GENERIC_OR_ARRAY:
@@ -213,11 +216,11 @@ public class ExtendedAnnotation {
          // Class extends and implements clauses
         case CLASS_EXTENDS:
         case CLASS_EXTENDS_GENERIC_OR_ARRAY:
-            n += 1; // type_index
+            n += 2; // type_index
             break;
         // throws
         case THROWS:
-            n += 1; // type_index
+            n += 2; // type_index
             break;
         case CLASS_LITERAL:
         case CLASS_LITERAL_GENERIC_OR_ARRAY:
@@ -264,18 +267,18 @@ public class ExtendedAnnotation {
         public int offset = -1;
 
         // For locals.
-        public int[] lvarOffset = new int[] { -1 };
-        public int[] lvarLength = new int[] { -1 };
-        public int[] lvarIndex = new int[] { -1 };
+        public int[] lvarOffset = null;
+        public int[] lvarLength = null;
+        public int[] lvarIndex = null;
 
         // For type parameter bound
-        public int bound_index = -1;
+        public int bound_index = Integer.MIN_VALUE;
 
         // For type parameter and method parameter
-        public int parameter_index = -1;
+        public int parameter_index = Integer.MIN_VALUE;
 
         // For class extends, implements, and throws classes
-        public int type_index = -2;
+        public int type_index = Integer.MIN_VALUE;
 
         // For wildcards
         public Position wildcard_position = null;
