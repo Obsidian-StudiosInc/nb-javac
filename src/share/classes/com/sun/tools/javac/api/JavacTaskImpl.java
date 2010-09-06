@@ -678,6 +678,25 @@ public class JavacTaskImpl extends JavacTask {
         }
     }
 
+    public Tree parseType(String expr) {
+        if (expr == null || expr.equals(""))
+            throw new IllegalArgumentException();
+        compiler = JavaCompiler.instance(context);
+        JavaFileObject prev = compiler.log.useSource(null);
+        boolean old = compiler.log.suppressErrorsAndWarnings;
+        compiler.log.suppressErrorsAndWarnings = true;
+        ParserFactory parserFactory = ParserFactory.instance(context);
+        Attr attr = Attr.instance(context);
+        try {
+            CharBuffer buf = CharBuffer.wrap((expr+"\u0000").toCharArray(), 0, expr.length());
+            Parser parser = parserFactory.newParser(buf, false, false, false, true);
+            return parser.parseType();
+        } finally {
+            compiler.log.suppressErrorsAndWarnings = old;
+            compiler.log.useSource(prev);
+        }
+    }
+
     public JCStatement parseStatement(CharSequence stmt, SourcePositions[] pos) {
         if (stmt == null || (pos != null && pos.length != 1))
             throw new IllegalArgumentException();

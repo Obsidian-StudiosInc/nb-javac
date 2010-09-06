@@ -1421,9 +1421,9 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                         @Override
                         public Void visitType(TypeElement e, Void p) {
                             if (e instanceof ClassSymbol)
-                                ((ClassSymbol) e).flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
-                            return super.visitType(e, p);
-                        }
+                                ((ClassSymbol) e).flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);                                
+                                return ((Symbol)e).completer == null ? super.visitType(e, p) : null;
+                            }
                         @Override
                         public Void visitExecutable(ExecutableElement e, Void p) {
                             if (e instanceof MethodSymbol)
