@@ -35,6 +35,7 @@ import javax.tools.FileObject;
 import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.file.BaseFileObject;
@@ -725,7 +726,7 @@ public class ClassWriter extends ClassFile {
         boolean hasSourceLevel = false;
         if (m.params != null) for (VarSymbol s : m.params) {
             for (Attribute.Compound a : s.getAnnotationMirrors()) {
-                switch (getRetention(a.type.tsym)) {
+                switch (types.getRetention(a)) {
                 case SOURCE: hasSourceLevel = true; break;
                 case CLASS: hasInvisible = true; break;
                 case RUNTIME: hasVisible = true; break;
@@ -741,7 +742,7 @@ public class ClassWriter extends ClassFile {
             for (VarSymbol s : m.params) {
                 ListBuffer<Attribute.Compound> buf = new ListBuffer<Attribute.Compound>();
                 for (Attribute.Compound a : s.getAnnotationMirrors())
-                    if (getRetention(a.type.tsym) == RetentionPolicy.RUNTIME)
+                    if (types.getRetention(a) == RetentionPolicy.RUNTIME)
                         buf.append(a);
                 databuf.appendChar(buf.length());
                 for (Attribute.Compound a : buf)
@@ -756,7 +757,7 @@ public class ClassWriter extends ClassFile {
             for (VarSymbol s : m.params) {
                 ListBuffer<Attribute.Compound> buf = new ListBuffer<Attribute.Compound>();
                 for (Attribute.Compound a : s.getAnnotationMirrors())
-                    if (getRetention(a.type.tsym) == RetentionPolicy.CLASS)
+                    if (types.getRetention(a) == RetentionPolicy.CLASS)
                         buf.append(a);
                 databuf.appendChar(buf.length());
                 for (Attribute.Compound a : buf)
@@ -771,7 +772,7 @@ public class ClassWriter extends ClassFile {
             for (VarSymbol s : m.params) {
                 ListBuffer<Attribute.Compound> buf = new ListBuffer<Attribute.Compound>();
                 for (Attribute.Compound a : s.getAnnotationMirrors())
-                    if (getRetention(a.type.tsym) == RetentionPolicy.SOURCE)
+                    if (types.getRetention(a) == RetentionPolicy.SOURCE)
                         buf.append(a);
                 databuf.appendChar(buf.length());
                 for (Attribute.Compound a : buf)
@@ -803,7 +804,7 @@ public class ClassWriter extends ClassFile {
         ListBuffer<Attribute.Compound> invisibles = new ListBuffer<Attribute.Compound>();
         ListBuffer<Attribute.Compound> sourceLevel = new ListBuffer<Attribute.Compound>();
         for (Attribute.Compound a : attrs) {
-            switch (getRetention(a.type.tsym)) {
+            switch (types.getRetention(a)) {
             case SOURCE: sourceLevel.append(a); break;
             case CLASS: invisibles.append(a); break;
             case RUNTIME: visibles.append(a); break;
@@ -849,7 +850,7 @@ public class ClassWriter extends ClassFile {
             if (tc.position.type == TargetType.UNKNOWN
                 || !tc.position.emitToClassfile())
                 continue;
-            switch (getRetention(tc.type.tsym)) {
+            switch (types.getRetention(tc)) {
             case SOURCE: break;
             case CLASS: invisibles.append(tc); break;
             case RUNTIME: visibles.append(tc); break;
@@ -877,29 +878,6 @@ public class ClassWriter extends ClassFile {
         }
 
         return attrCount;
-    }
-
-    /** A mirror of java.lang.annotation.RetentionPolicy. */
-    enum RetentionPolicy {
-        SOURCE,
-        CLASS,
-        RUNTIME
-    }
-
-    RetentionPolicy getRetention(TypeSymbol annotationType) {
-        RetentionPolicy vis = RetentionPolicy.CLASS; // the default
-        Attribute.Compound c = annotationType.attribute(syms.retentionType.tsym);
-        if (c != null) {
-            Attribute value = c.member(names.value);
-            if (value != null && value instanceof Attribute.Enum) {
-                Name levelName = ((Attribute.Enum)value).value.name;
-                if (levelName == names.SOURCE) vis = RetentionPolicy.SOURCE;
-                else if (levelName == names.CLASS) vis = RetentionPolicy.CLASS;
-                else if (levelName == names.RUNTIME) vis = RetentionPolicy.RUNTIME;
-                else ;// /* fail soft */ throw new AssertionError(levelName);
-            }
-        }
-        return vis;
     }
 
     /** A visitor to write an attribute including its leading
