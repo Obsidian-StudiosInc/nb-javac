@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.api;
 
+import com.sun.tools.javac.parser.JavacParser;
 import java.io.File;
 import java.io.IOException;
 import java.nio.CharBuffer;
@@ -77,7 +78,7 @@ public class JavacTaskImpl extends JavacTask {
     private TaskListener taskListener;
     private AtomicBoolean used = new AtomicBoolean();
     private Iterable<? extends Processor> processors;
-
+    
     private Integer result = null;
 
     JavacTaskImpl(JavacTool tool,
@@ -108,6 +109,11 @@ public class JavacTaskImpl extends JavacTask {
                 Iterable<String> classes,
                 Iterable<? extends JavaFileObject> fileObjects) {
         this(tool, compilerMain, toArray(flags, classes), context, toList(fileObjects));
+    }
+
+    JavacTaskImpl(Context context) {
+        this.context = context;
+        setLocale(Locale.getDefault());
     }
 
     static private String[] toArray(Iterable<String> flags, Iterable<String> classes) {
@@ -159,6 +165,10 @@ public class JavacTaskImpl extends JavacTask {
         this.processors = processors;
     }
 
+    public Iterable<? extends Processor> getProcessors() {
+        return processors;
+    }
+
     public void setLocale(Locale locale) {
         if (used.get())
             throw new IllegalStateException();
@@ -174,11 +184,10 @@ public class JavacTaskImpl extends JavacTask {
             if (!filenames.isEmpty())
                 throw new IllegalArgumentException("Malformed arguments " + filenames.toString(" "));
             compiler = JavaCompiler.instance(context);
-            compiler.keepComments = true;
-            compiler.genEndPos = true;
             // NOTE: this value will be updated after annotation processing
             compiler.initProcessAnnotations(processors);
             notYetEntered = new HashMap<JavaFileObject, JCCompilationUnit>();
+            compiler.initNotYetEntered(notYetEntered);
             for (JavaFileObject file: fileObjects)
                 notYetEntered.put(file, null);
             genList = new ListBuffer<Env<AttrContext>>();
@@ -242,6 +251,43 @@ public class JavacTaskImpl extends JavacTask {
         this.taskListener = taskListener;
     }
 
+    public Iterable<? extends CompilationUnitTree> parse (JavaFileObject... files) throws IOException {
+        prepareCompiler();
+        java.util.List<CompilationUnitTree> trees = new java.util.LinkedList<CompilationUnitTree> ();
+        this.fileObjects = List.nil();
+
+        for (JavaFileObject file : files) {
+            CompilationUnitTree tree = getTreeForFile (file);
+            if (tree != null) {
+                trees.add(tree);
+            }
+            else {
+                this.fileObjects = this.fileObjects.append(file);
+                if (notYetEntered != null) {
+                    assert !notYetEntered.containsKey(file);
+                    notYetEntered.put(file, null);
+                }
+            }
+        }
+        if (!this.fileObjects.isEmpty()) {
+            Iterable<? extends CompilationUnitTree> newTrees = this.parse();
+            for (CompilationUnitTree newTree : newTrees) {
+                trees.add (newTree);
+            }
+        }
+        return trees;
+    }
+
+    private CompilationUnitTree getTreeForFile (final JavaFileObject file) {
+        assert file != null;
+        Enter enter = Enter.instance(context);
+        CompilationUnitTree tree = enter.getCompilationUnit(file);
+        if (tree == null && notYetEntered != null) {
+            tree = (CompilationUnitTree) notYetEntered.get(file);
+        }
+        return tree;
+    }
+
     /**
      * Parse the specified files returning a list of abstract syntax trees.
      *
@@ -263,6 +309,10 @@ public class JavacTaskImpl extends JavacTask {
             parsed = true;
             if (compiler != null && compiler.log != null)
                 compiler.log.flush();
+            for (JavaFileObject file : fileObjects) {
+                if (notYetEntered.get(file) == null)
+                    notYetEntered.remove(file);
+            }
         }
     }
 
@@ -332,20 +382,67 @@ public class JavacTaskImpl extends JavacTask {
         try {
             List<JCCompilationUnit> units = compiler.enterTrees(roots.toList());
 
-            if (notYetEntered.isEmpty())
+            if (!compiler.skipAnnotationProcessing)
                 compiler = compiler.processAnnotations(units);
+
+            compiler.flushTempDiags();
 
             ListBuffer<TypeElement> elements = new ListBuffer<TypeElement>();
             for (JCCompilationUnit unit : units) {
-                for (JCTree node : unit.defs)
-                    if (node.getTag() == JCTree.CLASSDEF)
-                        elements.append(((JCTree.JCClassDecl) node).sym);
+                boolean isPkgInfo = unit.sourcefile.isNameCompatible("package-info",
+                                                                     JavaFileObject.Kind.SOURCE);
+                if (isPkgInfo) {
+                    if (unit.packge.package_info != null)
+                        elements.append(unit.packge.package_info);
+                } else {
+                    for (JCTree node : unit.defs)
+                        if (node.getTag() == JCTree.CLASSDEF && ((JCTree.JCClassDecl) node).sym != null)
+                            elements.append(((JCTree.JCClassDecl) node).sym);
+                }
             }
             return elements.toList();
         }
         finally {
             compiler.log.flush();
         }
+    }
+
+
+    public Iterable<? extends TypeElement> enterTrees (final Iterable<? extends CompilationUnitTree> trees) throws IOException {
+        final java.util.List<CompilationUnitTree> toEnter = new java.util.ArrayList ();
+        final java.util.List<TypeElement> res = new java.util.ArrayList ();
+        for (CompilationUnitTree tree : trees) {
+            final java.util.Collection<TypeElement> te = this.getEnteredElements(tree);
+            if (te.isEmpty()) {
+                toEnter.add (tree);
+            }
+            else {
+                res.addAll(te);
+            }
+        }
+        if (!toEnter.isEmpty()) {
+            final Iterable<? extends TypeElement> classes = this.enter(toEnter);
+            for (TypeElement te : classes) {
+                res.add (te);
+            }
+        }
+        return res;
+    }
+
+
+    private java.util.Collection<TypeElement> getEnteredElements (final CompilationUnitTree tree) {
+        assert tree instanceof JCCompilationUnit;
+        final java.util.List<TypeElement> res = new java.util.ArrayList<TypeElement>();
+        if (((JCCompilationUnit)tree).packge != null) {
+            for (JCTree t : ((JCCompilationUnit)tree).defs) {
+                if (t.getTag() == JCTree.CLASSDEF) {
+                    ClassSymbol sym = ((JCClassDecl)t).sym;
+                    if (sym != null)
+                        res.add(sym);
+                }
+            }
+        }
+        return res;
     }
 
     /**
@@ -369,7 +466,8 @@ public class JavacTaskImpl extends JavacTask {
     // An alternative implementation would be to move this code to JavaCompiler and
     // wrap it here
     public Iterable<? extends Element> analyze(Iterable<? extends TypeElement> classes) throws IOException {
-        enter(null);  // ensure all classes have been entered
+        if (classes == null)
+            enter(null);  // ensure all classes have been entered
 
         final ListBuffer<Element> results = new ListBuffer<Element>();
         try {
@@ -383,6 +481,9 @@ public class JavacTaskImpl extends JavacTask {
                 };
                 f.run(compiler.todo, classes);
             }
+            if (!compiler.skipAnnotationProcessing)
+                compiler = compiler.processAnnotations(List.<JCCompilationUnit>nil());
+            compiler.flushTempDiags();
         } finally {
             compiler.log.flush();
         }
@@ -429,7 +530,7 @@ public class JavacTaskImpl extends JavacTask {
     public Iterable<? extends JavaFileObject> generate(Iterable<? extends TypeElement> classes) throws IOException {
         final ListBuffer<JavaFileObject> results = new ListBuffer<JavaFileObject>();
         try {
-            analyze(null);  // ensure all classes have been parsed, entered, and analyzed
+            analyze(classes);  // ensure all classes have been parsed, entered, and analyzed
 
             if (classes == null) {
                 compiler.generate(compiler.desugar(genList), results);
@@ -446,6 +547,7 @@ public class JavacTaskImpl extends JavacTask {
             if (genList.isEmpty()) {
                 compiler.reportDeferredDiagnostics();
                 compiler.log.flush();
+                compiler.repair.flush();
                 endContext();
             }
         }
@@ -453,6 +555,34 @@ public class JavacTaskImpl extends JavacTask {
             compiler.log.flush();
         }
         return results;
+    }
+
+    public void generateTypeElements (Iterable<? extends TypeElement> classes) throws IOException {
+        assert classes != null;
+        try {
+            analyze (classes);
+            Filter f = new Filter() {
+                public void process(Env<AttrContext> env) {
+                    compiler.generate(compiler.desugar(ListBuffer.of(env)));
+                }
+            };
+            f.run(genList, classes);
+        } finally {
+            compiler.log.flush();
+        }
+    }
+
+    public void finish () {
+        if (notYetEntered != null && !notYetEntered.isEmpty()) {
+            this.notYetEntered.clear();
+        }
+        if (this.compiler != null && this.compiler.todo != null && !this.compiler.todo.isEmpty()) {
+            this.compiler.todo.clear();
+        }
+        if (this.genList != null && !this.genList.isEmpty()) {
+            this.genList.clear();
+        }
+        endContext();
     }
 
     public TypeMirror getTypeMirror(Iterable<? extends Tree> path) {
@@ -488,7 +618,14 @@ public class JavacTaskImpl extends JavacTask {
             ListBuffer<Env<AttrContext>> defer = ListBuffer.<Env<AttrContext>>lb();
             while (list.peek() != null) {
                 Env<AttrContext> env = list.remove();
-                ClassSymbol csym = env.enclClass.sym;
+                ClassSymbol csym;
+                boolean isPkgInfo = env.toplevel.sourcefile.isNameCompatible("package-info",
+                                                                             JavaFileObject.Kind.SOURCE);
+                if (isPkgInfo) {
+                    csym = env.toplevel.packge.package_info;
+                } else {
+                    csym = env.enclClass.sym;
+                }
                 if (csym != null && set.contains(csym.outermostClass()))
                     process(env);
                 else
@@ -526,16 +663,256 @@ public class JavacTaskImpl extends JavacTask {
             throw new IllegalArgumentException();
         compiler = JavaCompiler.instance(context);
         JavaFileObject prev = compiler.log.useSource(null);
+        boolean old = compiler.log.suppressErrorsAndWarnings;
+        compiler.log.suppressErrorsAndWarnings = true;
         ParserFactory parserFactory = ParserFactory.instance(context);
         Attr attr = Attr.instance(context);
         try {
             CharBuffer buf = CharBuffer.wrap((expr+"\u0000").toCharArray(), 0, expr.length());
-            Parser parser = parserFactory.newParser(buf, false, false, false);
+            Parser parser = parserFactory.newParser(buf, false, false, false, true);
             JCTree tree = parser.parseType();
             return attr.attribType(tree, (Symbol.TypeSymbol)scope);
         } finally {
+            compiler.log.suppressErrorsAndWarnings = old;
             compiler.log.useSource(prev);
         }
+    }
+
+    public Tree parseType(String expr) {
+        if (expr == null || expr.equals(""))
+            throw new IllegalArgumentException();
+        compiler = JavaCompiler.instance(context);
+        JavaFileObject prev = compiler.log.useSource(null);
+        boolean old = compiler.log.suppressErrorsAndWarnings;
+        compiler.log.suppressErrorsAndWarnings = true;
+        ParserFactory parserFactory = ParserFactory.instance(context);
+        Attr attr = Attr.instance(context);
+        try {
+            CharBuffer buf = CharBuffer.wrap((expr+"\u0000").toCharArray(), 0, expr.length());
+            Parser parser = parserFactory.newParser(buf, false, false, false, true);
+            return parser.parseType();
+        } finally {
+            compiler.log.suppressErrorsAndWarnings = old;
+            compiler.log.useSource(prev);
+        }
+    }
+
+    public JCStatement parseStatement(CharSequence stmt, SourcePositions[] pos) {
+        if (stmt == null || (pos != null && pos.length != 1))
+            throw new IllegalArgumentException();
+        compiler = JavaCompiler.instance(context);
+        JavaFileObject prev = compiler.log.useSource(null);
+        boolean old = compiler.log.suppressErrorsAndWarnings;
+        compiler.log.suppressErrorsAndWarnings = true;
+        ParserFactory parserFactory = ParserFactory.instance(context);
+        try {
+            CharBuffer buf = CharBuffer.wrap((stmt+"\u0000").toCharArray(), 0, stmt.length());
+            Parser parser = parserFactory.newParser(buf, false, true, false, true);
+            if (parser instanceof JavacParser) {
+                if (pos != null)
+                    pos[0] = new ParserSourcePositions((JavacParser)parser);
+                return parser.parseStatement();
+            }
+            return null;
+        } finally {
+            compiler.log.suppressErrorsAndWarnings = old;
+            compiler.log.useSource(prev);
+        }
+    }
+
+    public JCExpression parseExpression(CharSequence expr, SourcePositions[] pos) {
+        if (expr == null || (pos != null && pos.length != 1))
+            throw new IllegalArgumentException();
+            compiler = JavaCompiler.instance(context);
+        JavaFileObject prev = compiler.log.useSource(null);
+        boolean old = compiler.log.suppressErrorsAndWarnings;
+        compiler.log.suppressErrorsAndWarnings = true;
+        ParserFactory parserFactory = ParserFactory.instance(context);
+        try {
+            CharBuffer buf = CharBuffer.wrap((expr+"\u0000").toCharArray(), 0, expr.length());
+            Parser parser = parserFactory.newParser(buf, false, true, false, true);
+            if (parser instanceof JavacParser) {
+                if (pos != null)
+                    pos[0] = new ParserSourcePositions((JavacParser)parser);
+                return parser.parseExpression();
+            }
+            return null;
+        } finally {
+            compiler.log.suppressErrorsAndWarnings = old;
+            compiler.log.useSource(prev);
+        }
+    }
+
+    public JCExpression parseVariableInitializer(CharSequence init, SourcePositions[] pos) {
+        if (init == null || (pos != null && pos.length != 1))
+            throw new IllegalArgumentException();
+            compiler = JavaCompiler.instance(context);
+        JavaFileObject prev = compiler.log.useSource(null);
+        boolean old = compiler.log.suppressErrorsAndWarnings;
+        compiler.log.suppressErrorsAndWarnings = true;
+        ParserFactory parserFactory = ParserFactory.instance(context);
+        try {
+            CharBuffer buf = CharBuffer.wrap((init+"\u0000").toCharArray(), 0, init.length());
+            Parser parser = parserFactory.newParser(buf, false, true, false, true);
+            if (parser instanceof JavacParser) {
+                if (pos != null)
+                    pos[0] = new ParserSourcePositions((JavacParser)parser);
+                return ((JavacParser)parser).variableInitializer();
+            }
+            return null;
+        } finally {
+            compiler.log.suppressErrorsAndWarnings = old;
+            compiler.log.useSource(prev);
+        }
+    }
+
+    public JCBlock parseStaticBlock(CharSequence block, SourcePositions[] pos) {
+        if (block == null || (pos != null && pos.length != 1))
+            throw new IllegalArgumentException();
+            compiler = JavaCompiler.instance(context);
+        JavaFileObject prev = compiler.log.useSource(null);
+        boolean old = compiler.log.suppressErrorsAndWarnings;
+        compiler.log.suppressErrorsAndWarnings = true;
+        ParserFactory parserFactory = ParserFactory.instance(context);
+        try {
+            CharBuffer buf = CharBuffer.wrap((block+"\u0000").toCharArray(), 0, block.length());
+            Parser parser = parserFactory.newParser(buf, false, true, false, true);
+            if (parser instanceof JavacParser) {
+                if (pos != null)
+                    pos[0] = new ParserSourcePositions((JavacParser)parser);
+                List<JCTree> trees = ((JavacParser)parser).classOrInterfaceBodyDeclaration(null, false);
+                return trees.head != null && trees.head.getTag() == JCTree.BLOCK ? (JCBlock) trees.head : null;
+            }
+            return null;
+        } finally {
+            compiler.log.suppressErrorsAndWarnings = old;
+            compiler.log.useSource(prev);
+        }
+    }
+
+    public Type attributeTree(JCTree tree, Env<AttrContext>env) {
+        Log log = Log.instance(context);
+        Attr attr = Attr.instance(context);
+        JavaFileObject prev = log.useSource(null);
+        boolean old = log.suppressErrorsAndWarnings;
+        log.suppressErrorsAndWarnings = true;
+        try {
+            if (tree instanceof JCExpression)
+                return attr.attribExpr(tree, env, Type.noType);
+            return attr.attribStat(tree, env);
+        } finally {
+            log.suppressErrorsAndWarnings = old;
+            log.useSource(prev);
+        }
+    }
+
+    public JavacScope attributeTreeTo(JCTree tree, Env<AttrContext>env, JCTree to) {
+        Log log = Log.instance(context);
+        Attr attr = Attr.instance(context);
+        JavaFileObject prev = log.useSource(null);
+        boolean old = log.suppressErrorsAndWarnings;
+        log.suppressErrorsAndWarnings = true;
+        try {
+            Env<AttrContext> ret = tree instanceof JCExpression ? attr.attribExprToTree(tree, env, to) : attr.attribStatToTree(tree, env, to);
+            return new JavacScope(ret);
+        } finally {
+            log.suppressErrorsAndWarnings = old;
+            log.useSource(prev);
+        }
+    }
+
+    private class ParserSourcePositions implements SourcePositions {
+
+        private JavacParser parser;
+
+        private ParserSourcePositions(JavacParser parser) {
+            this.parser = parser;
+        }
+
+        public long getStartPosition(CompilationUnitTree file, Tree tree) {
+            return parser.getStartPos((JCTree)tree);
+        }
+
+        public long getEndPosition(CompilationUnitTree file, Tree tree) {
+            return parser.getEndPos((JCTree)tree);
+        }
+    }
+
+    public JCBlock reparseMethodBody(CompilationUnitTree topLevel, MethodTree methodToReparse, String newBodyText, int annonIndex,
+            final Map<? super JCTree,? super String> docComments) {
+        ParserFactory parserFactory = ParserFactory.instance(context);
+        CharBuffer buf = CharBuffer.wrap((newBodyText+"\u0000").toCharArray(), 0, newBodyText.length());
+        JavacParser parser = (JavacParser) parserFactory.newParser(buf, ((JCBlock)methodToReparse.getBody()).pos, ((JCCompilationUnit)topLevel).endPositions);
+        final JCStatement statement = parser.parseStatement();
+        JavacParser.assignAnonymousClassIndices(Names.instance(context), statement, Names.instance(context).empty, annonIndex);
+        if (statement.getKind() == Tree.Kind.BLOCK) {
+            if (docComments != null) {
+                docComments.putAll(parser.getDocComments());
+            }
+            return (JCBlock) statement;            
+        }
+        return null;
+    }
+
+    public BlockTree reattrMethodBody(MethodTree methodToReparse, BlockTree block) {
+        Attr attr = Attr.instance(context);
+        assert ((JCMethodDecl)methodToReparse).localEnv != null;
+        JCMethodDecl tree = (JCMethodDecl) methodToReparse;
+        final Names names = Names.instance(context);
+        final Symtab syms = Symtab.instance(context);
+        final MemberEnter memberEnter = MemberEnter.instance(context);
+        final Log log = Log.instance(context);
+        final TreeMaker make = TreeMaker.instance(context);
+        final Env<AttrContext> env = attr.dupLocalEnv(((JCMethodDecl) methodToReparse).localEnv);
+        final ClassSymbol owner = env.enclClass.sym;
+        if (tree.name == names.init && !owner.type.isErroneous() && owner.type != syms.objectType) {
+            JCBlock body = tree.body;
+            if (body.stats.isEmpty() || !TreeInfo.isSelfCall(body.stats.head)) {
+                body.stats = body.stats.
+                prepend(memberEnter.SuperCall(make.at(body.pos),
+                    List.<Type>nil(),
+                    List.<JCVariableDecl>nil(),
+                    false));
+            } else if ((env.enclClass.sym.flags() & Flags.ENUM) != 0 &&
+                (tree.mods.flags & Flags.GENERATEDCONSTR) == 0 &&
+                TreeInfo.isSuperCall(body.stats.head)) {
+                // enum constructors are not allowed to call super
+                // directly, so make sure there aren't any super calls
+                // in enum constructors, except in the compiler
+                // generated one.
+                log.error(tree.body.stats.head.pos(),
+                          "call.to.super.not.allowed.in.enum.ctor",
+                          env.enclClass.sym);
+                    }
+                }
+        attr.attribStat((JCBlock)block, env);
+        return block;
+    }
+
+    public BlockTree reflowMethodBody(CompilationUnitTree topLevel, ClassTree ownerClass, MethodTree methodToReparse) {
+        Flow flow = Flow.instance(context);
+        TreeMaker make = TreeMaker.instance(context);
+        flow.reanalyzeMethod(make.forToplevel((JCCompilationUnit)topLevel),
+                (JCClassDecl)ownerClass);
+        return methodToReparse.getBody();
+    }
+
+    //Debug methods
+    public String dumpTodo () {
+        StringBuilder res = new StringBuilder ();
+        if (compiler != null && compiler.todo != null) {
+            for (Env<AttrContext> env : compiler.todo) {
+                res.append(((JCClassDecl)env.tree).sym.toString()  + " from: " +env.toplevel.sourcefile.toUri());
+            }
+        }
+        return res.toString();
+    }
+
+    public java.util.List<Env<AttrContext>> getTodo () {
+        if (compiler != null && compiler.todo != null) {
+            return new java.util.ArrayList<Env<AttrContext>> (compiler.todo);
+        }
+        return java.util.Collections.<Env<AttrContext>>emptyList();
     }
 
 }

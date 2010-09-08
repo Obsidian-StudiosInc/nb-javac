@@ -26,13 +26,11 @@
 package com.sun.tools.javac.tree;
 
 import java.util.*;
-
 import java.io.IOException;
 import java.io.StringWriter;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.type.TypeKind;
 import javax.tools.JavaFileObject;
-
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
@@ -40,7 +38,8 @@ import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Scope;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.source.tree.*;
-
+import com.sun.tools.javac.comp.AttrContext;
+import com.sun.tools.javac.comp.Env;
 import static com.sun.tools.javac.code.BoundKind.*;
 
 /**
@@ -260,11 +259,9 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
      */
     public static final int MODIFIERS = ANNOTATION + 1;
 
-    public static final int ANNOTATED_TYPE = MODIFIERS + 1;
-
     /** Error trees, of type Erroneous.
      */
-    public static final int ERRONEOUS = ANNOTATED_TYPE + 1;
+    public static final int ERRONEOUS = MODIFIERS + 1;
 
     /** Unary operators, of type Unary.
      */
@@ -322,6 +319,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
      */
     public static final int LETEXPR = MOD_ASG + 1;           // ala scheme
 
+    public static final int ANNOTATED_TYPE = LETEXPR + 1;
 
     /** The offset between assignment operators and normal operators.
      */
@@ -570,6 +568,8 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public List<JCExpression> implementing;
         public List<JCTree> defs;
         public ClassSymbol sym;
+        public int index;
+
         protected JCClassDecl(JCModifiers mods,
                            Name name,
                            List<JCTypeParameter> typarams,
@@ -585,7 +585,11 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             this.implementing = implementing;
             this.defs = defs;
             this.sym = sym;
+            this.index = -1;
         }
+
+
+
         @Override
         public void accept(Visitor v) { v.visitClassDef(this); }
 
@@ -645,6 +649,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public JCBlock body;
         public JCExpression defaultValue; // for annotation types
         public MethodSymbol sym;
+        public Env<AttrContext> localEnv = null;
         protected JCMethodDecl(JCModifiers mods,
                             Name name,
                             JCExpression restype,

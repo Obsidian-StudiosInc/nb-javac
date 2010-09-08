@@ -32,6 +32,8 @@ import java.util.Map;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Symbol.MethodSymbol;
+import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.tree.JCTree.*;
 
 import static com.sun.tools.javac.code.Flags.*;
@@ -280,10 +282,17 @@ public class TreeInfo {
         case(JCTree.MINUS): case(JCTree.MUL): case(JCTree.DIV):
         case(JCTree.MOD):
             return getStartPos(((JCBinary) tree).lhs);
+        case(JCTree.MODIFIERS): {
+            JCModifiers node = (JCModifiers)tree;
+            if (node.annotations.nonEmpty())
+                return Math.min(node.pos, getStartPos(node.annotations.head));
+            return node.pos;
+        }
         case(JCTree.CLASSDEF): {
             JCClassDecl node = (JCClassDecl)tree;
-            if (node.mods.pos != Position.NOPOS)
-                return node.mods.pos;
+            int pos = getStartPos(node.mods);
+            if (pos != Position.NOPOS)
+                return pos;
             break;
         }
         case(JCTree.CONDEXPR):
@@ -294,8 +303,9 @@ public class TreeInfo {
             return getStartPos(((JCArrayAccess) tree).indexed);
         case(JCTree.METHODDEF): {
             JCMethodDecl node = (JCMethodDecl)tree;
-            if (node.mods.pos != Position.NOPOS)
-                return node.mods.pos;
+            int pos = getStartPos(node.mods);
+            if (pos != Position.NOPOS)
+                return pos;
             if (node.typarams.nonEmpty()) // List.nil() used for no typarams
                 return getStartPos(node.typarams.head);
             return node.restype == null ? node.pos : getStartPos(node.restype);
@@ -325,16 +335,22 @@ public class TreeInfo {
         }
         case(JCTree.VARDEF): {
             JCVariableDecl node = (JCVariableDecl)tree;
-            if (node.mods.pos != Position.NOPOS) {
-                return node.mods.pos;
+            int pos = getStartPos(node.mods);
+            if (pos != Position.NOPOS) {
+                return pos;
+            } else if (node.vartype.getTag() == JCTree.IDENT && ((JCIdent)node.vartype).pos == Position.NOPOS) {
+                return node.pos;
             } else {
                 return getStartPos(node.vartype);
             }
         }
         case(JCTree.ERRONEOUS): {
             JCErroneous node = (JCErroneous)tree;
-            if (node.errs != null && node.errs.nonEmpty())
-                return getStartPos(node.errs.head);
+            for (List<? extends JCTree> l = node.errs; l.nonEmpty(); l = l.tail) {
+                int pos = getStartPos(node.errs.head);
+                if (pos != Position.NOPOS)
+                    return pos;
+            }
         }
         }
         return tree.pos;
@@ -422,6 +438,8 @@ public class TreeInfo {
             return getEndPos(((JCWhileLoop) tree).body, endPositions);
         case(JCTree.ANNOTATED_TYPE):
             return getEndPos(((JCAnnotatedType) tree).underlyingType, endPositions);
+        case(JCTree.ASSIGN):
+            return getEndPos(((JCAssign) tree).rhs, endPositions);
         case(JCTree.ERRONEOUS): {
             JCErroneous node = (JCErroneous)tree;
             if (node.errs != null && node.errs.nonEmpty())
@@ -502,8 +520,12 @@ public class TreeInfo {
                 else super.visitVarDef(that);
             }
             public void visitTypeParameter(JCTypeParameter that) {
-                if (that.type.tsym == sym) result = that;
+                if (that.type != null && that.type.tsym == sym) result = that;
                 else super.visitTypeParameter(that);
+            }
+            @Override
+            public void visitErroneous(JCErroneous tree) {
+                scan(tree.getErrorTrees());
             }
         }
         DeclScanner s = new DeclScanner();
@@ -624,14 +646,53 @@ public class TreeInfo {
     }
 
     public static Symbol symbolFor(JCTree node) {
+        Symbol s = symbolForImpl(node);
+
+        //see MethodInvocationAttributionTest and IZ#121163
+        if (s instanceof MethodSymbol) {
+            MethodSymbol ms = (MethodSymbol) s;
+
+            if (ms.originalMethod != null) {
+                return ms.originalMethod;
+            }
+        }
+
+        if (s instanceof VarSymbol) {
+            VarSymbol vs = (VarSymbol) s;
+
+            if (vs.originalVar != null) {
+                return vs.originalVar;
+            }
+        }
+
+        return s;
+    }
+
+    private static Symbol symbolForImpl(JCTree node) {
         node = skipParens(node);
         switch (node.getTag()) {
+        case JCTree.TOPLEVEL:
+            return ((JCCompilationUnit) node).packge;
         case JCTree.CLASSDEF:
             return ((JCClassDecl) node).sym;
         case JCTree.METHODDEF:
             return ((JCMethodDecl) node).sym;
         case JCTree.VARDEF:
             return ((JCVariableDecl) node).sym;
+        case JCTree.IDENT:
+            return ((JCIdent) node).sym;
+        case JCTree.SELECT:
+            return ((JCFieldAccess) node).sym;
+        case JCTree.NEWCLASS:
+            return ((JCNewClass) node).constructor;
+        case JCTree.APPLY:
+            return symbolFor(((JCMethodInvocation) node).meth);
+        case JCTree.TYPEAPPLY:
+            return symbolFor(((JCTypeApply) node).clazz);
+        case JCTree.ANNOTATION:
+        case JCTree.TYPEPARAMETER:
+            if (node.type != null)
+                return node.type.tsym;
         default:
             return null;
         }

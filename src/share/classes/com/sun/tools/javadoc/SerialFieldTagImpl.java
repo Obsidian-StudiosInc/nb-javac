@@ -80,6 +80,9 @@ class SerialFieldTagImpl
      */
     private void parseSerialFieldString() {
         int len = text.length();
+        if (len == 0) {
+            return;
+        }
 
         // if no white space found
         /* Skip white space. */

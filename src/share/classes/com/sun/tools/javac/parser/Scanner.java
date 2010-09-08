@@ -86,8 +86,8 @@ public class Scanner implements Lexer {
 
         public Scanner newScanner(char[] input, int inputLength) {
             return new Scanner(this, input, inputLength);
+            }
         }
-    }
 
     /* Output variables; set by nextToken():
      */
@@ -157,6 +157,8 @@ public class Scanner implements Lexer {
     private int bp;
     private int buflen;
     private int eofPos;
+    private int seek;
+    private char replacedCharacter;
 
     /** The current character.
      */
@@ -221,7 +223,7 @@ public class Scanner implements Lexer {
         eofPos = inputLength;
         if (inputLength == input.length) {
             if (input.length > 0 && Character.isWhitespace(input[input.length - 1])) {
-                inputLength--;
+                replacedCharacter = input[--inputLength];
             } else {
                 char[] newInput = new char[inputLength + 1];
                 System.arraycopy(input, 0, newInput, 0, input.length);
@@ -238,7 +240,7 @@ public class Scanner implements Lexer {
     /** Report an error at the given position using the provided arguments.
      */
     private void lexError(int pos, String key, Object... args) {
-        log.error(pos, key, args);
+        log.error(seek + pos, key, args);
         token = ERROR;
         errPos = pos;
     }
@@ -818,6 +820,8 @@ public class Scanner implements Lexer {
      */
     public void nextToken() {
 
+        if (token == EOF)
+            return;
         try {
             prevEndPos = endPos;
             sp = 0;
@@ -1091,6 +1095,8 @@ public class Scanner implements Lexer {
     /** Sets the current token.
      */
     public void token(Token token) {
+        this.pos += this.token.name.length() - token.name.length();
+        this.prevEndPos = this.pos;
         this.token = token;
     }
 
@@ -1099,31 +1105,31 @@ public class Scanner implements Lexer {
      *  (before unicode translation)
      */
     public int pos() {
-        return pos;
+        return seek + pos;
     }
 
     /** Return the last character position of the current token.
      */
     public int endPos() {
-        return endPos;
+        return seek + endPos;
     }
 
     /** Return the last character position of the previous token.
      */
     public int prevEndPos() {
-        return prevEndPos;
+        return seek + prevEndPos;
     }
 
     /** Return the position where a lexical error occurred;
      */
     public int errPos() {
-        return errPos;
+        return seek + errPos;
     }
 
     /** Set the position where a lexical error occurred;
      */
     public void errPos(int pos) {
-        errPos = pos;
+        errPos = pos - seek;
     }
 
     /** Return the name of an identifier or token for the current token.
@@ -1166,6 +1172,20 @@ public class Scanner implements Lexer {
         return chars;
     }
 
+    /**for DocCommentScanner*/
+    protected char[] getVeryRawCharacters() {
+        if (buf.length == buflen) {
+            char[] chars = new char[buflen];
+            System.arraycopy(buf, 0, chars, 0, buflen);
+            return chars;
+        } else {
+            char[] chars = new char[buflen + 1];
+            System.arraycopy(buf, 0, chars, 0, buflen);
+            chars[buflen] = replacedCharacter;
+            return chars;
+        }
+    }
+
     /**
      * Returns a copy of a character array subset of the input buffer.
      * The returned array begins at the <code>beginIndex</code> and
@@ -1183,7 +1203,7 @@ public class Scanner implements Lexer {
     public char[] getRawCharacters(int beginIndex, int endIndex) {
         int length = endIndex - beginIndex;
         char[] chars = new char[length];
-        System.arraycopy(buf, beginIndex, chars, 0, length);
+        System.arraycopy(buf, beginIndex-seek, chars, 0, length);   //Normalize by sub seek
         return chars;
     }
 
@@ -1233,7 +1253,13 @@ public class Scanner implements Lexer {
      *
      * @return a LineMap */
     public Position.LineMap getLineMap() {
-        return Position.makeLineMap(buf, buflen, false);
+        return Position.makeLineMap(buf, buflen, replacedCharacter, false);
+    }
+
+    public void seek (int seek) {
+        assert seek >= 0;
+        this.seek = seek;
     }
 
 }
+
