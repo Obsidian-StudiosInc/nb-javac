@@ -1223,7 +1223,10 @@ public class Attr extends JCTree.Visitor {
     }
 
     public void visitExec(JCExpressionStatement tree) {
-        attribExpr(tree.expr, env);
+        //a fresh environment is required for 292 inference to work properly ---
+        //see Infer.instantiatePolymorphicSignatureInstance()
+        Env<AttrContext> localEnv = env.dup(tree);
+        attribExpr(tree.expr, localEnv);
         result = null;
     }
 
@@ -1488,23 +1491,19 @@ public class Attr extends JCTree.Visitor {
                               restype.tsym);
             }
 
-            // as a special case, MethodHandle.<T>invoke(abc) and InvokeDynamic.<T>foo(abc)
-            // has type <T>, and T can be a primitive type.
-            if (tree.meth.getTag() == JCTree.SELECT && !typeargtypes.isEmpty()) {
-              JCFieldAccess mfield = (JCFieldAccess) tree.meth;
-              if ((mfield.selected.type.tsym != null &&
-                   (mfield.selected.type.tsym.flags() & POLYMORPHIC_SIGNATURE) != 0)
-                  ||
-                  (mfield.sym != null &&
-                   (mfield.sym.flags() & POLYMORPHIC_SIGNATURE) != 0)) {
-                  assert types.isSameType(restype, typeargtypes.head) : mtype;
-                  assert mfield.selected.type == syms.methodHandleType
-                      || mfield.selected.type == syms.invokeDynamicType;
-                  typeargtypesNonRefOK = true;
-              }
+            // Special case logic for JSR 292 types.
+            if (rs.allowTransitionalJSR292 &&
+                    tree.meth.getTag() == JCTree.SELECT &&
+                    !typeargtypes.isEmpty()) {
+                JCFieldAccess mfield = (JCFieldAccess) tree.meth;
+                // MethodHandle.<T>invoke(abc) and InvokeDynamic.<T>foo(abc)
+                // has type <T>, and T can be a primitive type.
+                if (mfield.sym != null &&
+                        mfield.sym.isPolymorphicSignatureInstance())
+                    typeargtypesNonRefOK = true;
             }
 
-            if (!typeargtypesNonRefOK) {
+            if (!(rs.allowTransitionalJSR292 && typeargtypesNonRefOK)) {
                 chk.checkRefTypes(tree.typeargs, typeargtypes);
             }
 
@@ -2068,7 +2067,10 @@ public class Attr extends JCTree.Visitor {
     public void visitTypeCast(JCTypeCast tree) {
         Type clazztype = attribType(tree.clazz, env);
         chk.validate(tree.clazz, env, false);
-        Type exprtype = attribExpr(tree.expr, env, Infer.anyPoly);
+        //a fresh environment is required for 292 inference to work properly ---
+        //see Infer.instantiatePolymorphicSignatureInstance()
+        Env<AttrContext> localEnv = env.dup(tree);
+        Type exprtype = attribExpr(tree.expr, localEnv, Infer.anyPoly);
         Type owntype = chk.checkCastable(tree.expr.pos(), exprtype, clazztype);
         if (exprtype.constValue() != null)
             owntype = cfolder.coerce(exprtype, owntype);
@@ -3256,4 +3258,104 @@ public class Attr extends JCTree.Visitor {
     public Env<AttrContext> dupLocalEnv(Env<AttrContext> localEnv) {
         return localEnv.dup(localEnv.tree, localEnv.info.dup(localEnv.info.scope.dupUnshared()));
     }
+
+    // <editor-fold desc="post-attribution visitor">
+
+    /**
+     * Handle missing types/symbols in an AST. This routine is useful when
+     * the compiler has encountered some errors (which might have ended up
+     * terminating attribution abruptly); if the compiler is used in fail-over
+     * mode (e.g. by an IDE) and the AST contains semantic errors, this routine
+     * prevents NPE to be progagated during subsequent compilation steps.
+     */
+    public void postAttr(Env<AttrContext> env) {
+        new PostAttrAnalyzer().scan(env.tree);
+    }
+
+    class PostAttrAnalyzer extends TreeScanner {
+
+        private void initTypeIfNeeded(JCTree that) {
+            if (that.type == null) {
+                that.type = syms.unknownType;
+            }
+        }
+
+        @Override
+        public void scan(JCTree tree) {
+            if (tree == null) return;
+            if (tree instanceof JCExpression) {
+                initTypeIfNeeded(tree);
+            }
+            super.scan(tree);
+        }
+
+        @Override
+        public void visitIdent(JCIdent that) {
+            if (that.sym == null) {
+                that.sym = syms.unknownSymbol;
+            }
+        }
+
+        @Override
+        public void visitSelect(JCFieldAccess that) {
+            if (that.sym == null) {
+                that.sym = syms.unknownSymbol;
+            }
+            super.visitSelect(that);
+        }
+
+        @Override
+        public void visitClassDef(JCClassDecl that) {
+            initTypeIfNeeded(that);
+            if (that.sym == null) {
+                that.sym = new ClassSymbol(0, that.name, that.type, syms.noSymbol);
+            }
+            super.visitClassDef(that);
+        }
+
+        @Override
+        public void visitMethodDef(JCMethodDecl that) {
+            initTypeIfNeeded(that);
+            if (that.sym == null) {
+                that.sym = new MethodSymbol(0, that.name, that.type, syms.noSymbol);
+            }
+            super.visitMethodDef(that);
+        }
+
+        @Override
+        public void visitVarDef(JCVariableDecl that) {
+            initTypeIfNeeded(that);
+            if (that.sym == null) {
+                that.sym = new VarSymbol(0, that.name, that.type, syms.noSymbol);
+                that.sym.adr = 0;
+            }
+            super.visitVarDef(that);
+        }
+
+        @Override
+        public void visitNewClass(JCNewClass that) {
+            if (that.constructor == null) {
+                that.constructor = new MethodSymbol(0, names.init, syms.unknownType, syms.noSymbol);
+            }
+            if (that.constructorType == null) {
+                that.constructorType = syms.unknownType;
+            }
+            super.visitNewClass(that);
+        }
+
+        @Override
+        public void visitBinary(JCBinary that) {
+            if (that.operator == null)
+                that.operator = new OperatorSymbol(names.empty, syms.unknownType, -1, syms.noSymbol);
+            super.visitBinary(that);
+        }
+
+        @Override
+        public void visitUnary(JCUnary that) {
+            if (that.operator == null)
+                that.operator = new OperatorSymbol(names.empty, syms.unknownType, -1, syms.noSymbol);
+            super.visitUnary(that);
+        }
+    }
+    // </editor-fold>
 }

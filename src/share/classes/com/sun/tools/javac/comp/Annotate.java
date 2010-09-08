@@ -181,6 +181,7 @@ public class Annotate {
             if (!method.type.isErroneous() && !(value instanceof Attribute.Error))
                 buf.append(new Pair<MethodSymbol,Attribute>
                            ((MethodSymbol)method, value));
+            t.type = result;
         }
         return new Attribute.Compound(a.type, buf.toList());
     }
@@ -256,6 +257,7 @@ public class Annotate {
                 if (!(value instanceof Attribute.Error))
                     buf.append(value);
             }
+            na.type = expected;
             return new Attribute.
                 Array(expected, buf.toArray(new Attribute[buf.length()]));
         }
