@@ -244,6 +244,12 @@ public class Flags {
     public static final long FROMCLASS = 1L<<41;
     public static final long APT_CLEANED = 1L<<42;
 
+    /**
+     * Flag that marks a special kind of bridge methods (the ones that
+     * come from restricted supertype bounds)
+     */
+    public static final long OVERRIDE_BRIDGE = 1L<<41;
+
     /** Modifier masks.
      */
     public static final int
