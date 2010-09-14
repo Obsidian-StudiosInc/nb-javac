@@ -922,8 +922,12 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
 
         //parse all files
         ListBuffer<JCCompilationUnit> trees = lb();
+        Set<JavaFileObject> filesSoFar = new HashSet<JavaFileObject>();
         for (JavaFileObject fileObject : fileObjects) {
-            trees.append(parse(fileObject));
+            if (!filesSoFar.contains(fileObject)) {
+                filesSoFar.add(fileObject);
+                trees.append(parse(fileObject));
+            }
             memoryWatch.abortIfMemoryLow();
         }
         return trees.toList();
