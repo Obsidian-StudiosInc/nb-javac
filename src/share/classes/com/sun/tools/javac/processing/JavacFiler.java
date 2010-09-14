@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.processing;
 
+import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.util.*;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -43,6 +44,7 @@ import java.io.Writer;
 import java.io.FilterWriter;
 import java.io.PrintWriter;
 import java.io.IOException;
+import javax.lang.model.element.ElementKind;
 
 import javax.tools.*;
 import static java.util.Collections.*;
@@ -371,15 +373,15 @@ public class JavacFiler implements Filer, Closeable {
 
     public JavaFileObject createSourceFile(CharSequence name,
                                            Element... originatingElements) throws IOException {
-        return createSourceOrClassFile(true, name.toString());
+        return createSourceOrClassFile(true, name.toString(), originatingElements);
     }
 
     public JavaFileObject createClassFile(CharSequence name,
                                            Element... originatingElements) throws IOException {
-        return createSourceOrClassFile(false, name.toString());
+        return createSourceOrClassFile(false, name.toString(), originatingElements);
     }
 
-    private JavaFileObject createSourceOrClassFile(boolean isSourceFile, String name) throws IOException {
+    private JavaFileObject createSourceOrClassFile(boolean isSourceFile, String name, final Element[] originatingElements) throws IOException {
         if (lint) {
             int periodIndex = name.lastIndexOf(".");
             if (periodIndex != -1) {
@@ -395,8 +397,19 @@ public class JavacFiler implements Filer, Closeable {
                                     JavaFileObject.Kind.SOURCE :
                                     JavaFileObject.Kind.CLASS);
 
-        JavaFileObject fileObject =
-            fileManager.getJavaFileForOutput(loc, name, kind, null);
+        JavaFileObject fileObject;
+        final Collection<String> urls = getElementURLs(originatingElements);
+        final boolean hasElements = !urls.isEmpty();
+        if (hasElements) {
+            fileManager.handleOption("apt-source-element", urls.iterator());
+        }
+        try {
+            fileObject = fileManager.getJavaFileForOutput(loc, name, kind, null);
+        } finally {
+            if (hasElements) {
+                fileManager.handleOption("apt-source-element", Collections.<String>emptySet().iterator());
+            }
+        }
         checkFileReopening(fileObject, true);
 
         if (lastRound)
@@ -421,9 +434,19 @@ public class JavacFiler implements Filer, Closeable {
         if (strPkg.length() > 0)
             checkName(strPkg);
 
-        FileObject fileObject =
-            fileManager.getFileForOutput(location, strPkg,
-                                         relativeName.toString(), null);
+        FileObject fileObject;
+        final Collection<String> urls = getElementURLs(originatingElements);
+        final boolean hasElements = !urls.isEmpty();
+        if (hasElements) {
+            fileManager.handleOption("apt-resource-element", urls.iterator());
+        }
+        try {
+            fileObject = fileManager.getFileForOutput(location, strPkg, relativeName.toString(), null);
+        } finally {
+            if (hasElements) {
+                fileManager.handleOption("apt-resource-element", Collections.<String>emptySet().iterator());
+            }
+        }
         checkFileReopening(fileObject, true);
 
         if (fileObject instanceof JavaFileObject)
@@ -439,6 +462,29 @@ public class JavacFiler implements Filer, Closeable {
                 throw new IllegalArgumentException("Resource creation not supported in location " +
                                                    stdLoc);
         }
+    }
+    
+    private static Collection<String> getElementURLs(final Element[] originatingElements) {
+        if (originatingElements == null) {
+            return Collections.<String>emptySet();
+        }
+        final Set<String> result = new HashSet<String>(originatingElements.length);
+        for (final Element oe : originatingElements) {
+            final ClassSymbol te  = findTopLevel(oe);
+            if (te != null) {
+                result.add(te.classfile.toUri().toString());
+            }
+        }
+        return result;
+    }
+    
+    private static ClassSymbol findTopLevel (Element e) {
+        Element prev = null;
+        while (e != null && e.getKind() != ElementKind.PACKAGE) {
+            prev = e;
+            e = e.getEnclosingElement();
+        }
+        return e == null ? null : (ClassSymbol) prev;
     }
 
     public FileObject getResource(JavaFileManager.Location location,

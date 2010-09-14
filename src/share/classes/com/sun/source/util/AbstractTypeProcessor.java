@@ -25,19 +25,10 @@
 
 package com.sun.source.util;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import javax.annotation.processing.*;
-import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.util.ElementFilter;
-
-import com.sun.tools.javac.processing.JavacProcessingEnvironment;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.Log;
 
 import com.sun.source.tree.ClassTree;
 
@@ -97,25 +88,11 @@ import com.sun.source.tree.ClassTree;
  * @since 1.7
  */
 public abstract class AbstractTypeProcessor extends AbstractProcessor {
-    private final Set<Name> elements = new HashSet<Name>();
-    private boolean hasInvokedTypeProcessingOver = false;
-    private JavacProcessingEnvironment env;
-    private final AttributionTaskListener listener = new AttributionTaskListener();
 
     /**
      * Constructor for subclasses to call.
      */
     protected AbstractTypeProcessor() { }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void init(ProcessingEnvironment env) {
-        super.init(env);
-        this.env = (JavacProcessingEnvironment)env;
-        prepareContext(this.env.getContext());
-    }
 
     /**
      * The use of this method is obsolete in type processors.  The method is
@@ -124,9 +101,6 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
     @Override
     public final boolean process(Set<? extends TypeElement> annotations,
             RoundEnvironment roundEnv) {
-        for (TypeElement elem : ElementFilter.typesIn(roundEnv.getRootElements())) {
-            elements.add(elem.getQualifiedName());
-        }
         return false;
     }
 
@@ -154,92 +128,4 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
      */
     public void typeProcessingOver() { }
 
-    /**
-     * adds a listener for attribution.
-     */
-    private void prepareContext(Context context) {
-        TaskListener otherListener = context.get(TaskListener.class);
-        if (otherListener == null) {
-            context.put(TaskListener.class, listener);
-        } else {
-            // handle cases of multiple listeners
-            context.put(TaskListener.class, (TaskListener)null);
-            TaskListeners listeners = new TaskListeners();
-            listeners.add(otherListener);
-            listeners.add(listener);
-            context.put(TaskListener.class, listeners);
-        }
-    }
-
-    /**
-     * A task listener that invokes the processor whenever a class is fully
-     * analyzed.
-     */
-    private final class AttributionTaskListener implements TaskListener {
-
-        @Override
-        public void finished(TaskEvent e) {
-            Log log = Log.instance(env.getContext());
-
-            if (!hasInvokedTypeProcessingOver && elements.isEmpty() && log.nerrors == 0) {
-                typeProcessingOver();
-                hasInvokedTypeProcessingOver = true;
-            }
-
-            if (e.getKind() != TaskEvent.Kind.ANALYZE)
-                return;
-
-            if (e.getTypeElement() == null)
-                throw new AssertionError("event task without a type element");
-            if (e.getCompilationUnit() == null)
-                throw new AssertionError("even task without compilation unit");
-
-            if (!elements.remove(e.getTypeElement().getQualifiedName()))
-                return;
-
-            if (log.nerrors != 0)
-                return;
-
-            TypeElement elem = e.getTypeElement();
-            TreePath p = Trees.instance(env).getPath(elem);
-
-            typeProcess(elem, p);
-
-            if (!hasInvokedTypeProcessingOver && elements.isEmpty() && log.nerrors == 0) {
-                typeProcessingOver();
-                hasInvokedTypeProcessingOver = true;
-            }
-        }
-
-        @Override
-        public void started(TaskEvent e) { }
-
-    }
-
-    /**
-     * A task listener multiplexer.
-     */
-    private static class TaskListeners implements TaskListener {
-        private final List<TaskListener> listeners = new ArrayList<TaskListener>();
-
-        public void add(TaskListener listener) {
-            listeners.add(listener);
-        }
-
-        public void remove(TaskListener listener) {
-            listeners.remove(listener);
-        }
-
-        @Override
-        public void finished(TaskEvent e) {
-            for (TaskListener listener : listeners)
-                listener.finished(e);
-        }
-
-        @Override
-        public void started(TaskEvent e) {
-            for (TaskListener listener : listeners)
-                listener.started(e);
-        }
-    }
 }
