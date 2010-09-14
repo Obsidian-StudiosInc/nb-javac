@@ -2488,8 +2488,6 @@ public class JavacParser implements Parser {
         ListBuffer<JCTree> defs = new ListBuffer<JCTree>();
         defs.append(resource());
         while (S.token() == SEMI) {
-            // All but last of multiple declarators subsume a semicolon
-            storeEnd(defs.elems.last(), S.endPos());
             S.nextToken();
             defs.append(resource());
         }
