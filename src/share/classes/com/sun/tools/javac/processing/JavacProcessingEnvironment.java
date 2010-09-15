@@ -894,8 +894,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             this.roots = roots;
             genClassFiles = new HashMap<String,JavaFileObject>();
 
-            compiler.todo.clear(); // free the compiler's resources
-
             // The reverse() in the following line is to maintain behavioural
             // compatibility with the previous revision of the code. Strictly speaking,
             // it should not be necessary, but a javah golden file test fails without it.
@@ -943,25 +941,17 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
         /** Create the next round to be used. */
         Round next(Set<JavaFileObject> newSourceFiles, Map<String, JavaFileObject> newClassFiles) {
-            try {
-                return new Round(this, newSourceFiles, newClassFiles);
-            } finally {
-                compiler.close(false);
-            }
+            return new Round(this, newSourceFiles, newClassFiles);
         }
 
         /** Create the compiler to be used for the final compilation. */
         JavaCompiler finalCompiler(boolean errorStatus) {
-            try {
-                JavaCompiler c = JavaCompiler.instance(context);
-                if (errorStatus) {
-                    c.log.nwarnings += priorWarnings + compiler.log.nwarnings;
-                    c.log.nerrors += compiler.log.nerrors;
-                }
-                return c;
-            } finally {
-                compiler.close(false);
+            JavaCompiler c = JavaCompiler.instance(context);
+            if (errorStatus) {
+                c.log.nwarnings += priorWarnings + compiler.log.nwarnings;
+                c.log.nerrors += compiler.log.nerrors;
             }
+            return c;
         }
 
         /** Return the number of errors found so far in this round.
@@ -1099,13 +1089,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             }
         }
 
-//<<<<<<< local
-//        /** Get the context for the next round of processing.
-//         * Important values are propogated from round to round;
-//         * other values are implicitly reset.
-//         */
-//        private Context nextContext() {
-//            Context next = new Context();
         void prepareAbstractTypeProcessorListener() {
             if (typeProcessor2Types.isEmpty()) return;
 
@@ -1140,14 +1123,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         boolean moreToDo = false;
         do {
             // Run processors for round n
-        runAround:
-        while (true) {
-            if ((fatalErrors && round.errorCount() != 0)
-                    || (werror && round.warningCount() != 0)) {
-                errorStatus = true;
-                break runAround;
-            }
-
             round.run(false, false);
 
             // Processors for round n have run to completion.
@@ -1166,7 +1141,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
              // Check for errors during setup.
             if (round.unrecoverableError())
                 errorStatus = true;
-        }
         } while (moreToDo && !errorStatus);
 
         // run last round
@@ -1208,36 +1182,25 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         if (taskListener != null)
             taskListener.finished(new TaskEvent(TaskEvent.Kind.ANNOTATION_PROCESSING));
 
+        try {
+            compiler.enterTrees(roots);
+        } catch (Throwable t) {
+            if (t instanceof ThreadDeath)
+                throw (ThreadDeath)t;
+            if (t instanceof CancelAbort)
+                throw (CancelAbort)t;
+            LOGGER.log(Level.INFO, "Error while re-entering:", t);
+            throw new Abort(t);
+        }            
+
         if (errorStatus) {
             if (compiler.errorCount() == 0)
                 compiler.log.nerrors++;
             return compiler;
-        } else if (procOnly && !foundTypeProcessors) {
-            compiler = round.compiler;
-            compiler.todo.clear();
-        } else { // Final compilation
-            round = round.next(newSourceFiles, round.genClassFiles);
-            round.updateProcessingState();
-            compiler = round.compiler;
-//=======
-//        } else if (!procOnly || foundTypeProcessors) { // Final compilation
-//            updateProcessingState(currentContext, true);
-//>>>>>>> other
-//        }
+        }
+        if (!procOnly || foundTypeProcessors) {
             if (procOnly && foundTypeProcessors)
                 compiler.shouldStopPolicy = CompileState.FLOW;
-
-            try {
-                compiler.enterTrees(cleanTrees(roots));
-            } catch (Throwable t) {
-                if (t instanceof ThreadDeath)
-                    throw (ThreadDeath)t;
-                if (t instanceof CancelAbort)
-                    throw (CancelAbort)t;
-                LOGGER.log(Level.INFO, "Error while re-entering:", t);
-                throw new Abort(t);
-            }
-            
             round.prepareAbstractTypeProcessorListener();
         }
 
