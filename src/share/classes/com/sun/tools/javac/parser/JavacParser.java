@@ -2079,42 +2079,53 @@ public class JavacParser implements Parser {
     }
 
     /** SwitchBlockStatementGroups = { SwitchBlockStatementGroup }
-     *  SwitchBlockStatementGroup = SwitchLabel BlockStatements
-     *  SwitchLabel = CASE ConstantExpression ":" | DEFAULT ":"
      */
     List<JCCase> switchBlockStatementGroups() {
         ListBuffer<JCCase> cases = new ListBuffer<JCCase>();
         while (true) {
-            int pos = S.pos();
             switch (S.token()) {
-            case CASE: {
-                S.nextToken();
-                JCExpression pat = parseExpression();
-                accept(COLON);
-                List<JCStatement> stats = blockStatements();
-                JCCase c = F.at(pos).Case(pat, stats);
-                if (stats.isEmpty())
-                    storeEnd(c, S.prevEndPos());
-                cases.append(c);
+            case CASE:
+            case DEFAULT:
+                cases.append(switchBlockStatementGroup());
                 break;
-            }
-            case DEFAULT: {
-                S.nextToken();
-                accept(COLON);
-                List<JCStatement> stats = blockStatements();
-                JCCase c = F.at(pos).Case(null, stats);
-                if (stats.isEmpty())
-                    storeEnd(c, S.prevEndPos());
-                cases.append(c);
-                break;
-            }
             case RBRACE: case EOF:
                 return cases.toList();
             default:
+                int pos = S.pos();
                 S.nextToken(); // to ensure progress
                 syntaxError(pos, "expected3",
                     CASE, DEFAULT, RBRACE);
             }
+        }
+    }
+
+    /** SwitchBlockStatementGroup = SwitchLabel BlockStatements
+     *  SwitchLabel = CASE ConstantExpression ":" | DEFAULT ":"
+     */
+    protected JCCase switchBlockStatementGroup() {
+        int pos = S.pos();
+        switch (S.token()) {
+        case CASE: {
+            S.nextToken();
+            JCExpression pat = parseExpression();
+            accept(COLON);
+            List<JCStatement> stats = blockStatements();
+            JCCase c = F.at(pos).Case(pat, stats);
+            if (stats.isEmpty())
+                storeEnd(c, S.prevEndPos());
+            return c;
+        }
+        case DEFAULT: {
+            S.nextToken();
+            accept(COLON);
+            List<JCStatement> stats = blockStatements();
+            JCCase c = F.at(pos).Case(null, stats);
+            if (stats.isEmpty())
+                storeEnd(c, S.prevEndPos());
+            return c;
+        }
+        default:
+            throw new AssertionError(S.token().toString());
         }
     }
 
