@@ -100,7 +100,7 @@
     <target name="-post-jar" depends="-post-init,-separate-jars,-copy-jars-to-build">
     </target>
     
-    <target name="-pre-compile-test" depends="ensure-bcel-exists"/>
+    <target name="-pre-compile-test" depends="ensure-bcel-exists,jar"/>
     <target name="-pre-compile-test-single" depends="ensure-bcel-exists"/>
     
     <target name="ensure-bcel-exists" depends="check-bcel,download-bcel"/>
