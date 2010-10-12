@@ -1093,7 +1093,7 @@ public class Attr extends JCTree.Visitor {
                 }
                 c.param.sym.flags_field = c.param.sym.flags() | DISJOINT;
             }
-            if (c.param.type != null && c.param.type.tsym.kind == Kinds.VAR) {
+            if (c.param.sym != null && c.param.sym.kind == Kinds.VAR) {
                 c.param.sym.setData(ElementKind.EXCEPTION_PARAMETER);
             }
             chk.checkType(c.param.vartype.pos(),
