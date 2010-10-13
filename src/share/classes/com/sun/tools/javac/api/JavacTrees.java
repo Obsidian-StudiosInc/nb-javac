@@ -260,7 +260,10 @@ public class JavacTrees extends Trees {
 //                    System.err.println("COMP: " + ((JCCompilationUnit)tree).sourcefile);
                     env = enter.getTopLevelEnv((JCCompilationUnit)tree);
                     break;
+                case ANNOTATION_TYPE:
                 case CLASS:
+                case ENUM:
+                case INTERFACE:
 //                    System.err.println("CLASS: " + ((JCClassDecl)tree).sym.getSimpleName());
                     clazz = (JCClassDecl)tree;
                     Env<AttrContext> e = enter.getClassEnv(clazz.sym);
