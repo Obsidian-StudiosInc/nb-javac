@@ -446,4 +446,21 @@ public class JavacParserTest extends TestCase {
         assertEquals(golden.toString(), content.toString());
     }
 
+    public void testStartPositionForMethodWithoutModifiers() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package t; class Test { <T> void t() {} }";
+
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
+        MethodTree mt = (MethodTree) clazz.getMembers().get(0);
+        Trees t = Trees.instance(ct);
+        int start = (int) t.getSourcePositions().getStartPosition(cut, mt);
+        int end   = (int) t.getSourcePositions().getEndPosition(cut, mt);
+
+        assertEquals("<T> void t() {}", code.substring(start, end));
+    }
 }
