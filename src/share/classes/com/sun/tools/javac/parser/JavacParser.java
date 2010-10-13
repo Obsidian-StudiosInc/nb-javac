@@ -2998,6 +2998,13 @@ public class JavacParser implements Parser {
             } else {
                 pos = S.pos();
                 List<JCTypeParameter> typarams = typeParametersOpt();
+                // Hack alert:  if there are type arguments but no Modifiers, the start
+                // position will be lost unless we set the Modifiers position.  There
+                // should be an AST node for type parameters (BugId 5005090).
+                if (typarams.length() > 0 && mods.pos == Position.NOPOS) {
+                    mods.pos = pos;
+                }
+                
                 List<JCAnnotation> annosAfterParams = annotationsOpt(AnnotationKind.DEFAULT_ANNO);
 
                 Name name = S.name();
