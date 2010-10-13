@@ -353,7 +353,11 @@ public class Symtab {
                     return messages.getLocalizedString("compiler.misc.unnamed.package");
                 }
             };
-        noSymbol = new TypeSymbol(0, names.empty, Type.noType, rootPackage);
+        noSymbol = new TypeSymbol(0, names.empty, Type.noType, rootPackage) {
+            public boolean hasOuterInstance() {
+                return false;
+            }
+        };
         noSymbol.kind = Kinds.NIL;
 
         // create the error symbols
