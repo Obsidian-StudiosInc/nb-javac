@@ -101,8 +101,6 @@ public class Check {
         allowAnnotations = source.allowAnnotations();
         allowCovariantReturns = source.allowCovariantReturns();
         complexInference = options.get("-complexinference") != null;
-        findDiamonds = options.get("findDiamond") != null &&
-                source.allowDiamond();
         skipAnnotations = options.get("skipAnnotations") != null;
         warnOnSyntheticConflicts = options.get("warnOnSyntheticConflicts") != null;
         suppressAbortOnBadClassFile = options.get("suppressAbortOnBadClassFile") != null;
@@ -147,11 +145,6 @@ public class Check {
     /** Character for synthetic names
      */
     char syntheticNameChar;
-
-     /** Hidden option: generates a note if diamond can be safely applied
-      *  to a given new expression
-      */
-     boolean findDiamonds;
 
     /** A table mapping flat names of all compiled classes in this run to their
      *  symbols; maintained from outside.
