@@ -463,4 +463,21 @@ public class JavacParserTest extends TestCase {
 
         assertEquals("<T> void t() {}", code.substring(start, end));
     }
+
+    public void testStartPositionEnumConstantInit() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package t; enum Test { AAA; }";
+
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
+        VariableTree enumAAA = (VariableTree) clazz.getMembers().get(0);
+        Trees t = Trees.instance(ct);
+        int start = (int) t.getSourcePositions().getStartPosition(cut, enumAAA.getInitializer());
+
+        assertEquals("; }", code.substring(start));
+    }
 }
