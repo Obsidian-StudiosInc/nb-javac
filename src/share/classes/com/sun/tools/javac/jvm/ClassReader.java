@@ -875,7 +875,7 @@ public class ClassReader implements Completer {
         }
 
         boolean accepts(AttributeKind kind) {
-            return kinds.contains(kind) && majorVersion >= version.major;
+            return kinds.contains(kind) && (majorVersion >= version.major || ideMode);
         }
 
         abstract void read(Symbol sym, int attrLen);

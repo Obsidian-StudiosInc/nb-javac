@@ -99,7 +99,8 @@ public class ClassReaderTest extends TestCase {
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
-        JavacTask ct = (JavacTask)tool.getTask(null, new JFM(tool.getStandardFileManager(null, null, null)), null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.<JavaFileObject>asList());
+        JFM fileManager = new JFM(tool.getStandardFileManager(null, null, null), ClassJFO.create("Test1", "Test", 1000), ClassJFO.create("Test2", "Test", 2000));
+        JavacTask ct = (JavacTask)tool.getTask(null, fileManager, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.<JavaFileObject>asList());
 
         TypeElement pack = ct.getElements().getTypeElement("Test");
 
@@ -109,20 +110,32 @@ public class ClassReaderTest extends TestCase {
         assertEquals(1, pack.getEnclosedElements().size());
     }
 
+    public void testV48ClassFileWithGenericInfo() throws Exception {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        JFM fileManager = new JFM(tool.getStandardFileManager(null, null, null), ClassJFO.create("V48gen", "V48gen", 1000));
+        JavacTask ct = (JavacTask)tool.getTask(null, fileManager, null, Arrays.asList("-bootclasspath",  bootPath, "-XDide"), null, Arrays.<JavaFileObject>asList());
+
+        TypeElement v48gen = ct.getElements().getTypeElement("V48gen");
+
+        assertNotNull(v48gen);
+        assertEquals(1, v48gen.getTypeParameters().size());
+    }
+
     private static final class JFM extends ForwardingJavaFileManager<JavaFileManager> {
 
-        public JFM(JavaFileManager delegate) {
+        private final Iterable<JavaFileObject> classes;
+        public JFM(JavaFileManager delegate, JavaFileObject... classes) {
             super(delegate);
+            this.classes = Arrays.asList(classes);
         }
 
         @Override
         public Iterable<JavaFileObject> list(Location location, String packageName, Set<Kind> kinds, boolean recurse) throws IOException {
             if (StandardLocation.CLASS_PATH == location && "".equals(packageName) && kinds.contains(Kind.CLASS)) {
-                try {
-                    return Arrays.<JavaFileObject>asList(ClassJFO.create("Test1", 1000), ClassJFO.create("Test2", 2000));
-                } catch (URISyntaxException ex) {
-                    throw new IOException(ex.getMessage());
-                }
+                return classes;
             }
 
             Iterable<JavaFileObject> list = super.list(location, packageName, kinds, recurse);
@@ -152,8 +165,8 @@ public class ClassReaderTest extends TestCase {
             this.lastModified = lastModified;
         }
 
-        public static final ClassJFO create(String name, long lastModified) throws URISyntaxException {
-            return new ClassJFO(ClassReaderTest.class.getResource(name + ".class").toURI(), "Test", lastModified);
+        public static final ClassJFO create(String name, String binName, long lastModified) throws URISyntaxException {
+            return new ClassJFO(ClassReaderTest.class.getResource(name + ".class").toURI(), binName, lastModified);
         }
 
         @Override
