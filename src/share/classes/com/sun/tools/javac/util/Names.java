@@ -279,7 +279,7 @@ public class Names {
 
     protected Name.Table createTable(Context context) {
         Options options = Options.instance(context);
-        boolean useUnsharedTable = options.get("useUnsharedTable") != null;
+        boolean useUnsharedTable = options.isSet("useUnsharedTable");
         if (useUnsharedTable)
             return new UnsharedNameTable(this, context);
         else
