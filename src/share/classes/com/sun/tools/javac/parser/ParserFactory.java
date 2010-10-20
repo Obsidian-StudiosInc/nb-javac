@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2010, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,7 +63,7 @@ public class ParserFactory {
     final Source source;
     final Names names;
     final Options options;
-    final Scanner.Factory scannerFactory;
+    final ScannerFactory scannerFactory;
     final CancelService cancelSevice;
 
     protected ParserFactory(Context context) {
@@ -75,23 +75,24 @@ public class ParserFactory {
         this.keywords = Keywords.instance(context);
         this.source = Source.instance(context);
         this.options = Options.instance(context);
-        this.scannerFactory = Scanner.Factory.instance(context);
+        this.scannerFactory = ScannerFactory.instance(context);
         this.cancelSevice = CancelService.instance(context);
     }
 
     public Parser newParser(CharSequence input, boolean keepDocComments, boolean keepEndPos, boolean keepLineMap) {
+        Lexer lexer = scannerFactory.newScanner(input, keepDocComments);
         return newParser (input, keepDocComments, keepEndPos, keepLineMap, false);
     }
 
     public Parser newParser(CharSequence input, int startPos, Map<JCTree,Integer> endPos) {
-        Lexer lexer = scannerFactory.newScanner(input);
+        Lexer lexer = scannerFactory.newScanner(input, true);
         ((Scanner)lexer).seek(startPos);
         JavacParser p = new EndPosParser(this, lexer, true, false, cancelSevice, endPos);
         return p;
     }
 
     public Parser newParser(CharSequence input, boolean keepDocComments, boolean keepEndPos, boolean keepLineMap, boolean partial) {
-        Lexer lexer = scannerFactory.newScanner(input);
+        Lexer lexer = scannerFactory.newScanner(input, keepDocComments);
         JavacParser p;
         if (keepEndPos) {
             p = new EndPosParser(this, lexer, keepDocComments, keepLineMap, cancelSevice);
