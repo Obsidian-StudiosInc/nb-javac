@@ -2560,6 +2560,10 @@ public class JavacParser implements Parser {
                     accept(SEMI);
                     checkForPackage = false;
                 } else {
+                    if (allowEnums)
+                        reportSyntaxError(null, S.pos(), "expected3", CLASS, INTERFACE, ENUM);
+                    else
+                        reportSyntaxError(null, S.pos(), "expected2", CLASS, INTERFACE);
                     S.nextToken();
                 }
                 dc = null;
