@@ -125,8 +125,6 @@ public class Attr extends JCTree.Visitor {
         sourceName = source.name;
         relax = (options.get("-retrofit") != null ||
                  options.get("-relax") != null);
-        findDiamonds = options.get("findDiamond") != null &&
-                 source.allowDiamond();
         useBeforeDeclarationWarning = options.get("useBeforeDeclarationWarning") != null;
         enableSunApiLintControl = options.get("enableSunApiLintControl") != null;
         cancelService = CancelService.instance(context);
@@ -162,10 +160,6 @@ public class Attr extends JCTree.Visitor {
      */
     boolean allowAnonOuterThis;
 
-     /** Hidden option: generates a note if diamond can be safely applied
-     *  to a given new expression
-     */
-    boolean findDiamonds;
     /**
      * Switch: warn about use of variable before declaration?
      * RFE: 6425594
@@ -1622,23 +1616,6 @@ public class Attr extends JCTree.Visitor {
         if (TreeInfo.isDiamond(tree)) {
             clazztype = attribDiamond(localEnv, tree, clazztype, mapping, argtypes, typeargtypes);
             clazz.type = clazztype;
-        } else if (true && clazztype.getTypeArguments().nonEmpty() && findDiamonds) {
-            Type inferred = attribDiamond(localEnv,
-                    tree,
-                    clazztype,
-                    mapping,
-                    argtypes,
-                    typeargtypes);
-            if (!inferred.isErroneous() &&
-                    inferred.tag == CLASS &&
-                    types.isAssignable(inferred, pt.tag == NONE ? clazztype : pt, Warner.noWarnings) &&
-                    chk.checkDiamond((ClassType)inferred).isEmpty()) {
-                String key = "diamond.redundant.args";
-                if (!types.isSameType(clazztype, inferred)) {
-                    key += ".1";
-                }
-                log.warning(tree.clazz.pos(), key, clazztype, inferred);
-            }
         }
 
         // If we have made no mistakes in the class type...
