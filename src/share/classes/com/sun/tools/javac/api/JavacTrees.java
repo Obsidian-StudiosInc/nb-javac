@@ -271,8 +271,8 @@ public class JavacTrees extends Trees {
                     break;
                 case ANNOTATION_TYPE:
                 case CLASS:
-                case INTERFACE:
                 case ENUM:
+                case INTERFACE:
 //                    System.err.println("CLASS: " + ((JCClassDecl)tree).sym.getSimpleName());
                     clazz = (JCClassDecl)tree;
                     Env<AttrContext> e = enter.getClassEnv(clazz.sym);
