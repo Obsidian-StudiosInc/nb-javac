@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -97,9 +97,6 @@ public class JavacTaskImpl extends JavacTask {
         args.getClass();
         context.getClass();
         fileObjects.getClass();
-
-        // force the use of the scanner that captures Javadoc comments
-        com.sun.tools.javac.parser.DocCommentScanner.Factory.preRegister(context);
     }
 
     JavacTaskImpl(JavacTool tool,
@@ -395,9 +392,13 @@ public class JavacTaskImpl extends JavacTask {
                     if (unit.packge.package_info != null)
                         elements.append(unit.packge.package_info);
                 } else {
-                    for (JCTree node : unit.defs)
-                        if (node.getTag() == JCTree.CLASSDEF && ((JCTree.JCClassDecl) node).sym != null)
-                            elements.append(((JCTree.JCClassDecl) node).sym);
+                    for (JCTree node : unit.defs) {
+                        if (node.getTag() == JCTree.CLASSDEF) {
+                            JCClassDecl cdef = (JCClassDecl) node;
+                            if (cdef.sym != null) // maybe null if errors in anno processing
+                                elements.append(cdef.sym);
+                        }
+                    }
                 }
             }
             return elements.toList();

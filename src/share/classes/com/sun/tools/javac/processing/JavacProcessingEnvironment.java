@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,9 +55,10 @@ import javax.tools.JavaFileManager;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.JavaFileObject;
 
-import com.sun.source.util.AbstractTypeProcessor;
+//308 import com.sun.source.util.AbstractTypeProcessor;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
+import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.api.JavacTrees;
 import com.sun.tools.javac.code.*;
@@ -86,6 +87,8 @@ import com.sun.tools.javac.util.Options;
 
 import static javax.tools.StandardLocation.*;
 import static com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag.*;
+import static com.sun.tools.javac.main.OptionName.*;
+import static com.sun.tools.javac.code.Lint.LintCategory.PROCESSING;
 
 /**
  * Objects of this class hold and manage the state needed to support
@@ -174,24 +177,23 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         source = Source.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
         options = Options.instance(context);
-        printProcessorInfo = options.get("-XprintProcessorInfo") != null;
-        printRounds = options.get("-XprintRounds") != null;
-        verbose = options.get("-verbose") != null;
-        lint = options.lint("processing");
-        procOnly = options.get("-proc:only") != null ||
-            options.get("-Xprint") != null;
-        fatalErrors = options.get("fatalEnterError") != null;
-        showResolveErrors = options.get("showResolveErrors") != null;
-        werror = options.get("-Werror") != null;
+        printProcessorInfo = options.isSet(XPRINTPROCESSORINFO);
+        printRounds = options.isSet(XPRINTROUNDS);
+        verbose = options.isSet(VERBOSE);
+        lint = Lint.instance(context).isEnabled(PROCESSING);
+        procOnly = options.isSet(PROC, "only") || options.isSet(XPRINT);
+        fatalErrors = options.isSet("fatalEnterError");
+        showResolveErrors = options.isSet("showResolveErrors");
+        werror = options.isSet(WERROR);
         platformAnnotations = initPlatformAnnotations();
         foundTypeProcessors = false;
 
-        // Initialize services before any processors are initialzied
+        // Initialize services before any processors are initialized
         // in case processors use them.
         filer = new JavacFiler(context);
         messager = new JavacMessager(context, this);
-        elementUtils = new JavacElements(context);
-        typeUtils = new JavacTypes(context);
+        elementUtils = JavacElements.instance(context);
+        typeUtils = JavacTypes.instance(context);
         chk = Check.instance(context);
         processorOptions = initProcessorOptions(context);
         unmatchedProcessorOptions = initUnmatchedProcessorOptions();
@@ -216,7 +218,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         Log   log   = Log.instance(context);
         Iterator<? extends Processor> processorIterator;
 
-        if (options.get("-Xprint") != null) {
+        if (options.isSet(XPRINT)) {
             try {
                 Processor processor = PrintingProcessor.class.newInstance();
                 processorIterator = List.of(processor).iterator();
@@ -229,7 +231,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         } else if (processors != null) {
             processorIterator = processors.iterator();
         } else {
-            String processorNames = options.get("-processor");
+            String processorNames = options.get(PROCESSOR);
             JavaFileManager fileManager = context.get(JavaFileManager.class);
             try {
                 // If processorpath is not explicitly set, use the classpath.
@@ -280,7 +282,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 ? standardFileManager.getLocation(ANNOTATION_PROCESSOR_PATH)
                 : standardFileManager.getLocation(CLASS_PATH);
 
-            if (needClassLoader(options.get("-processor"), workingPath) )
+            if (needClassLoader(options.get(PROCESSOR), workingPath) )
                 handleException(key, e);
 
         } else {
@@ -684,8 +686,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     private void discoverAndRunProcs(Context context,
                                      Set<TypeElement> annotationsPresent,
                                      List<ClassSymbol> topLevelClasses,
-                                     List<PackageSymbol> packageInfoFiles,
-                                     Map<AbstractTypeProcessor, Set<TypeElement>> typeProcessor2Types) {
+                                     List<PackageSymbol> packageInfoFiles) {
         Map<String, TypeElement> unmatchedAnnotations =
             new HashMap<String, TypeElement>(annotationsPresent.size());
 
@@ -732,16 +733,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             }
 
             if (matchedNames.size() > 0 || ps.contributed) {
-                foundTypeProcessors = foundTypeProcessors || (ps.processor instanceof AbstractTypeProcessor);
-                if (ps.processor instanceof AbstractTypeProcessor) {
-                    Set<TypeElement> types = typeProcessor2Types.get((AbstractTypeProcessor) ps.processor);
-
-                    if (types == null) {
-                        typeProcessor2Types.put((AbstractTypeProcessor) ps.processor, types = new HashSet<TypeElement>());
-                    }
-
-                    types.addAll(ElementFilter.typesIn(renv.getRootElements()));
-                }
+//308                foundTypeProcessors = foundTypeProcessors || (ps.processor instanceof AbstractTypeProcessor);
                 boolean processingResult = callProcessor(ps.processor, typeElements, renv);
                 ps.contributed = true;
                 ps.removeSupportedOptions(unmatchedProcessorOptions);
@@ -775,7 +767,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         psi.runContributingProcs(renv);
 
         // Debugging
-        if (options.get("displayFilerState") != null)
+        if (options.isSet("displayFilerState"))
             filer.displayState();
     }
 
@@ -867,8 +859,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         /** The set of package-info files to be processed this round. */
         List<PackageSymbol> packageInfoFiles;
         
-        Map<AbstractTypeProcessor, Set<TypeElement>> typeProcessor2Types;
-
         /** Create a round (common code). */
         private Round(Context context, int number, int priorWarnings) {
             this.context = context;
@@ -885,7 +875,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             // the following will be populated as needed
             topLevelClasses  = List.nil();
             packageInfoFiles = List.nil();
-            typeProcessor2Types = new HashMap<AbstractTypeProcessor, Set<TypeElement>>();
         }
 
         /** Create the first round. */
@@ -910,8 +899,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 Set<JavaFileObject> newSourceFiles, Map<String,JavaFileObject> newClassFiles) {
             this(prev.context, prev.number+1, prev.compiler.log.nwarnings);
             this.genClassFiles = prev.genClassFiles;
-
-            updateProcessingState();
 
             List<JCCompilationUnit> parsedFiles = compiler.parseFiles(newSourceFiles);
             roots = cleanTrees(prev.roots).appendList(parsedFiles);
@@ -979,7 +966,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                         break;
 
                     case ERROR:
-                        if (fatalErrors || !d.isFlagSet(RESOLVE_ERROR))
+                        if (fatalErrors || !d.isFlagSet(RECOVERABLE))
                             return true;
                         break;
                 }
@@ -1050,7 +1037,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                             JavacProcessingEnvironment.this);
                     discoveredProcs.iterator().runContributingProcs(renv);
                 } else {
-                    discoverAndRunProcs(context, annotationsPresent, topLevelClasses, packageInfoFiles, typeProcessor2Types);
+                    discoverAndRunProcs(context, annotationsPresent, topLevelClasses, packageInfoFiles);
                 }
             } finally {
                 if (taskListener != null)
@@ -1067,15 +1054,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             log.reportDeferredDiagnostics(kinds);
         }
 
-        /** Update the processing state for the current context. */
-        private void updateProcessingState() {
-            filer.newRound(context);
-            messager.newRound(context);
-
-            elementUtils.setContext(context);
-            typeUtils.setContext(context);
-        }
-
         /** Print info about this round. */
         private void printRoundInfo(boolean lastRound) {
             if (printRounds || verbose) {
@@ -1087,16 +1065,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                         ap,
                         lastRound);
             }
-        }
-
-        void prepareAbstractTypeProcessorListener() {
-            if (typeProcessor2Types.isEmpty()) return;
-
-            TaskListener otherListener = context.get(TaskListener.class);
-            if (otherListener != null) {
-                context.put(TaskListener.class, (TaskListener)null);
-            }
-            context.put(TaskListener.class, new AttributionTaskListener(context, typeProcessor2Types, otherListener));
         }
 
     }
@@ -1201,7 +1169,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         if (!procOnly || foundTypeProcessors) {
             if (procOnly && foundTypeProcessors)
                 compiler.shouldStopPolicy = CompileState.FLOW;
-            round.prepareAbstractTypeProcessorListener();
         }
 
         return compiler;
@@ -1567,100 +1534,4 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
         return true;
     }
-
-    /**
-     * A task listener that invokes the type processors whenever a class is fully
-     * analyzed.
-     */
-    private static final class AttributionTaskListener implements TaskListener {
-
-        private final Context context;
-        private final Map<AbstractTypeProcessor, Set<TypeElement>> typeProcessor2Types;
-        private final TaskListener previous;
-        private boolean hasInvokedTypeProcessingOver = false;
-
-        public AttributionTaskListener(Context context, Map<AbstractTypeProcessor, Set<TypeElement>> typeProcessor2Types, TaskListener previous) {
-            this.context = context;
-            this.typeProcessor2Types = typeProcessor2Types;
-            this.previous = previous;
-        }
-
-        @Override
-        public void finished(TaskEvent e) {
-            if (previous != null) previous.finished(e);
-
-            Log log = Log.instance(context);
-
-            maybeInvokeProcessingOver();
-
-            if (e.getKind() != TaskEvent.Kind.ANALYZE)
-                return;
-
-            if (e.getTypeElement() == null)
-                throw new AssertionError("event task without a type element");
-            if (e.getCompilationUnit() == null)
-                throw new AssertionError("even task without compilation unit");
-
-            if (log.nerrors != 0) //???seems wrong
-                return;
-            
-            TypeElement elem = e.getTypeElement();
-            TreePath p = JavacTrees.instance(context).getPath(elem);
-
-            for (Entry<AbstractTypeProcessor, Set<TypeElement>> entry : typeProcessor2Types.entrySet()) {
-                if (entry.getValue().remove(elem)) {
-                    try {
-                        entry.getKey().typeProcess(elem, p);
-                    } catch (CompletionFailure ex) {
-                        StringWriter out = new StringWriter();
-                        ex.printStackTrace(new PrintWriter(out));
-                        log.error("proc.cant.access", ex.sym, ex.getDetailValue(), out.toString());
-                        return ;
-                    } catch (Throwable t) {
-                        if (t instanceof ThreadDeath)
-                            throw (ThreadDeath)t;
-                        LOGGER.log(Level.INFO, "Annotation processing error:", t);
-                        return ;
-                    }
-                }
-            }
-
-            maybeInvokeProcessingOver();
-        }
-
-        private void maybeInvokeProcessingOver() {
-            if (hasInvokedTypeProcessingOver) return;
-
-            Log log = Log.instance(context);
-
-            if (log.nerrors != 0) return;
-            
-            for (Set<TypeElement> types : typeProcessor2Types.values()) {
-                if (!types.isEmpty()) return;
-            }
-
-            for (AbstractTypeProcessor p : typeProcessor2Types.keySet()) {
-                try {
-                    p.typeProcessingOver();
-                } catch (CompletionFailure ex) {
-                    StringWriter out = new StringWriter();
-                    ex.printStackTrace(new PrintWriter(out));
-                    log.error("proc.cant.access", ex.sym, ex.getDetailValue(), out.toString());
-                    return ;
-                } catch (Throwable t) {
-                    if (t instanceof ThreadDeath)
-                        throw (ThreadDeath)t;
-                    LOGGER.log(Level.INFO, "Annotation processing error:", t);
-                    return ;
-                }
-            }
-        }
-
-        @Override
-        public void started(TaskEvent e) {
-            if (previous != null) previous.started(e);
-        }
-
-    }
-
 }

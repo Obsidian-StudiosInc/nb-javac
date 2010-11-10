@@ -123,12 +123,12 @@ public class Attr extends JCTree.Visitor {
         allowAnonOuterThis = source.allowAnonOuterThis();
         allowStringsInSwitch = source.allowStringsInSwitch();
         sourceName = source.name;
-        relax = (options.get("-retrofit") != null ||
-                 options.get("-relax") != null);
+        relax = (options.isSet("-retrofit") ||
+                 options.isSet("-relax"));
         findDiamonds = options.get("findDiamond") != null &&
                  source.allowDiamond();
-        useBeforeDeclarationWarning = options.get("useBeforeDeclarationWarning") != null;
-        enableSunApiLintControl = options.get("enableSunApiLintControl") != null;
+        useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
+        enableSunApiLintControl = options.isSet("enableSunApiLintControl");
         cancelService = CancelService.instance(context);
         isBackgroundCompilation = options.get("backgroundCompilation") != null;     //NOI18N
     }
@@ -162,10 +162,16 @@ public class Attr extends JCTree.Visitor {
      */
     boolean allowAnonOuterThis;
 
-     /** Hidden option: generates a note if diamond can be safely applied
+    /** Switch: generates a warning if diamond can be safely applied
      *  to a given new expression
      */
     boolean findDiamonds;
+
+    /**
+     * Internally enables/disables diamond finder feature
+     */
+    static final boolean allowDiamondFinder = true;
+
     /**
      * Switch: warn about use of variable before declaration?
      * RFE: 6425594
@@ -256,6 +262,8 @@ public class Attr extends JCTree.Visitor {
             } else {
                 log.error(pos, "cant.assign.val.to.final.var", v);
             }
+        } else if ((v.flags() & EFFECTIVELY_FINAL) != 0) {
+            v.flags_field &= ~EFFECTIVELY_FINAL;
         }
     }
 
@@ -823,6 +831,7 @@ public class Attr extends JCTree.Visitor {
                 memberEnter.memberEnter(tree, env);
                 annotate.flush();
             }
+            tree.sym.flags_field |= EFFECTIVELY_FINAL;
         }
 
         VarSymbol v = tree.sym;
@@ -1093,13 +1102,10 @@ public class Attr extends JCTree.Visitor {
                 localEnv.dup(c, localEnv.info.dup(localEnv.info.scope.dup()));
             Type ctype = attribStat(c.param, catchEnv);
             if (TreeInfo.isMultiCatch(c)) {
-                //check that multi-catch parameter is marked as final
-                if ((c.param.sym.flags() & FINAL) == 0) {
-                    log.error(c.param.pos(), "multicatch.param.must.be.final", c.param.sym);
-                }
-                c.param.sym.flags_field = c.param.sym.flags() | DISJOINT;
+                //multi-catch parameter is implicitly marked as final
+                c.param.sym.flags_field |= FINAL | DISJUNCTION;
             }
-            if (c.param.sym != null && c.param.sym.kind == Kinds.VAR) {
+            if (c.param.sym.kind == Kinds.VAR) {
                 c.param.sym.setData(ElementKind.EXCEPTION_PARAMETER);
             }
             chk.checkType(c.param.vartype.pos(),
@@ -1473,7 +1479,8 @@ public class Attr extends JCTree.Visitor {
 
             // Compute the result type.
             Type restype = mtype.getReturnType();
-            assert restype.tag != WILDCARD : mtype;
+            if (restype.tag == WILDCARD)
+                throw new AssertionError(mtype);
 
             // as a special case, array.clone() has a result that is
             // the same as static type of the array being cloned
@@ -1622,7 +1629,9 @@ public class Attr extends JCTree.Visitor {
         if (TreeInfo.isDiamond(tree)) {
             clazztype = attribDiamond(localEnv, tree, clazztype, mapping, argtypes, typeargtypes);
             clazz.type = clazztype;
-        } else if (true && clazztype.getTypeArguments().nonEmpty() && findDiamonds) {
+        } else if (allowDiamondFinder &&
+                clazztype.getTypeArguments().nonEmpty() &&
+                findDiamonds) {
             Type inferred = attribDiamond(localEnv,
                     tree,
                     clazztype,
@@ -1633,10 +1642,9 @@ public class Attr extends JCTree.Visitor {
                     inferred.tag == CLASS &&
                     types.isAssignable(inferred, pt.tag == NONE ? clazztype : pt, Warner.noWarnings) &&
                     chk.checkDiamond((ClassType)inferred).isEmpty()) {
-                String key = "diamond.redundant.args";
-                if (!types.isSameType(clazztype, inferred)) {
-                    key += ".1";
-                }
+                String key = types.isSameType(clazztype, inferred) ?
+                    "diamond.redundant.args" :
+                    "diamond.redundant.args.1";
                 log.warning(tree.clazz.pos(), key, clazztype, inferred);
             }
         }
@@ -2908,9 +2916,9 @@ public class Attr extends JCTree.Visitor {
         result = check(tree, owntype, TYP, pkind, pt);
     }
 
-    public void visitTypeDisjoint(JCTypeDisjoint tree) {
-        List<Type> componentTypes = attribTypes(tree.components, env);
-        tree.type = result = check(tree, types.lub(componentTypes), TYP, pkind, pt);
+    public void visitTypeDisjunction(JCTypeDisjunction tree) {
+        List<Type> alternatives = attribTypes(tree.alternatives, env);
+        tree.type = result = check(tree, types.lub(alternatives), TYP, pkind, pt);
     }
 
     public void visitTypeParameter(JCTypeParameter tree) {

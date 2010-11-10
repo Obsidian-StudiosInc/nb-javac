@@ -80,25 +80,12 @@ public class Infer {
 
     }
 
-    public static class InferenceException extends RuntimeException {
+    public static class InferenceException extends Resolve.InapplicableMethodException {
         private static final long serialVersionUID = 0;
 
-        JCDiagnostic diagnostic;
-        JCDiagnostic.Factory diags;
-
         InferenceException(JCDiagnostic.Factory diags) {
-            this.diagnostic = null;
-            this.diags = diags;
+            super(diags);
         }
-
-        InferenceException setMessage(String key, Object... args) {
-            this.diagnostic = diags.fragment(key, args);
-            return this;
-        }
-
-        public JCDiagnostic getDiagnostic() {
-             return diagnostic;
-         }
     }
 
     public static class NoInstanceException extends InferenceException {
@@ -320,7 +307,7 @@ public class Infer {
         Type qtype1 = types.subst(that.qtype, that.tvars, undetvars);
         if (!types.isSubtype(qtype1, to)) {
             throw unambiguousNoInstanceException
-                .setMessage("no.conforming.instance.exists",
+                .setMessage("infer.no.conforming.instance.exists",
                             that.tvars, that.qtype, to);
         }
         for (List<Type> l = undetvars; l.nonEmpty(); l = l.tail)
@@ -378,6 +365,11 @@ public class Infer {
         // instantiate all polymorphic argument types and
         // set up lower bounds constraints for undetvars
         Type varargsFormal = useVarargs ? formals.last() : null;
+        if (varargsFormal == null &&
+                actuals.size() != formals.size()) {
+            throw unambiguousNoInstanceException
+                .setMessage("infer.arg.length.mismatch");
+        }
         while (actuals.nonEmpty() && formals.head != varargsFormal) {
             Type formal = formals.head;
             Type actual = actuals.head.baseType();
@@ -390,19 +382,16 @@ public class Infer {
                 : types.isSubtypeUnchecked(actual, undetFormal, warn);
             if (!works) {
                 throw unambiguousNoInstanceException
-                    .setMessage("no.conforming.assignment.exists",
+                    .setMessage("infer.no.conforming.assignment.exists",
                                 tvars, actualNoCapture, formal);
             }
             formals = formals.tail;
             actuals = actuals.tail;
             actualsNoCapture = actualsNoCapture.tail;
         }
-        if (formals.head != varargsFormal || // not enough args
-            !useVarargs && actuals.nonEmpty()) { // too many args
-            // argument lists differ in length
-            throw unambiguousNoInstanceException
-                .setMessage("arg.length.mismatch");
-        }
+
+        if (formals.head != varargsFormal) // not enough args
+            throw unambiguousNoInstanceException.setMessage("infer.arg.length.mismatch");
 
         // for varargs arguments as well
         if (useVarargs) {
@@ -416,7 +405,7 @@ public class Infer {
                 boolean works = types.isConvertible(actual, elemUndet, warn);
                 if (!works) {
                     throw unambiguousNoInstanceException
-                        .setMessage("no.conforming.assignment.exists",
+                        .setMessage("infer.no.conforming.assignment.exists",
                                     tvars, actualNoCapture, elemType);
                 }
                 actuals = actuals.tail;
@@ -564,12 +553,24 @@ public class Infer {
             //the enclosing tree E, as follows: if E is a cast, then use the
             //target type of the cast expression as a return type; if E is an
             //expression statement, the return type is 'void' - otherwise the
-            //return type is simply 'Object'.
-            switch (env.outer.tree.getTag()) {
+            //return type is simply 'Object'. A correctness check ensures that
+            //env.next refers to the lexically enclosing environment in which
+            //the polymorphic signature call environment is nested.
+
+            switch (env.next.tree.getTag()) {
                 case JCTree.TYPECAST:
-                    restype = ((JCTypeCast)env.outer.tree).clazz.type; break;
+                    JCTypeCast castTree = (JCTypeCast)env.next.tree;
+                    restype = (castTree.expr == env.tree) ?
+                        castTree.clazz.type :
+                        syms.objectType;
+                    break;
                 case JCTree.EXEC:
-                    restype = syms.voidType; break;
+                    JCTree.JCExpressionStatement execTree =
+                            (JCTree.JCExpressionStatement)env.next.tree;
+                    restype = (execTree.expr == env.tree) ?
+                        syms.voidType :
+                        syms.objectType;
+                    break;
                 default:
                     restype = syms.objectType;
             }
