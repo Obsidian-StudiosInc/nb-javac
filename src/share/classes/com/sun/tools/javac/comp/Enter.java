@@ -101,6 +101,7 @@ public class Enter extends JCTree.Visitor {
 
     Log log;
     Symtab syms;
+    Scope.ScopeCounter scopeCounter;
     Check chk;
     TreeMaker make;
     ClassReader reader;
@@ -134,6 +135,7 @@ public class Enter extends JCTree.Visitor {
         reader = ClassReader.instance(context);
         make = TreeMaker.instance(context);
         syms = Symtab.instance(context);
+        scopeCounter = Scope.ScopeCounter.instance(context);
         chk = Check.instance(context);
         memberEnter = MemberEnter.instance(context);
         types = Types.instance(context);
@@ -218,7 +220,7 @@ public class Enter extends JCTree.Visitor {
      */
     public Env<AttrContext> classEnv(JCClassDecl tree, Env<AttrContext> env) {
         Env<AttrContext> localEnv =
-            env.dup(tree, env.info.dup(new Scope(tree.sym)));
+            env.dup(tree, env.info.dup(new Scope.ClassScope(tree.sym, scopeCounter)));
         localEnv.enclClass = tree;
         localEnv.outer = env;
         localEnv.info.isSelfCall = false;
@@ -367,7 +369,7 @@ public class Enter extends JCTree.Visitor {
             c.flatname = names.fromString(tree.packge + "." + name);
             c.sourcefile = tree.sourcefile;
             c.completer = null;
-            c.members_field = new Scope(c);
+            c.members_field = new Scope.ClassScope(c, scopeCounter);
             tree.packge.package_info = c;
         }
         compilationUnits.put(tree.sourcefile.toUri(), tree);
@@ -553,7 +555,7 @@ public class Enter extends JCTree.Visitor {
         c.sourcefile = env.toplevel.sourcefile;
         if (notYetCompleted || (c.flags_field & FROMCLASS) == 0 && (enclScope.owner.flags_field & FROMCLASS) == 0) {
             c.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, c, tree);
-            c.members_field = new Scope(c);
+            c.members_field = new Scope.ClassScope(c, scopeCounter);
             ClassType ct = (ClassType)c.type;
             if (owner.kind != PCK && (c.flags_field & STATIC) == 0) {
                 // We are seeing a local or inner class.
@@ -600,7 +602,7 @@ public class Enter extends JCTree.Visitor {
                 }
             }
             if (c.members_field == null) {
-                c.members_field = new Scope(c);
+                c.members_field = new Scope.ClassScope(c, scopeCounter);
                 c.flags_field &= ~FROMCLASS;
             }
         }

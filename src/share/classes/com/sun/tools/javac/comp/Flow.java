@@ -229,7 +229,7 @@ public class Flow extends TreeScanner {
      */
     Bits uninits;
 
-    HashMap<Symbol, List<Type>> multicatchTypes;
+    HashMap<Symbol, List<Type>> preciseRethrowTypes;
 
     /** The set of variables that are definitely unassigned everywhere
      *  in current try block. This variable is maintained lazily; it is
@@ -337,7 +337,7 @@ public class Flow extends TreeScanner {
         if (!chk.isUnchecked(tree.pos(), exc)) {
             if (!chk.isHandled(exc, caught))
                 pendingExits.append(new PendingExit(tree, exc));
-            thrown = chk.incl(exc, thrown);
+                thrown = chk.incl(exc, thrown);
         }
     }
 
@@ -377,7 +377,7 @@ public class Flow extends TreeScanner {
         if (sym.adr >= firstadr && trackable(sym)) {
             if ((sym.flags() & FINAL) != 0) {
                 if ((sym.flags() & PARAMETER) != 0) {
-                    if ((sym.flags() & DISJOINT) != 0) { //multi-catch parameter
+                    if ((sym.flags() & DISJUNCTION) != 0) { //multi-catch parameter
                         log.error(pos, "multicatch.parameter.may.not.be.assigned",
                                   sym);
                     }
@@ -1034,7 +1034,7 @@ public class Flow extends TreeScanner {
         thrown = List.nil();
         for (List<JCCatch> l = tree.catchers; l.nonEmpty(); l = l.tail) {
             List<JCExpression> subClauses = TreeInfo.isMultiCatch(l.head) ?
-                    ((JCTypeDisjoint)l.head.param.vartype).components :
+                    ((JCTypeDisjunction)l.head.param.vartype).alternatives :
                     List.of(l.head.param.vartype);
             for (JCExpression ct : subClauses) {
                 caught = chk.incl(ct.type, caught);
@@ -1100,7 +1100,7 @@ public class Flow extends TreeScanner {
             alive = true;
             JCVariableDecl param = l.head.param;
             List<JCExpression> subClauses = TreeInfo.isMultiCatch(l.head) ?
-                    ((JCTypeDisjoint)l.head.param.vartype).components :
+                    ((JCTypeDisjunction)l.head.param.vartype).alternatives :
                     List.of(l.head.param.vartype);
             List<Type> ctypes = List.nil();
             List<Type> rethrownTypes = chk.diff(thrownInTry, caughtInTry);
@@ -1128,12 +1128,12 @@ public class Flow extends TreeScanner {
             scan(param);
             inits.incl(param.sym.adr);
             uninits.excl(param.sym.adr);
-            multicatchTypes.put(param.sym, chk.intersect(ctypes, rethrownTypes));
+            preciseRethrowTypes.put(param.sym, chk.intersect(ctypes, rethrownTypes));
             scanStat(l.head.body);
             initsEnd.andSet(inits);
             uninitsEnd.andSet(uninits);
             nextadr = nextadrCatch;
-            multicatchTypes.remove(param.sym);
+            preciseRethrowTypes.remove(param.sym);
             aliveEnd |= alive;
         }
         if (tree.finalizer != null) {
@@ -1266,10 +1266,10 @@ public class Flow extends TreeScanner {
         Symbol sym = TreeInfo.symbol(tree.expr);
         if (sym != null &&
             sym.kind == VAR &&
-            (sym.flags() & FINAL) != 0 &&
-            multicatchTypes.get(sym) != null &&
+            (sym.flags() & (FINAL | EFFECTIVELY_FINAL)) != 0 &&
+            preciseRethrowTypes.get(sym) != null &&
             allowRethrowAnalysis) {
-            for (Type t : multicatchTypes.get(sym)) {
+            for (Type t : preciseRethrowTypes.get(sym)) {
                 markThrown(tree, t);
             }
         }
@@ -1471,7 +1471,7 @@ public class Flow extends TreeScanner {
         firstadr = 0;
         nextadr = 0;
         pendingExits = new ListBuffer<PendingExit>();
-        multicatchTypes = new HashMap<Symbol, List<Type>>();
+        preciseRethrowTypes = new HashMap<Symbol, List<Type>>();
         alive = true;
         this.thrown = this.caught = null;
         this.classDef = null;
