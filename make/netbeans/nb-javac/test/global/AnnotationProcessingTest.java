@@ -42,9 +42,9 @@ import junit.framework.TestCase;
  *
  * @author lahvac
  */
-public class NoFalseErrorsFromAP extends TestCase {
+public class AnnotationProcessingTest extends TestCase {
 
-    public NoFalseErrorsFromAP(String name) {
+    public AnnotationProcessingTest(String name) {
         super(name);
     }
 
@@ -63,16 +63,16 @@ public class NoFalseErrorsFromAP extends TestCase {
     public void testNoFalseEnterErrors() throws IOException {
         String code = "package test; @global.ap1.Ann(fqnToGenerate=\"test.G\", content=\"package test; public class G {}\") public class Test extends G {}";
 
-        performTest(code, 0);
+        performErrorsTest(code, 0);
     }
 
     public void testCorrectEnterErrors() throws IOException {
         String code = "package test; @global.ap1.Ann(fqnToGenerate=\"test.H\", content=\"package test; public class H {}\") public class Test extends Undefined {}";
 
-        performTest(code, 1);
+        performErrorsTest(code, 1);
     }
 
-    private void performTest(String code, int expectedErrors) throws IOException {
+    private void performErrorsTest(String code, int expectedErrors) throws IOException {
         File sourceOutput = File.createTempFile("NoFalseErrorsFromAP", "");
         sourceOutput.delete();
         assertTrue(sourceOutput.mkdirs());
@@ -81,7 +81,7 @@ public class NoFalseErrorsFromAP extends TestCase {
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
-        URL myself = NoFalseErrorsFromAP.class.getProtectionDomain().getCodeSource().getLocation();
+        URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
         DiagnosticCollector<JavaFileObject> diagnostic = new DiagnosticCollector<JavaFileObject>();
         JavacTask ct = (JavacTask)tool.getTask(null, null, diagnostic, Arrays.asList("-bootclasspath",  bootPath, "-source", "1.6", "-classpath", myself.toExternalForm(), "-processor", "global.ap1.AP", "-s", sourceOutput.getAbsolutePath(), "-XDbackgroundCompilation"), null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();

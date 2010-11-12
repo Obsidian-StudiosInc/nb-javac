@@ -25,6 +25,7 @@
 
 package global.ap1;
 
+import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Arrays;
@@ -51,6 +52,12 @@ public class AP extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         for (Element e : roundEnv.getElementsAnnotatedWith(Ann.class)) {
+            //XXX: JavacFiler.getElementURLs expects that e.classfile != null
+            //workarounding here for the time being
+            ClassSymbol s = (ClassSymbol) e;
+            if (s.classfile == null) s.classfile = s.sourcefile;
+            //XXX end
+            
             Ann ann = e.getAnnotation(Ann.class);
             Writer w = null;
             try {
