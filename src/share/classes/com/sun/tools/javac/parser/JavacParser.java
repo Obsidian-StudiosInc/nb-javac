@@ -2346,8 +2346,6 @@ public class JavacParser implements Parser {
                     // comment, then don't use it for the top level comment as well.
                     dc = null;
                 }
-                if (def instanceof JCExpressionStatement)
-                    def = ((JCExpressionStatement)def).expr;
                 defs.append(def);
                 if (def instanceof JCClassDecl) {
                     checkForPackage = false;
