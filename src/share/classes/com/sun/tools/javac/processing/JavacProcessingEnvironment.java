@@ -58,7 +58,6 @@ import javax.tools.JavaFileObject;
 //308 import com.sun.source.util.AbstractTypeProcessor;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
-import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.api.JavacTrees;
 import com.sun.tools.javac.code.*;
@@ -733,7 +732,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             }
 
             if (matchedNames.size() > 0 || ps.contributed) {
-//308                foundTypeProcessors = foundTypeProcessors || (ps.processor instanceof AbstractTypeProcessor);
                 boolean processingResult = callProcessor(ps.processor, typeElements, renv);
                 ps.contributed = true;
                 ps.removeSupportedOptions(unmatchedProcessorOptions);
@@ -900,6 +898,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             this(prev.context, prev.number+1, prev.compiler.log.nwarnings);
             this.genClassFiles = prev.genClassFiles;
 
+            updateProcessingState();
+            
             List<JCCompilationUnit> parsedFiles = compiler.parseFiles(newSourceFiles);
             roots = cleanTrees(prev.roots).appendList(parsedFiles);
 
@@ -1052,6 +1052,16 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 kinds.remove(JCDiagnostic.Kind.ERROR);
             }
             log.reportDeferredDiagnostics(kinds);
+        }
+
+        /** Update the processing state for the current context. */
+        private void updateProcessingState() {
+            filer.newRound(context);
+            messager.newRound(context);
+
+            elementUtils.setContext(context);
+            typeUtils.setContext(context);
+            JavacTrees.instance(context).updateContext(context);
         }
 
         /** Print info about this round. */
