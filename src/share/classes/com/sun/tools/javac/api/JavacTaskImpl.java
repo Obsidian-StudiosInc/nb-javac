@@ -698,99 +698,87 @@ public class JavacTaskImpl extends JavacTask {
         }
     }
 
-    public JCStatement parseStatement(CharSequence stmt, SourcePositions[] pos) {
-        if (stmt == null || (pos != null && pos.length != 1))
+    public JCStatement parseStatement(CharSequence stmt, SourcePositions[] pos, DiagnosticListener<? super JavaFileObject> errors) {
+        return (JCStatement) doParse(ParseKind.STATEMENT, stmt, pos, errors);
+    }
+
+    private JCTree doParse(ParseKind kind, CharSequence source, SourcePositions[] pos, DiagnosticListener<? super JavaFileObject> errors) {
+        if (source == null || (pos != null && pos.length != 1))
             throw new IllegalArgumentException();
         compiler = JavaCompiler.instance(context);
         JavaFileObject prev = compiler.log.useSource(null);
         boolean old = compiler.log.suppressErrorsAndWarnings;
-        compiler.log.suppressErrorsAndWarnings = true;
+        DiagnosticListener<? super JavaFileObject> oldListener = compiler.log.getDiagnosticListener();
+        int oldErrors = compiler.log.nerrors;
+        int oldWarnings = compiler.log.nwarnings;
+        compiler.log.suppressErrorsAndWarnings = false;
+        compiler.log.setDiagnosticListener(errors);
         ParserFactory parserFactory = ParserFactory.instance(context);
         try {
-            CharBuffer buf = CharBuffer.wrap((stmt+"\u0000").toCharArray(), 0, stmt.length());
+            CharBuffer buf = CharBuffer.wrap((source+"\u0000").toCharArray(), 0, source.length());
             Parser parser = parserFactory.newParser(buf, false, true, false, true);
             if (parser instanceof JavacParser) {
                 if (pos != null)
                     pos[0] = new ParserSourcePositions((JavacParser)parser);
-                return parser.parseStatement();
+                switch (kind) {
+                    case STATEMENT: return parser.parseStatement();
+                    case EXPRESSION: return parser.parseExpression();
+                    case VARIABLE_INIT: return ((JavacParser)parser).variableInitializer();
+                    case STATIC_BLOCK:
+                        List<JCTree> trees = ((JavacParser)parser).classOrInterfaceBodyDeclaration(null, false);
+                        return trees.head != null && trees.head.getTag() == JCTree.BLOCK ? (JCBlock) trees.head : null;
+                    default: throw new UnsupportedOperationException(kind.name());
+                }
+                
             }
             return null;
         } finally {
             compiler.log.suppressErrorsAndWarnings = old;
+            compiler.log.setDiagnosticListener(oldListener);
             compiler.log.useSource(prev);
+            compiler.log.nerrors = oldErrors;
+            compiler.log.nwarnings = oldWarnings;
         }
     }
 
+    public JCExpression parseExpression(CharSequence expr, SourcePositions[] pos, DiagnosticListener<? super JavaFileObject> errors) {
+        return (JCExpression) doParse(ParseKind.EXPRESSION, expr, pos, errors);
+    }
+
+    public JCExpression parseVariableInitializer(CharSequence init, SourcePositions[] pos, DiagnosticListener<? super JavaFileObject> errors) {
+        return (JCExpression) doParse(ParseKind.VARIABLE_INIT, init, pos, errors);
+    }
+
+    public JCBlock parseStaticBlock(CharSequence block, SourcePositions[] pos, DiagnosticListener<? super JavaFileObject> errors) {
+        return (JCBlock) doParse(ParseKind.STATIC_BLOCK, block, pos, errors);
+    }
+
+    private enum ParseKind {STATEMENT, EXPRESSION, VARIABLE_INIT, STATIC_BLOCK;}
+
+    @Deprecated
+    public JCStatement parseStatement(CharSequence stmt, SourcePositions[] pos) {
+        return parseStatement(stmt, pos, new DiscardDiagnosticListener());
+    }
+
+    @Deprecated
     public JCExpression parseExpression(CharSequence expr, SourcePositions[] pos) {
-        if (expr == null || (pos != null && pos.length != 1))
-            throw new IllegalArgumentException();
-            compiler = JavaCompiler.instance(context);
-        JavaFileObject prev = compiler.log.useSource(null);
-        boolean old = compiler.log.suppressErrorsAndWarnings;
-        compiler.log.suppressErrorsAndWarnings = true;
-        ParserFactory parserFactory = ParserFactory.instance(context);
-        try {
-            CharBuffer buf = CharBuffer.wrap((expr+"\u0000").toCharArray(), 0, expr.length());
-            Parser parser = parserFactory.newParser(buf, false, true, false, true);
-            if (parser instanceof JavacParser) {
-                if (pos != null)
-                    pos[0] = new ParserSourcePositions((JavacParser)parser);
-                return parser.parseExpression();
-            }
-            return null;
-        } finally {
-            compiler.log.suppressErrorsAndWarnings = old;
-            compiler.log.useSource(prev);
-        }
+        return parseExpression(expr, pos, new DiscardDiagnosticListener());
     }
 
+    @Deprecated
     public JCExpression parseVariableInitializer(CharSequence init, SourcePositions[] pos) {
-        if (init == null || (pos != null && pos.length != 1))
-            throw new IllegalArgumentException();
-            compiler = JavaCompiler.instance(context);
-        JavaFileObject prev = compiler.log.useSource(null);
-        boolean old = compiler.log.suppressErrorsAndWarnings;
-        compiler.log.suppressErrorsAndWarnings = true;
-        ParserFactory parserFactory = ParserFactory.instance(context);
-        try {
-            CharBuffer buf = CharBuffer.wrap((init+"\u0000").toCharArray(), 0, init.length());
-            Parser parser = parserFactory.newParser(buf, false, true, false, true);
-            if (parser instanceof JavacParser) {
-                if (pos != null)
-                    pos[0] = new ParserSourcePositions((JavacParser)parser);
-                return ((JavacParser)parser).variableInitializer();
-            }
-            return null;
-        } finally {
-            compiler.log.suppressErrorsAndWarnings = old;
-            compiler.log.useSource(prev);
-        }
+        return parseVariableInitializer(init, pos, new DiscardDiagnosticListener());
     }
 
+    @Deprecated
     public JCBlock parseStaticBlock(CharSequence block, SourcePositions[] pos) {
-        if (block == null || (pos != null && pos.length != 1))
-            throw new IllegalArgumentException();
-            compiler = JavaCompiler.instance(context);
-        JavaFileObject prev = compiler.log.useSource(null);
-        boolean old = compiler.log.suppressErrorsAndWarnings;
-        compiler.log.suppressErrorsAndWarnings = true;
-        ParserFactory parserFactory = ParserFactory.instance(context);
-        try {
-            CharBuffer buf = CharBuffer.wrap((block+"\u0000").toCharArray(), 0, block.length());
-            Parser parser = parserFactory.newParser(buf, false, true, false, true);
-            if (parser instanceof JavacParser) {
-                if (pos != null)
-                    pos[0] = new ParserSourcePositions((JavacParser)parser);
-                List<JCTree> trees = ((JavacParser)parser).classOrInterfaceBodyDeclaration(null, false);
-                return trees.head != null && trees.head.getTag() == JCTree.BLOCK ? (JCBlock) trees.head : null;
-            }
-            return null;
-        } finally {
-            compiler.log.suppressErrorsAndWarnings = old;
-            compiler.log.useSource(prev);
-        }
+        return parseStaticBlock(block, pos, new DiscardDiagnosticListener());
     }
 
+    private static final class DiscardDiagnosticListener implements DiagnosticListener<JavaFileObject> {
+        public void report(Diagnostic<? extends JavaFileObject> diagnostic) {}
+    }
+    
     public Type attributeTree(JCTree tree, Env<AttrContext>env) {
         Log log = Log.instance(context);
         Attr attr = Attr.instance(context);
