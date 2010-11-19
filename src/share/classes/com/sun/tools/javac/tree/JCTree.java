@@ -235,13 +235,9 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
      */
     public static final int TYPEAPPLY = TYPEARRAY + 1;
 
-    /** Disjunction types, of type TypeDisjunction
-     */
-    public static final int TYPEDISJUNCTION = TYPEAPPLY + 1;
-
     /** Formal type parameters, of type TypeParameter.
      */
-    public static final int TYPEPARAMETER = TYPEDISJUNCTION + 1;
+    public static final int TYPEPARAMETER = TYPEAPPLY + 1;
 
     /** Type argument.
      */
@@ -320,6 +316,10 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     public static final int LETEXPR = MOD_ASG + 1;           // ala scheme
 
     public static final int ANNOTATED_TYPE = LETEXPR + 1;
+
+    /** Disjunction types, of type TypeDisjunction
+     */
+    public static final int TYPEDISJUNCTION = ANNOTATED_TYPE + 1;
 
     /** The offset between assignment operators and normal operators.
      */
