@@ -1632,12 +1632,21 @@ public class Attr extends JCTree.Visitor {
         } else if (allowDiamondFinder &&
                 clazztype.getTypeArguments().nonEmpty() &&
                 findDiamonds) {
-            Type inferred = attribDiamond(localEnv,
-                    tree,
-                    clazztype,
-                    mapping,
-                    argtypes,
-                    typeargtypes);
+            JavaFileObject prev = log.useSource(null);
+            boolean old = log.suppressErrorsAndWarnings;
+            log.suppressErrorsAndWarnings = true;
+            Type inferred = null;
+            try {
+                inferred = attribDiamond(localEnv,
+                        tree,
+                        clazztype,
+                        mapping,
+                        argtypes,
+                        typeargtypes);
+            } finally {
+                log.suppressErrorsAndWarnings = old;
+                log.useSource(prev);
+            }
             if (!inferred.isErroneous() &&
                     inferred.tag == CLASS &&
                     types.isAssignable(inferred, pt.tag == NONE ? clazztype : pt, Warner.noWarnings) &&
