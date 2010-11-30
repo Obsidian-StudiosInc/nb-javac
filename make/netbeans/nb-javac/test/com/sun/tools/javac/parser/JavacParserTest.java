@@ -50,6 +50,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import javax.tools.Diagnostic;
+import javax.tools.DiagnosticCollector;
 import javax.tools.DiagnosticListener;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
@@ -479,5 +480,65 @@ public class JavacParserTest extends TestCase {
         int start = (int) t.getSourcePositions().getStartPosition(cut, enumAAA.getInitializer());
 
         assertEquals("; }", code.substring(start));
+    }
+
+    public void testVariableInIfThen1() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package t; class Test { private static void t(String name) { if (name != null) String nn = name.trim(); } }";
+        DiagnosticCollector<JavaFileObject> coll = new DiagnosticCollector<JavaFileObject>();
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, coll, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+
+        ct.parse();
+        
+        List<String> codes = new LinkedList<String>();
+
+        for (Diagnostic<? extends JavaFileObject> d : coll.getDiagnostics()) {
+            codes.add(d.getCode());
+        }
+
+        assertEquals(Arrays.<String>asList("compiler.err.variable.not.allowed"), codes);
+    }
+
+    public void testVariableInIfThen2() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package t; class Test { private static void t(String name) { if (name != null) class X {} } }";
+        DiagnosticCollector<JavaFileObject> coll = new DiagnosticCollector<JavaFileObject>();
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, coll, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+
+        ct.parse();
+
+        List<String> codes = new LinkedList<String>();
+
+        for (Diagnostic<? extends JavaFileObject> d : coll.getDiagnostics()) {
+            codes.add(d.getCode());
+        }
+
+        assertEquals(Arrays.<String>asList("compiler.err.class.not.allowed"), codes);
+    }
+
+    public void testVariableInIfThen3() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package t; class Test { private static void t(String name) { if (name != null) abstract } }";
+        DiagnosticCollector<JavaFileObject> coll = new DiagnosticCollector<JavaFileObject>();
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, coll, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+
+        ct.parse();
+
+        List<String> codes = new LinkedList<String>();
+
+        for (Diagnostic<? extends JavaFileObject> d : coll.getDiagnostics()) {
+            codes.add(d.getCode());
+        }
+
+        assertEquals(Arrays.<String>asList("compiler.err.illegal.start.of.expr"), codes);
     }
 }

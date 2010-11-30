@@ -1589,89 +1589,12 @@ public class JavacParser implements Parser {
         int lastErrPos = -1;
         ListBuffer<JCStatement> stats = new ListBuffer<JCStatement>();
         while (true) {
-            int pos = S.pos();
             switch (S.token()) {
             case RBRACE: case CASE: case DEFAULT: case EOF:
                 return stats.toList();
-            case LBRACE: case IF: case FOR: case WHILE: case DO: case TRY:
-            case SWITCH: case SYNCHRONIZED: case RETURN: case THROW: case BREAK:
-            case CONTINUE: case SEMI: case ELSE: case FINALLY: case CATCH:
-                stats.append(parseStatement());
-                break;
-            case MONKEYS_AT:
-            case FINAL: {
-                String dc = S.docComment();
-                JCModifiers mods = modifiersOpt();
-                if (S.token() == INTERFACE ||
-                    S.token() == CLASS ||
-                    allowEnums && S.token() == ENUM) {
-                    stats.append(classOrInterfaceOrEnumDeclaration(mods, dc));
-                } else {
-                    JCExpression t = parseType();
-                    stats.appendList(variableDeclarators(mods, t,
-                                                         new ListBuffer<JCStatement>()));
-                    // A "LocalVariableDeclarationStatement" subsumes the terminating semicolon
-                    storeEnd(stats.elems.last(), S.endPos());
-                    accept(SEMI);
-                }
-                break;
-            }
-            case ABSTRACT: case STRICTFP: {
-                String dc = S.docComment();
-                JCModifiers mods = modifiersOpt();
-                if (S.token() == INTERFACE ||
-                    S.token() == CLASS ||
-                    allowEnums && S.token() == ENUM) {
-                    stats.append(classOrInterfaceOrEnumDeclaration(mods, dc));
-                } else {
-                    setErrorEndPos(S.pos());
-                }
-                break;
-            }
-            case INTERFACE:
-            case CLASS:
-                stats.append(classOrInterfaceOrEnumDeclaration(modifiersOpt(),
-                                                               S.docComment()));
-                break;
-            case ENUM:
-            case ASSERT:
-                if (allowEnums && S.token() == ENUM) {
-                    error(S.pos(), "local.enum");
-                    stats.
-                        append(classOrInterfaceOrEnumDeclaration(modifiersOpt(),
-                                                                 S.docComment()));
-                    break;
-                } else if (allowAsserts && S.token() == ASSERT) {
-                    stats.append(parseStatement());
-                    break;
-                }
-                /* fall through to default */
             default:
-                Name name = S.name();
-                JCExpression t = term(EXPR | TYPE);
-                if (S.token() == COLON && t.getTag() == JCTree.IDENT) {
-                    S.nextToken();
-                    JCStatement stat = parseStatement();
-                    stats.append(F.at(pos).Labelled(name, stat));
-                } else if ((lastmode & TYPE) != 0 &&
-                           (S.token() == IDENTIFIER ||
-                            S.token() == ASSERT ||
-                            S.token() == ENUM)) {
-                    pos = S.pos();
-                    JCModifiers mods = F.at(Position.NOPOS).Modifiers(0);
-                    F.at(pos);
-                    stats.appendList(variableDeclarators(mods, t,
-                                                         new ListBuffer<JCStatement>()));
-                    // A "LocalVariableDeclarationStatement" subsumes the terminating semicolon
-                    accept(SEMI);
-                    storeEnd(stats.elems.last(), S.prevEndPos());
-                } else {
-                    // This Exec is an "ExpressionStatement"; it subsumes the terminating semicolon
-                    accept(SEMI);
-                    stats.append(toP(F.at(pos).Exec(checkExprStat(t))));
-                }
+                stats.appendList(blockStatement());
             }
-
             // error recovery
             if (S.pos() == lastErrPos)
                 return stats.toList();
@@ -1685,32 +1608,15 @@ public class JavacParser implements Parser {
         }
     }
 
-    /** Statement =
-     *       Block
-     *     | IF ParExpression Statement [ELSE Statement]
-     *     | FOR "(" ForInitOpt ";" [Expression] ";" ForUpdateOpt ")" Statement
-     *     | FOR "(" FormalParameter : Expression ")" Statement
-     *     | WHILE ParExpression Statement
-     *     | DO Statement WHILE ParExpression ";"
-     *     | TRY Block ( Catches | [Catches] FinallyPart )
-     *     | TRY "(" ResourceSpecification ")" Block [Catches] [FinallyPart]
-     *     | SWITCH ParExpression "{" SwitchBlockStatementGroups "}"
-     *     | SYNCHRONIZED ParExpression Block
-     *     | RETURN [Expression] ";"
-     *     | THROW Expression ";"
-     *     | BREAK [Ident] ";"
-     *     | CONTINUE [Ident] ";"
-     *     | ASSERT Expression [ ":" Expression ] ";"
-     *     | ";"
-     *     | ExpressionStatement
-     *     | Ident ":" Statement
-     */
     @SuppressWarnings("fallthrough")
-    public JCStatement parseStatement() {
+    List<JCStatement> blockStatement() {
+        ListBuffer<JCStatement> stats = new ListBuffer<JCStatement>();
         int pos = S.pos();
+
         switch (S.token()) {
         case LBRACE:
-            return block();
+            stats.add(block());
+            break;
         case IF: {
             S.nextToken();
             JCExpression cond = parExpression();
@@ -1720,7 +1626,8 @@ public class JavacParser implements Parser {
                 S.nextToken();
                 elsepart = parseStatement();
             }
-            return F.at(pos).If(cond, thenpart, elsepart);
+            stats.add(F.at(pos).If(cond, thenpart, elsepart));
+            break;
         }
         case FOR: {
             S.nextToken();
@@ -1738,7 +1645,7 @@ public class JavacParser implements Parser {
                 if (errorEndPos >= S.pos()) //error recovery
                     storeEnd(expr, errorEndPos);
                 JCStatement body = parseStatement();
-                return F.at(pos).ForeachLoop(var, expr, body);
+                stats.add(F.at(pos).ForeachLoop(var, expr, body));
             } else {
                 accept(SEMI);
                 if (errorEndPos >= S.pos() && inits.length() > 0) //error recovery
@@ -1752,14 +1659,16 @@ public class JavacParser implements Parser {
                 if (errorEndPos >= S.pos() && steps.length() > 0) //error recovery
                     storeEnd(steps.last(), errorEndPos);
                 JCStatement body = parseStatement();
-                return F.at(pos).ForLoop(inits, cond, steps, body);
+                stats.add(F.at(pos).ForLoop(inits, cond, steps, body));
             }
+            break;
         }
         case WHILE: {
             S.nextToken();
             JCExpression cond = parExpression();
             JCStatement body = parseStatement();
-            return F.at(pos).WhileLoop(cond, body);
+            stats.add(F.at(pos).WhileLoop(cond, body));
+            break;
         }
         case DO: {
             S.nextToken();
@@ -1768,7 +1677,8 @@ public class JavacParser implements Parser {
             JCExpression cond = parExpression();
             accept(SEMI);
             JCDoWhileLoop t = toP(F.at(pos).DoLoop(body, cond));
-            return t;
+            stats.add(t);
+            break;
         }
         case TRY: {
             S.nextToken();
@@ -1799,7 +1709,8 @@ public class JavacParser implements Parser {
             JCTry t = F.at(pos).Try(resources, body, catchers.toList(), finalizer);
             if (err != null)
                 error(t, err);
-            return t;
+            stats.add(t);
+            break;
         }
         case SWITCH: {
             S.nextToken();
@@ -1808,53 +1719,106 @@ public class JavacParser implements Parser {
             List<JCCase> cases = switchBlockStatementGroups();
             JCSwitch t = to(F.at(pos).Switch(selector, cases));
             accept(RBRACE);
-            return t;
+            stats.add(t);
+            break;
         }
         case SYNCHRONIZED: {
             S.nextToken();
             JCExpression lock = parExpression();
             JCBlock body = block();
-            return F.at(pos).Synchronized(lock, body);
+            stats.add(F.at(pos).Synchronized(lock, body));
+            break;
         }
         case RETURN: {
             S.nextToken();
             JCExpression result = S.token() == SEMI ? null : parseExpression();
             accept(SEMI);
             JCReturn t = toP(F.at(pos).Return(result));
-            return t;
+            stats.add(t);
+            break;
         }
         case THROW: {
             S.nextToken();
             JCExpression exc = parseExpression();
             accept(SEMI);
             JCThrow t = toP(F.at(pos).Throw(exc));
-            return t;
+            stats.add(t);
+            break;
         }
         case BREAK: {
             S.nextToken();
             Name label = (S.token() == IDENTIFIER || S.token() == ASSERT || S.token() == ENUM) ? ident() : null;
             accept(SEMI);
             JCBreak t = toP(F.at(pos).Break(label));
-            return t;
+            stats.add(t);
+            break;
         }
         case CONTINUE: {
             S.nextToken();
             Name label = (S.token() == IDENTIFIER || S.token() == ASSERT || S.token() == ENUM) ? ident() : null;
             accept(SEMI);
             JCContinue t =  toP(F.at(pos).Continue(label));
-            return t;
+            stats.add(t);
+            break;
         }
         case SEMI:
             S.nextToken();
-            return toP(F.at(pos).Skip());
+            stats.add(toP(F.at(pos).Skip()));
+            break;
         case ELSE:
-            return toP(F.Exec(syntaxError("else.without.if")));
+            stats.add(toP(F.Exec(syntaxError("else.without.if"))));
+            break;
         case FINALLY:
-            return toP(F.Exec(syntaxError("finally.without.try")));
+            stats.add(toP(F.Exec(syntaxError("finally.without.try"))));
+            break;
         case CATCH:
-            return toP(F.Exec(syntaxError("catch.without.try")));
-        case ASSERT: {
-            if (allowAsserts && S.token() == ASSERT) {
+            stats.add(toP(F.Exec(syntaxError("catch.without.try"))));
+            break;
+        case MONKEYS_AT:
+        case FINAL: {
+            String dc = S.docComment();
+            JCModifiers mods = modifiersOpt();
+            if (S.token() == INTERFACE ||
+                S.token() == CLASS ||
+                allowEnums && S.token() == ENUM) {
+                stats.append(classOrInterfaceOrEnumDeclaration(mods, dc));
+            } else {
+                JCExpression t = parseType();
+                stats.appendList(variableDeclarators(mods, t,
+                                                     new ListBuffer<JCStatement>()));
+                // A "LocalVariableDeclarationStatement" subsumes the terminating semicolon
+                storeEnd(stats.elems.last(), S.endPos());
+                accept(SEMI);
+            }
+            break;
+        }
+        case ABSTRACT: case STRICTFP: {
+            String dc = S.docComment();
+            JCModifiers mods = modifiersOpt();
+            if (S.token() == INTERFACE ||
+                S.token() == CLASS ||
+                allowEnums && S.token() == ENUM) {
+                stats.append(classOrInterfaceOrEnumDeclaration(mods, dc));
+            } else {
+                mode = EXPR;
+                stats.append(to(F.at(pos).Exec(illegal(pos))));
+            }
+            break;
+        }
+        case INTERFACE:
+        case CLASS:
+            stats.append(classOrInterfaceOrEnumDeclaration(modifiersOpt(),
+                                                           S.docComment()));
+            break;
+        case ENUM:
+        case ASSERT:
+            if (allowEnums && S.token() == ENUM) {
+                error(S.pos(), "local.enum");
+                stats.
+                    append(classOrInterfaceOrEnumDeclaration(modifiersOpt(),
+                                                             S.docComment()));
+                break;
+            } else if (allowAsserts && S.token() == ASSERT) {
                 S.nextToken();
                 JCExpression assertion = parseExpression();
                 JCExpression message = null;
@@ -1864,27 +1828,86 @@ public class JavacParser implements Parser {
                 }
                 accept(SEMI);
                 JCAssert t = toP(F.at(pos).Assert(assertion, message));
-                return t;
+                stats.append(t);
+                break;
             }
-            /* else fall through to default case */
-        }
-        case ENUM:
+            /* fall through to default */
         default:
             Name name = S.name();
-            JCExpression expr = parseExpression();
-            if (S.token() == COLON && expr.getTag() == JCTree.IDENT) {
+            JCExpression t = term(EXPR | TYPE);
+            if (S.token() == COLON && t.getTag() == JCTree.IDENT) {
                 S.nextToken();
                 JCStatement stat = parseStatement();
-                return F.at(pos).Labelled(name, stat);
+                stats.append(F.at(pos).Labelled(name, stat));
+            } else if ((lastmode & TYPE) != 0 &&
+                       (S.token() == IDENTIFIER ||
+                        S.token() == ASSERT ||
+                        S.token() == ENUM)) {
+                pos = S.pos();
+                JCModifiers mods = F.at(Position.NOPOS).Modifiers(0);
+                F.at(pos);
+                stats.appendList(variableDeclarators(mods, t,
+                                                     new ListBuffer<JCStatement>()));
+                // A "LocalVariableDeclarationStatement" subsumes the terminating semicolon
+                accept(SEMI);
+                storeEnd(stats.elems.last(), S.prevEndPos());
             } else {
                 // This Exec is an "ExpressionStatement"; it subsumes the terminating semicolon
-                JCExpressionStatement stat = to(F.at(pos).Exec(checkExprStat(expr)));
-                if (S.token() != SEMI) // Error recovery
-                    storeEnd(stat, S.pos());
                 accept(SEMI);
-                return stat;
+                stats.append(toP(F.at(pos).Exec(checkExprStat(t))));
             }
         }
+
+        return stats.toList();
+    }
+
+    /** Statement =
+     *       Block
+     *     | IF ParExpression Statement [ELSE Statement]
+     *     | FOR "(" ForInitOpt ";" [Expression] ";" ForUpdateOpt ")" Statement
+     *     | FOR "(" FormalParameter : Expression ")" Statement
+     *     | WHILE ParExpression Statement
+     *     | DO Statement WHILE ParExpression ";"
+     *     | TRY Block ( Catches | [Catches] FinallyPart )
+     *     | TRY "(" ResourceSpecification ")" Block [Catches] [FinallyPart]
+     *     | SWITCH ParExpression "{" SwitchBlockStatementGroups "}"
+     *     | SYNCHRONIZED ParExpression Block
+     *     | RETURN [Expression] ";"
+     *     | THROW Expression ";"
+     *     | BREAK [Ident] ";"
+     *     | CONTINUE [Ident] ";"
+     *     | ASSERT Expression [ ":" Expression ] ";"
+     *     | ";"
+     *     | ExpressionStatement
+     *     | Ident ":" Statement
+     */
+    @SuppressWarnings("fallthrough")
+    public JCStatement parseStatement() {
+        int pos = S.pos();
+        //error recovery: parse the statement as a block statement, and report
+        //error if the statement is a variable or class (otherwise, the tree would be
+        //very distorted):
+        List<JCStatement> statements = blockStatement();
+        JCStatement first = statements.head;
+        String error = null;
+
+        switch (first.getTag()) {
+        case JCTree.CLASSDEF:
+            error = "class.not.allowed";
+            break;
+        case JCTree.VARDEF:
+            error = "variable.not.allowed";
+            break;
+        }
+
+        if (error != null) {
+            error(first, error);
+            statements = List.<JCStatement>of(toP(F.at(pos).Exec(F.at(first.pos).Erroneous(statements))));
+        }
+
+        assert statements.size() == 1 : statements.toString();
+
+        return statements.head;
     }
 
     /** CatchClause     = CATCH "(" FormalParameter ")" Block
