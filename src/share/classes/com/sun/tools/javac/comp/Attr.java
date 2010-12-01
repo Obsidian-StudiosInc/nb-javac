@@ -1742,10 +1742,18 @@ public class Attr extends JCTree.Visitor {
                 //     }
                 if (Resolve.isStatic(env)) cdef.mods.flags |= STATIC;
 
+                JCExpression clazzCopy = new TreeCopier<JCTree>(make) {
+                    @Override
+                    public <T extends JCTree> T copy(T tree, JCTree p) {
+                        T t = super.copy(tree, p);
+                        t.pos = Position.NOPOS;
+                        return t;
+                    }                    
+                }.copy(clazz);
                 if (clazztype.tsym.isInterface()) {
-                    cdef.implementing = List.of(clazz);
+                    cdef.implementing = List.of(clazzCopy);
                 } else {
-                    cdef.extending = clazz;
+                    cdef.extending = clazzCopy;
                 }
 
                 attribStat(cdef, localEnv);
