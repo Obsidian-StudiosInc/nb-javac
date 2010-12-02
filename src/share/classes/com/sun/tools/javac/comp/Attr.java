@@ -1747,8 +1747,25 @@ public class Attr extends JCTree.Visitor {
                     public <T extends JCTree> T copy(T tree, JCTree p) {
                         T t = super.copy(tree, p);
                         t.pos = Position.NOPOS;
+                        t.type = tree.type;
                         return t;
-                    }                    
+                    }
+
+                    @Override public JCTree visitIdentifier(IdentifierTree node, JCTree p) {
+                        JCIdent result = (JCIdent) super.visitIdentifier(node, p);
+
+                        result.sym = ((JCIdent) node).sym;
+
+                        return result;
+                    }
+
+                    @Override public JCTree visitMemberSelect(MemberSelectTree node, JCTree p) {
+                        JCFieldAccess result = (JCFieldAccess) super.visitMemberSelect(node, p);
+
+                        result.sym = ((JCFieldAccess) node).sym;
+
+                        return result;
+                    }
                 }.copy(clazz);
                 if (clazztype.tsym.isInterface()) {
                     cdef.implementing = List.of(clazzCopy);
