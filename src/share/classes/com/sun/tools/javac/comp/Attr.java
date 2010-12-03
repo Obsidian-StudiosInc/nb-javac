@@ -1746,8 +1746,10 @@ public class Attr extends JCTree.Visitor {
                     @Override
                     public <T extends JCTree> T copy(T tree, JCTree p) {
                         T t = super.copy(tree, p);
-                        t.pos = Position.NOPOS;
-                        t.type = tree.type;
+                        if (t != null) {
+                            t.pos = Position.NOPOS;
+                            t.type = tree.type;
+                        }
                         return t;
                     }
 
