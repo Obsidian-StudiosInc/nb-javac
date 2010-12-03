@@ -88,4 +88,15 @@ public class AttrTest extends TestCase {
         }.scan(cut, null);
     }
 
+    public void testNPEFromNCTWithUnboundWildcard() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test; public class Test { { new java.util.ArrayList<java.util.List<?>>() {}; } }";
+
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        ct.analyze();
+    }
+
 }
