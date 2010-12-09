@@ -930,6 +930,8 @@ public class Flow extends TreeScanner {
         alive = resolveBreaks(tree, prevPendingExits) ||
             tree.cond != null && tree.cond.type != null && !tree.cond.type.isTrue();
         nextadr = nextadrPrev;
+        inits.excludeFrom(nextadr);
+        uninits.excludeFrom(nextadr);
     }
 
     public void visitForeachLoop(JCEnhancedForLoop tree) {
@@ -1088,10 +1090,10 @@ public class Flow extends TreeScanner {
         int nextadrCatch = nextadr;
 
         if (!unrefdResources.isEmpty() &&
-                lint.isEnabled(Lint.LintCategory.ARM)) {
+                lint.isEnabled(Lint.LintCategory.TRY)) {
             for (Map.Entry<VarSymbol, JCVariableDecl> e : unrefdResources.entrySet()) {
-                log.warning(e.getValue().pos(),
-                            "automatic.resource.not.referenced", e.getKey());
+                log.warning(Lint.LintCategory.TRY, e.getValue().pos(),
+                            "try.resource.not.referenced", e.getKey());
             }
         }
 
@@ -1425,11 +1427,24 @@ public class Flow extends TreeScanner {
         if (tree.type != null && !tree.type.isErroneous()
             && lint.isEnabled(Lint.LintCategory.CAST)
             && types.isSameType(tree.expr.type, tree.clazz.type)
-            && !(ignoreAnnotatedCasts && containsTypeAnnotation(tree.clazz))) {
+            && !(ignoreAnnotatedCasts && containsTypeAnnotation(tree.clazz))
+            && !is292targetTypeCast(tree)) {
             log.warning(Lint.LintCategory.CAST,
                     tree.pos(), "redundant.cast", tree.expr.type);
         }
     }
+    //where
+        private boolean is292targetTypeCast(JCTypeCast tree) {
+            boolean is292targetTypeCast = false;
+            if (tree.expr.getTag() == JCTree.APPLY) {
+                JCMethodInvocation apply = (JCMethodInvocation)tree.expr;
+                Symbol sym = TreeInfo.symbol(apply.meth);
+                is292targetTypeCast = sym != null &&
+                    sym.kind == MTH &&
+                    (sym.flags() & POLYMORPHIC_SIGNATURE) != 0;
+            }
+            return is292targetTypeCast;
+        }
 
     public void visitTopLevel(JCCompilationUnit tree) {
         // Do nothing for TopLevel since each class is visited individually
