@@ -143,6 +143,11 @@ public class Lint
         CAST("cast"),
 
         /**
+         * Warn about issues related to classfile contents
+         */
+        CLASSFILE("classfile"),
+
+        /**
          * Warn about use of deprecated items.
          */
         DEPRECATION("deprecation"),
@@ -174,6 +179,11 @@ public class Lint
         FINALLY("finally"),
 
         /**
+         * Warn about issues relating to use of command line options
+         */
+        OPTIONS("options"),
+
+        /**
          * Warn about issues regarding method overrides.
          */
         OVERRIDES("overrides"),
@@ -191,24 +201,14 @@ public class Lint
         PROCESSING("processing"),
 
         /**
-         * Warn about Serializable classes that do not provide a serial version ID.
-         */
-        SERIAL("serial"),
-
-        /**
-         * Warn about unchecked operations on raw types.
-         */
-        UNCHECKED("unchecked"),
-
-        /**
          * Warn about unchecked operations on raw types.
          */
         RAW("rawtypes"),
 
         /**
-         * Warn about proprietary API that may be removed in a future release.
+         * Warn about Serializable classes that do not provide a serial version ID.
          */
-        SUNAPI("sunapi", true),
+        SERIAL("serial"),
 
         /**
          * Warn about issues relating to use of statics
@@ -216,14 +216,24 @@ public class Lint
         STATIC("static"),
 
         /**
-         * Warn about potentially unsafe vararg methods
+         * Warn about proprietary API that may be removed in a future release.
          */
-        VARARGS("varargs"),
+        SUNAPI("sunapi", true),
 
         /**
-         * Warn about arm resources
+         * Warn about issues relating to use of try blocks (i.e. try-with-resources)
          */
-        ARM("arm");
+        TRY("try"),
+
+        /**
+         * Warn about unchecked operations on raw types.
+         */
+        UNCHECKED("unchecked"),
+
+        /**
+         * Warn about potentially unsafe vararg methods
+         */
+        VARARGS("varargs");
 
         LintCategory(String option) {
             this(option, false);

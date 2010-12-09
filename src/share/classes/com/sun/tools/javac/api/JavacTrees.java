@@ -47,6 +47,7 @@ import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Enter;
@@ -216,7 +217,7 @@ public class JavacTrees extends Trees {
     public boolean isAccessible(Scope scope, TypeElement type) {
         if (scope instanceof JavacScope && type instanceof ClassSymbol) {
             Env<AttrContext> env = ((JavacScope) scope).env;
-            return resolve.isAccessible(env, (ClassSymbol)type);
+            return resolve.isAccessible(env, (ClassSymbol)type, true);
         } else
             return false;
     }
@@ -226,7 +227,7 @@ public class JavacTrees extends Trees {
                 && member instanceof Symbol
                 && type instanceof com.sun.tools.javac.code.Type) {
             Env<AttrContext> env = ((JavacScope) scope).env;
-            return resolve.isAccessible(env, (com.sun.tools.javac.code.Type)type, (Symbol)member);
+            return resolve.isAccessible(env, (com.sun.tools.javac.code.Type)type, (Symbol)member, true);
         } else
             return false;
     }

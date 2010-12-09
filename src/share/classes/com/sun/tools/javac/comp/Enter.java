@@ -25,28 +25,29 @@
 
 package com.sun.tools.javac.comp;
 
-import com.sun.tools.javac.api.DuplicateClassChecker;
 import java.net.URI;
 import java.util.*;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.util.ElementScanner6;
 import javax.tools.JavaFileObject;
 import javax.tools.JavaFileManager;
 
+import com.sun.tools.javac.api.DuplicateClassChecker;
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Scope.*;
+import com.sun.tools.javac.code.Symbol.*;
+import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.jvm.*;
-import com.sun.tools.javac.tree.*;
-import com.sun.tools.javac.util.*;
+import com.sun.tools.javac.main.RecognizedOptions.PkgInfo;
 import com.sun.tools.javac.model.LazyTreeLoader;
+import com.sun.tools.javac.tree.*;
+import com.sun.tools.javac.tree.JCTree.*;
+import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
 
-import com.sun.tools.javac.code.Type.*;
-import com.sun.tools.javac.code.Symbol.*;
-import com.sun.tools.javac.main.RecognizedOptions.PkgInfo;
-import com.sun.tools.javac.tree.JCTree.*;
-import javax.lang.model.util.ElementScanner6;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
@@ -236,8 +237,8 @@ public class Enter extends JCTree.Visitor {
         Env<AttrContext> localEnv = new Env<AttrContext>(tree, new AttrContext());
         localEnv.toplevel = tree;
         localEnv.enclClass = predefClassDef;
-        tree.namedImportScope = new Scope.ImportScope(tree.packge);
-        tree.starImportScope = new Scope.ImportScope(tree.packge);
+        tree.namedImportScope = new ImportScope(tree.packge);
+        tree.starImportScope = new StarImportScope(tree.packge);
         localEnv.info.scope = tree.namedImportScope;
         localEnv.info.lint = lint;
         return localEnv;

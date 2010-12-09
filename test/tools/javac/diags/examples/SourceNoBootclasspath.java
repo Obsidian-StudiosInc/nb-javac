@@ -21,11 +21,7 @@
  * questions.
  */
 
-// key: compiler.err.unsupported.exotic.id
+// key: compiler.warn.source.no.bootclasspath
 // options: -source 6
 
-class UnsupportedExoticID {
-    void m() {
-        Object #"Hello!" = null;
-    }
-}
+class SourceNoBootclasspath { }
