@@ -199,7 +199,7 @@ public class Resolve {
                     isInnerSubClass(env.enclClass.sym, c.owner);
                 break;
         }
-        return (checkInner == false || c.type.getEnclosingType() == Type.noType) ?
+        return (checkInner == false || c.type.isErroneous() || c.type.getEnclosingType() == Type.noType) ?
             isAccessible :
             isAccessible & isAccessible(env, c.type.getEnclosingType(), checkInner);
     }
