@@ -155,6 +155,7 @@ public class Names {
     public final Name java_lang_AutoCloseable;
     public final Name close;
     public final Name addSuppressed;
+    public final Name addSuppressedException;
 
     public final Name.Table table;
 
@@ -277,6 +278,7 @@ public class Names {
         java_lang_AutoCloseable = fromString("java.lang.AutoCloseable");
         close = fromString("close");
         addSuppressed = fromString("addSuppressed");
+        addSuppressedException = fromString("addSuppressedException");
     }
 
     protected Name.Table createTable(Context context) {

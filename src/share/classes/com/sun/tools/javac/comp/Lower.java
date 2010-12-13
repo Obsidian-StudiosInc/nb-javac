@@ -1516,10 +1516,25 @@ public class Lower extends TreeTranslator {
             new VarSymbol(0, make.paramName(2),
                           syms.throwableType,
                           currentMethodSym);
-        JCStatement addSuppressionStatement =
-            make.Exec(makeCall(make.Ident(primaryException),
-                               names.addSuppressed,
-                               List.<JCExpression>of(make.Ident(catchException))));
+        boolean prevDeferDiags = log.deferDiagnostics;
+        Queue<JCDiagnostic> prevDeferredDiags = log.deferredDiagnostics;
+        JCMethodInvocation call;
+        try {
+            //disable diagnostics
+            log.deferDiagnostics = true;
+            log.deferredDiagnostics = ListBuffer.lb();
+            call = makeCall(make.Ident(primaryException),
+                    names.addSuppressed,
+                    List.<JCExpression>of(make.Ident(catchException)));
+        } catch (FatalError e) {
+            call = makeCall(make.Ident(primaryException),
+                    names.addSuppressedException,
+                    List.<JCExpression>of(make.Ident(catchException)));
+        } finally {
+            log.deferDiagnostics = prevDeferDiags;
+            log.deferredDiagnostics = prevDeferredDiags;
+        }
+        JCStatement addSuppressionStatement = make.Exec(call);
 
         // try { resource.close(); } catch (e) { primaryException.addSuppressed(e); }
         JCBlock tryBlock =
