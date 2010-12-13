@@ -101,6 +101,7 @@ public class Repair extends TreeTranslator {
     private JCDiagnostic err;
     private JCTree classLevelErrTree;
     private String classLevelErrMessage;
+    private String errMessage;
     private JCBlock staticInit;
     private List<JCTree> parents;
     private Set<ClassSymbol> repairedClasses = new HashSet<ClassSymbol>();
@@ -135,8 +136,11 @@ public class Repair extends TreeTranslator {
         }
         if (tree.type != null && tree.type.isErroneous()) {
             JCTree parent = parents.head;
-            if (parent == null || parent.getTag() != JCTree.CLASSDEF)
+            if (parent == null || parent.getTag() != JCTree.CLASSDEF) {
                 hasError = true;
+                if (err == null && errMessage == null)
+                    errMessage = "Erroneous tree type: " + tree.type;
+            }
         }
         if (!(hasError && tree instanceof JCStatement))
             return tree;
@@ -147,9 +151,10 @@ public class Repair extends TreeTranslator {
             if (parent == null || (parent.getTag() != JCTree.BLOCK && parent.getTag() != JCTree.CASE))
                 return tree;
         }
-        String msg = err != null ? err.getMessage(null) : null;
+        String msg = err != null ? err.getMessage(null) : errMessage;
         hasError = false;
         err = null;
+        errMessage = null;
         if (tree.getTag() == JCTree.BLOCK) {
             ((JCBlock)tree).stats = List.of(generateErrStat(tree.pos(), msg));
             return tree;
@@ -172,6 +177,8 @@ public class Repair extends TreeTranslator {
         if (tree.type != null && tree.type.tag == TypeTags.TYPEVAR) {
             Type.TypeVar tv = (Type.TypeVar)tree.type;
             if (tv.bound != null && tv.bound.isErroneous()) {
+                if (err == null && errMessage == null)
+                    errMessage = "Erroneous type var bound: " + tv.bound;
                 tv.bound = syms.objectType;
                 hasError = true;
             }
@@ -194,15 +201,18 @@ public class Repair extends TreeTranslator {
         if (hasError) {
             JCTree parent = parents != null ? parents.tail.head : null;
             if (parent != null && parent.getTag() == JCTree.CLASSDEF) {
-                tree.init = err != null ? generateErrExpr(err.getTree(), err.getMessage(null)) : generateErrExpr(tree.init, null);
+                tree.init = err != null ? generateErrExpr(err.getTree(), err.getMessage(null)) : generateErrExpr(tree.init, errMessage);
                 hasError = false;
                 err = null;
+                errMessage = null;
             }
         } else if (tree.sym == null) {
             JCTree parent = parents != null ? parents.tail.head : null;
             if (parent != null && parent.getTag() != JCTree.CLASSDEF) {
                 hasError = true;
-            }
+                if (err == null && errMessage == null)
+                    errMessage = "Null tree sym: " + tree;
+           }
         }
     }
 
@@ -231,16 +241,17 @@ public class Repair extends TreeTranslator {
             if (tree.body != null) {
                 if (tree.sym != null)
                     tree.sym.flags_field &= ~(Flags.ABSTRACT | Flags.NATIVE);
-                tree.body.stats = List.of(generateErrStat(tree.pos(), err != null ? err.getMessage(null) : null));
+                tree.body.stats = List.of(generateErrStat(tree.pos(), err != null ? err.getMessage(null) : errMessage));
             } else if (tree.sym == null || (tree.sym.flags_field & Flags.ABSTRACT) == 0) {
                 tree.body = make.Block(0, List.<JCStatement>nil());
-                tree.body.stats = List.of(generateErrStat(tree.pos(), err != null ? err.getMessage(null) : null));
+                tree.body.stats = List.of(generateErrStat(tree.pos(), err != null ? err.getMessage(null) : errMessage));
             }
             if (tree.sym != null)
                 tree.sym.defaultValue = null;
             tree.defaultValue = null;
             hasError = false;
             err = null;
+            errMessage = null;
         }
     }
 
@@ -265,8 +276,16 @@ public class Repair extends TreeTranslator {
         if (meth == null) {
             LOGGER.warning("Repair.visitApply tree [" + tree + "] has null symbol."); //NOI18N
             hasError = true;
-        } else if (meth.type == null || meth.type.isErroneous()) {
+            if (err == null && errMessage == null)
+                errMessage = "Null tree sym: " + tree.meth;
+        } else if (meth.type == null) {
             hasError = true;
+            if (err == null && errMessage == null)
+                errMessage = "Null sym type: " + meth;
+        } else if (meth.type.isErroneous()) {
+            hasError = true;
+            if (err == null && errMessage == null)
+                errMessage = "Erroneous sym type: " + meth.type;
         }
         super.visitApply(tree);
     }
@@ -277,8 +296,16 @@ public class Repair extends TreeTranslator {
         if (ctor == null) {
             LOGGER.warning("Repair.visitNewClass tree [" + tree + "] has null constructor symbol."); //NOI18N
             hasError = true;
-        } else if (tree.constructorType == null || tree.constructorType.isErroneous()) {
+            if (err == null && errMessage == null)
+                errMessage = "Null tree ctor sym: " + tree.constructor;
+        } else if (tree.constructorType == null) {
             hasError = true;
+            if (err == null && errMessage == null)
+                errMessage = "Null ctor sym type: " + ctor;
+        } else if (tree.constructorType.isErroneous()) {
+            hasError = true;
+            if (err == null && errMessage == null)
+                errMessage = "Erroneous ctor sym type: " + tree.constructorType;
         }
         super.visitNewClass(tree);
     }
@@ -289,6 +316,8 @@ public class Repair extends TreeTranslator {
         if (operator == null) {
             LOGGER.warning("Repair.visitUnary tree [" + tree + "] has null operator symbol."); //NOI18N
             hasError = true;
+            if (err == null && errMessage == null)
+                errMessage = "Null operator: " + tree;
         }
         super.visitUnary(tree);
     }
@@ -299,6 +328,8 @@ public class Repair extends TreeTranslator {
         if (operator == null) {
             LOGGER.warning("Repair.visitBinary tree [" + tree + "] has null operator symbol."); //NOI18N
             hasError = true;
+            if (err == null && errMessage == null)
+                errMessage = "Null operator: " + tree;
         }
         super.visitBinary(tree);
     }
@@ -309,6 +340,8 @@ public class Repair extends TreeTranslator {
         if (operator == null) {
             LOGGER.warning("Repair.visitAssignop tree [" + tree + "] has null operator symbol."); //NOI18N
             hasError = true;
+            if (err == null && errMessage == null)
+                errMessage = "Null operator: " + tree;
         }
         super.visitAssignop(tree);
     }
