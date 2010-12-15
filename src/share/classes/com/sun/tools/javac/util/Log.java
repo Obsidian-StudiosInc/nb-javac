@@ -473,7 +473,7 @@ public class Log extends AbstractLog {
                         errTrees.put(diagnostic.getTree(), diagnostic);
                 }
                 if (nerrors < MaxErrors
-                    && shouldReport(diagnostic.getSource(), diagnostic.getIntPosition())) {
+                    && ("compiler.err.proc.messager".equals(diagnostic.getCode()) || shouldReport(diagnostic.getSource(), diagnostic.getIntPosition()))) {
                     writeDiagnostic(diagnostic);
                     nerrors++;
                 }
