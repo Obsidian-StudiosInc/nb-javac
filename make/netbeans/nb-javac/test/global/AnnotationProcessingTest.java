@@ -26,11 +26,16 @@
 package global;
 
 import com.sun.source.util.JavacTask;
+import global.ap1.AP;
+import global.ap1.ErrorProducingAP;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
@@ -72,6 +77,12 @@ public class AnnotationProcessingTest extends TestCase {
         performErrorsTest(code, 1);
     }
 
+    public void testDuplicatedErrorsReported() throws IOException {
+        String code = "package test; @global.ap1.Ann(fqnToGenerate=\"test.H\", content=\"package test; public class H {}\") public class Test {}";
+
+        performAPErrorsTest(code, "14-117:message 1", "14-117:message 2", "14-117:message 3");
+    }
+
     private void performErrorsTest(String code, int expectedErrors) throws IOException {
         File sourceOutput = File.createTempFile("NoFalseErrorsFromAP", "");
         sourceOutput.delete();
@@ -83,9 +94,35 @@ public class AnnotationProcessingTest extends TestCase {
 
         URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
         DiagnosticCollector<JavaFileObject> diagnostic = new DiagnosticCollector<JavaFileObject>();
-        JavacTask ct = (JavacTask)tool.getTask(null, null, diagnostic, Arrays.asList("-bootclasspath",  bootPath, "-source", "1.6", "-classpath", myself.toExternalForm(), "-processor", "global.ap1.AP", "-s", sourceOutput.getAbsolutePath(), "-XDbackgroundCompilation"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTask ct = (JavacTask)tool.getTask(null, null, diagnostic, Arrays.asList("-bootclasspath",  bootPath, "-source", "1.6", "-classpath", myself.toExternalForm(), "-processor", AP.class.getName(), "-s", sourceOutput.getAbsolutePath(), "-XDbackgroundCompilation"), null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();
         assertEquals(diagnostic.getDiagnostics().toString(), expectedErrors, diagnostic.getDiagnostics().size());
+
+        //intentionally not deleting thwn the test fails to simply diagnostic
+        delete(sourceOutput);
+    }
+
+    private void performAPErrorsTest(String code, String... goldenErrors) throws IOException {
+        File sourceOutput = File.createTempFile("NoFalseErrorsFromAP", "");
+        sourceOutput.delete();
+        assertTrue(sourceOutput.mkdirs());
+
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
+        DiagnosticCollector<JavaFileObject> diagnostic = new DiagnosticCollector<JavaFileObject>();
+        JavacTask ct = (JavacTask)tool.getTask(null, null, diagnostic, Arrays.asList("-bootclasspath",  bootPath, "-source", "1.6", "-classpath", myself.toExternalForm(), "-processor", ErrorProducingAP.class.getName(), "-s", sourceOutput.getAbsolutePath(), "-XDbackgroundCompilation"), null, Arrays.asList(new MyFileObject(code)));
+        ct.analyze();
+
+        List<String> actualErrors = new ArrayList<String>();
+
+        for (Diagnostic<? extends JavaFileObject> d : diagnostic.getDiagnostics()) {
+            actualErrors.add(d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getMessage(null));
+        }
+
+        assertEquals(Arrays.asList(goldenErrors), actualErrors);
 
         //intentionally not deleting thwn the test fails to simply diagnostic
         delete(sourceOutput);
