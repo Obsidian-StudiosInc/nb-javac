@@ -485,7 +485,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
             return null;
         Type sup = env.types.supertype(type);
         return TypeMaker.getType(env,
-                                 (sup != type) ? sup : env.syms.objectType);
+                (sup != type && (sup.tag == TypeTags.CLASS || sup.tag == TypeTags.ERROR)) ? sup : env.syms.objectType);
     }
 
     /**
@@ -742,7 +742,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
                 //### I believe it is attempting to compensate for the confused
                 //### convention of including the nested class qualifiers in the
                 //### 'name' of the inner class, rather than the true simple name.
-                innerClasses[i].name().endsWith(className)) {
+                innerClasses[i].name().endsWith("." + className)) {
                 return innerClasses[i];
             } else {
                 ClassDoc innercd = ((ClassDocImpl) innerClasses[i]).searchClass(className);

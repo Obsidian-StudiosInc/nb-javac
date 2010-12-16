@@ -26,6 +26,7 @@
 package com.sun.tools.javac.comp;
 
 import java.util.*;
+import java.util.logging.Logger;
 
 import javax.lang.model.element.ElementKind;
 
@@ -155,7 +156,7 @@ public class TransTypes extends TreeTranslator {
      */
     JCExpression retype(JCExpression tree, Type erasedType, Type target) {
 //      System.err.println("retype " + tree + " to " + erasedType);//DEBUG
-        if (erasedType.tag > lastBaseTag) {
+        if (erasedType != null && erasedType.tag > lastBaseTag) {
             if (target != null && target.isPrimitive())
                 target = erasure(tree.type);
             tree.type = erasedType;
@@ -410,6 +411,21 @@ public class TransTypes extends TreeTranslator {
             addBridges(pos, l.head.tsym, origin, bridges);
     }
 
+
+    public void getBridges (DiagnosticPosition pos, ClassSymbol origin, ListBuffer<JCTree> bridges) {
+
+        Env<AttrContext> myEnv = enter.typeEnvs.get(origin);
+        if (myEnv == null)
+            return;
+        Env<AttrContext> oldEnv = env;
+        try {
+            env = myEnv;
+            addBridges (pos, origin, bridges);
+        } finally {
+            env = oldEnv;
+        }
+    }
+
 /* ************************************************************************
  * Visitor methods
  *************************************************************************/
@@ -471,7 +487,7 @@ public class TransTypes extends TreeTranslator {
         for (Scope.Entry e = tree.sym.owner.members().lookup(tree.name);
              e.sym != null;
              e = e.next()) {
-            if (e.sym != tree.sym &&
+            if (e.sym != tree.sym && tree.type != null &&
                 types.isSameType(erasure(e.sym.type), tree.type)) {
                 log.error(tree.pos(),
                           "name.clash.same.erasure", tree.sym,
@@ -598,7 +614,7 @@ public class TransTypes extends TreeTranslator {
         if (tree.varargsElement != null)
             tree.varargsElement = types.erasure(tree.varargsElement);
         else
-            assert tree.args.length() == argtypes.length();
+            assert tree.args.length() == argtypes.length() : "[" + meth.owner + "]'s method [" + meth + "] of type: [" + mt + "]; has different number of parameters than tree [" + tree + "].\nEnv tree: [" + env.tree + "]"; //NOI18N
         tree.args = translateArgs(tree.args, argtypes, tree.varargsElement);
 
         // Insert casts of method invocation results as needed.
@@ -646,19 +662,24 @@ public class TransTypes extends TreeTranslator {
 
     public void visitAssignop(JCAssignOp tree) {
         tree.lhs = translate(tree.lhs, null);
-        tree.rhs = translate(tree.rhs, tree.operator.type.getParameterTypes().tail.head);
+        if (tree.operator != null)
+            tree.rhs = translate(tree.rhs, tree.operator.type.getParameterTypes().tail.head);
         tree.type = erasure(tree.type);
         result = tree;
     }
 
     public void visitUnary(JCUnary tree) {
-        tree.arg = translate(tree.arg, tree.operator.type.getParameterTypes().head);
+        if (tree.operator != null) {
+            tree.arg = translate(tree.arg, tree.operator.type.getParameterTypes().head);
+        }
         result = tree;
     }
 
     public void visitBinary(JCBinary tree) {
-        tree.lhs = translate(tree.lhs, tree.operator.type.getParameterTypes().head);
-        tree.rhs = translate(tree.rhs, tree.operator.type.getParameterTypes().tail.head);
+        if (tree.operator != null) {
+            tree.lhs = translate(tree.lhs, tree.operator.type.getParameterTypes().head);
+            tree.rhs = translate(tree.rhs, tree.operator.type.getParameterTypes().tail.head);
+        }
         result = tree;
     }
 
@@ -857,6 +878,8 @@ public class TransTypes extends TreeTranslator {
         if (st.tag == CLASS)
             translateClass((ClassSymbol)st.tsym);
 
+        if ((c.flags_field & UNATTRIBUTED) != 0)
+            Logger.getLogger(TransTypes.class.getName()).warning("TransTypes.translateClass removes unattributed class: [" + c + "] form the typeEnvs map."); //NOI18N
         Env<AttrContext> myEnv = enter.typeEnvs.remove(c);
         if (myEnv == null)
             return;

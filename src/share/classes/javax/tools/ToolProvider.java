@@ -172,7 +172,8 @@ public class ToolProvider {
     {
         // try loading class directly, in case tool is on the bootclasspath
         try {
-            return enableAsserts(Class.forName(toolClassName, false, null));
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            return enableAsserts(Class.forName(toolClassName, false, cl));
         } catch (ClassNotFoundException e) {
             trace(FINE, e);
 
@@ -212,7 +213,7 @@ public class ToolProvider {
                 trace(FINE, "loader == null");
         } catch (SecurityException ex) {
             trace(FINE, ex);
-        }
+            }
         return cls;
     }
 

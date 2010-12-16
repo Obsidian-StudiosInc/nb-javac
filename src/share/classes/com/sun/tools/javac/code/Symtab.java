@@ -49,7 +49,7 @@ import static com.sun.tools.javac.code.Flags.*;
  */
 public class Symtab {
     /** The context key for the symbol table. */
-    protected static final Context.Key<Symtab> symtabKey =
+    public static final Context.Key<Symtab> symtabKey =
         new Context.Key<Symtab>();
 
     /** Get the symbol table instance. */
@@ -356,7 +356,11 @@ public class Symtab {
                     return messages.getLocalizedString("compiler.misc.unnamed.package");
                 }
             };
-        noSymbol = new TypeSymbol(0, names.empty, Type.noType, rootPackage);
+        noSymbol = new TypeSymbol(0, names.empty, Type.noType, rootPackage) {
+            public boolean hasOuterInstance() {
+                return false;
+            }
+        };
         noSymbol.kind = Kinds.NIL;
 
         // create the error symbols
