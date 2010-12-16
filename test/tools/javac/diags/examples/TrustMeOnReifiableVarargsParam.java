@@ -21,6 +21,10 @@
  * questions.
  */
 
-class VarargsPlural<T> {
-    void m(T... items) { }
+// key: compiler.warn.varargs.redundant.trustme.anno
+// key: compiler.misc.varargs.trustme.on.reifiable.varargs
+// options: -Xlint:varargs
+
+class TrustMeOnReifiableVarargsParam {
+    @SafeVarargs static void m(String... args) { }
 }

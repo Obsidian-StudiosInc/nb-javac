@@ -83,6 +83,7 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
     private final LazyTreeLoader treeLoader;
 
     private final boolean skipAnnotations;
+    private final boolean allowSimplifiedVarargs;
     private final boolean ignoreNoLang;
 
     public static MemberEnter instance(Context context) {
@@ -110,6 +111,8 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
         target = Target.instance(context);
         Options options = Options.instance(context);
         skipAnnotations = options.isSet("skipAnnotations");
+        Source source = Source.instance(context);
+        allowSimplifiedVarargs = source.allowSimplifiedVarargs();
         boolean ideMode = options.get("ide") != null;
         boolean backgroundCompilation = options.get("backgroundCompilation") != null;
         ignoreNoLang = ideMode && !backgroundCompilation;
@@ -736,6 +739,14 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             localEnv.info.staticLevel++;
         }
         attr.attribType(tree.vartype, localEnv);
+        if ((tree.mods.flags & VARARGS) != 0) {
+            //if we are entering a varargs parameter, we need to replace its type
+            //(a plain array type) with the more precise VarargsType --- we need
+            //to do it this way because varargs is represented in the tree as a modifier
+            //on the parameter declaration, and not as a distinct type of array node.
+            ArrayType atype = (ArrayType)tree.vartype.type;
+            tree.vartype.type = atype.makeVarargs();
+        }
         Scope enclScope = enter.enterScope(env);
         VarSymbol v = null;
         boolean doEnterSymbol = true;

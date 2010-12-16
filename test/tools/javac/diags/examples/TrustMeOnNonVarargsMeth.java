@@ -21,10 +21,10 @@
  * questions.
  */
 
-// key: compiler.note.varargs.plural.additional
-// key: compiler.warn.varargs.non.reifiable.type
-// options: -Xlint:varargs -Xmaxwarns 1
+// key: compiler.err.varargs.invalid.trustme.anno
+// key: compiler.misc.varargs.trustme.on.non.varargs.meth
+// options: -Xlint:varargs
 
-class VarargsPluralAdditional<T> {
-    void m(T... items) { }
+class TrustMeOnNonVarargsMeth {
+    @SafeVarargs static void m(String[] args) { }
 }

@@ -107,9 +107,14 @@ public class ClassReader implements Completer {
      */
     boolean allowAnnotations;
 
-    /** Lint option: warn about classfile issues
+    /** Switch: allow simplified varargs.
+     */
+    boolean allowSimplifiedVarargs;
+
+   /** Lint option: warn about classfile issues
      */
     boolean lintClassfile;
+
 
     /** Switch: preserve parameter names from the variable table.
      */
@@ -286,6 +291,7 @@ public class ClassReader implements Completer {
         allowGenerics    = source.allowGenerics();
         allowVarargs     = source.allowVarargs();
         allowAnnotations = source.allowAnnotations();
+        allowSimplifiedVarargs = source.allowSimplifiedVarargs();
         saveParameterNames = options.isSet("save-parameter-names");
         cacheCompletionFailure = options.isUnset("dev");
         preferSource = "source".equals(options.get("-Xprefer"));
@@ -888,7 +894,7 @@ public class ClassReader implements Completer {
 
     protected enum AttributeKind { CLASS, MEMBER };
     protected abstract class AttributeReader {
-        AttributeReader(Name name, Version version, Set<AttributeKind> kinds) {
+        AttributeReader(Name name, ClassFile.Version version, Set<AttributeKind> kinds) {
             this.name = name;
             this.version = version;
             this.kinds = kinds;
@@ -918,7 +924,7 @@ public class ClassReader implements Completer {
         abstract void read(Symbol sym, int attrLen);
 
         final Name name;
-        final Version version;
+        final ClassFile.Version version;
         final Set<AttributeKind> kinds;
     }
 
@@ -1940,7 +1946,7 @@ public class ClassReader implements Completer {
             // instance, however, there is no reliable way to tell so
             // we never strip this$n
             if (!currentOwner.name.isEmpty())
-                type = new MethodType(type.getParameterTypes().tail,
+                type = new MethodType(adjustMethodParams(flags, type.getParameterTypes()),
                                       type.getReturnType(),
                                       type.getThrownTypes(),
                                       syms.methodClass);
@@ -1958,6 +1964,21 @@ public class ClassReader implements Completer {
         if (saveParameterNames)
             setParameterNames(m, type);
         return m;
+    }
+
+    private List<Type> adjustMethodParams(long flags, List<Type> args) {
+        boolean isVarargs = (flags & VARARGS) != 0;
+        if (isVarargs) {
+            Type varargsElem = args.last();
+            ListBuffer<Type> adjustedArgs = ListBuffer.lb();
+            for (Type t : args) {
+                adjustedArgs.append(t != varargsElem ?
+                    t :
+                    ((ArrayType)t).makeVarargs());
+            }
+            args = adjustedArgs.toList();
+        }
+        return args.tail;
     }
 
     /**

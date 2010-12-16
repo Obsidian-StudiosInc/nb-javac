@@ -40,6 +40,7 @@ import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
 
 import com.sun.tools.javac.jvm.Target;
+import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.code.Type.*;
@@ -697,6 +698,7 @@ public class Attr extends JCTree.Visitor {
         }
         Lint lint = env.info.lint.augment(m.attributes_field, m.flags());
         Lint prevLint = chk.setLint(lint);
+        MethodSymbol prevMethod = chk.setMethod(m);
         try {
             chk.checkDeprecatedAnnotation(tree.pos(), m);
 
@@ -704,6 +706,7 @@ public class Attr extends JCTree.Visitor {
 
             // If we override any other methods, check that we do so properly.
             // JLS ???
+            chk.checkClashes(tree.pos(), env.enclClass.type, m);
             chk.checkOverride(tree, m);
 
             // Create a new environment with local scope
@@ -727,7 +730,7 @@ public class Attr extends JCTree.Visitor {
                 attribStat(l.head, localEnv);
             }
 
-            chk.checkVarargMethodDecl(tree);
+            chk.checkVarargsMethodDecl(localEnv, tree);
 
             // Check that type parameters are well-formed.
             chk.validate(tree.typarams, localEnv);
@@ -818,6 +821,7 @@ public class Attr extends JCTree.Visitor {
         }
         finally {
             chk.setLint(prevLint);
+            chk.setMethod(prevMethod);
         }
     }
 
@@ -2345,8 +2349,8 @@ public class Attr extends JCTree.Visitor {
                 ((VarSymbol)sitesym).isResourceVariable() &&
                 sym.kind == MTH &&
                 sym.overrides(syms.autoCloseableClose, sitesym.type.tsym, types, true) &&
-                env.info.lint.isEnabled(Lint.LintCategory.TRY)) {
-            log.warning(Lint.LintCategory.TRY, tree, "try.explicit.close.call");
+                env.info.lint.isEnabled(LintCategory.TRY)) {
+            log.warning(LintCategory.TRY, tree, "try.explicit.close.call");
         }
 
         // Disallow selecting a type from an expression
@@ -2773,7 +2777,7 @@ public class Attr extends JCTree.Visitor {
         // For methods, we need to compute the instance type by
         // Resolve.instantiate from the symbol's type as well as
         // any type arguments and value arguments.
-        noteWarner.warned = false;
+        noteWarner.clear();
         Type owntype = rs.instantiate(env,
                                       site,
                                       sym,
@@ -2782,7 +2786,7 @@ public class Attr extends JCTree.Visitor {
                                       true,
                                       useVarargs,
                                       noteWarner);
-        boolean warned = noteWarner.warned;
+        boolean warned = noteWarner.hasNonSilentLint(LintCategory.UNCHECKED);
 
         // If this fails, something went wrong; we should not have
         // found the identifier in the first place.
@@ -2807,7 +2811,7 @@ public class Attr extends JCTree.Visitor {
                 JCTree arg = args.head;
                 Warner warn = chk.convertWarner(arg.pos(), arg.type, formals.head);
                 assertConvertible(arg, arg.type, formals.head, warn);
-                warned |= warn.warned;
+                warned |= warn.hasNonSilentLint(LintCategory.UNCHECKED);
                 args = args.tail;
                 formals = formals.tail;
             }
@@ -2817,7 +2821,7 @@ public class Attr extends JCTree.Visitor {
                     JCTree arg = args.head;
                     Warner warn = chk.convertWarner(arg.pos(), arg.type, varArg);
                     assertConvertible(arg, arg.type, varArg, warn);
-                    warned |= warn.warned;
+                    warned |= warn.hasNonSilentLint(LintCategory.UNCHECKED);
                     args = args.tail;
                 }
             } else if ((sym.flags() & VARARGS) != 0 && allowVarargs) {
@@ -2849,7 +2853,7 @@ public class Attr extends JCTree.Visitor {
                 JCTree tree = env.tree;
                 Type argtype = owntype.getParameterTypes().last();
                 if (owntype.getReturnType().tag != FORALL || warned) {
-                    chk.checkVararg(env.tree.pos(), owntype.getParameterTypes(), sym, env);
+                    chk.checkVararg(env.tree.pos(), owntype.getParameterTypes(), sym);
                 }
                 Type elemtype = types.elemtype(argtype);
                 switch (tree.getTag()) {
@@ -3254,7 +3258,7 @@ public class Attr extends JCTree.Visitor {
         chk.checkNonCyclicElements(tree);
 
         // Check for proper use of serialVersionUID
-        if (env.info.lint.isEnabled(Lint.LintCategory.SERIAL) &&
+        if (env.info.lint.isEnabled(LintCategory.SERIAL) &&
             isSerializable(c) &&
             (c.flags() & Flags.ENUM) == 0 &&
             (c.flags() & ABSTRACT) == 0) {
@@ -3283,7 +3287,7 @@ public class Attr extends JCTree.Visitor {
             Scope.Entry e = c.members().lookup(names.serialVersionUID);
             while (e.scope != null && e.sym.kind != VAR) e = e.next();
             if (e.scope == null) {
-                log.warning(Lint.LintCategory.SERIAL,
+                log.warning(LintCategory.SERIAL,
                         tree.pos(), "missing.SVUID", c);
                 return;
             }
@@ -3292,17 +3296,17 @@ public class Attr extends JCTree.Visitor {
             VarSymbol svuid = (VarSymbol)e.sym;
             if ((svuid.flags() & (STATIC | FINAL)) !=
                 (STATIC | FINAL))
-                log.warning(Lint.LintCategory.SERIAL,
+                log.warning(LintCategory.SERIAL,
                         TreeInfo.diagnosticPositionFor(svuid, tree), "improper.SVUID", c);
 
             // check that it is long
             else if (svuid.type.tag != TypeTags.LONG)
-                log.warning(Lint.LintCategory.SERIAL,
+                log.warning(LintCategory.SERIAL,
                         TreeInfo.diagnosticPositionFor(svuid, tree), "long.SVUID", c);
 
             // check constant
             else if (svuid.getConstValue() == null)
-                log.warning(Lint.LintCategory.SERIAL,
+                log.warning(LintCategory.SERIAL,
                         TreeInfo.diagnosticPositionFor(svuid, tree), "constant.SVUID", c);
         }
 

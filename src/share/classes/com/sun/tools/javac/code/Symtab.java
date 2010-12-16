@@ -154,6 +154,7 @@ public class Symtab {
     public final Type proprietaryType;
     public final Type systemType;
     public final Type autoCloseableType;
+    public final Type trustMeType;
 
     /** The symbol representing the length field of an array.
      */
@@ -465,6 +466,7 @@ public class Symtab {
                              new MethodType(List.<Type>nil(), voidType,
                                             List.of(exceptionType), methodClass),
                              autoCloseableType.tsym);
+        trustMeType = enterClass("java.lang.SafeVarargs");
 
         synthesizeEmptyInterfaceIfMissing(cloneableType);
         synthesizeEmptyInterfaceIfMissing(serializableType);

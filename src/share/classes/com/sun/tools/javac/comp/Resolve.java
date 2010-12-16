@@ -201,7 +201,7 @@ public class Resolve {
         }
         return (checkInner == false || c.type.isErroneous() || c.type.getEnclosingType() == Type.noType) ?
             isAccessible :
-            isAccessible & isAccessible(env, c.type.getEnclosingType(), checkInner);
+            isAccessible && isAccessible(env, c.type.getEnclosingType(), checkInner);
     }
     //where
         /** Is given class a subclass of given base class, or an inner class
@@ -238,7 +238,6 @@ public class Resolve {
     }
     public boolean isAccessible(Env<AttrContext> env, Type site, Symbol sym, boolean checkInner) {
         if (sym.name == names.init && sym.owner != site.tsym) return false;
-        ClassSymbol sub;
         switch ((short)(sym.flags() & AccessFlags)) {
         case PRIVATE:
             return
@@ -474,7 +473,9 @@ public class Resolve {
             throw inapplicableMethodException.setMessage("arg.length.mismatch"); // not enough args
 
         if (useVarargs) {
-            Type elt = types.elemtype(varargsFormal);
+            //note: if applicability check is triggered by most specific test,
+            //the last argument of a varargs is _not_ an array type (see JLS 15.12.2.5)
+            Type elt = types.elemtypeOrType(varargsFormal);
             while (argtypes.nonEmpty()) {
                 if (!types.isConvertible(argtypes.head, elt, warn))
                     throw inapplicableMethodException.setMessage("varargs.argument.mismatch",
@@ -818,37 +819,43 @@ public class Resolve {
     }
     //where
     private boolean signatureMoreSpecific(Env<AttrContext> env, Type site, Symbol m1, Symbol m2, boolean allowBoxing, boolean useVarargs) {
+        noteWarner.clear();
         Type mtype1 = types.memberType(site, adjustVarargs(m1, m2, useVarargs));
-        noteWarner.unchecked = false;
         return (instantiate(env, site, adjustVarargs(m2, m1, useVarargs), types.lowerBoundArgtypes(mtype1), null,
                              allowBoxing, false, noteWarner) != null ||
                  useVarargs && instantiate(env, site, adjustVarargs(m2, m1, useVarargs), types.lowerBoundArgtypes(mtype1), null,
                                            allowBoxing, true, noteWarner) != null) &&
-                !noteWarner.unchecked;
+                !noteWarner.hasLint(Lint.LintCategory.UNCHECKED);
     }
     //where
     private Symbol adjustVarargs(Symbol to, Symbol from, boolean useVarargs) {
         List<Type> fromArgs = from.type.getParameterTypes();
         List<Type> toArgs = to.type.getParameterTypes();
         if (useVarargs &&
-                toArgs.length() < fromArgs.length() &&
                 (from.flags() & VARARGS) != 0 &&
                 (to.flags() & VARARGS) != 0) {
-            //if we are checking a varargs method 'from' against another varargs
-            //method 'to' (where arity of 'to' < arity of 'from') then expand signature
-            //of 'to' to 'fit' arity of 'from' (this means adding fake formals to 'to'
-            //until 'to' signature has the same arity as 'from')
-            ListBuffer<Type> args = ListBuffer.lb();
             Type varargsTypeFrom = fromArgs.last();
             Type varargsTypeTo = toArgs.last();
-            while (fromArgs.head != varargsTypeFrom) {
-                args.append(toArgs.head == varargsTypeTo ? types.elemtype(varargsTypeTo) : toArgs.head);
-                fromArgs = fromArgs.tail;
-                toArgs = toArgs.head == varargsTypeTo ?
-                    toArgs :
-                    toArgs.tail;
+            ListBuffer<Type> args = ListBuffer.lb();
+            if (toArgs.length() < fromArgs.length()) {
+                //if we are checking a varargs method 'from' against another varargs
+                //method 'to' (where arity of 'to' < arity of 'from') then expand signature
+                //of 'to' to 'fit' arity of 'from' (this means adding fake formals to 'to'
+                //until 'to' signature has the same arity as 'from')
+                while (fromArgs.head != varargsTypeFrom) {
+                    args.append(toArgs.head == varargsTypeTo ? types.elemtype(varargsTypeTo) : toArgs.head);
+                    fromArgs = fromArgs.tail;
+                    toArgs = toArgs.head == varargsTypeTo ?
+                        toArgs :
+                        toArgs.tail;
+                }
+            } else {
+                //formal argument list is same as original list where last
+                //argument (array type) is removed
+                args.appendList(toArgs.reverse().tail.reverse());
             }
-            args.append(varargsTypeTo);
+            //append varargs element type as last synthetic formal
+            args.append(types.elemtype(varargsTypeTo));
             MethodSymbol msym = new MethodSymbol(to.flags_field,
                                                  to.name,
                                                  (Type)to.type.clone(), //see: 6990136

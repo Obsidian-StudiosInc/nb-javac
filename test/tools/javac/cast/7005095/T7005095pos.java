@@ -21,9 +21,17 @@
  * questions.
  */
 
-// key: compiler.note.varargs.filename
-// key: compiler.note.varargs.recompile
+/*
+ * @test
+ * @bug     7005095
+ * @summary Cast: compile reject sensible cast from final class to interface
+ * @compile T7005095pos.java
+ */
 
-class VarargsFilename<T> {
-    void m(T... items) { }
+class T7005095pos<T extends CharSequence> {
+    interface Foo<T> {}
+
+    static final class FooImpl implements Foo<String> {}
+
+    Object o = (Foo<T>) new FooImpl();
 }
