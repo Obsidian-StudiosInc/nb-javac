@@ -777,7 +777,7 @@ public class ClassWriter extends ClassFile {
             endAttr(attrIndex);
             attrCount++;
         }
-        if (m.code == null && m.params != null) {
+        if (m.code == null && m.params != null && m.params.nonEmpty()) {
             int attrIndex = writeAttr(names._org_netbeans_ParameterNames);
             for (VarSymbol s : m.params)
                 databuf.appendChar(pool.put(s.name));
