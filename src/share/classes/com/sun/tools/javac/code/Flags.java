@@ -241,9 +241,6 @@ public class Flags {
      */
     public static final long POLYMORPHIC_SIGNATURE = 1L<<40;
     
-    public static final long FROMCLASS = 1L<<41;
-    public static final long APT_CLEANED = 1L<<42;
-
     /**
      * Flag that marks a special kind of bridge methods (the ones that
      * come from restricted supertype bounds)
@@ -254,6 +251,9 @@ public class Flags {
      * Flag that marks an 'effectively final' local variable
      */
     public static final long EFFECTIVELY_FINAL = 1L<<42;
+
+    public static final long FROMCLASS = 1L<<61;
+    public static final long APT_CLEANED = 1L<<62;
 
     /** Modifier masks.
      */
