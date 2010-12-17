@@ -1162,6 +1162,7 @@ public class ClassReader implements Completer {
             
             new AttributeReader(names._org_netbeans_ParameterNames, V49, CLASS_OR_MEMBER_ATTRIBUTE) {
                 void read(Symbol sym, int attrLen) {
+                    int newbp = bp + attrLen;
                     List<Name> parameterNames = List.nil();
                     int numParams = 0;
                     if (sym.type != null) {
@@ -1169,9 +1170,13 @@ public class ClassReader implements Completer {
                         if (parameterTypes != null)
                             numParams = parameterTypes.length();
                     }
-                    for (int i = 0; i < numParams; i++)
-                        parameterNames = parameterNames.prepend(readName(nextChar()));
+                    for (int i = 0; i < numParams; i++) {
+                        if (bp < newbp - 1)
+                            parameterNames = parameterNames.prepend(readName(nextChar()));
+                    }
                     parameterNames = parameterNames.reverse();
+                    while(parameterNames.length() < numParams)
+                        parameterNames = parameterNames.prepend(names.empty);
                     ((MethodSymbol)sym).savedParameterNames = parameterNames;
                 }
             },
