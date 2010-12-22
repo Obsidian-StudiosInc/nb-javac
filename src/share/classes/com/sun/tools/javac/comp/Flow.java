@@ -1108,7 +1108,7 @@ public class Flow extends TreeScanner {
             List<Type> rethrownTypes = chk.diff(thrownInTry, caughtInTry);
             for (JCExpression ct : subClauses) {
                 Type exc = ct.type;
-                if (exc != syms.unknownType) {
+                if (exc != null && exc != syms.unknownType) {
                     ctypes = ctypes.append(exc);
                     if (types.isSameType(exc, syms.objectType))
                         continue;
