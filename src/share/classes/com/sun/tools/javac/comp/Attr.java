@@ -3444,6 +3444,11 @@ public class Attr extends JCTree.Visitor {
                 that.operator = new OperatorSymbol(names.empty, syms.unknownType, -1, syms.noSymbol);
             super.visitUnary(that);
         }
+
+        @Override
+        public void visitErroneous(JCErroneous tree) {
+            scan(tree.errs);
+        }
     }
     // </editor-fold>
 }
