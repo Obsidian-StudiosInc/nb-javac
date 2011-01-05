@@ -1416,6 +1416,10 @@ public class Flow extends TreeScanner {
         }
     }
 
+    public void visitErroneous(JCErroneous tree) {
+        scan(tree.errs);
+    }
+
     void referenced(Symbol sym) {
         if (unrefdResources != null && unrefdResources.containsKey(sym)) {
             unrefdResources.remove(sym);
