@@ -1902,7 +1902,7 @@ public class JavacParser implements Parser {
 
         if (error != null) {
             error(first, error);
-            statements = List.<JCStatement>of(toP(F.at(pos).Exec(F.at(first.pos).Erroneous(statements))));
+            statements = List.<JCStatement>of(toP(F.at(pos).Exec(F.at(first.pos).Erroneous(List.of(F.at(first.pos).Block(0, statements))))));
         }
 
         assert statements.size() == 1 : statements.toString();
