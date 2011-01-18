@@ -479,7 +479,7 @@ public class JavacParserTest extends TestCase {
         Trees t = Trees.instance(ct);
         int start = (int) t.getSourcePositions().getStartPosition(cut, enumAAA.getInitializer());
 
-        assertEquals("; }", code.substring(start));
+        assertEquals(-1, start);
     }
 
     public void testVariableInIfThen1() throws IOException {
