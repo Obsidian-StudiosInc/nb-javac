@@ -26,7 +26,9 @@
 package global;
 
 import com.sun.source.util.JavacTask;
+import com.sun.tools.javac.Main;
 import global.ap1.AP;
+import global.ap1.ClassBasedAP;
 import global.ap1.ErrorProducingAP;
 import java.io.File;
 import java.io.IOException;
@@ -128,6 +130,30 @@ public class AnnotationProcessingTest extends TestCase {
         delete(sourceOutput);
     }
 
+    public void testAPNoSources() throws IOException {
+        File sourceOutput = File.createTempFile("APNoSources", "");
+        
+        sourceOutput.delete();
+        assertTrue(sourceOutput.mkdirs());
+
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
+        
+        Main.compile(new String[] {
+            "-bootclasspath",  bootPath,
+            "-source", "1.6",
+            "-classpath", myself.toExternalForm(),
+            "-processor", ClassBasedAP.class.getName(),
+            "-s", sourceOutput.getAbsolutePath(),
+            "java.lang.String"
+        });
+
+        assertTrue(new File(sourceOutput, "java.lang.String.txt").canRead());
+        
+        //intentionally not deleting thwn the test fails to simply diagnostic
+        delete(sourceOutput);
+    }
+    
     private static void delete(File d) {
         if (d.isDirectory()) {
             for (File f : d.listFiles()) {
