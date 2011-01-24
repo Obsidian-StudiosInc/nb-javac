@@ -161,6 +161,26 @@ public class FlowTest extends TestCase {
         }
         assertEquals(c.getDiagnostics().toString(), 4, c.getDiagnostics().size());
     }
+    
+    public void test194658() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test;\n" +
+                      "class Test{\n" +
+                      "    public void notify(String message, Throwable exception) {\n" +
+                      "        (message != null) || (exception != null);\n" +
+                      "        String str = foo.Bar;\n" +
+                      "    }\n" +
+                      "}";
+
+        DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+
+        ct.analyze();
+    }
 
     /*requires java.lang.AutoCloseable:
      */
