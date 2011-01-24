@@ -1417,7 +1417,10 @@ public class Flow extends TreeScanner {
     }
 
     public void visitErroneous(JCErroneous tree) {
-        scan(tree.errs);
+        for (JCTree err : tree.errs) {
+            //scanExpr ensures that (un)inits is non-null, which happens after scanCond (invoked e.g. by visitBinary):
+            scanExpr(err);
+        }
     }
 
     void referenced(Symbol sym) {
