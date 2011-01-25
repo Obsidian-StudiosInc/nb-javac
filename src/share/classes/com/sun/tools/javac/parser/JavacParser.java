@@ -3337,13 +3337,14 @@ public class JavacParser implements Parser {
             }
         }
         @Override
-        public void visitMethodDef(JCMethodDecl tree) {
+        public void visitBlock(JCBlock tree) {
             final AnonScope as = this.anonScopes.peek();
-            as.localClass=true;
+            boolean old = as.localClass;
+            as.localClass = true;
             try {
-                super.visitMethodDef(tree);
+                super.visitBlock(tree);
             } finally {
-                as.localClass=false;
+                as.localClass = old;
             }
         }
         @Override
