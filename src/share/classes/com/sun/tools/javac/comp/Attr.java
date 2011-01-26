@@ -345,9 +345,11 @@ public class Attr extends JCTree.Visitor {
     }
 
     public Env<AttrContext> attribExprToTree(JCTree expr, Env<AttrContext> env, JCTree tree) {
+        Env<AttrContext> localEnv = env.dup(env.tree, env.info.dup(env.info.scope.dupUnshared()));
+        localEnv.info.scope.owner = env.info.scope.owner;
         breakTree = tree;
         try {
-            attribExpr(expr, env);
+            attribExpr(expr, localEnv);
         } catch (BreakAttr b) {
             return b.env;
         } catch (AssertionError ae) {
@@ -359,13 +361,15 @@ public class Attr extends JCTree.Visitor {
         } finally {
             breakTree = null;
         }
-        return env;
+        return localEnv;
     }
 
     public Env<AttrContext> attribStatToTree(JCTree stmt, Env<AttrContext> env, JCTree tree) {
+        Env<AttrContext> localEnv = env.dup(env.tree, env.info.dup(env.info.scope.dupUnshared()));
+        localEnv.info.scope.owner = env.info.scope.owner;
         breakTree = tree;
         try {
-            attribStat(stmt, env);
+            attribStat(stmt, localEnv);
         } catch (BreakAttr b) {
             return b.env;
         } catch (AssertionError ae) {
@@ -377,7 +381,7 @@ public class Attr extends JCTree.Visitor {
         } finally {
             breakTree = null;
         }
-        return env;
+        return localEnv;
     }
 
     private JCTree breakTree = null;
