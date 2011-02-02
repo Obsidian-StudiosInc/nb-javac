@@ -1869,7 +1869,7 @@ public class JavacParser implements Parser {
      *     | WHILE ParExpression Statement
      *     | DO Statement WHILE ParExpression ";"
      *     | TRY Block ( Catches | [Catches] FinallyPart )
-     *     | TRY "(" ResourceSpecification ")" Block [Catches] [FinallyPart]
+     *     | TRY "(" ResourceSpecification ";"opt ")" Block [Catches] [FinallyPart]
      *     | SWITCH ParExpression "{" SwitchBlockStatementGroups "}"
      *     | SYNCHRONIZED ParExpression Block
      *     | RETURN [Expression] ";"
@@ -2294,9 +2294,8 @@ public class JavacParser implements Parser {
             //to be a separator by the code generator
             int semiColonPos = S.pos();
             S.nextToken();
-            if (S.token() == RPAREN) { // Illegal trailing semicolon
+            if (S.token() == RPAREN) { // Optional trailing semicolon
                                        // after last resource
-                error(semiColonPos, "try.resource.trailing.semi");
                 break;
             }
             defs.append(resource());
