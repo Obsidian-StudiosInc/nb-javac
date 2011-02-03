@@ -1152,7 +1152,9 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                     fileManager.handleOption("apt-origin", Collections.singleton(roots.head.getSourceFile().toUri().toString()).iterator());    //NOI18N
                 }
                 try {
-                    c = procEnvImpl.doProcessing(context, roots, classSymbols, pckSymbols);
+                    if (hasOrigin || classSymbols.nonEmpty() || pckSymbols.nonEmpty()) {
+                        c = procEnvImpl.doProcessing(context, roots, classSymbols, pckSymbols);
+                    } //else: may happen when called from JavacTaskImpl.attribute, which forces processing of toProcessAnnotations
                 } finally {
                     if (hasOrigin) {
                         fileManager.handleOption("apt-origin", Collections.singletonList("").iterator());   //NOI18N
