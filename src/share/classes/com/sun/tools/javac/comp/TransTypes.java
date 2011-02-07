@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,7 +70,6 @@ public class TransTypes extends TreeTranslator {
     private boolean allowEnums;
     private Types types;
     private final Resolve resolve;
-    private final TypeAnnotations typeAnnotations;
 
     /**
      * Flag to indicate whether or not to generate bridge methods.
@@ -92,7 +91,6 @@ public class TransTypes extends TreeTranslator {
         types = Types.instance(context);
         make = TreeMaker.instance(context);
         resolve = Resolve.instance(context);
-        typeAnnotations = TypeAnnotations.instance(context);
     }
 
     /** A hashtable mapping bridge methods to the methods they override after
@@ -183,7 +181,7 @@ public class TransTypes extends TreeTranslator {
             parameters = parameters.tail;
         }
         Type parameter = parameters.head;
-        assert varargsElement != null || args.length() == 1;
+        Assert.check(varargsElement != null || args.length() == 1);
         if (varargsElement != null) {
             while (args.nonEmpty()) {
                 args.head = translate(args.head, varargsElement);
@@ -461,14 +459,12 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitClassDef(JCClassDecl tree) {
-        typeAnnotations.taFillAndLift(tree, true);
         translateClass(tree.sym);
         result = tree;
     }
 
     JCMethodDecl currentMethod = null;
     public void visitMethodDef(JCMethodDecl tree) {
-        tree.sym.typeAnnotations = tree.sym.typeAnnotations;
         JCMethodDecl previousMethod = currentMethod;
         try {
             currentMethod = tree;
@@ -614,7 +610,8 @@ public class TransTypes extends TreeTranslator {
         if (tree.varargsElement != null)
             tree.varargsElement = types.erasure(tree.varargsElement);
         else
-            assert tree.args.length() == argtypes.length() : "[" + meth.owner + "]'s method [" + meth + "] of type: [" + mt + "]; has different number of parameters than tree [" + tree + "].\nEnv tree: [" + env.tree + "]"; //NOI18N
+            if (!(tree.args.length() == argtypes.length()))
+                Assert.error("[" + meth.owner + "]'s method [" + meth + "] of type: [" + mt + "]; has different number of parameters than tree [" + tree + "].\nEnv tree: [" + env.tree + "]"); //NOI18N
         tree.args = translateArgs(tree.args, argtypes, tree.varargsElement);
 
         // Insert casts of method invocation results as needed.

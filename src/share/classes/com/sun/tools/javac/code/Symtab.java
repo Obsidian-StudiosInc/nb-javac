@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2010, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -126,7 +126,6 @@ public class Symtab {
     public final Type serializableType;
     public final Type methodHandleType;
     public final Type polymorphicSignatureType;
-    public final Type invokeDynamicType;
     public final Type throwableType;
     public final Type errorType;
     public final Type illegalArgumentExceptionType;
@@ -426,7 +425,6 @@ public class Symtab {
         serializableType = enterClass("java.io.Serializable");
         methodHandleType = enterClass("java.dyn.MethodHandle");
         polymorphicSignatureType = enterClass("java.dyn.MethodHandle$PolymorphicSignature");
-        invokeDynamicType = enterClass("java.dyn.InvokeDynamic");
         errorType = enterClass("java.lang.Error");
         illegalArgumentExceptionType = enterClass("java.lang.IllegalArgumentException");
         exceptionType = enterClass("java.lang.Exception");

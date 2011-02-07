@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -321,12 +321,6 @@ public class TreeInfo {
         case(JCTree.POSTINC):
         case(JCTree.POSTDEC):
             return getStartPos(((JCUnary) tree).arg);
-        case(JCTree.ANNOTATED_TYPE): {
-            JCAnnotatedType node = (JCAnnotatedType) tree;
-            if (node.annotations.nonEmpty())
-                return getStartPos(node.annotations.head);
-            return getStartPos(node.underlyingType);
-        }
         case(JCTree.NEWCLASS): {
             JCNewClass node = (JCNewClass)tree;
             if (node.encl != null)
@@ -436,8 +430,6 @@ public class TreeInfo {
             return getEndPos(((JCUnary) tree).arg, endPositions);
         case(JCTree.WHILELOOP):
             return getEndPos(((JCWhileLoop) tree).body, endPositions);
-        case(JCTree.ANNOTATED_TYPE):
-            return getEndPos(((JCAnnotatedType) tree).underlyingType, endPositions);
         case(JCTree.ASSIGN):
             return getEndPos(((JCAssign) tree).rhs, endPositions);
         case(JCTree.ERRONEOUS): {
@@ -471,7 +463,7 @@ public class TreeInfo {
     public static int finalizerPos(JCTree tree) {
         if (tree.getTag() == JCTree.TRY) {
             JCTry t = (JCTry) tree;
-            assert t.finalizer != null;
+            Assert.checkNonNull(t.finalizer);
             return firstStatPos(t.finalizer);
         } else if (tree.getTag() == JCTree.SYNCHRONIZED) {
             return endPos(((JCSynchronized) tree).body);
@@ -970,8 +962,6 @@ public class TreeInfo {
      */
     public static JCExpression typeIn(JCExpression tree) {
         switch (tree.getTag()) {
-        case JCTree.ANNOTATED_TYPE:
-            return ((JCAnnotatedType)tree).underlyingType;
         case JCTree.IDENT: /* simple names */
         case JCTree.TYPEIDENT: /* primitive name */
         case JCTree.SELECT: /* qualified name */
@@ -991,8 +981,6 @@ public class TreeInfo {
             return innermostType(((JCArrayTypeTree)type).elemtype);
         case JCTree.WILDCARD:
             return innermostType(((JCWildcard)type).inner);
-        case JCTree.ANNOTATED_TYPE:
-            return innermostType(((JCAnnotatedType)type).underlyingType);
         default:
             return type;
         }

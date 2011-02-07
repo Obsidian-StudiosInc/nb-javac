@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -173,7 +173,7 @@ public class ToolProvider {
         // try loading class directly, in case tool is on the bootclasspath
         try {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            return enableAsserts(Class.forName(toolClassName, false, cl));
+            return Class.forName(toolClassName, false, cl);
         } catch (ClassNotFoundException e) {
             trace(FINE, e);
 
@@ -195,27 +195,10 @@ public class ToolProvider {
                 trace(FINE, urls[0].toString());
 
                 cl = URLClassLoader.newInstance(urls);
-                cl.setPackageAssertionStatus("com.sun.tools.javac", true);
                 refToolClassLoader = new WeakReference<ClassLoader>(cl);
             }
 
             return Class.forName(toolClassName, false, cl);
         }
-
     }
-
-    private static Class<?> enableAsserts(Class<?> cls) {
-        try {
-            ClassLoader loader = cls.getClassLoader();
-            if (loader != null)
-                loader.setPackageAssertionStatus("com.sun.tools.javac", true);
-            else
-                trace(FINE, "loader == null");
-        } catch (SecurityException ex) {
-            trace(FINE, ex);
-            }
-        return cls;
-    }
-
-
 }

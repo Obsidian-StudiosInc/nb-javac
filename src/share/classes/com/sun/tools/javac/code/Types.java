@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1071,8 +1071,9 @@ public class Types {
                             highSub = (lowSub == null) ? null : asSub(bHigh, aHigh.tsym);
                         }
                         if (highSub != null) {
-                            assert a.tsym == highSub.tsym && a.tsym == lowSub.tsym
-                                : a.tsym + " != " + highSub.tsym + " != " + lowSub.tsym;
+                            if (!(a.tsym == highSub.tsym && a.tsym == lowSub.tsym)) {
+                                Assert.error(a.tsym + " != " + highSub.tsym + " != " + lowSub.tsym);
+                            }
                             if (!disjointTypes(aHigh.allparams(), highSub.allparams())
                                 && !disjointTypes(aHigh.allparams(), lowSub.allparams())
                                 && !disjointTypes(aLow.allparams(), highSub.allparams())
@@ -1715,9 +1716,9 @@ public class Types {
             bt.supertype_field = bounds.head;
             bt.interfaces_field = bounds.tail;
         }
-        assert bt.supertype_field.tsym.completer != null
-            || !bt.supertype_field.isInterface()
-            : bt.supertype_field;
+        Assert.check(bt.supertype_field.tsym.completer != null
+                || !bt.supertype_field.isInterface(),
+            bt.supertype_field);
         return bt;
     }
 
@@ -1846,7 +1847,7 @@ public class Types {
                         // t.interfaces_field is null after
                         // completion, we can assume that t is not the
                         // type of a class/interface declaration.
-                        assert t != t.tsym.type : t.toString();
+                        Assert.check(t != t.tsym.type, t);
                         List<Type> actuals = t.allparams();
                         List<Type> formals = t.tsym.type.allparams();
                         if (t.hasErasedSupertypes()) {
@@ -2270,6 +2271,13 @@ public class Types {
 
         @Override
         public Type visitForAll(ForAll t, Void ignored) {
+            if (Type.containsAny(to, t.tvars)) {
+                //perform alpha-renaming of free-variables in 't'
+                //if 'to' types contain variables that are free in 't'
+                List<Type> freevars = newInstances(t.tvars);
+                t = new ForAll(freevars,
+                        Types.this.subst(t.qtype, t.tvars, freevars));
+            }
             List<Type> tvars1 = substBounds(t.tvars, from, to);
             Type qtype1 = subst(t.qtype);
             if (tvars1 == t.tvars && qtype1 == t.qtype) {
@@ -2665,7 +2673,7 @@ public class Types {
                 act2 = act2.tail;
                 typarams = typarams.tail;
             }
-            assert(act1.isEmpty() && act2.isEmpty() && typarams.isEmpty());
+            Assert.check(act1.isEmpty() && act2.isEmpty() && typarams.isEmpty());
             return new ClassType(class1.getEnclosingType(), merged.toList(), class1.tsym);
         }
 
@@ -2777,7 +2785,7 @@ public class Types {
             // calculate lub(A, B)
             while (ts.head.tag != CLASS && ts.head.tag != TYPEVAR)
                 ts = ts.tail;
-            assert !ts.isEmpty();
+            Assert.check(!ts.isEmpty());
             List<Type> cl = closure(ts.head);
             for (Type t : ts.tail) {
                 if (t.tag == CLASS || t.tag == TYPEVAR)
@@ -3159,7 +3167,7 @@ public class Types {
         boolean reverse = false;
         Type target = to;
         if ((to.tsym.flags() & INTERFACE) == 0) {
-            assert (from.tsym.flags() & INTERFACE) != 0;
+            Assert.check((from.tsym.flags() & INTERFACE) != 0);
             reverse = true;
             to = from;
             from = target;
@@ -3194,12 +3202,12 @@ public class Types {
         boolean reverse = false;
         Type target = to;
         if ((to.tsym.flags() & INTERFACE) == 0) {
-            assert (from.tsym.flags() & INTERFACE) != 0;
+            Assert.check((from.tsym.flags() & INTERFACE) != 0);
             reverse = true;
             to = from;
             from = target;
         }
-        assert (from.tsym.flags() & FINAL) != 0;
+        Assert.check((from.tsym.flags() & FINAL) != 0);
         Type t1 = asSuper(from, to.tsym);
         if (t1 == null) return false;
         Type t2 = to;
