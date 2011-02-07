@@ -240,7 +240,7 @@ public class Flags {
      * (These occur inside java.dyn.MethodHandle.)
      */
     public static final long POLYMORPHIC_SIGNATURE = 1L<<40;
-
+    
     /**
      * Flag that marks a special kind of bridge methods (the ones that
      * come from restricted supertype bounds)
@@ -256,6 +256,9 @@ public class Flags {
      * Flag that marks non-override equivalent methods with the same signature
      */
     public static final long CLASH = 1L<<43;
+    
+    public static final long FROMCLASS = 1L<<61;
+    public static final long APT_CLEANED = 1L<<62;
 
     /** Modifier masks.
      */

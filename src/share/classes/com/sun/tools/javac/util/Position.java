@@ -71,10 +71,10 @@ public class Position {
      * @param   max         Number of characters to read
      * @param   expandTabs  If true, expand tabs when calculating columns
      */
-    public static LineMap makeLineMap(char[] src, int max, boolean expandTabs) {
+    public static LineMap makeLineMap(char[] src, int max, char replacedCharacter, boolean expandTabs) {
         LineMapImpl lineMap = expandTabs ?
-            new LineTabMapImpl(max) : new LineMapImpl();
-        lineMap.build(src, max);
+            new LineTabMapImpl(src.length) : new LineMapImpl();
+        lineMap.build(src, max, replacedCharacter);
         return lineMap;
     }
 
@@ -142,24 +142,25 @@ public class Position {
         int getColumnNumber(int pos);
     }
 
-    static class LineMapImpl implements LineMap {
+    public static class LineMapImpl implements LineMap {
         protected int[] startPosition; // start position of each line
 
         protected LineMapImpl() {}
 
-        protected void build(char[] src, int max) {
+        public void build(char[] src, int max, char replacedCharacter) {
             int c = 0;
             int i = 0;
-            int[] linebuf = new int[max];
-            while (i < max) {
-                linebuf[c++] = i;
+            int[] linebuf = new int[src.length + 1];
+            linebuf[c++] = i;
+            while (i < src.length) {
                 do {
-                    char ch = src[i];
+                    char ch = i == max ? replacedCharacter : src[i];
                     if (ch == '\r' || ch == '\n') {
-                        if (ch == '\r' && (i+1) < max && src[i+1] == '\n')
+                        if (ch == '\r' && (i+1) < src.length && (i == max ? replacedCharacter : src[i+1]) == '\n')
                             i += 2;
                         else
                             ++i;
+                        linebuf[c++] = i;
                         break;
                     }
                     else if (ch == '\t')

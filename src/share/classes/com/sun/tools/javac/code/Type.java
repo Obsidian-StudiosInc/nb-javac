@@ -638,7 +638,9 @@ public class Type implements PrimitiveType {
 
         public List<Type> getTypeArguments() {
             if (typarams_field == null) {
-                complete();
+                try {
+                    complete();
+                } catch (CompletionFailure e) {}
                 if (typarams_field == null)
                     typarams_field = List.nil();
             }
@@ -659,7 +661,11 @@ public class Type implements PrimitiveType {
 
         public List<Type> allparams() {
             if (allparams_field == null) {
-                allparams_field = getTypeArguments().prependList(getEnclosingType().allparams());
+                final Type enclosingType = getEnclosingType();
+                if (enclosingType == null)
+                    allparams_field = getTypeArguments();
+                else
+                    allparams_field = getTypeArguments().prependList(enclosingType.allparams());
             }
             return allparams_field;
         }
@@ -979,11 +985,13 @@ public class Type implements PrimitiveType {
         public TypeVar(Name name, Symbol owner, Type lower) {
             super(TYPEVAR, null);
             tsym = new TypeSymbol(0, name, this, owner);
+            assert lower != null;
             this.lower = lower;
         }
 
         public TypeVar(TypeSymbol tsym, Type bound, Type lower) {
             super(TYPEVAR, tsym);
+            assert lower != null;
             this.bound = bound;
             this.lower = lower;
         }
@@ -1238,7 +1246,10 @@ public class Type implements PrimitiveType {
         public <R, P> R accept(TypeVisitor<R, P> v, P p) {
             return v.visitNoType(this, p);
         }
-    }
+        
+        public boolean isCompound()  { return false; }
+        public boolean isInterface() { return false; }
+   }
 
     static class BottomType extends Type implements NullType {
         public BottomType() {
@@ -1272,20 +1283,26 @@ public class Type implements PrimitiveType {
         private Type originalType = null;
 
         public ErrorType(Type originalType, TypeSymbol tsym) {
-            super(noType, List.<Type>nil(), null);
-            tag = ERROR;
-            this.tsym = tsym;
-            this.originalType = (originalType == null ? noType : originalType);
+            this(originalType, tsym, false);
         }
 
         public ErrorType(ClassSymbol c, Type originalType) {
-            this(originalType, c);
-            c.type = this;
-            c.kind = ERR;
-            c.members_field = new Scope.ErrorScope(c);
+            this(originalType, c, true);
         }
 
-        public ErrorType(Name name, TypeSymbol container, Type originalType) {
+        public ErrorType(Type originalType, TypeSymbol tsym, boolean modifyClassSym) {
+            super(noType, List.<Type>nil(), tsym);
+            tag = ERROR;
+            this.originalType = (originalType == null ? noType : originalType);
+            if (modifyClassSym && tsym instanceof ClassSymbol) {
+                ClassSymbol c = (ClassSymbol)tsym;
+                c.type = this;
+                c.kind = ERR;
+                c.members_field = new Scope.ErrorScope(c);
+            }
+        }
+
+        public ErrorType(Name name, Symbol container, Type originalType) {
             this(new ClassSymbol(PUBLIC|STATIC|ACYCLIC, name, null, container), originalType);
         }
 
@@ -1318,6 +1335,15 @@ public class Type implements PrimitiveType {
 
         public <R, P> R accept(TypeVisitor<R, P> v, P p) {
             return v.visitError(this, p);
+        }
+
+        @Override
+        public String toString() {
+            if (tsym == null)
+                return "<error>";
+            if (tsym.type != this)
+                return tsym.name.table.names.any.toString();
+            return super.toString();
         }
     }
 
