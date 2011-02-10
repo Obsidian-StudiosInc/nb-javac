@@ -3186,6 +3186,7 @@ public class Attr extends JCTree.Visitor {
                 }
                 attribClassBody(env, c);
 
+                deferredLintHandler.flush(env.tree.pos());
                 chk.checkDeprecatedAnnotation(env.tree.pos(), c);
             } finally {
                 log.useSource(prev);
