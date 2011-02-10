@@ -1042,39 +1042,50 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             // create an environment for evaluating the base clauses
             Env<AttrContext> baseEnv = baseEnv(tree, env);
 
-            // Determine supertype.
-            Type supertype =
-                (tree.extending != null)
-                ? attr.attribBase(tree.extending, baseEnv, true, false, true)
-                : ((tree.mods.flags & Flags.ENUM) != 0 && !target.compilerBootstrap(c))
-                ? attr.attribBase(enumBase(tree.pos, c), baseEnv,
-                                  true, false, false)
-                : (c.fullname == names.java_lang_Object)
-                ? Type.noType
-                : syms.objectType;
-            ct.supertype_field = supertype;
-
-            // Determine interfaces.
+            Type supertype = null;
             ListBuffer<Type> interfaces = new ListBuffer<Type>();
-            Set<Type> interfaceSet = new HashSet<Type>();
-            List<JCExpression> interfaceTrees = tree.implementing;
-            if ((tree.mods.flags & Flags.ENUM) != 0 && target.compilerBootstrap(c)) {
-                // add interface Comparable<T>
-                interfaceTrees =
-                    interfaceTrees.prepend(make.Type(new ClassType(syms.comparableType.getEnclosingType(),
-                                                                   List.of(c.type),
-                                                                   syms.comparableType.tsym)));
-                // add interface Serializable
-                interfaceTrees =
-                    interfaceTrees.prepend(make.Type(syms.serializableType));
-            }
-            for (JCExpression iface : interfaceTrees) {
-                Type i = attr.attribBase(iface, baseEnv, false, true, true);
-                if (i.tag == CLASS) {
-                    interfaces.append(i);
-                    chk.checkNotRepeated(iface.pos(), types.erasure(i), interfaceSet);
+            
+            DiagnosticPosition prevPos = deferredLintHandler.getPos();
+            DeferredLintHandler prevLintHandler =
+                    chk.setDeferredLintHandler(deferredLintHandler.setPos(tree.pos()));
+            try {
+                // Determine supertype.
+                supertype =
+                    (tree.extending != null)
+                    ? attr.attribBase(tree.extending, baseEnv, true, false, true)
+                    : ((tree.mods.flags & Flags.ENUM) != 0 && !target.compilerBootstrap(c))
+                    ? attr.attribBase(enumBase(tree.pos, c), baseEnv,
+                                      true, false, false)
+                    : (c.fullname == names.java_lang_Object)
+                    ? Type.noType
+                    : syms.objectType;
+                ct.supertype_field = supertype;
+
+                // Determine interfaces.
+                Set<Type> interfaceSet = new HashSet<Type>();
+                List<JCExpression> interfaceTrees = tree.implementing;
+                if ((tree.mods.flags & Flags.ENUM) != 0 && target.compilerBootstrap(c)) {
+                    // add interface Comparable<T>
+                    interfaceTrees =
+                        interfaceTrees.prepend(make.Type(new ClassType(syms.comparableType.getEnclosingType(),
+                                                                       List.of(c.type),
+                                                                       syms.comparableType.tsym)));
+                    // add interface Serializable
+                    interfaceTrees =
+                        interfaceTrees.prepend(make.Type(syms.serializableType));
                 }
+                for (JCExpression iface : interfaceTrees) {
+                    Type i = attr.attribBase(iface, baseEnv, false, true, true);
+                    if (i.tag == CLASS) {
+                        interfaces.append(i);
+                        chk.checkNotRepeated(iface.pos(), types.erasure(i), interfaceSet);
+                    }
+                }
+            } finally {
+                deferredLintHandler.setPos(prevPos);
+                chk.setDeferredLintHandler(prevLintHandler);
             }
+            
             if ((c.flags_field & ANNOTATION) != 0)
                 ct.interfaces_field = List.of(syms.annotationType);
             else
@@ -1104,7 +1115,15 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
 
             chk.checkNonCyclicDecl(tree);
 
-            attr.attribTypeVariables(tree.typarams, baseEnv);
+            prevPos = deferredLintHandler.getPos();
+            prevLintHandler =
+                    chk.setDeferredLintHandler(deferredLintHandler.setPos(tree.pos()));
+            try {
+                attr.attribTypeVariables(tree.typarams, baseEnv);
+            } finally {
+                deferredLintHandler.setPos(prevPos);
+                chk.setDeferredLintHandler(prevLintHandler);
+            }
 
             // Add default constructor if needed.
             if ((c.flags() & INTERFACE) == 0 &&
