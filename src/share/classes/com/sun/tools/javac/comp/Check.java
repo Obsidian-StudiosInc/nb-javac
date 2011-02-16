@@ -2393,7 +2393,7 @@ public class Check {
     /** Check an annotation value.
      */
     public void validateAnnotation(JCAnnotation a) {
-        if (a.type.isErroneous()) return;
+        if (a.type != null && a.type.isErroneous()) return;
 
         // collect an inventory of the members (sorted alphabetically)
         Set<MethodSymbol> members = new TreeSet<MethodSymbol>(new Comparator<Symbol>() {
