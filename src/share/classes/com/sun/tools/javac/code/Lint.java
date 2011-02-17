@@ -296,8 +296,10 @@ public class Lint
             initSyms();
             this.parent = parent;
             lint = null;
-            for (Attribute.Compound a: attrs) {
-                a.accept(this);
+            if (attrs != null) {
+                for (Attribute.Compound a: attrs) {
+                    a.accept(this);
+                }
             }
             return (lint == null ? parent : lint);
         }
