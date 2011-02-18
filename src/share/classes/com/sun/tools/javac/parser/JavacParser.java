@@ -2649,7 +2649,7 @@ public class JavacParser implements Parser {
             if (createPos != Position.NOPOS)
                 storeEnd(create, S.prevEndPos());
             ident = F.at(Position.NOPOS).Ident(enumName);
-            JCTree result = toP(F.at(pos).VarDef(mods, name, ident, create));
+            JCTree result = toP(F.at(identPos).VarDef(mods, name, ident, create));
             attach(result, dc);
             return List.<JCTree>of(result);
         }
