@@ -1469,7 +1469,7 @@ public class Check {
                 return;
             }
         } else if (overrideWarner.hasNonSilentLint(LintCategory.UNCHECKED)) {
-            warnUnchecked(TreeInfo.diagnosticPositionFor(m, tree),
+            warnDeferredUnchecked(TreeInfo.diagnosticPositionFor(m, tree),
                     "override.unchecked.ret",
                     uncheckedOverrides(m, other),
                     mtres, otres);
@@ -1488,7 +1488,7 @@ public class Check {
             return;
         }
         else if (unhandledUnerased.nonEmpty()) {
-            warnUnchecked(TreeInfo.diagnosticPositionFor(m, tree),
+            warnDeferredUnchecked(TreeInfo.diagnosticPositionFor(m, tree),
                           "override.unchecked.thrown",
                          cannotOverride(m, other),
                          unhandledUnerased.head);
@@ -1517,6 +1517,21 @@ public class Check {
         }
     }
     // where
+        private void warnDeferredUnchecked(final DiagnosticPosition pos, final String msg, final Object... args) {
+            DiagnosticPosition prevPos = deferredLintHandler.getPos();
+            deferredLintHandler.setPos(pos);
+            try {
+                deferredLintHandler.report(new DeferredLintHandler.LintLogger() {
+                    @Override
+                    public void report() {
+                        warnUnchecked(pos, msg, args);
+                    }
+                });
+            } finally {
+                deferredLintHandler.setPos(prevPos);
+            }
+        }
+
         private boolean isDeprecatedOverrideIgnorable(MethodSymbol m, ClassSymbol origin) {
             // If the method, m, is defined in an interface, then ignore the issue if the method
             // is only inherited via a supertype and also implemented in the supertype,

@@ -3184,7 +3184,16 @@ public class Attr extends JCTree.Visitor {
                     !target.compilerBootstrap(c)) {
                     log.error(env.tree.pos(), "enum.types.not.extensible");
                 }
-                attribClassBody(env, c);
+
+                DiagnosticPosition prevPos = deferredLintHandler.getPos();                
+                DeferredLintHandler prevLintHandler =
+                        chk.setDeferredLintHandler(deferredLintHandler.setPos(env.tree.pos()));
+                try {
+                    attribClassBody(env, c);
+                } finally {
+                    deferredLintHandler.setPos(prevPos);
+                    chk.setDeferredLintHandler(prevLintHandler);
+                }
 
                 deferredLintHandler.flush(env.tree.pos());
                 chk.checkDeprecatedAnnotation(env.tree.pos(), c);
