@@ -3184,16 +3184,7 @@ public class Attr extends JCTree.Visitor {
                     !target.compilerBootstrap(c)) {
                     log.error(env.tree.pos(), "enum.types.not.extensible");
                 }
-
-                DiagnosticPosition prevPos = deferredLintHandler.getPos();                
-                DeferredLintHandler prevLintHandler =
-                        chk.setDeferredLintHandler(deferredLintHandler.setPos(env.tree.pos()));
-                try {
-                    attribClassBody(env, c);
-                } finally {
-                    deferredLintHandler.setPos(prevPos);
-                    chk.setDeferredLintHandler(prevLintHandler);
-                }
+                attribClassBody(env, c);
 
                 deferredLintHandler.flush(env.tree.pos());
                 chk.checkDeprecatedAnnotation(env.tree.pos(), c);
@@ -3266,8 +3257,15 @@ public class Attr extends JCTree.Visitor {
 
         // Check that all methods which implement some
         // method conform to the method they implement.
-        chk.checkImplementations(tree);
-
+        DiagnosticPosition prevPos = deferredLintHandler.getPos();                
+        DeferredLintHandler prevLintHandler =
+                chk.setDeferredLintHandler(deferredLintHandler.setPos(tree.pos()));
+        try {
+            chk.checkImplementations(tree);
+        } finally {
+            deferredLintHandler.setPos(prevPos);
+            chk.setDeferredLintHandler(prevLintHandler);
+        }
         for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
             // Attribute declaration
             attribStat(l.head, env);
