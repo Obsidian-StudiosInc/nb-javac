@@ -1588,7 +1588,7 @@ public class ClassWriter extends ClassFile {
         for (List<Type> l = interfaces; !sigReq && l.nonEmpty(); l = l.tail)
             sigReq = l.head.allparams().length() != 0;
         if (sigReq) {
-            Assert.check(source.allowGenerics());
+            Assert.check(allowGenerics);
             int alenIdx = writeAttr(names.Signature);
             if (typarams.length() != 0) assembleParamsSig(typarams);
             assembleSig(supertype);
