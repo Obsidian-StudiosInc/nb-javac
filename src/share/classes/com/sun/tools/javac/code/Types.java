@@ -2715,12 +2715,23 @@ public class Types {
         return classes.appendList(interfaces).toList();
     }
 
+    private final Map<List<Type>, Type> lubCache = new HashMap<List<Type>, Type>();
+    
     /**
      * Return the least upper bound of pair of types.  if the lub does
      * not exist return null.
      */
     public Type lub(Type t1, Type t2) {
-        return lub(List.of(t1, t2));
+        //workaround for #195646: cache the results of lub(Type, Type) to prevent very long computation
+        //can be removed when javac bug 7015715 is fixed:
+        List<Type> types = List.of(t1, t2);
+        Type result = lubCache.get(types);
+
+        if (result == null) {
+            lubCache.put(types, result = lub(types));
+        }
+
+        return result;
     }
 
     /**
