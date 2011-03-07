@@ -96,5 +96,10 @@ public class DeferredLintHandler {
         public void report(LintLogger logger) {
             logger.report();
         }
+        @Override
+        public DeferredLintHandler setPos(DiagnosticPosition currentPos) {
+            super.currentPos = currentPos;
+            return this;
+        }
     };
 }
