@@ -31,11 +31,13 @@ import global.ap1.AP;
 import global.ap1.ClassBasedAP;
 import global.ap1.ErrorProducingAP;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
@@ -82,7 +84,35 @@ public class AnnotationProcessingTest extends TestCase {
     public void testDuplicatedErrorsReported() throws IOException {
         String code = "package test; @global.ap1.Ann(fqnToGenerate=\"test.H\", content=\"package test; public class H {}\") public class Test {}";
 
-        performAPErrorsTest(code, "14-117:message 1", "14-117:message 2", "14-117:message 3");
+        performAPErrorsTest(code, ErrorProducingAP.class.getName(), new FileContent[0], "14-117:message 1", "14-117:message 2", "14-117:message 3");
+    }
+
+    public void testDependentAP() throws IOException {
+        String code = "package test; public class Test { Auxiliary aux; }";
+        String auxiliary = "package test; @global.ap1.Ann(fqnToGenerate=\"test.G\", content=\"package test; public class G {}\") public class Auxiliary extends G { private Unknown t; private Aux a; }";
+        String aux = "package test; @global.ap1.Ann(fqnToGenerate=\"test.H\", content=\"package test; public class H {}\") public class Aux extends H { private Unknown t; }";
+
+        performAPErrorsTest(code, AP.class.getName(), 
+                new FileContent[] {
+                    new FileContent("test/Auxiliary.java", auxiliary),
+                    new FileContent("test/Aux.java", aux)
+                },
+                /*XXX:*/"-1--1:File for type 'test.H' created in the last round will not be subject to annotation processing.", "134-134:cannot find symbol\n  symbol:   class Unknown\n  location: class test.Aux",
+                /*XXX:*/"-1--1:File for type 'test.G' created in the last round will not be subject to annotation processing.", "140-140:cannot find symbol\n  symbol:   class Unknown\n  location: class test.Auxiliary");
+    }
+
+    public void testNoAP() throws IOException {
+        String code = "package test; public class Test { Auxiliary aux; }";
+        String auxiliary = "package test; public class Auxiliary { private Unknown t; private Aux a; }";
+        String aux = "package test; public class Aux { private Unknown t; }";
+
+        performAPErrorsTest(code, null,
+                new FileContent[] {
+                    new FileContent("test/Auxiliary.java", auxiliary),
+                    new FileContent("test/Aux.java", aux)
+                },
+                "47-47:cannot find symbol\n  symbol:   class Unknown\n  location: class test.Auxiliary",
+                "41-41:cannot find symbol\n  symbol:   class Unknown\n  location: class test.Aux");
     }
 
     private void performErrorsTest(String code, int expectedErrors) throws IOException {
@@ -104,10 +134,31 @@ public class AnnotationProcessingTest extends TestCase {
         delete(sourceOutput);
     }
 
-    private void performAPErrorsTest(String code, String... goldenErrors) throws IOException {
-        File sourceOutput = File.createTempFile("NoFalseErrorsFromAP", "");
-        sourceOutput.delete();
+    private void performAPErrorsTest(String code, String apName, FileContent[] auxiliary, String... goldenErrors) throws IOException {
+        File temp = File.createTempFile("NoFalseErrorsFromAP", "");
+        temp.delete();
+        assertTrue(temp.mkdirs());
+
+        File sourceOutput = new File(temp, "out");
+
         assertTrue(sourceOutput.mkdirs());
+
+        File source = new File(temp, "src");
+
+        assertTrue(source.mkdirs());
+
+        if (auxiliary != null) {
+            for (FileContent fc : auxiliary) {
+                File aux = new File(source, fc.path);
+
+                aux.getParentFile().mkdirs();
+
+                FileWriter w = new FileWriter(aux);
+
+                w.write(fc.content);
+                w.close();
+            }
+        }
 
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
@@ -115,7 +166,15 @@ public class AnnotationProcessingTest extends TestCase {
 
         URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
         DiagnosticCollector<JavaFileObject> diagnostic = new DiagnosticCollector<JavaFileObject>();
-        JavacTask ct = (JavacTask)tool.getTask(null, null, diagnostic, Arrays.asList("-bootclasspath",  bootPath, "-source", "1.6", "-classpath", myself.toExternalForm(), "-processor", ErrorProducingAP.class.getName(), "-s", sourceOutput.getAbsolutePath(), "-XDbackgroundCompilation"), null, Arrays.asList(new MyFileObject(code)));
+        List<String> options = new LinkedList<String>();
+        options.addAll(Arrays.asList("-bootclasspath",  bootPath, "-source", "1.6", "-classpath", myself.toExternalForm()));
+        if (apName != null) {
+            options.addAll(Arrays.asList("-processor", apName));
+        } else {
+            options.add("-proc:none");
+        }
+        options.addAll(Arrays.asList("-s", sourceOutput.getAbsolutePath(), "-XDbackgroundCompilation", "-sourcepath", source.getAbsolutePath()));
+        JavacTask ct = (JavacTask)tool.getTask(null, null, diagnostic, options, null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();
 
         List<String> actualErrors = new ArrayList<String>();
@@ -161,5 +220,15 @@ public class AnnotationProcessingTest extends TestCase {
             }
         }
         d.delete();
+    }
+
+    private static class FileContent {
+        final String path;
+        final String content;
+
+        public FileContent(String path, String content) {
+            this.path = path;
+            this.content = content;
+        }
     }
 }

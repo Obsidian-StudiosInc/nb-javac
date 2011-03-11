@@ -986,7 +986,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
 
     private void complete(List<JCCompilationUnit> roots, ClassSymbol c) {
         DiagnosticListener<? super JavaFileObject> oldDiagListener = log.getDiagnosticListener();
-        tempDiags = List.nil();
         log.setRecordedOverlay(recordedOverlay = new HashSet<Pair<JavaFileObject, Integer>>());
         log.setErrTreesOverlay(errTreesOverlay = new HashMap<JCTree, JCDiagnostic>());
         log.setDiagnosticListener(temporaryDiagListener);
