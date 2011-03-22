@@ -165,6 +165,7 @@ public class Kinds {
         case PARAMETER:
         case LOCAL_VARIABLE:
         case EXCEPTION_PARAMETER:
+        case RESOURCE_VARIABLE:
             return KindName.VAR;
 
         case CONSTRUCTOR:
