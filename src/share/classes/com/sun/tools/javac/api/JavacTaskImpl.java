@@ -379,9 +379,14 @@ public class JavacTaskImpl extends JavacTask {
         try {
             List<JCCompilationUnit> units = compiler.enterTrees(roots.toList());
 
-            if (!compiler.skipAnnotationProcessing)
-                compiler = compiler.processAnnotations(units);
-
+            if (!compiler.skipAnnotationProcessing) {
+                compiler.skipAnnotationProcessing = true;
+                try {
+                    compiler.processAnnotations(units);
+                } finally {
+                    compiler.skipAnnotationProcessing = false;
+                }
+            }
             compiler.flushTempDiags();
 
             ListBuffer<TypeElement> elements = new ListBuffer<TypeElement>();
