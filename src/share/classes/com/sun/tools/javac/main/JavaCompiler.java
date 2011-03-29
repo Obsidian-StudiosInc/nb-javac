@@ -784,7 +784,12 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             if (memberEnter.halfcompleted.nonEmpty() || annotate.enterCount > 0) {
                 toProcessAnnotations = toProcessAnnotations.prepend(tree);
             } else {
-                processAnnotations(List.of(tree));
+                skipAnnotationProcessing = true;
+                try {
+                    processAnnotations(List.of(tree));
+                } finally {
+                    skipAnnotationProcessing = false;
+                }
                 flushTempDiags();
             }
         }
@@ -1146,29 +1151,20 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             }
             try {
                 JavaCompiler c = this;
-                final boolean hasOrigin = roots.nonEmpty();
+                List<JCCompilationUnit> currentAnnotations = toProcessAnnotations.prependList(roots);
+                toProcessAnnotations = List.nil();
+                final boolean hasOrigin = currentAnnotations.nonEmpty();
                 if (hasOrigin) {
-                    fileManager.handleOption("apt-origin", Collections.singleton(roots.head.getSourceFile().toUri().toString()).iterator());    //NOI18N
+                    fileManager.handleOption("apt-origin", Collections.singleton(currentAnnotations.head.getSourceFile().toUri().toString()).iterator());    //NOI18N
                 }
                 try {
                     if (hasOrigin || classSymbols.nonEmpty() || pckSymbols.nonEmpty()) {
-                        c = procEnvImpl.doProcessing(context, roots, classSymbols, pckSymbols);
+                        c = procEnvImpl.doProcessing(context, currentAnnotations, classSymbols, pckSymbols);
                     } //else: may happen when called from JavacTaskImpl.attribute, which forces processing of toProcessAnnotations
                 } finally {
                     if (hasOrigin) {
                         fileManager.handleOption("apt-origin", Collections.singletonList("").iterator());   //NOI18N
                     }
-                }
-                List<JCCompilationUnit> currentAnnotations = toProcessAnnotations;
-                toProcessAnnotations = List.nil();
-                while(currentAnnotations.nonEmpty()) {
-                    fileManager.handleOption("apt-origin", Collections.singleton(currentAnnotations.head.getSourceFile().toUri().toString()).iterator()); //NOI18N
-                    try {
-                        procEnvImpl.doProcessing(context, List.of(currentAnnotations.head), classSymbols, pckSymbols);
-                    } finally {
-                        fileManager.handleOption("apt-origin", Collections.singletonList("").iterator());   //NOI18N
-                    }
-                    currentAnnotations = currentAnnotations.tail;
                 }
                 if (c != this)
                     annotationProcessingOccurred = c.annotationProcessingOccurred = true;

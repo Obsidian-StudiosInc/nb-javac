@@ -97,8 +97,8 @@ public class AnnotationProcessingTest extends TestCase {
                     new FileContent("test/Auxiliary.java", auxiliary),
                     new FileContent("test/Aux.java", aux)
                 },
-                /*XXX:*/"-1--1:File for type 'test.H' created in the last round will not be subject to annotation processing.", "134-134:cannot find symbol\n  symbol:   class Unknown\n  location: class test.Aux",
-                /*XXX:*/"-1--1:File for type 'test.G' created in the last round will not be subject to annotation processing.", "140-140:cannot find symbol\n  symbol:   class Unknown\n  location: class test.Auxiliary");
+                "140-140:cannot find symbol\n  symbol:   class Unknown\n  location: class test.Auxiliary",
+                "134-134:cannot find symbol\n  symbol:   class Unknown\n  location: class test.Aux");
     }
 
     public void testNoAP() throws IOException {
