@@ -414,7 +414,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         shouldStopPolicy =
             options.isSet("shouldStopPolicy")
             ? CompileState.valueOf(options.get("shouldStopPolicy"))
-            : CompileState.GENERATE;
+            : null;
         if (options.isUnset("oldDiags"))
             log.setDiagnosticFormatter(RichDiagnosticFormatter.instance(context));
     }

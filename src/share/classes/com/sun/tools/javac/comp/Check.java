@@ -80,7 +80,6 @@ public class Check {
     // The method being analyzed in Attr - it is set/reset as needed by
     // Attr as it visits new method declarations.
     private MethodSymbol method;
-    private final boolean ideMode;
 
     public static Check instance(Context context) {
         Check instance = context.get(checkKey);
@@ -130,7 +129,6 @@ public class Check {
                 enforceMandatoryWarnings, "sunapi", null);
 
         deferredLintHandler = DeferredLintHandler.immediateHandler;
-        ideMode = options.get("ide") != null;
     }
 
     /** Switch: generics enabled?
@@ -257,7 +255,7 @@ public class Check {
      */
     public Type completionError(DiagnosticPosition pos, CompletionFailure ex) {
         log.error(pos, "cant.access", ex.sym, ex.getDetailValue());
-        if (!ideMode && (ex instanceof ClassReader.BadClassFile)
+        if (ex instanceof ClassReader.BadClassFile
                 && !suppressAbortOnBadClassFile) throw new Abort();
         else return syms.errType;
     }
