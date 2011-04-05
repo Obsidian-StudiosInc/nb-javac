@@ -379,7 +379,7 @@ public class ErrorToleranceTest extends TestCase {
 
         std.setLocation(StandardLocation.CLASS_OUTPUT, Collections.singleton(workingDir));
         
-        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, mjfm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, mjfm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new MyFileObject(code)));
         com.sun.tools.javac.main.JavaCompiler.instance(ct.getContext()).doRepair = repair;
         ct.parse();
         ct.analyze();
