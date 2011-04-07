@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package com.sun.tools.javac.api;
 
-import com.sun.tools.javac.parser.JavacParser;
 import java.io.File;
 import java.io.IOException;
 import java.nio.CharBuffer;
@@ -46,6 +45,7 @@ import com.sun.tools.javac.comp.*;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.main.*;
 import com.sun.tools.javac.model.*;
+import com.sun.tools.javac.parser.JavacParser;
 import com.sun.tools.javac.parser.Parser;
 import com.sun.tools.javac.parser.ParserFactory;
 import com.sun.tools.javac.tree.*;
@@ -66,7 +66,7 @@ import com.sun.tools.javac.main.JavaCompiler;
  * @author Jonathan Gibbons
  */
 public class JavacTaskImpl extends JavacTask {
-    private JavacTool tool;
+    private ClientCodeWrapper ccw;
     private Main compilerMain;
     private JavaCompiler compiler;
     private Locale locale;
@@ -81,12 +81,11 @@ public class JavacTaskImpl extends JavacTask {
     
     private Integer result = null;
 
-    JavacTaskImpl(JavacTool tool,
-                Main compilerMain,
+    JavacTaskImpl(Main compilerMain,
                 String[] args,
                 Context context,
                 List<JavaFileObject> fileObjects) {
-        this.tool = tool;
+        this.ccw = ClientCodeWrapper.instance(context);
         this.compilerMain = compilerMain;
         this.args = args;
         this.context = context;
@@ -95,17 +94,15 @@ public class JavacTaskImpl extends JavacTask {
         // null checks
         compilerMain.getClass();
         args.getClass();
-        context.getClass();
         fileObjects.getClass();
     }
 
-    JavacTaskImpl(JavacTool tool,
-                Main compilerMain,
+    JavacTaskImpl(Main compilerMain,
                 Iterable<String> flags,
                 Context context,
                 Iterable<String> classes,
                 Iterable<? extends JavaFileObject> fileObjects) {
-        this(tool, compilerMain, toArray(flags, classes), context, toList(fileObjects));
+        this(compilerMain, toArray(flags, classes), context, toList(fileObjects));
     }
 
     JavacTaskImpl(Context context) {
@@ -135,19 +132,11 @@ public class JavacTaskImpl extends JavacTask {
 
     public Boolean call() {
         if (!used.getAndSet(true)) {
-            beginContext();
+            initContext();
             notYetEntered = new HashMap<JavaFileObject, JCCompilationUnit>();
-            try {
-                compilerMain.setFatalErrors(true);
-                result = compilerMain.compile(args, context, fileObjects, processors);
-            } finally {
-                endContext();
-            }
-            compilerMain = null;
-            args = null;
-            context = null;
-            fileObjects = null;
-            notYetEntered = null;
+            compilerMain.setAPIMode(true);
+            result = compilerMain.compile(args, context, fileObjects, processors);
+            cleanup();
             return result == 0;
         } else {
             throw new IllegalStateException("multiple calls to method 'call'");
@@ -173,8 +162,11 @@ public class JavacTaskImpl extends JavacTask {
     }
 
     private void prepareCompiler() throws IOException {
-        if (!used.getAndSet(true)) {
-            beginContext();
+        if (used.getAndSet(true)) {
+            if (compiler == null)
+                throw new IllegalStateException();
+        } else {
+            initContext();
             compilerMain.setOptions(Options.instance(context));
             compilerMain.filenames = new ListBuffer<File>();
             List<File> filenames = compilerMain.processArgs(CommandLine.parse(args));
@@ -194,41 +186,25 @@ public class JavacTaskImpl extends JavacTask {
         }
     }
 
-    private void beginContext() {
+    private void initContext() {
         context.put(JavacTaskImpl.class, this);
         if (context.get(TaskListener.class) != null)
             context.put(TaskListener.class, (TaskListener)null);
         if (taskListener != null)
-            context.put(TaskListener.class, wrap(taskListener));
-        tool.beginContext(context);
+            context.put(TaskListener.class, ccw.wrap(taskListener));
         //initialize compiler's default locale
-        JavacMessages.instance(context).setCurrentLocale(locale);
-    }
-    // where
-    private TaskListener wrap(final TaskListener tl) {
-        tl.getClass(); // null check
-        return new TaskListener() {
-            public void started(TaskEvent e) {
-                try {
-                    tl.started(e);
-                } catch (Throwable t) {
-                    throw new ClientCodeException(t);
-                }
-            }
-
-            public void finished(TaskEvent e) {
-                try {
-                    tl.finished(e);
-                } catch (Throwable t) {
-                    throw new ClientCodeException(t);
-                }
-            }
-
-        };
+        context.put(Locale.class, locale);
     }
 
-    private void endContext() {
-        tool.endContext();
+    void cleanup() {
+        if (compiler != null)
+            compiler.close();
+        compiler = null;
+        compilerMain = null;
+        args = null;
+        context = null;
+        fileObjects = null;
+        notYetEntered = null;
     }
 
     /**
@@ -554,11 +530,12 @@ public class JavacTaskImpl extends JavacTask {
                 compiler.reportDeferredDiagnostics();
                 compiler.log.flush();
                 compiler.repair.flush();
-                endContext();
+                cleanup();
             }
         }
         finally {
-            compiler.log.flush();
+            if (compiler != null)
+                compiler.log.flush();
         }
         return results;
     }
@@ -588,7 +565,7 @@ public class JavacTaskImpl extends JavacTask {
         if (this.genList != null && !this.genList.isEmpty()) {
             this.genList.clear();
         }
-        endContext();
+        cleanup();
     }
 
     public TypeMirror getTypeMirror(Iterable<? extends Tree> path) {
@@ -896,7 +873,7 @@ public class JavacTaskImpl extends JavacTask {
         StringBuilder res = new StringBuilder ();
         if (compiler != null && compiler.todo != null) {
             for (Env<AttrContext> env : compiler.todo) {
-                res.append(((JCClassDecl)env.tree).sym.toString()  + " from: " +env.toplevel.sourcefile.toUri());
+                res.append(((JCClassDecl)env.tree).sym.toString()).append(" from: ").append(env.toplevel.sourcefile.toUri());
             }
         }
         return res.toString();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,12 +21,5 @@
  * questions.
  */
 
-// key: compiler.misc.diamond.invalid.args
-// key: compiler.misc.diamond
-// key: compiler.err.cant.apply.diamond.1
-
-class DiamondInvalidArgs {
-    static class Foo<X extends Number & Comparable<Number>,
-                           Y extends Number & Comparable<Number>> { }
-    Foo<?,?> foo = new Foo<>();
-}
+package p1;
+public class C<T> { void m(T arg) { } /* implicit: m(Object) */ }

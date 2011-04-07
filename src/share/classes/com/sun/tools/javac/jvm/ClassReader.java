@@ -140,9 +140,6 @@ public class ClassReader implements Completer {
     /** The symbol table. */
     Symtab syms;
 
-    /** The scope counter */
-    Scope.ScopeCounter scopeCounter;
-
     Types types;
 
     /** The name table. */
@@ -269,7 +266,6 @@ public class ClassReader implements Completer {
 
         names = Names.instance(context);
         syms = Symtab.instance(context);
-        scopeCounter = Scope.ScopeCounter.instance(context);
         types = Types.instance(context);
         fileManager = context.get(JavaFileManager.class);
         if (fileManager == null)
@@ -1220,12 +1216,10 @@ public class ClassReader implements Completer {
         ClassSymbol c = readClassSymbol(nextChar());
         NameAndType nt = (NameAndType)readPool(nextChar());
 
-        MethodSymbol m = null;
-        if (c.members_field != null) {
-            m = findMethod(nt, c.members_field, self.flags());
-        } else {
-            Logger.getLogger(ClassReader.class.getName()).warning("ClassWriter.readEnclosingMethodAttr:" + (c.completer != null ? "uncompleted" : "") + " symbol [" + c + "] of kind [" + c.kind + "] has null members_field."); //NOI18N
-        }
+        if (c.members_field == null)
+            throw badClassFile("bad.enclosing.class", self, c);
+
+        MethodSymbol m = findMethod(nt, c.members_field, self.flags());
         if (nt != null && m == null)
             throw badClassFile("bad.enclosing.method", self);
 
@@ -1944,7 +1938,7 @@ public class ClassReader implements Completer {
         ClassType ct = (ClassType)c.type;
 
         // allocate scope for members
-        c.members_field = new Scope.ClassScope(c, scopeCounter);
+        c.members_field = new Scope(c);
 
         // prepare type variable table
         typevars = typevars.dup(currentOwner);
@@ -2278,7 +2272,7 @@ public class ClassReader implements Completer {
                 }
                 currentClassFile = classfile;
                 if (verbose) {
-                    printVerbose("loading", currentClassFile.toString());
+                    log.printVerbose("loading", currentClassFile.toString());
                 }
                 if (classfile.getKind() == JavaFileObject.Kind.CLASS) {
                     filling = true;
@@ -2564,13 +2558,13 @@ public class ClassReader implements Completer {
                     for (File file : fm.getLocation(SOURCE_PATH)) {
                         path = path.prepend(file);
                     }
-                    printVerbose("sourcepath", path.reverse().toString());
+                    log.printVerbose("sourcepath", path.reverse().toString());
                 } else if (wantSourceFiles) {
                     List<File> path = List.nil();
                     for (File file : fm.getLocation(CLASS_PATH)) {
                         path = path.prepend(file);
                     }
-                    printVerbose("sourcepath", path.reverse().toString());
+                    log.printVerbose("sourcepath", path.reverse().toString());
                 }
                 if (wantClassFiles) {
                     List<File> path = List.nil();
@@ -2580,7 +2574,7 @@ public class ClassReader implements Completer {
                     for (File file : fm.getLocation(CLASS_PATH)) {
                         path = path.prepend(file);
                     }
-                    printVerbose("classpath",  path.reverse().toString());
+                    log.printVerbose("classpath",  path.reverse().toString());
                 }
             }
         }
@@ -2658,14 +2652,6 @@ public class ClassReader implements Completer {
                 }
             }
         }
-
-    /** Output for "-verbose" option.
-     *  @param key The key to look up the correct internationalized string.
-     *  @param arg An argument for substitution into the output string.
-     */
-    private void printVerbose(String key, CharSequence arg) {
-        log.printNoteLines("verbose." + key, arg);
-    }
 
     /** Output for "-checkclassfile" option.
      *  @param key The key to look up the correct internationalized string.
