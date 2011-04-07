@@ -317,9 +317,9 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
 
     public static final int ANNOTATED_TYPE = LETEXPR + 1;
 
-    /** Disjunction types, of type TypeDisjunction
+    /** Union types, of type TypeUnion
      */
-    public static final int TYPEDISJUNCTION = ANNOTATED_TYPE + 1;
+    public static final int TYPEUNION = ANNOTATED_TYPE + 1;
 
     /** The offset between assignment operators and normal operators.
      */
@@ -1886,30 +1886,30 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     }
 
     /**
-     * A disjunction type, T1 | T2 | ... Tn (used in multicatch statements)
+     * A union type, T1 | T2 | ... Tn (used in multicatch statements)
      */
-    public static class JCTypeDisjunction extends JCExpression implements DisjunctiveTypeTree {
+    public static class JCTypeUnion extends JCExpression implements UnionTypeTree {
 
         public List<JCExpression> alternatives;
 
-        protected JCTypeDisjunction(List<JCExpression> components) {
+        protected JCTypeUnion(List<JCExpression> components) {
             this.alternatives = components;
         }
         @Override
-        public void accept(Visitor v) { v.visitTypeDisjunction(this); }
+        public void accept(Visitor v) { v.visitTypeUnion(this); }
 
-        public Kind getKind() { return Kind.DISJUNCTIVE_TYPE; }
+        public Kind getKind() { return Kind.UNION_TYPE; }
 
         public List<JCExpression> getTypeAlternatives() {
             return alternatives;
         }
         @Override
         public <R,D> R accept(TreeVisitor<R,D> v, D d) {
-            return v.visitDisjunctiveType(this, d);
+            return v.visitUnionType(this, d);
         }
         @Override
         public int getTag() {
-            return TYPEDISJUNCTION;
+            return TYPEUNION;
         }
     }
 
@@ -2232,7 +2232,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public void visitTypeIdent(JCPrimitiveTypeTree that) { visitTree(that); }
         public void visitTypeArray(JCArrayTypeTree that)     { visitTree(that); }
         public void visitTypeApply(JCTypeApply that)         { visitTree(that); }
-        public void visitTypeDisjunction(JCTypeDisjunction that)   { visitTree(that); }
+        public void visitTypeUnion(JCTypeUnion that)         { visitTree(that); }
         public void visitTypeParameter(JCTypeParameter that) { visitTree(that); }
         public void visitWildcard(JCWildcard that)           { visitTree(that); }
         public void visitTypeBoundKind(TypeBoundKind that)   { visitTree(that); }
