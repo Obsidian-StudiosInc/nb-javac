@@ -159,6 +159,8 @@ public class ClientCodeWrapper {
     }
 
     protected boolean isTrusted(Object o) {
+        if (o == null)
+            return true;
         Class<?> c = o.getClass();
         Boolean trusted = trustedClasses.get(c);
         if (trusted == null) {
