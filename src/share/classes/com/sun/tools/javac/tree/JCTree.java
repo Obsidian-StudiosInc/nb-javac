@@ -565,7 +565,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public JCModifiers mods;
         public Name name;
         public List<JCTypeParameter> typarams;
-        public JCTree extending;
+        public JCExpression extending;
         public List<JCExpression> implementing;
         public List<JCTree> defs;
         public ClassSymbol sym;
@@ -574,7 +574,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         protected JCClassDecl(JCModifiers mods,
                            Name name,
                            List<JCTypeParameter> typarams,
-                           JCTree extending,
+                           JCExpression extending,
                            List<JCExpression> implementing,
                            List<JCTree> defs,
                            ClassSymbol sym)
@@ -2109,7 +2109,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         JCClassDecl ClassDef(JCModifiers mods,
                           Name name,
                           List<JCTypeParameter> typarams,
-                          JCTree extending,
+                          JCExpression extending,
                           List<JCExpression> implementing,
                           List<JCTree> defs);
         JCMethodDecl MethodDef(JCModifiers mods,

@@ -735,6 +735,10 @@ public abstract class Symbol implements Element {
          */
         public Pool pool;
 
+        /** members closure cache (set by Types.membersClosure)
+         */
+        Scope.CompoundScope membersClosure;
+
         public ClassSymbol(long flags, Name name, Type type, Symbol owner) {
             super(flags, name, type, owner);
             this.members_field = null;
@@ -839,6 +843,8 @@ public abstract class Symbol implements Element {
                 ClassType t = (ClassType)type;
                 if (t.interfaces_field == null) // FIXME: shouldn't be null
                     t.interfaces_field = List.nil();
+                if (t.all_interfaces_field != null)
+                    return Type.getModelTypes(t.all_interfaces_field);
                 return t.interfaces_field;
             } else {
                 return List.nil();
@@ -856,7 +862,7 @@ public abstract class Symbol implements Element {
                 // An interface has no superclass; its supertype is Object.
                 return t.isInterface()
                     ? Type.noType
-                    : t.supertype_field;
+                    : t.supertype_field.getModelType();
             } else {
                 return Type.noType;
             }
@@ -1311,7 +1317,7 @@ public abstract class Symbol implements Element {
             };
 
         public MethodSymbol implementation(TypeSymbol origin, Types types, boolean checkResult, Filter<Symbol> implFilter) {
-            MethodSymbol res = types.implementation(this, origin, types, checkResult, implFilter);
+            MethodSymbol res = types.implementation(this, origin, checkResult, implFilter);
             if (res != null)
                 return res;
             // if origin is derived from a raw type, we might have missed

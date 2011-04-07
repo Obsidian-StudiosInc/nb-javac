@@ -806,6 +806,9 @@
                         <exclude name="**/*.java"/>
                         <exclude name="**/*.properties"/>
                         <exclude name="**/*-template"/>
+                        <exclude name="**/*.rej"/>
+                        <exclude name="**/*.orig"/>
+                        <exclude name="**/overview.html"/>
                         <exclude name="**/package.html"/>
                     </fileset>
                 </copy>
@@ -868,8 +871,10 @@
                executable="${boot.java.home}/bin/javac"
                srcdir="${make.tools.dir}/GenStubs"
                destdir="${build.toolclasses.dir}/"
-               classpath="${build.bootstrap.dir}/classes:${ant.core.lib}"
-               includeantruntime="false"/>
+               classpath="${ant.core.lib}"
+               includeantruntime="false">
+            <compilerarg value="-Xbootclasspath/p:${build.bootstrap.dir}/classes"/>
+        </javac>
         <taskdef name="genstubs"
                  classname="GenStubs$$Ant"
                  classpath="${build.toolclasses.dir}/"/>

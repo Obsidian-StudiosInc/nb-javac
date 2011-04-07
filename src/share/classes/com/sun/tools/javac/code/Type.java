@@ -93,6 +93,22 @@ public class Type implements PrimitiveType {
         return null;
     }
 
+    /**
+     * Get the representation of this type used for modelling purposes.
+     * By default, this is itself. For ErrorType, a different value
+     * may be provided,
+     */
+    public Type getModelType() {
+        return this;
+    }
+
+    public static List<Type> getModelTypes(List<Type> ts) {
+        ListBuffer<Type> lb = new ListBuffer<Type>();
+        for (Type t: ts)
+            lb.append(t.getModelType());
+        return lb.toList();
+    }
+
     public <R,S> R accept(Type.Visitor<R,S> v, S s) { return v.visitType(this, s); }
 
     /** Define a type given its tag and type symbol
@@ -190,7 +206,7 @@ public class Type implements PrimitiveType {
         if (ts.isEmpty()) {
             return "";
         } else {
-            StringBuffer buf = new StringBuffer();
+            StringBuilder buf = new StringBuilder();
             buf.append(ts.head.toString());
             for (List<Type> l = ts.tail; l.nonEmpty(); l = l.tail)
                 buf.append(",").append(l.head.toString());
@@ -269,10 +285,6 @@ public class Type implements PrimitiveType {
     public List<Type>        getThrownTypes()    { return List.nil(); }
     public Type              getUpperBound()     { return null; }
     public Type              getLowerBound()     { return null; }
-
-    public void setThrown(List<Type> ts) {
-        throw new AssertionError();
-    }
 
     /** Navigation methods, these will work for classes, type variables,
      *  foralls, but will return null for arrays and methods.
@@ -388,14 +400,6 @@ public class Type implements PrimitiveType {
      */
     public void complete() {}
 
-    public Object clone() {
-        try {
-            return super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new AssertionError(e);
-        }
-    }
-
     public TypeSymbol asElement() {
         return tsym;
     }
@@ -476,7 +480,7 @@ public class Type implements PrimitiveType {
 
         boolean isPrintingBound = false;
         public String toString() {
-            StringBuffer s = new StringBuffer();
+            StringBuilder s = new StringBuilder();
             s.append(kind.toString());
             if (kind != UNBOUND)
                 s.append(type);
@@ -550,6 +554,10 @@ public class Type implements PrimitiveType {
          */
         public List<Type> interfaces_field;
 
+        /** All the interfaces of this class, including missing ones.
+         */
+        public List<Type> all_interfaces_field;
+
         public ClassType(Type outer, List<Type> typarams, TypeSymbol tsym) {
             super(CLASS, tsym);
             this.outer_field = outer;
@@ -590,7 +598,7 @@ public class Type implements PrimitiveType {
         /** The Java source which this type represents.
          */
         public String toString() {
-            StringBuffer buf = new StringBuffer();
+            StringBuilder buf = new StringBuilder();
             if (getEnclosingType().tag == CLASS && tsym.owner.kind == TYP) {
                 buf.append(getEnclosingType().toString());
                 buf.append(".");
@@ -608,7 +616,7 @@ public class Type implements PrimitiveType {
 //where
             private String className(Symbol sym, boolean longform) {
                 if (sym.name.isEmpty() && (sym.flags() & COMPOUND) != 0) {
-                    StringBuffer s = new StringBuffer(supertype_field.toString());
+                    StringBuilder s = new StringBuilder(supertype_field.toString());
                     for (List<Type> is=interfaces_field; is.nonEmpty(); is = is.tail) {
                         s.append("&");
                         s.append(is.head.toString());
@@ -823,8 +831,7 @@ public class Type implements PrimitiveType {
         }
     }
 
-    public static class MethodType extends Type
-                    implements Cloneable, ExecutableType {
+    public static class MethodType extends Type implements ExecutableType {
 
         public List<Type> argtypes;
         public Type restype;
@@ -885,10 +892,6 @@ public class Type implements PrimitiveType {
         public List<Type>        getParameterTypes() { return argtypes; }
         public Type              getReturnType()     { return restype; }
         public List<Type>        getThrownTypes()    { return thrown; }
-
-        public void setThrown(List<Type> t) {
-            thrown = t;
-        }
 
         public boolean isErroneous() {
             return
@@ -1076,12 +1079,10 @@ public class Type implements PrimitiveType {
         public List<Type> getThrownTypes() { return qtype.getThrownTypes(); }
         public List<Type> allparams() { return qtype.allparams(); }
         public Type getUpperBound() { return qtype.getUpperBound(); }
-        public Object clone() { DelegatedType t = (DelegatedType)super.clone(); t.qtype = (Type)qtype.clone(); return t; }
         public boolean isErroneous() { return qtype.isErroneous(); }
     }
 
-    public static class ForAll extends DelegatedType
-            implements Cloneable, ExecutableType {
+    public static class ForAll extends DelegatedType implements ExecutableType {
         public List<Type> tvars;
 
         public ForAll(List<Type> tvars, Type qtype) {
@@ -1099,16 +1100,6 @@ public class Type implements PrimitiveType {
         }
 
         public List<Type> getTypeArguments()   { return tvars; }
-
-        public void setThrown(List<Type> t) {
-            qtype.setThrown(t);
-        }
-
-        public Object clone() {
-            ForAll result = (ForAll)super.clone();
-            result.qtype = (Type)result.qtype.clone();
-            return result;
-        }
 
         public boolean isErroneous()  {
             return qtype.isErroneous();

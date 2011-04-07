@@ -741,7 +741,11 @@ public class Attr extends JCTree.Visitor {
 
             // If we override any other methods, check that we do so properly.
             // JLS ???
-            chk.checkClashes(tree.pos(), env.enclClass.type, m);
+            if (m.isStatic()) {
+                chk.checkHideClashes(tree.pos(), env.enclClass.type, m);
+            } else {
+                chk.checkOverrideClashes(tree.pos(), env.enclClass.type, m);
+            }
             chk.checkOverride(tree, m);
 
             // Create a new environment with local scope
@@ -1127,6 +1131,10 @@ public class Attr extends JCTree.Visitor {
             if (resource.getTag() == JCTree.VARDEF) {
                 attribStat(resource, tryEnv);
                 chk.checkType(resource, resource.type, syms.autoCloseableType, "try.not.applicable.to.type");
+
+                //check that resource type cannot throw InterruptedException
+                checkAutoCloseable(resource.pos(), localEnv, resource.type);
+
                 VarSymbol var = (VarSymbol)TreeInfo.symbolFor(resource);
                 var.setData(ElementKind.RESOURCE_VARIABLE);
             } else {
@@ -1163,6 +1171,35 @@ public class Attr extends JCTree.Visitor {
 
         localEnv.info.scope.leave();
         result = null;
+    }
+
+    void checkAutoCloseable(DiagnosticPosition pos, Env<AttrContext> env, Type resource) {
+        if (!resource.isErroneous() &&
+                types.asSuper(resource, syms.autoCloseableType.tsym) != null) {
+            Symbol close = syms.noSymbol;
+            boolean prevDeferDiags = log.deferDiagnostics;
+            Queue<JCDiagnostic> prevDeferredDiags = log.deferredDiagnostics;
+            try {
+                log.deferDiagnostics = true;
+                log.deferredDiagnostics = ListBuffer.lb();
+                close = rs.resolveQualifiedMethod(pos,
+                        env,
+                        resource,
+                        names.close,
+                        List.<Type>nil(),
+                        List.<Type>nil());
+            }
+            finally {
+                log.deferDiagnostics = prevDeferDiags;
+                log.deferredDiagnostics = prevDeferredDiags;
+            }
+            if (close.kind == MTH &&
+                    close.overrides(syms.autoCloseableClose, resource.tsym, types, true) &&
+                    chk.isHandled(syms.interruptedExceptionType, types.memberType(resource, close).getThrownTypes()) &&
+                    env.info.lint.isEnabled(LintCategory.TRY)) {
+                log.warning(LintCategory.TRY, pos, "try.resource.throws.interrupted.exc", resource);
+            }
+        }
     }
 
     public void visitConditional(JCConditional tree) {
@@ -1467,7 +1504,7 @@ public class Attr extends JCTree.Visitor {
                         // qualifier omitted; check for existence
                         // of an appropriate implicit qualifier.
                         rs.resolveImplicitThis(tree.meth.pos(),
-                                               localEnv, site);
+                                               localEnv, site, true);
                     }
                 } else if (tree.meth.getTag() == JCTree.SELECT) {
                     log.error(tree.meth.pos(), "illegal.qual.not.icls",
@@ -1625,11 +1662,8 @@ public class Attr extends JCTree.Visitor {
         // Attribute clazz expression and store
         // symbol + type back into the attributed tree.
         Type clazztype = attribType(clazz, env);
-        Pair<Scope,Scope> mapping = getSyntheticScopeMapping(clazztype, cdef != null);
-        if (!TreeInfo.isDiamond(tree)) {
-            clazztype = chk.checkClassType(
-                tree.clazz.pos(), clazztype, true);
-        }
+        Pair<Scope,Scope> mapping = getSyntheticScopeMapping(clazztype);
+        clazztype = chk.checkDiamond(tree, clazztype);
         chk.validate(clazz, localEnv);
         if (tree.encl != null) {
             // We have to work in this case to store
@@ -1654,10 +1688,12 @@ public class Attr extends JCTree.Visitor {
         List<Type> argtypes = attribArgs(tree.args, localEnv);
         List<Type> typeargtypes = attribTypes(tree.typeargs, localEnv);
 
-        if (TreeInfo.isDiamond(tree)) {
+        if (TreeInfo.isDiamond(tree) && !clazztype.isErroneous()) {
             clazztype = attribDiamond(localEnv, tree, clazztype, mapping, argtypes, typeargtypes);
             clazz.type = clazztype;
         } else if (allowDiamondFinder &&
+                tree.def == null &&
+                !clazztype.isErroneous() &&
                 clazztype.getTypeArguments().nonEmpty() &&
                 findDiamonds) {
             boolean prevDeferDiags = log.deferDiagnostics;
@@ -1681,8 +1717,7 @@ public class Attr extends JCTree.Visitor {
             if (inferred != null &&
                     !inferred.isErroneous() &&
                     inferred.tag == CLASS &&
-                    types.isAssignable(inferred, pt.tag == NONE ? clazztype : pt, Warner.noWarnings) &&
-                    chk.checkDiamond((ClassType)inferred).isEmpty()) {
+                    types.isAssignable(inferred, pt.tag == NONE ? clazztype : pt, Warner.noWarnings)) {
                 String key = types.isSameType(clazztype, inferred) ?
                     "diamond.redundant.args" :
                     "diamond.redundant.args.1";
@@ -1853,62 +1888,48 @@ public class Attr extends JCTree.Visitor {
                         Pair<Scope, Scope> mapping,
                         List<Type> argtypes,
                         List<Type> typeargtypes) {
-        if (clazztype.isErroneous() || mapping == erroneousMapping) {
+        if (clazztype.isErroneous() ||
+                clazztype.isInterface() ||
+                mapping == erroneousMapping) {
             //if the type of the instance creation expression is erroneous,
-            //or something prevented us to form a valid mapping, return the
-            //(possibly erroneous) type unchanged
+            //or if it's an interface, or if something prevented us to form a valid
+            //mapping, return the (possibly erroneous) type unchanged
             return clazztype;
         }
-        else if (clazztype.isInterface()) {
-            //if the type of the instance creation expression is an interface
-            //skip the method resolution step (JLS 15.12.2.7). The type to be
-            //inferred is of the kind <X1,X2, ... Xn>C<X1,X2, ... Xn>
-            clazztype = new ForAll(clazztype.tsym.type.allparams(), clazztype.tsym.type) {
-                @Override
-                public List<Type> getConstraints(TypeVar tv, ConstraintKind ck) {
-                    switch (ck) {
-                        case EXTENDS: return types.getBounds(tv);
-                        default: return List.nil();
-                    }
-                }
-                @Override
-                public Type inst(List<Type> inferred, Types types) throws Infer.NoInstanceException {
-                    // check that inferred bounds conform to their bounds
-                    infer.checkWithinBounds(tvars,
-                           types.subst(tvars, tvars, inferred), Warner.noWarnings);
-                    return super.inst(inferred, types);
-                }
-            };
-        } else {
-            //if the type of the instance creation expression is a class type
-            //apply method resolution inference (JLS 15.12.2.7). The return type
-            //of the resolved constructor will be a partially instantiated type
-            ((ClassSymbol) clazztype.tsym).members_field = mapping.snd;
-            Symbol constructor;
-            try {
-                constructor = rs.resolveDiamond(tree.pos(),
-                        env,
-                        clazztype.tsym.type,
-                        argtypes,
-                        typeargtypes);
-            } finally {
-                ((ClassSymbol) clazztype.tsym).members_field = mapping.fst;
-            }
-            if (constructor.kind == MTH) {
-                ClassType ct = new ClassType(clazztype.getEnclosingType(),
-                        clazztype.tsym.type.getTypeArguments(),
-                        clazztype.tsym);
-                clazztype = checkMethod(ct,
-                        constructor,
-                        env,
-                        tree.args,
-                        argtypes,
-                        typeargtypes,
-                        env.info.varArgs).getReturnType();
-            } else {
-                clazztype = syms.errType;
-            }
+
+        //dup attribution environment and augment the set of inference variables
+        Env<AttrContext> localEnv = env.dup(tree);
+        localEnv.info.tvars = clazztype.tsym.type.getTypeArguments();
+
+        //if the type of the instance creation expression is a class type
+        //apply method resolution inference (JLS 15.12.2.7). The return type
+        //of the resolved constructor will be a partially instantiated type
+        ((ClassSymbol) clazztype.tsym).members_field = mapping.snd;
+        Symbol constructor;
+        try {
+            constructor = rs.resolveDiamond(tree.pos(),
+                    localEnv,
+                    clazztype.tsym.type,
+                    argtypes,
+                    typeargtypes);
+        } finally {
+            ((ClassSymbol) clazztype.tsym).members_field = mapping.fst;
         }
+        if (constructor.kind == MTH) {
+            ClassType ct = new ClassType(clazztype.getEnclosingType(),
+                    clazztype.tsym.type.getTypeArguments(),
+                    clazztype.tsym);
+            clazztype = checkMethod(ct,
+                    constructor,
+                    localEnv,
+                    tree.args,
+                    argtypes,
+                    typeargtypes,
+                    localEnv.info.varArgs).getReturnType();
+        } else {
+            clazztype = syms.errType;
+        }
+
         if (clazztype.tag == FORALL && !pt.isErroneous()) {
             //if the resolved constructor's return type has some uninferred
             //type-variables, infer them using the expected type and declared
@@ -1925,34 +1946,9 @@ public class Attr extends JCTree.Visitor {
                         ex.diagnostic);
             }
         }
-        clazztype = chk.checkClassType(tree.clazz.pos(),
+        return chk.checkClassType(tree.clazz.pos(),
                 clazztype,
                 true);
-        if (clazztype.tag == CLASS) {
-            List<Type> invalidDiamondArgs = chk.checkDiamond((ClassType)clazztype);
-            if (!clazztype.isErroneous() && invalidDiamondArgs.nonEmpty()) {
-                //one or more types inferred in the previous steps is either a
-                //captured type or an intersection type --- we need to report an error.
-                String subkey = invalidDiamondArgs.size() > 1 ?
-                    "diamond.invalid.args" :
-                    "diamond.invalid.arg";
-                //The error message is of the kind:
-                //
-                //cannot infer type arguments for {clazztype}<>;
-                //reason: {subkey}
-                //
-                //where subkey is a fragment of the kind:
-                //
-                //type argument(s) {invalidDiamondArgs} inferred for {clazztype}<> is not allowed in this context
-                log.error(tree.clazz.pos(),
-                            "cant.apply.diamond.1",
-                            diags.fragment("diamond", clazztype.tsym),
-                            diags.fragment(subkey,
-                                           invalidDiamondArgs,
-                                           diags.fragment("diamond", clazztype.tsym)));
-            }
-        }
-        return clazztype;
     }
 
     /** Creates a synthetic scope containing fake generic constructors.
@@ -1963,34 +1959,28 @@ public class Attr extends JCTree.Visitor {
      *  inference. The inferred return type of the synthetic constructor IS
      *  the inferred type for the diamond operator.
      */
-    private Pair<Scope, Scope> getSyntheticScopeMapping(Type ctype, boolean overrideProtectedAccess) {
+    private Pair<Scope, Scope> getSyntheticScopeMapping(Type ctype) {
         if (ctype.tag != CLASS) {
             return erroneousMapping;
         }
+
         Pair<Scope, Scope> mapping =
                 new Pair<Scope, Scope>(ctype.tsym.members(), new Scope(ctype.tsym));
-        List<Type> typevars = ctype.tsym.type.getTypeArguments();
+
+        //for each constructor in the original scope, create a synthetic constructor
+        //whose return type is the type of the class in which the constructor is
+        //declared, and insert it into the new scope.
         for (Scope.Entry e = mapping.fst.lookup(names.init);
                 e.scope != null;
                 e = e.next()) {
-            MethodSymbol newConstr = (MethodSymbol) e.sym.clone(ctype.tsym);
-            if (overrideProtectedAccess && (newConstr.flags() & PROTECTED) != 0) {
-                //make protected constructor public (this is required for
-                //anonymous inner class creation expressions using diamond)
-                newConstr.flags_field |= PUBLIC;
-                newConstr.flags_field &= ~PROTECTED;
-            }
-            newConstr.name = names.init;
-            List<Type> oldTypeargs = List.nil();
-            if (newConstr.type.tag == FORALL) {
-                oldTypeargs = ((ForAll) newConstr.type).tvars;
-            }
-            newConstr.type = new MethodType(newConstr.type.getParameterTypes(),
-                    new ClassType(ctype.getEnclosingType(), ctype.tsym.type.getTypeArguments(), ctype.tsym),
-                    newConstr.type.getThrownTypes(),
-                    syms.methodClass);
-            newConstr.type = new ForAll(typevars.prependList(oldTypeargs), newConstr.type);
-            mapping.snd.enter(newConstr);
+            Type synthRestype = new ClassType(ctype.getEnclosingType(),
+                        ctype.tsym.type.getTypeArguments(),
+                        ctype.tsym);
+            MethodSymbol synhConstr = new MethodSymbol(e.sym.flags(),
+                    names.init,
+                    types.createMethodTypeWithReturn(e.sym.type, synthRestype),
+                    e.sym.owner);
+            mapping.snd.enter(synhConstr);
         }
         return mapping;
     }
@@ -2378,6 +2368,7 @@ public class Attr extends JCTree.Visitor {
                 sitesym.kind == VAR &&
                 ((VarSymbol)sitesym).isResourceVariable() &&
                 sym.kind == MTH &&
+                sym.name.equals(names.close) &&
                 sym.overrides(syms.autoCloseableClose, sitesym.type.tsym, types, true) &&
                 env.info.lint.isEnabled(LintCategory.TRY)) {
             log.warning(LintCategory.TRY, tree, "try.explicit.close.call");
@@ -2876,7 +2867,7 @@ public class Attr extends JCTree.Visitor {
                                   sym.location());
                 owntype = new MethodType(owntype.getParameterTypes(),
                                          types.erasure(owntype.getReturnType()),
-                                         owntype.getThrownTypes(),
+                                         types.erasure(owntype.getThrownTypes()),
                                          syms.methodClass);
             }
             if (useVarargs) {
@@ -3003,7 +2994,23 @@ public class Attr extends JCTree.Visitor {
             ctype = chk.checkType(typeTree.pos(),
                           chk.checkClassType(typeTree.pos(), ctype),
                           syms.throwableType);
-            multicatchTypes.append(ctype);
+            if (!ctype.isErroneous()) {
+                //check that alternatives of a disjunctive type are pairwise
+                //unrelated w.r.t. subtyping
+                if (chk.intersects(ctype,  multicatchTypes.toList())) {
+                    for (Type t : multicatchTypes) {
+                        boolean sub = types.isSubtype(ctype, t);
+                        boolean sup = types.isSubtype(t, ctype);
+                        if (sub || sup) {
+                            //assume 'a' <: 'b'
+                            Type a = sub ? ctype : t;
+                            Type b = sub ? t : ctype;
+                            log.error(typeTree.pos(), "multicatch.types.must.be.disjoint", a, b);
+                        }
+                    }
+                }
+                multicatchTypes.append(ctype);
+            }
         }
         tree.type = result = check(tree, types.lub(multicatchTypes.toList()), TYP, pkind, pt);
     }
@@ -3050,7 +3057,7 @@ public class Attr extends JCTree.Visitor {
             // (see comment for TypeVar.bound).
             // In this case, generate a class tree that represents the
             // bound class, ...
-            JCTree extending;
+            JCExpression extending;
             List<JCExpression> implementing;
             if ((bs.head.tsym.flags() & INTERFACE) == 0) {
                 extending = tree.bounds.head;
@@ -3104,6 +3111,30 @@ public class Attr extends JCTree.Visitor {
      */
     public void visitTree(JCTree tree) {
         throw new AssertionError();
+    }
+
+    /**
+     * Attribute an env for either a top level tree or class declaration.
+     */
+    public void attrib(Env<AttrContext> env) {
+        if (env.tree.getTag() == JCTree.TOPLEVEL)
+            attribTopLevel(env);
+        else
+            attribClass(env.tree.pos(), env.enclClass.sym);
+    }
+
+    /**
+     * Attribute a top level tree. These trees are encountered when the
+     * package declaration has annotations.
+     */
+    public void attribTopLevel(Env<AttrContext> env) {
+        JCCompilationUnit toplevel = env.toplevel;
+        try {
+            annotate.flush();
+            chk.validateAnnotations(toplevel.packageAnnotations, toplevel.packge);
+        } catch (CompletionFailure ex) {
+            chk.completionError(toplevel.pos(), ex);
+        }
     }
 
     /** Main method: attribute class definition associated with given class symbol.
@@ -3266,6 +3297,10 @@ public class Attr extends JCTree.Visitor {
             deferredLintHandler.setPos(prevPos);
             chk.setDeferredLintHandler(prevLintHandler);
         }
+
+        //check that a resource implementing AutoCloseable cannot throw InterruptedException
+        checkAutoCloseable(tree.pos(), env, c.type);
+
         for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
             // Attribute declaration
             attribStat(l.head, env);

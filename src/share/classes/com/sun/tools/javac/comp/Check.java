@@ -675,40 +675,25 @@ public class Check {
             return true;
     }
 
-    /** Check that the type inferred using the diamond operator does not contain
-     *  non-denotable types such as captured types or intersection types.
-     *  @param t the type inferred using the diamond operator
+    /** Check that usage of diamond operator is correct (i.e. diamond should not
+     * be used with non-generic classes or in anonymous class creation expressions)
      */
-    List<Type> checkDiamond(ClassType t) {
-        DiamondTypeChecker dtc = new DiamondTypeChecker();
-        ListBuffer<Type> buf = ListBuffer.lb();
-        for (Type arg : t.getTypeArguments()) {
-            if (!dtc.visit(arg, null)) {
-                buf.append(arg);
-            }
-        }
-        return buf.toList();
-    }
-
-    static class DiamondTypeChecker extends Types.SimpleVisitor<Boolean, Void> {
-        public Boolean visitType(Type t, Void s) {
-            return true;
-        }
-        @Override
-        public Boolean visitClassType(ClassType t, Void s) {
-            if (t.isCompound()) {
-                return false;
-            }
-            for (Type targ : t.getTypeArguments()) {
-                if (!visit(targ, s)) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        @Override
-        public Boolean visitCapturedType(CapturedType t, Void s) {
-            return false;
+    Type checkDiamond(JCNewClass tree, Type t) {
+        if (!TreeInfo.isDiamond(tree) ||
+                t.isErroneous()) {
+            return checkClassType(tree.clazz.pos(), t, true);
+        } else if (tree.def != null) {
+            log.error(tree.clazz.pos(),
+                    "cant.apply.diamond.1",
+                    t, diags.fragment("diamond.and.anon.class", t));
+            return types.createErrorType(t);
+        } else if (t.tsym.type.getTypeArguments().isEmpty()) {
+            log.error(tree.clazz.pos(),
+                "cant.apply.diamond.1",
+                t, diags.fragment("diamond.non.generic", t));
+            return types.createErrorType(t);
+        } else {
+            return t;
         }
     }
 
@@ -1707,7 +1692,8 @@ public class Check {
                             "(" + types.memberType(t2, s2).getParameterTypes() + ")");
                         return s2;
                     }
-                } else if (!checkNameClash((ClassSymbol)site.tsym, s1, s2)) {
+                } else if (checkNameClash((ClassSymbol)site.tsym, s1, s2) &&
+                        !checkCommonOverriderIn(s1, s2, site)) {
                     log.error(pos,
                             "name.clash.same.erasure.no.override",
                             s1, s1.location(),
@@ -1789,18 +1775,10 @@ public class Check {
     }
 
     private boolean checkNameClash(ClassSymbol origin, Symbol s1, Symbol s2) {
-        if (s1.kind == MTH &&
-                    s1.isInheritedIn(origin, types) &&
-                    (s1.flags() & SYNTHETIC) == 0 &&
-                    !s2.isConstructor()) {
-            Type er1 = s2.erasure(types);
-            Type er2 = s1.erasure(types);
-            if (types.isSameTypes(er1.getParameterTypes(),
-                    er2.getParameterTypes())) {
-                    return false;
-            }
-        }
-        return true;
+        ClashFilter cf = new ClashFilter(origin.type);
+        return (cf.accepts(s1) &&
+                cf.accepts(s2) &&
+                types.hasSameArgs(s1.erasure(types), s2.erasure(types)));
     }
 
 
@@ -2147,52 +2125,85 @@ public class Check {
      *  @param site The class whose methods are checked.
      *  @param sym  The method symbol to be checked.
      */
-    void checkClashes(DiagnosticPosition pos, Type site, Symbol sym) {
-        List<Type> supertypes = types.closure(site);
-        for (List<Type> l = supertypes; l.nonEmpty(); l = l.tail) {
-            for (List<Type> m = supertypes; m.nonEmpty(); m = m.tail) {
-                checkClashes(pos, l.head, m.head, site, sym);
+    void checkOverrideClashes(DiagnosticPosition pos, Type site, MethodSymbol sym) {
+        if (site.isErroneous())
+            return;
+         ClashFilter cf = new ClashFilter(site);
+         //for each method m1 that is a member of 'site'...
+         for (Symbol s1 : types.membersClosure(site).getElementsByName(sym.name, cf)) {
+            //...find another method m2 that is overridden (directly or indirectly)
+            //by method 'sym' in 'site'
+            for (Symbol s2 : types.membersClosure(site).getElementsByName(sym.name, cf)) {
+                if (s1 == s2 || !sym.overrides(s2, site.tsym, types, false)) continue;
+                //if (i) the signature of 'sym' is not a subsignature of m1 (seen as
+                //a member of 'site') and (ii) m1 has the same erasure as m2, issue an error
+                if (!types.isSubSignature(sym.type, types.memberType(site, s1), false) &&
+                        types.hasSameArgs(s1.erasure(types), s2.erasure(types))) {
+                    sym.flags_field |= CLASH;
+                    String key = s2 == sym ?
+                            "name.clash.same.erasure.no.override" :
+                            "name.clash.same.erasure.no.override.1";
+                    log.error(pos,
+                            key,
+                            sym, sym.location(),
+                            s1, s1.location(),
+                            s2, s2.location());
+                    return;
+                }
             }
         }
     }
 
-    /** Reports an error whenever 'sym' seen as a member of type 't1' clashes with
-     *  some unrelated method defined in 't2'.
+
+
+    /** Check that all static methods accessible from 'site' are
+     *  mutually compatible (JLS 8.4.8).
+     *
+     *  @param pos  Position to be used for error reporting.
+     *  @param site The class whose methods are checked.
+     *  @param sym  The method symbol to be checked.
      */
-    private void checkClashes(DiagnosticPosition pos, Type t1, Type t2, Type site, Symbol s1) {
+    void checkHideClashes(DiagnosticPosition pos, Type site, MethodSymbol sym) {
+        if (site.isErroneous())
+            return;
         ClashFilter cf = new ClashFilter(site);
-        s1 = ((MethodSymbol)s1).implementedIn(t1.tsym, types);
-        if (s1 == null) return;
-        Type st1 = types.memberType(site, s1);
-        for (Scope.Entry e2 = t2.tsym.members().lookup(s1.name, cf); e2.scope != null; e2 = e2.next(cf)) {
-            Symbol s2 = e2.sym;
-            if (s1 == s2) continue;
-            Type st2 = types.memberType(site, s2);
-            if (!types.overrideEquivalent(st1, st2) &&
-                    !checkNameClash((ClassSymbol)site.tsym, s1, s2)) {
+        //for each method m1 that is a member of 'site'...
+        for (Symbol s : types.membersClosure(site).getElementsByName(sym.name, cf)) {
+            //if (i) the signature of 'sym' is not a subsignature of m1 (seen as
+            //a member of 'site') and (ii) 'sym' has the same erasure as m1, issue an error
+            if (!types.isSubSignature(sym.type, types.memberType(site, s), false) &&
+                    types.hasSameArgs(s.erasure(types), sym.erasure(types))) {
                 log.error(pos,
-                        "name.clash.same.erasure.no.override",
-                        s1, s1.location(),
-                        s2, s2.location());
-            }
-        }
-    }
-    //where
-    private class ClashFilter implements Filter<Symbol> {
+                        "name.clash.same.erasure.no.hide",
+                        sym, sym.location(),
+                        s, s.location());
+                return;
+             }
+         }
+     }
 
-        Type site;
+     //where
+     private class ClashFilter implements Filter<Symbol> {
 
-        ClashFilter(Type site) {
-            this.site = site;
-        }
+         Type site;
 
-        public boolean accepts(Symbol s) {
-            return s.kind == MTH &&
-                    (s.flags() & (SYNTHETIC | CLASH)) == 0 &&
-                    s.isInheritedIn(site.tsym, types) &&
-                    !s.isConstructor();
-        }
-    }
+         ClashFilter(Type site) {
+             this.site = site;
+         }
+
+         boolean shouldSkip(Symbol s) {
+             return (s.flags() & CLASH) != 0 &&
+                s.owner == site.tsym;
+         }
+
+         public boolean accepts(Symbol s) {
+             return s.kind == MTH &&
+                     (s.flags() & SYNTHETIC) == 0 &&
+                     !shouldSkip(s) &&
+                     s.isInheritedIn(site.tsym, types) &&
+                     !s.isConstructor();
+         }
+     }
 
     /** Report a conflict between a user symbol and a synthetic symbol.
      */
@@ -2674,14 +2685,14 @@ public class Check {
         if (sym.owner.name == names.any) return false;
         for (Scope.Entry e = s.lookup(sym.name); e.scope == s; e = e.next()) {
             if (sym != e.sym &&
-                (e.sym.flags() & CLASH) == 0 &&
-                sym.kind == e.sym.kind &&
-                sym.name != names.error &&
-                (sym.kind != MTH || types.hasSameArgs(types.erasure(sym.type), types.erasure(e.sym.type)))) {
+                    (e.sym.flags() & CLASH) == 0 &&
+                    sym.kind == e.sym.kind &&
+                    sym.name != names.error &&
+                    (sym.kind != MTH || types.hasSameArgs(types.erasure(sym.type), types.erasure(e.sym.type)))) {
                 if ((sym.flags() & VARARGS) != (e.sym.flags() & VARARGS)) {
                     varargsDuplicateError(pos, sym, e.sym);
                     return true;
-                } else if (sym.kind == MTH && !hasSameSignature(sym.type, e.sym.type)) {
+                } else if (sym.kind == MTH && !types.hasSameArgs(sym.type, e.sym.type, false)) {
                     duplicateErasureError(pos, sym, e.sym);
                     sym.flags_field |= CLASH;
                     return true;
@@ -2693,23 +2704,14 @@ public class Check {
         }
         return true;
     }
-    //where
-        boolean hasSameSignature(Type mt1, Type mt2) {
-            if (mt1.tag == FORALL && mt2.tag == FORALL) {
-                ForAll fa1 = (ForAll)mt1;
-                ForAll fa2 = (ForAll)mt2;
-                mt2 = types.subst(fa2, fa2.tvars, fa1.tvars);
-            }
-            return types.hasSameArgs(mt1.asMethodType(), mt2.asMethodType());
-        }
 
-        /** Report duplicate declaration error.
-         */
-        void duplicateErasureError(DiagnosticPosition pos, Symbol sym1, Symbol sym2) {
-            if (!sym1.type.isErroneous() && !sym2.type.isErroneous()) {
-                log.error(pos, "name.clash.same.erasure", sym1, sym2);
-            }
+    /** Report duplicate declaration error.
+     */
+    void duplicateErasureError(DiagnosticPosition pos, Symbol sym1, Symbol sym2) {
+        if (!sym1.type.isErroneous() && !sym2.type.isErroneous()) {
+            log.error(pos, "name.clash.same.erasure", sym1, sym2);
         }
+    }
 
     /** Check that single-type import is not already imported or top-level defined,
      *  but make an exception for two single-type imports which denote the same type.

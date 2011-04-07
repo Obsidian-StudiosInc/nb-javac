@@ -38,6 +38,7 @@ import com.sun.tools.javac.comp.Check;
 import java.util.logging.Logger;
 import javax.lang.model.type.TypeKind;
 
+import static com.sun.tools.javac.code.Scope.*;
 import static com.sun.tools.javac.code.Type.*;
 import static com.sun.tools.javac.code.TypeTags.*;
 import static com.sun.tools.javac.code.Symbol.*;
@@ -72,7 +73,6 @@ public class Types {
         new Context.Key<Types>();
 
     final Symtab syms;
-    final Scope.ScopeCounter scopeCounter;
     final JavacMessages messages;
     final Names names;
     final boolean allowGenerics;
@@ -94,7 +94,6 @@ public class Types {
     protected Types(Context context) {
         context.put(typesKey, this);
         syms = Symtab.instance(context);
-        scopeCounter = Scope.ScopeCounter.instance(context);
         names = Names.instance(context);
         reader = ClassReader.instance(context);
         source = Source.instance(context);
@@ -2005,7 +2004,11 @@ public class Types {
      * @return true if t is a sub signature of s.
      */
     public boolean isSubSignature(Type t, Type s) {
-        return hasSameArgs(t, s) || hasSameArgs(t, erasure(s));
+        return isSubSignature(t, s, true);
+    }
+
+    public boolean isSubSignature(Type t, Type s, boolean strict) {
+        return hasSameArgs(t, s, strict) || hasSameArgs(t, erasure(s), strict);
     }
 
     /**
@@ -2036,26 +2039,26 @@ public class Types {
             final MethodSymbol cachedImpl;
             final Filter<Symbol> implFilter;
             final boolean checkResult;
-            final Scope.ScopeCounter scopeCounter;
+            final int prevMark;
 
             public Entry(MethodSymbol cachedImpl,
                     Filter<Symbol> scopeFilter,
                     boolean checkResult,
-                    Scope.ScopeCounter scopeCounter) {
+                    int prevMark) {
                 this.cachedImpl = cachedImpl;
                 this.implFilter = scopeFilter;
                 this.checkResult = checkResult;
-                this.scopeCounter = scopeCounter;
+                this.prevMark = prevMark;
             }
 
-            boolean matches(Filter<Symbol> scopeFilter, boolean checkResult, Scope.ScopeCounter scopeCounter) {
+            boolean matches(Filter<Symbol> scopeFilter, boolean checkResult, int mark) {
                 return this.implFilter == scopeFilter &&
                         this.checkResult == checkResult &&
-                        this.scopeCounter.val() >= scopeCounter.val();
+                        this.prevMark == mark;
             }
         }
 
-        MethodSymbol get(MethodSymbol ms, TypeSymbol origin, boolean checkResult, Filter<Symbol> implFilter, Scope.ScopeCounter scopeCounter) {
+        MethodSymbol get(MethodSymbol ms, TypeSymbol origin, boolean checkResult, Filter<Symbol> implFilter) {
             SoftReference<Map<TypeSymbol, Entry>> ref_cache = _map.get(ms);
             Map<TypeSymbol, Entry> cache = ref_cache != null ? ref_cache.get() : null;
             if (cache == null) {
@@ -2063,10 +2066,11 @@ public class Types {
                 _map.put(ms, new SoftReference<Map<TypeSymbol, Entry>>(cache));
             }
             Entry e = cache.get(origin);
+            CompoundScope members = membersClosure(origin.type);
             if (e == null ||
-                    !e.matches(implFilter, checkResult, scopeCounter)) {
-                MethodSymbol impl = implementationInternal(ms, origin, Types.this, checkResult, implFilter);
-                cache.put(origin, new Entry(impl, implFilter, checkResult, scopeCounter));
+                    !e.matches(implFilter, checkResult, members.getMark())) {
+                MethodSymbol impl = implementationInternal(ms, origin, checkResult, implFilter);
+                cache.put(origin, new Entry(impl, implFilter, checkResult, members.getMark()));
                 return impl;
             }
             else {
@@ -2074,8 +2078,8 @@ public class Types {
             }
         }
 
-        private MethodSymbol implementationInternal(MethodSymbol ms, TypeSymbol origin, Types types, boolean checkResult, Filter<Symbol> implFilter) {
-            for (Type t = origin.type; t.tag == CLASS || t.tag == TYPEVAR; t = types.supertype(t)) {
+        private MethodSymbol implementationInternal(MethodSymbol ms, TypeSymbol origin, boolean checkResult, Filter<Symbol> implFilter) {
+            for (Type t = origin.type; t.tag == CLASS || t.tag == TYPEVAR; t = supertype(t)) {
                 while (t.tag == TYPEVAR)
                     t = t.getUpperBound();
                 TypeSymbol c = t.tsym;
@@ -2083,7 +2087,7 @@ public class Types {
                      e.scope != null;
                      e = e.next(implFilter)) {
                     if (e.sym != null &&
-                             e.sym.overrides(ms, origin, types, checkResult))
+                             e.sym.overrides(ms, origin, Types.this, checkResult))
                         return (MethodSymbol)e.sym;
                 }
             }
@@ -2093,9 +2097,42 @@ public class Types {
 
     private ImplementationCache implCache = new ImplementationCache();
 
-    public MethodSymbol implementation(MethodSymbol ms, TypeSymbol origin, Types types, boolean checkResult, Filter<Symbol> implFilter) {
-        return implCache.get(ms, origin, checkResult, implFilter, scopeCounter);
+    public MethodSymbol implementation(MethodSymbol ms, TypeSymbol origin, boolean checkResult, Filter<Symbol> implFilter) {
+        return implCache.get(ms, origin, checkResult, implFilter);
     }
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="compute transitive closure of all members in given site">
+    public CompoundScope membersClosure(Type site) {
+        return membersClosure.visit(site);
+    }
+
+    UnaryVisitor<CompoundScope> membersClosure = new UnaryVisitor<CompoundScope>() {
+
+        public CompoundScope visitType(Type t, Void s) {
+            return null;
+        }
+
+        @Override
+        public CompoundScope visitClassType(ClassType t, Void s) {
+            ClassSymbol csym = (ClassSymbol)t.tsym;
+            if (csym.membersClosure == null) {
+                CompoundScope membersClosure = new CompoundScope(csym);
+                for (Type i : interfaces(t)) {
+                    membersClosure.addSubScope(visit(i));
+                }
+                membersClosure.addSubScope(visit(supertype(t)));
+                membersClosure.addSubScope(csym.members());
+                csym.membersClosure = membersClosure;
+            }
+            return csym.membersClosure;
+        }
+
+        @Override
+        public CompoundScope visitTypeVar(TypeVar t, Void s) {
+            return visit(t.getUpperBound());
+        }
+    };
     // </editor-fold>
 
     /**
@@ -2108,10 +2145,24 @@ public class Types {
      * where correspondence is by position in the type parameter list.
      */
     public boolean hasSameArgs(Type t, Type s) {
+        return hasSameArgs(t, s, true);
+    }
+
+    public boolean hasSameArgs(Type t, Type s, boolean strict) {
+        return hasSameArgs(t, s, strict ? hasSameArgs_strict : hasSameArgs_nonstrict);
+    }
+
+    private boolean hasSameArgs(Type t, Type s, TypeRelation hasSameArgs) {
         return hasSameArgs.visit(t, s);
     }
     // where
-        private TypeRelation hasSameArgs = new TypeRelation() {
+        private class HasSameArgs extends TypeRelation {
+
+            boolean strict;
+
+            public HasSameArgs(boolean strict) {
+                this.strict = strict;
+            }
 
             public Boolean visitType(Type t, Type s) {
                 throw new AssertionError();
@@ -2126,7 +2177,7 @@ public class Types {
             @Override
             public Boolean visitForAll(ForAll t, Type s) {
                 if (s.tag != FORALL)
-                    return false;
+                    return strict ? false : visitMethodType(t.asMethodType(), s);
 
                 ForAll forAll = (ForAll)s;
                 return hasSameBounds(t, forAll)
@@ -2138,6 +2189,10 @@ public class Types {
                 return false;
             }
         };
+
+        TypeRelation hasSameArgs_strict = new HasSameArgs(true);
+        TypeRelation hasSameArgs_nonstrict = new HasSameArgs(false);
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="subst">
@@ -2386,6 +2441,54 @@ public class Types {
         };
     // </editor-fold>
 
+    public Type createMethodTypeWithParameters(Type original, List<Type> newParams) {
+        return original.accept(methodWithParameters, newParams);
+    }
+    // where
+        private final MapVisitor<List<Type>> methodWithParameters = new MapVisitor<List<Type>>() {
+            public Type visitType(Type t, List<Type> newParams) {
+                throw new IllegalArgumentException("Not a method type: " + t);
+            }
+            public Type visitMethodType(MethodType t, List<Type> newParams) {
+                return new MethodType(newParams, t.restype, t.thrown, t.tsym);
+            }
+            public Type visitForAll(ForAll t, List<Type> newParams) {
+                return new ForAll(t.tvars, t.qtype.accept(this, newParams));
+            }
+        };
+
+    public Type createMethodTypeWithThrown(Type original, List<Type> newThrown) {
+        return original.accept(methodWithThrown, newThrown);
+    }
+    // where
+        private final MapVisitor<List<Type>> methodWithThrown = new MapVisitor<List<Type>>() {
+            public Type visitType(Type t, List<Type> newThrown) {
+                throw new IllegalArgumentException("Not a method type: " + t);
+            }
+            public Type visitMethodType(MethodType t, List<Type> newThrown) {
+                return new MethodType(t.argtypes, t.restype, newThrown, t.tsym);
+            }
+            public Type visitForAll(ForAll t, List<Type> newThrown) {
+                return new ForAll(t.tvars, t.qtype.accept(this, newThrown));
+            }
+        };
+
+    public Type createMethodTypeWithReturn(Type original, Type newReturn) {
+        return original.accept(methodWithReturn, newReturn);
+    }
+    // where
+        private final MapVisitor<Type> methodWithReturn = new MapVisitor<Type>() {
+            public Type visitType(Type t, Type newReturn) {
+                throw new IllegalArgumentException("Not a method type: " + t);
+            }
+            public Type visitMethodType(MethodType t, Type newReturn) {
+                return new MethodType(t.argtypes, newReturn, t.thrown, t.tsym);
+            }
+            public Type visitForAll(ForAll t, Type newReturn) {
+                return new ForAll(t.tvars, t.qtype.accept(this, newReturn));
+            }
+        };
+
     // <editor-fold defaultstate="collapsed" desc="createErrorType">
     public Type createErrorType(Type originalType) {
         return new ErrorType(originalType, syms.errSymbol);
@@ -2486,7 +2589,7 @@ public class Types {
     }
     // where
         private String typaramsString(List<Type> tvars) {
-            StringBuffer s = new StringBuffer();
+            StringBuilder s = new StringBuilder();
             s.append('<');
             boolean first = true;
             for (Type t : tvars) {
@@ -2497,7 +2600,7 @@ public class Types {
             s.append('>');
             return s.toString();
         }
-        private void appendTyparamString(TypeVar t, StringBuffer buf) {
+        private void appendTyparamString(TypeVar t, StringBuilder buf) {
             buf.append(t);
             if (t.bound == null ||
                 t.bound.tsym.getQualifiedName() == names.java_lang_Object)
@@ -2797,12 +2900,26 @@ public class Types {
             while (ts.head.tag != CLASS && ts.head.tag != TYPEVAR)
                 ts = ts.tail;
             Assert.check(!ts.isEmpty());
-            List<Type> cl = closure(ts.head);
+            //step 1 - compute erased candidate set (EC)
+            List<Type> cl = erasedSupertypes(ts.head);
             for (Type t : ts.tail) {
                 if (t.tag == CLASS || t.tag == TYPEVAR)
-                    cl = intersect(cl, closure(t));
+                    cl = intersect(cl, erasedSupertypes(t));
             }
-            return compoundMin(cl);
+            //step 2 - compute minimal erased candidate set (MEC)
+            List<Type> mec = closureMin(cl);
+            //step 3 - for each element G in MEC, compute lci(Inv(G))
+            List<Type> candidates = List.nil();
+            for (Type erasedSupertype : mec) {
+                List<Type> lci = List.of(asSuper(ts.head, erasedSupertype.tsym));
+                for (Type t : ts) {
+                    lci = intersect(lci, List.of(asSuper(t, erasedSupertype.tsym)));
+                }
+                candidates = candidates.appendList(lci);
+            }
+            //step 4 - let MEC be { G1, G2 ... Gn }, then we have that
+            //lub = lci(Inv(G1)) & lci(Inv(G2)) & ... & lci(Inv(Gn))
+            return compoundMin(candidates);
 
         default:
             // calculate lub(A, B[])
@@ -2816,6 +2933,18 @@ public class Types {
         }
     }
     // where
+        List<Type> erasedSupertypes(Type t) {
+            ListBuffer<Type> buf = lb();
+            for (Type sup : closure(t)) {
+                if (sup.tag == TYPEVAR) {
+                    buf.append(sup);
+                } else {
+                    buf.append(erasure(sup));
+                }
+            }
+            return buf.toList();
+        }
+
         private Type arraySuperType = null;
         private Type arraySuperType() {
             // initialized lazily to avoid problems during compiler startup
