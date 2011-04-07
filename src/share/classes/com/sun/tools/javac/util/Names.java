@@ -73,6 +73,7 @@ public class Names {
     public final Name java_io_Serializable;
     public final Name serialVersionUID;
     public final Name java_lang_Enum;
+    public final Name transient_java_dyn_MethodHandle; // transient - 292
     public final Name java_lang_invoke_MethodHandle;
     public final Name package_info;
     public final Name ConstantValue;
@@ -104,6 +105,10 @@ public class Names {
     public final Name RuntimeInvisibleParameterAnnotations;
     public final Name Value;
     public final Name EnclosingMethod;
+    public final Name _org_netbeans_TypeSignature;
+    public final Name _org_netbeans_ParameterNames;
+    public final Name _org_netbeans_SourceLevelAnnotations;
+    public final Name _org_netbeans_SourceLevelParameterAnnotations;
     public final Name desiredAssertionStatus;
     public final Name append;
     public final Name family;
@@ -149,12 +154,12 @@ public class Names {
     public final Name java_lang_AutoCloseable;
     public final Name close;
     public final Name addSuppressed;
+    public final Name addSuppressedException;
 
     public final Name.Table table;
 
     public Names(Context context) {
-        Options options = Options.instance(context);
-        table = createTable(options);
+        table = createTable(context);
 
         slash = fromString("/");
         hyphen = fromString("-");
@@ -183,6 +188,7 @@ public class Names {
         java_lang_Cloneable = fromString("java.lang.Cloneable");
         java_io_Serializable = fromString("java.io.Serializable");
         java_lang_Enum = fromString("java.lang.Enum");
+        transient_java_dyn_MethodHandle = fromString("java.dyn.MethodHandle"); //transient - 292
         java_lang_invoke_MethodHandle = fromString("java.lang.invoke.MethodHandle");
         package_info = fromString("package-info");
         serialVersionUID = fromString("serialVersionUID");
@@ -215,6 +221,10 @@ public class Names {
         RuntimeInvisibleParameterAnnotations = fromString("RuntimeInvisibleParameterAnnotations");
         Value = fromString("Value");
         EnclosingMethod = fromString("EnclosingMethod");
+        _org_netbeans_TypeSignature = fromString("org.netbeans.TypeSignature");
+        _org_netbeans_ParameterNames = fromString("org.netbeans.ParameterNames");
+        _org_netbeans_SourceLevelAnnotations = fromString("org.netbeans.SourceLevelAnnotations");
+        _org_netbeans_SourceLevelParameterAnnotations = fromString("org.netbeans.SourceLevelParameterAnnotations");
 
         desiredAssertionStatus = fromString("desiredAssertionStatus");
 
@@ -266,14 +276,16 @@ public class Names {
         java_lang_AutoCloseable = fromString("java.lang.AutoCloseable");
         close = fromString("close");
         addSuppressed = fromString("addSuppressed");
+        addSuppressedException = fromString("addSuppressedException");
     }
 
-    protected Name.Table createTable(Options options) {
+    protected Name.Table createTable(Context context) {
+        Options options = Options.instance(context);
         boolean useUnsharedTable = options.isSet("useUnsharedTable");
         if (useUnsharedTable)
-            return new UnsharedNameTable(this);
+            return new UnsharedNameTable(this, context);
         else
-            return new SharedNameTable(this);
+            return new SharedNameTable(this, context);
     }
 
     public void dispose() {

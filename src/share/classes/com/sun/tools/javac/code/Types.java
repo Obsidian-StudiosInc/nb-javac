@@ -35,6 +35,8 @@ import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.comp.Check;
+import java.util.logging.Logger;
+import javax.lang.model.type.TypeKind;
 
 import static com.sun.tools.javac.code.Scope.*;
 import static com.sun.tools.javac.code.Type.*;
@@ -73,6 +75,7 @@ public class Types {
     final Symtab syms;
     final JavacMessages messages;
     final Names names;
+    final boolean allowGenerics;
     final boolean allowBoxing;
     final ClassReader reader;
     final Source source;
@@ -92,9 +95,10 @@ public class Types {
         context.put(typesKey, this);
         syms = Symtab.instance(context);
         names = Names.instance(context);
-        allowBoxing = Source.instance(context).allowBoxing();
         reader = ClassReader.instance(context);
         source = Source.instance(context);
+        allowGenerics = source.allowGenerics();
+        allowBoxing = source.allowBoxing();
         chk = Check.instance(context);
         capturedName = names.fromString("<captured wildcard>");
         messages = JavacMessages.instance(context);
@@ -466,9 +470,15 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                Type sup = asSuper(t, s.tsym);
+                final Symbol _ssym = s.tsym;
+                if (_ssym == null) {
+                    TypeKind _skind = s.getKind();
+                    Logger.getLogger(Types.class.getName()).warning("Types.isSubtype.visitClassType type t: [" + t.toString() +"]; type s: [" + s.toString() + ","+ _skind +"] has a null symbol."); //NOI18N
+                    return false;
+                }
+                Type sup = asSuper(t, _ssym);
                 return sup != null
-                    && sup.tsym == s.tsym
+                    && sup.tsym == _ssym
                     // You're not allowed to write
                     //     Vector<Object> vec = new Vector<String>();
                     // But with wildcards you can write
@@ -1407,8 +1417,10 @@ public class Types {
                     Type x = asSuper(st, sym);
                     if (x != null)
                         return x;
+                } else if (st.tag == NONE && t.tsym.type.isErroneous() && t.tsym.flatName() != names.java_lang_Object) {
+                    return t.tsym.type;
                 }
-                if ((sym.flags() & INTERFACE) != 0) {
+                if (sym != null && (sym.flags() & INTERFACE) != 0) {
                     for (List<Type> l = interfaces(t); l.nonEmpty(); l = l.tail) {
                         Type x = asSuper(l.head, sym);
                         if (x != null)
@@ -1503,6 +1515,8 @@ public class Types {
      * @param sym a symbol
      */
     public Type memberType(Type t, Symbol sym) {
+        if (!allowGenerics && sym.kind != Kinds.TYP && !sym.isConstructor())
+            return sym.externalType(this);
         return (sym.flags() & STATIC) != 0
             ? sym.type
             : memberType.visit(t, sym);
@@ -1523,7 +1537,7 @@ public class Types {
             public Type visitClassType(ClassType t, Symbol sym) {
                 Symbol owner = sym.owner;
                 long flags = sym.flags();
-                if (((flags & STATIC) == 0) && owner.type.isParameterized()) {
+                if (((flags & STATIC) == 0) && owner != null && owner.type != null && owner.type.isParameterized()) {
                     Type base = asOuterSuper(t, owner);
                     //if t is an intersection type T = CT & I1 & I2 ... & In
                     //its supertypes CT, I1, ... In might contain wildcards
@@ -1569,8 +1583,6 @@ public class Types {
      * (not defined for Method and ForAll types)
      */
     public boolean isAssignable(Type t, Type s, Warner warn) {
-        if (t.tag == ERROR)
-            return true;
         if (t.tag <= INT && t.constValue() != null) {
             int value = ((Number)t.constValue()).intValue();
             switch (s.tag) {
@@ -1612,7 +1624,7 @@ public class Types {
     }
     //where
     private Type erasure(Type t, boolean recurse) {
-        if (t.tag <= lastBaseTag)
+        if (t == null || t.tag <= lastBaseTag)
             return t; /* fast special case */
         else
             return erasure.visit(t, recurse);
@@ -2424,7 +2436,7 @@ public class Types {
         }
         return tvars1;
     }
-    static private Mapping newInstanceFun = new Mapping("newInstanceFun") {
+    private Mapping newInstanceFun = new Mapping("newInstanceFun") {
             public Type apply(Type t) { return new TypeVar(t.tsym, t.getUpperBound(), t.getLowerBound()); }
         };
     // </editor-fold>
@@ -2486,7 +2498,7 @@ public class Types {
         return new ErrorType(c, originalType);
     }
 
-    public Type createErrorType(Name name, TypeSymbol container, Type originalType) {
+    public Type createErrorType(Name name, Symbol container, Type originalType) {
         return new ErrorType(name, container, originalType);
     }
     // </editor-fold>
@@ -2532,7 +2544,12 @@ public class Types {
             return tvar.rank_field;
         }
         case ERROR:
-            return 0;
+        case NONE:          //Works around type with non filled supertype_field, it happens when the supertype is created but
+            return 0;       //it's symbol is not completed, it is assigned to other symbols and when it is completed it completion
+                            //throws an CompletionFailure. The type is replaced by ErrorType rather than to filling the original
+                            //type the original type stays unfilled and has supertype NONE. Another possibility is to catch CompletionFailure
+                            //in the MemberEnter when supertype is computed (863) - works fine, but the same is is required also for ClassReader,
+                            //when the supertype_field is set it's type has to be comleted - which is hard to do since ClassReader is not reentrant.
         default:
             throw new AssertionError();
         }
@@ -2629,6 +2646,8 @@ public class Types {
         List<Type> cl = closureCache.get(t);
         if (cl == null) {
             Type st = supertype(t);
+            if (st == null) // FIXME: shouldn't be null
+                st = Type.noType;
             if (!t.isCompound()) {
                 if (st.tag == CLASS) {
                     cl = insert(closure(st), t);
@@ -2638,7 +2657,7 @@ public class Types {
                     cl = List.of(t);
                 }
             } else {
-                cl = closure(supertype(t));
+                cl = closure(st);
             }
             for (List<Type> l = interfaces(t); l.nonEmpty(); l = l.tail)
                 cl = union(cl, closure(l.head));
@@ -2799,12 +2818,23 @@ public class Types {
         return classes.appendList(interfaces).toList();
     }
 
+    private final Map<List<Type>, Type> lubCache = new HashMap<List<Type>, Type>();
+    
     /**
      * Return the least upper bound of pair of types.  if the lub does
      * not exist return null.
      */
     public Type lub(Type t1, Type t2) {
-        return lub(List.of(t1, t2));
+        //workaround for #195646: cache the results of lub(Type, Type) to prevent very long computation
+        //can be removed when javac bug 7015715 is fixed:
+        List<Type> types = List.of(t1, t2);
+        Type result = lubCache.get(types);
+
+        if (result == null) {
+            lubCache.put(types, result = lub(types));
+        }
+
+        return result;
     }
 
     /**
@@ -3116,11 +3146,13 @@ public class Types {
      * Return the primitive type corresponding to a boxed type.
      */
     public Type unboxedType(Type t) {
-        if (allowBoxing) {
+        if (allowBoxing && !t.isErroneous()) {
             for (int i=0; i<syms.boxedName.length; i++) {
                 Name box = syms.boxedName[i];
+                Type st = null;
                 if (box != null &&
-                    asSuper(t, reader.enterClass(box)) != null)
+                    (st = asSuper(t, reader.enterClass(box))) != null &&
+                    !st.isErroneous())
                     return syms.typeOfTag[i];
             }
         }
@@ -3447,7 +3479,6 @@ public class Types {
             return null;
         }
 
-        @Override
         public Void visitType(Type source, Type target) {
             return null;
         }
