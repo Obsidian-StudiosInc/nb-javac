@@ -541,4 +541,17 @@ public class JavacParserTest extends TestCase {
 
         assertEquals(Arrays.<String>asList("compiler.err.illegal.start.of.expr"), codes);
     }
+
+    //see javac bug #6882235, NB bug #98234:
+    public void testMissingExponent() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "\nclass Test { { System.err.println(0e); } }";
+
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"/*, "-XDshouldStopPolicy=ENTER"*/), null, Arrays.asList(new MyFileObject(code)));
+        
+        assertNotNull(ct.parse().iterator().next());
+    }
 }
