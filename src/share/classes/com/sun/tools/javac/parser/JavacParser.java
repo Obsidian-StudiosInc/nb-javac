@@ -582,8 +582,6 @@ public class JavacParser implements Parser {
     }
 //where
         boolean isZero(String s) {
-            if (s.length() == 1)
-                return  '0' == s.charAt(0);
             char[] cs = s.toCharArray();
             int base = ((cs.length > 1 && Character.toLowerCase(cs[1]) == 'x') ? 16 : 10);
             int i = ((base==16) ? 2 : 0);
