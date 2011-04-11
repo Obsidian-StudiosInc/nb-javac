@@ -530,7 +530,6 @@ public class JavacTaskImpl extends JavacTask {
                 compiler.reportDeferredDiagnostics();
                 compiler.log.flush();
                 compiler.repair.flush();
-                cleanup();
             }
         }
         finally {
