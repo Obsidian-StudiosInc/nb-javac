@@ -2098,7 +2098,7 @@ public class Types {
     private ImplementationCache implCache = new ImplementationCache();
 
     public MethodSymbol implementation(MethodSymbol ms, TypeSymbol origin, boolean checkResult, Filter<Symbol> implFilter) {
-        return implCache.get(ms, origin, checkResult, implFilter);
+        return origin.type.isErroneous() ? null : implCache.get(ms, origin, checkResult, implFilter);
     }
     // </editor-fold>
 
