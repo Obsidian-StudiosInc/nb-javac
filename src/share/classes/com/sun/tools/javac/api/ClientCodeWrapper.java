@@ -119,7 +119,7 @@ public class ClientCodeWrapper {
         return new WrappedFileObject(fo);
     }
 
-    public FileObject unwrap(FileObject fo) {
+    FileObject unwrap(FileObject fo) {
         if (fo instanceof WrappedFileObject)
             return ((WrappedFileObject) fo).clientFileObject;
         else
@@ -139,7 +139,7 @@ public class ClientCodeWrapper {
         return Collections.unmodifiableList(wrapped);
     }
 
-    public JavaFileObject unwrap(JavaFileObject fo) {
+    JavaFileObject unwrap(JavaFileObject fo) {
         if (fo instanceof WrappedJavaFileObject)
             return ((JavaFileObject) ((WrappedJavaFileObject) fo).clientFileObject);
         else
