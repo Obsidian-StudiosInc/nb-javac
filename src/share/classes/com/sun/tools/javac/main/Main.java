@@ -25,10 +25,6 @@
 
 package com.sun.tools.javac.main;
 
-import java.util.Collection;
-import com.sun.source.util.TaskEvent;
-import java.util.ServiceLoader;
-import com.sun.source.util.TaskListener;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -48,8 +44,6 @@ import com.sun.tools.javac.main.JavacOption.Option;
 import com.sun.tools.javac.main.RecognizedOptions.OptionHelper;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.processing.AnnotationProcessingError;
-import java.util.ArrayList;
-import java.util.Collections;
 
 import static com.sun.tools.javac.main.OptionName.*;
 
@@ -348,8 +342,6 @@ public class Main {
         if (options == null)
             options = Options.instance(context); // creates a new one
 
-        context.put(TaskListener.class, new ServiceBasedTaskListenerImpl());
-        
         filenames = new ListBuffer<File>();
         classnames = new ListBuffer<String>();
         JavaCompiler comp = null;
@@ -592,39 +584,4 @@ public class Main {
         "com.sun.tools.javac.resources.javac";
 
     private static JavacMessages messages;
-
-    private static final class ServiceBasedTaskListenerImpl implements TaskListener {
-        private final Collection<TaskListener> delegates;
-
-        public ServiceBasedTaskListenerImpl() {
-            Collection<TaskListener> delegates = new ArrayList<TaskListener>();
-
-            for (TaskListener l : ServiceLoader.load(TaskListener.class)) {
-                delegates.add(l);
-            }
-
-            this.delegates = Collections.unmodifiableCollection(delegates);
-        }
-
-        public void started(TaskEvent e) {
-            for (TaskListener delegate : delegates) {
-                try {
-                    delegate.started(e);
-                } catch (Throwable ex) {
-                    throw new ClientCodeException(ex);
-                }
-            }
-        }
-
-        public void finished(TaskEvent e) {
-            for (TaskListener delegate : delegates) {
-                try {
-                    delegate.finished(e);
-                } catch (Throwable ex) {
-                    throw new ClientCodeException(ex);
-                }
-            }
-        }
-
-    }
 }
