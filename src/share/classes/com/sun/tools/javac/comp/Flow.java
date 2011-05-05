@@ -54,7 +54,7 @@ import static com.sun.tools.javac.code.TypeTags.*;
  *  unassignment analysis ensures that no final variable is assigned
  *  more than once.
  *
- *  <p>The second edition of the JLS has a number of problems in the
+ *  <p>The JLS has a number of problems in the
  *  specification of these flow analysis problems. This implementation
  *  attempts to address those issues.
  *
@@ -129,7 +129,7 @@ import static com.sun.tools.javac.code.TypeTags.*;
  *  don't have to worry about the return expression because this
  *  concept is only used for construcrors.
  *
- *  <p>There is no spec in JLS2 for when a variable is definitely
+ *  <p>There is no spec in the JLS for when a variable is definitely
  *  assigned at the end of a constructor, which is needed for final
  *  fields (8.3.1.2).  We implement the rule that V is DA at the end
  *  of the constructor iff it is DA and the end of the body of the
@@ -1204,8 +1204,7 @@ public class Flow extends TreeScanner {
         if (chk.subset(exc, caughtInTry)) {
             log.error(pos, "except.already.caught", exc);
         } else if (!chk.isUnchecked(pos, exc) &&
-                exc.tsym != syms.throwableType.tsym &&
-                exc.tsym != syms.exceptionType.tsym &&
+                !isExceptionOrThrowable(exc) &&
                 !chk.intersects(exc, thrownInTry)) {
             log.error(pos, "except.never.thrown.in.try", exc);
         } else if (allowImprovedCatchAnalysis) {
@@ -1214,7 +1213,8 @@ public class Flow extends TreeScanner {
             // unchecked exception, the result list would not be empty, as the augmented
             // thrown set includes { RuntimeException, Error }; if 'exc' was a checked
             // exception, that would have been covered in the branch above
-            if (chk.diff(catchableThrownTypes, caughtInTry).isEmpty()) {
+            if (chk.diff(catchableThrownTypes, caughtInTry).isEmpty() &&
+                    !isExceptionOrThrowable(exc)) {
                 String key = catchableThrownTypes.length() == 1 ?
                         "unreachable.catch" :
                         "unreachable.catch.1";
@@ -1222,6 +1222,12 @@ public class Flow extends TreeScanner {
             }
         }
     }
+    //where
+        private boolean isExceptionOrThrowable(Type exc) {
+            return exc.tsym == syms.throwableType.tsym ||
+                exc.tsym == syms.exceptionType.tsym;
+        }
+
 
     public void visitConditional(JCConditional tree) {
         scanCond(tree.cond);

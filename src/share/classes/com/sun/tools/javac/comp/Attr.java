@@ -2713,10 +2713,10 @@ public class Attr extends JCTree.Visitor {
          * @param tree    The tree making up the variable reference.
          * @param env     The current environment.
          * @param v       The variable's symbol.
-         * @see JLS 3rd Ed. (8.9 Enums)
+         * @jls  section 8.9 Enums
          */
         private void checkEnumInitializer(JCTree tree, Env<AttrContext> env, VarSymbol v) {
-            // JLS 3rd Ed.:
+            // JLS:
             //
             // "It is a compile-time error to reference a static field
             // of an enum type that is not a compile-time constant
@@ -2991,6 +2991,7 @@ public class Attr extends JCTree.Visitor {
 
     public void visitTypeUnion(JCTypeUnion tree) {
         ListBuffer<Type> multicatchTypes = ListBuffer.lb();
+        ListBuffer<Type> all_multicatchTypes = null; // lazy, only if needed
         for (JCExpression typeTree : tree.alternatives) {
             Type ctype = attribType(typeTree, env);
             ctype = chk.checkType(typeTree.pos(),
@@ -3012,9 +3013,23 @@ public class Attr extends JCTree.Visitor {
                     }
                 }
                 multicatchTypes.append(ctype);
+                if (all_multicatchTypes != null)
+                    all_multicatchTypes.append(ctype);
+            } else {
+                if (all_multicatchTypes == null) {
+                    all_multicatchTypes = ListBuffer.lb();
+                    all_multicatchTypes.appendList(multicatchTypes);
+                }
+                all_multicatchTypes.append(ctype);
             }
         }
-        tree.type = result = check(tree, types.lub(multicatchTypes.toList()), TYP, pkind, pt);
+        Type t = check(tree, types.lub(multicatchTypes.toList()), TYP, pkind, pt);
+        if (t.tag == CLASS) {
+            List<Type> alternatives =
+                ((all_multicatchTypes == null) ? multicatchTypes : all_multicatchTypes).toList();
+            t = new UnionClassType((ClassType) t, alternatives);
+        }
+        tree.type = result = t;
     }
 
     public void visitTypeParameter(JCTypeParameter tree) {
