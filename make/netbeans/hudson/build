@@ -43,3 +43,5 @@ cd -
 
 diff_jars $PWD/cache/javac-api-nb-7.0-b07.jar $PWD/../nb-javac/dist/javac-api.jar $PWD/../nb-javac/dist/javac-api.diff
 diff_jars $PWD/cache/javac-impl-nb-7.0-b07.jar $PWD/../nb-javac/dist/javac-impl.jar $PWD/../nb-javac/dist/javac-impl.diff
+
+(cd ../../../; hg diff -r last_langtools -r tip src/ >make/netbeans/nb-javac/dist/nb-javac-langtools.diff)
