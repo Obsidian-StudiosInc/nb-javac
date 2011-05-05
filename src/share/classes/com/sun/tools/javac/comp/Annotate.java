@@ -189,6 +189,8 @@ public class Annotate {
     Attribute enterAttributeValue(Type expected,
                                   JCExpression tree,
                                   Env<AttrContext> env) {
+        boolean erroneous = expected.isErroneous();
+        
         //first, try completing the attribution value sym - if a completion
         //error is thrown, we should recover gracefully, and display an
         //ordinary resolution diagnostic.
@@ -196,10 +198,10 @@ public class Annotate {
             expected.tsym.complete();
         } catch(CompletionFailure e) {
             log.error(tree.pos(), "cant.resolve", Kinds.kindName(e.sym), e.sym);
-            return new Attribute.Error(expected);
+            erroneous |= true;
         }
         
-        if (expected.isErroneous()) {
+        if (erroneous) {
             switch (tree.getTag()) {
                 case JCTree.ANNOTATION:
                     return enterAnnotation((JCAnnotation)tree, expected, env);

@@ -30,6 +30,7 @@ import com.sun.source.tree.IdentifierTree;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.api.JavacTaskImpl;
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
@@ -106,5 +107,65 @@ public class AnnotateTest extends TestCase {
             }
         }.scan(cut, null);
     }
+    
+    public void testUnresolvableAttributeType() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
 
+        String codeAnnotation = "package test; @interface A { E e(); } @interface E { }";
+
+        final JavacTaskImpl annotation = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-d", workingDir.getAbsolutePath()), null, Arrays.asList(new MyFileObject(codeAnnotation)));
+        
+        annotation.generate();
+
+        assertTrue(new File(workingDir, "test/E.class").delete());
+        
+        String code = "package test; @A(e = @Transformation(displayName=\"\") ) class Test {}";
+
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-classpath", workingDir.getAbsolutePath()), null, Arrays.asList(new MyFileObject(code)));
+        
+        CompilationUnitTree cut = ct.parse().iterator().next();
+
+        ct.analyze();
+
+        new TreePathScanner<Void, Void>() {
+            @Override
+            public Void visitIdentifier(IdentifierTree node, Void p) {
+                if (node.getName().toString().startsWith("Transformation")) {
+                    assertNotNull(node.toString(), Trees.instance(ct).getElement(getCurrentPath()));
+                }
+                return super.visitIdentifier(node, p);
+            }
+        }.scan(cut, null);
+    }
+
+    private File workingDir;
+
+    @Override
+    protected void setUp() throws Exception {
+        super.setUp();
+
+        workingDir = File.createTempFile("AnnotateTest", "");
+
+        workingDir.delete();
+        workingDir.mkdirs();
+    }
+
+    @Override
+    protected void tearDown() throws Exception {
+        deleteRecursively(workingDir);
+        super.tearDown();
+    }
+
+    private void deleteRecursively(File f) {
+        if (f.isDirectory()) {
+            for (File c : f.listFiles()) {
+                deleteRecursively(c);
+            }
+        }
+        
+        f.delete();
+    }
+    
 }
