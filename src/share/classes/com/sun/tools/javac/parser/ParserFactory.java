@@ -25,8 +25,12 @@
 
 package com.sun.tools.javac.parser;
 
+import com.sun.tools.javac.tree.JCTree;
+import java.util.Map;
+
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.tree.TreeMaker;
+import com.sun.tools.javac.util.CancelService;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Names;
@@ -60,6 +64,7 @@ public class ParserFactory {
     final Names names;
     final Options options;
     final ScannerFactory scannerFactory;
+    final CancelService cancelSevice;
 
     protected ParserFactory(Context context) {
         super();
@@ -71,14 +76,29 @@ public class ParserFactory {
         this.source = Source.instance(context);
         this.options = Options.instance(context);
         this.scannerFactory = ScannerFactory.instance(context);
+        this.cancelSevice = CancelService.instance(context);
     }
 
     public Parser newParser(CharSequence input, boolean keepDocComments, boolean keepEndPos, boolean keepLineMap) {
         Lexer lexer = scannerFactory.newScanner(input, keepDocComments);
+        return newParser (input, keepDocComments, keepEndPos, keepLineMap, false);
+    }
+
+    public Parser newParser(CharSequence input, int startPos, Map<JCTree,Integer> endPos) {
+        Lexer lexer = scannerFactory.newScanner(input, true);
+        ((Scanner)lexer).seek(startPos);
+        JavacParser p = new EndPosParser(this, lexer, true, false, cancelSevice, endPos);
+        return p;
+    }
+
+    public Parser newParser(CharSequence input, boolean keepDocComments, boolean keepEndPos, boolean keepLineMap, boolean partial) {
+        Lexer lexer = scannerFactory.newScanner(input, keepDocComments);
+        JavacParser p;
         if (keepEndPos) {
-            return new EndPosParser(this, lexer, keepDocComments, keepLineMap);
+            p = new EndPosParser(this, lexer, keepDocComments, keepLineMap, cancelSevice);
         } else {
-            return new JavacParser(this, lexer, keepDocComments, keepLineMap);
+            p = new JavacParser(this, lexer, keepDocComments, keepLineMap, cancelSevice);
         }
+        return p;
     }
 }

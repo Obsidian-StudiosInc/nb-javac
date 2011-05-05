@@ -44,6 +44,11 @@ class ParamTagImpl extends TagImpl implements ParamTag {
     private final String parameterComment;
     private final boolean isTypeParameter;
 
+    /**
+     * Cached inline tags.
+     */
+    private Tag[] inlineTags;
+
     ParamTagImpl(DocImpl holder, String name, String text) {
         super(holder, name, text);
         String[] sa = divideAtWhite();
@@ -98,6 +103,9 @@ class ParamTagImpl extends TagImpl implements ParamTag {
      * @see ThrowsTagImpl#inlineTagImpls()
      */
     public Tag[] inlineTags() {
-        return Comment.getInlineTags(holder, parameterComment);
+        if (inlineTags == null) {
+            inlineTags = Comment.getInlineTags(holder, parameterComment);
+        }
+        return inlineTags;
     }
 }
