@@ -1031,7 +1031,6 @@ public abstract class Symbol implements Element {
                 } catch (Attr.BreakAttr bk) {
                     throw bk;
                 } catch (Exception ex) {
-                    ex.printStackTrace();
                     throw new AssertionError(ex);
                 }
             }

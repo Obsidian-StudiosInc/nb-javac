@@ -1759,20 +1759,24 @@ public class Attr extends JCTree.Visitor {
             // that we are referring to a superclass instance of the
             // current instance (JLS ???).
             else {
-                localEnv.info.selectSuper = cdef != null;
-                localEnv.info.varArgs = false;
+                //the following code alters some of the fields in the current
+                //AttrContext - hence, the current context must be dup'ed in
+                //order to avoid downstream failures
+                Env<AttrContext> rsEnv = localEnv.dup(tree);
+                rsEnv.info.selectSuper = cdef != null;
+                rsEnv.info.varArgs = false;
                 tree.constructor = rs.resolveConstructor(
-                    tree.pos(), localEnv, clazztype, argtypes, typeargtypes);
+                    tree.pos(), rsEnv, clazztype, argtypes, typeargtypes);
                 tree.constructorType = tree.constructor.type.isErroneous() ?
                     syms.errType :
                     checkMethod(clazztype,
                         tree.constructor,
-                        localEnv,
+                        rsEnv,
                         tree.args,
                         argtypes,
                         typeargtypes,
-                        localEnv.info.varArgs);
-                if (localEnv.info.varArgs)
+                        rsEnv.info.varArgs);
+                if (rsEnv.info.varArgs)
                     Assert.check(tree.constructorType.isErroneous() || tree.varargsElement != null);
             }
 
@@ -1857,9 +1861,10 @@ public class Attr extends JCTree.Visitor {
 
                 // Reassign clazztype and recompute constructor.
                 clazztype = cdef.sym.type;
+                boolean useVarargs = tree.varargsElement != null;
                 Symbol sym = rs.resolveConstructor(
                     tree.pos(), localEnv, clazztype, argtypes,
-                    typeargtypes, true, tree.varargsElement != null);
+                    typeargtypes, true, useVarargs);
                 if (!(sym.kind < AMBIGUOUS || (tree.constructorType != null && tree.constructorType.isErroneous())))
                         Assert.error("Attr.visitNewClass tree [" + tree + "] with constructor type [" + tree.constructorType + "] has symbol [" + sym + "] of kind [ " + sym.kind + "]");
                 tree.constructor = sym;
@@ -1873,7 +1878,7 @@ public class Attr extends JCTree.Visitor {
                             tree.args,
                             argtypes,
                             typeargtypes,
-                            localEnv.info.varArgs);
+                            useVarargs);
                 }
             }
 
