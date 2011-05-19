@@ -305,28 +305,24 @@ public class Log extends AbstractLog {
      * source name and pos.
      */
     protected boolean shouldReport(JavaFileObject file, int pos) {
-        if (file == null) {
-            return false;
-        } else if (multipleErrors) {
+        if (multipleErrors || file == null)
             return true;
+
+        Pair<JavaFileObject,Integer> coords = new Pair<JavaFileObject,Integer>(file, pos);
+        if (partialReparse) {
+            boolean shouldReport = !partialReparseRecorded.contains(coords);
+            if (shouldReport) {
+                partialReparseRecorded.add(coords);
+            }
+            return shouldReport;
         }
         else {
-            Pair<JavaFileObject,Integer> coords = new Pair<JavaFileObject,Integer>(file, pos);
-            if (partialReparse) {
-                boolean shouldReport = !partialReparseRecorded.contains(coords);
-                if (shouldReport) {
-                    partialReparseRecorded.add(coords);
-                }
-                return shouldReport;
+            boolean shouldReport = !recorded.contains(coords) && (recordedOverlay == null || !recordedOverlay.contains(coords));
+            if (shouldReport) {
+                if (recordedOverlay != null) recordedOverlay.add(coords);
+                else recorded.add(coords);
             }
-            else {
-                boolean shouldReport = !recorded.contains(coords) && (recordedOverlay == null || !recordedOverlay.contains(coords));
-                if (shouldReport) {
-                    if (recordedOverlay != null) recordedOverlay.add(coords);
-                    else recorded.add(coords);
-                }
-                return shouldReport;
-            }
+            return shouldReport;
         }
     }
 
