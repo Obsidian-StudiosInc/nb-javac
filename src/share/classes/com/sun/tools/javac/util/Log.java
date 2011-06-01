@@ -127,7 +127,6 @@ public class Log extends AbstractLog {
 
     private final Set<Pair<JavaFileObject, Integer>> partialReparseRecorded = new HashSet<Pair<JavaFileObject,Integer>>();
     private final Map<JCTree, JCDiagnostic> errTrees = new HashMap<JCTree, JCDiagnostic>();
-    private Map<JCTree, JCDiagnostic> errTreesOverlay = null;
 
     /** Construct a log with given I/O redirections.
      */
@@ -228,23 +227,6 @@ public class Log extends AbstractLog {
      *  source file name and source code position of the error is added to the set.
      */
     private Set<Pair<JavaFileObject, Integer>> recorded = new HashSet<Pair<JavaFileObject,Integer>>();
-    private Set<Pair<JavaFileObject, Integer>> recordedOverlay = null;
-
-    public void setRecordedOverlay(Set<Pair<JavaFileObject, Integer>> overlay) {
-        this.recordedOverlay = overlay;
-    }
-
-    public void pushRecordedOverlay(Set<Pair<JavaFileObject, Integer>> recordedOverlay) {
-        recorded.addAll(recordedOverlay);
-    }
-
-    public void setErrTreesOverlay(Map<JCTree, JCDiagnostic> overlay) {
-        this.errTreesOverlay = overlay;
-    }
-
-    public void pushErrTreesOverlay(Map<JCTree, JCDiagnostic> overlay) {
-        this.errTrees.putAll(overlay);
-    }
 
     public boolean hasDiagnosticListener() {
         return diagListener != null;
@@ -317,10 +299,9 @@ public class Log extends AbstractLog {
             return shouldReport;
         }
         else {
-            boolean shouldReport = !recorded.contains(coords) && (recordedOverlay == null || !recordedOverlay.contains(coords));
+            boolean shouldReport = !recorded.contains(coords);
             if (shouldReport) {
-                if (recordedOverlay != null) recordedOverlay.add(coords);
-                else recorded.add(coords);
+                recorded.add(coords);
             }
             return shouldReport;
         }
@@ -468,12 +449,8 @@ public class Log extends AbstractLog {
 
         case ERROR:
             if (!suppressErrorsAndWarnings) {
-                if (diagnostic.getTree() != null && !errTrees.containsKey(diagnostic.getTree())
-                        && (errTreesOverlay == null || !errTreesOverlay.containsKey(diagnostic.getTree()))) {
-                    if (errTreesOverlay != null)
-                        errTreesOverlay.put(diagnostic.getTree(), diagnostic);
-                    else
-                        errTrees.put(diagnostic.getTree(), diagnostic);
+                if (diagnostic.getTree() != null && !errTrees.containsKey(diagnostic.getTree())) {
+                    errTrees.put(diagnostic.getTree(), diagnostic);
                 }
                 if (nerrors < MaxErrors
                     && ("compiler.err.proc.messager".equals(diagnostic.getCode()) || shouldReport(diagnostic.getSource(), diagnostic.getIntPosition()))) {
