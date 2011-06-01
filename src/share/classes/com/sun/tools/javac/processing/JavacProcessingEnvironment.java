@@ -1301,22 +1301,17 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         for(File pathElement : workingpath) {
             try {
                 urls[0] = pathElement.toURI().toURL();
-                System.err.println("url[0] = " + urls[0]);
-                if (ServiceProxy.hasService(Processor.class, urls)) {
-                    System.err.println("true");
+                if (ServiceProxy.hasService(Processor.class, urls))
                     return true;
-                }
             } catch (MalformedURLException ex) {
                 throw new AssertionError(ex);
             }
             catch (ServiceProxy.ServiceConfigurationError e) {
                 log.error("proc.bad.config.file", e.getLocalizedMessage());
-                    System.err.println("true");
                 return true;
             }
         }
 
-                    System.err.println("false");
         return false;
     }
 
