@@ -138,7 +138,9 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
         JCExpression extending = copy(t.extending, p);
         List<JCExpression> implementing = copy(t.implementing, p);
         List<JCTree> defs = copy(t.defs, p);
-        return M.at(t.pos).ClassDef(mods, t.name, typarams, extending, implementing, defs);
+         JCTree.JCClassDecl classDecl = M.at(t.pos).ClassDef(mods, t.name, typarams, extending, implementing, defs);
+         classDecl.index = t.index;
+         return classDecl;
     }
 
     public JCTree visitConditionalExpression(ConditionalExpressionTree node, P p) {
@@ -219,7 +221,7 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
     public JCTree visitLabeledStatement(LabeledStatementTree node, P p) {
         JCLabeledStatement t = (JCLabeledStatement) node;
         JCStatement body = copy(t.body, p);
-        return M.at(t.pos).Labelled(t.label, t.body);
+        return M.at(t.pos).Labelled(t.label, body);
     }
 
     public JCTree visitLiteral(LiteralTree node, P p) {
