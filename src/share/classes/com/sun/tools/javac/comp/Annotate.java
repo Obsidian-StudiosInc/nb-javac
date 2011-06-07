@@ -158,11 +158,13 @@ public class Annotate {
             JCExpression t = tl.head;
             if (t.getTag() != JCTree.ASSIGN) {
                 log.error(t.pos(), "annotation.value.must.be.name.value");
+                enterAttributeValue(t.type = syms.errType, t, env);
                 continue;
             }
             JCAssign assign = (JCAssign)t;
             if (assign.lhs.getTag() != JCTree.IDENT) {
                 log.error(t.pos(), "annotation.value.must.be.name.value");
+                enterAttributeValue(t.type = syms.errType, t, env);
                 continue;
             }
             JCIdent left = (JCIdent)assign.lhs;

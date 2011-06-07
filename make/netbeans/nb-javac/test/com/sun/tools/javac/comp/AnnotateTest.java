@@ -140,6 +140,29 @@ public class AnnotateTest extends TestCase {
         }.scan(cut, null);
     }
 
+    public void test199020a() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test; @Undefined1(v=\"\", {@Undefined2}) public class Test {}";
+
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+
+        ct.analyze();
+        
+        new TreePathScanner<Void, Void>() {
+            @Override
+            public Void visitIdentifier(IdentifierTree node, Void p) {
+                if (node.getName().toString().startsWith("Undefined")) {
+                    assertNotNull(node.toString(), Trees.instance(ct).getElement(getCurrentPath()));
+                }
+                return super.visitIdentifier(node, p);
+            }
+        }.scan(cut, null);
+    }
+    
     private File workingDir;
 
     @Override
