@@ -2315,14 +2315,9 @@ public class JavacParser implements Parser {
     /** Resource = VariableModifiersOpt Type VariableDeclaratorId = Expression
      */
     protected JCTree resource() {
-        int pos = S.pos();
-        JCModifiers mods = optFinal(Flags.FINAL);
-        if (mods.pos == Position.NOPOS) {
-            mods.pos = pos;
-            storeEnd(mods, pos);
-        }
-        return variableDeclaratorRest(pos, mods, parseType(),
-                                      ident(), true, null);
+        JCModifiers optFinal = optFinal(Flags.FINAL);
+        JCExpression type = parseType();
+        return variableDeclaratorRest(S.pos(), optFinal, type, ident(), true, null);
     }
 
     /** CompilationUnit = [ { "@" Annotation } PACKAGE Qualident ";"] {ImportDeclaration} {TypeDeclaration}

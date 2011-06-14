@@ -554,4 +554,49 @@ public class JavacParserTest extends TestCase {
         
         assertNotNull(ct.parse().iterator().next());
     }
+
+    public void testTryResourcePos() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        final String code = "package t; class Test { { try (java.io.InputStream in = null) { } } }";
+
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+
+        new TreeScanner<Void, Void>() {
+            @Override public Void visitVariable(VariableTree node, Void p) {
+                if ("in".contentEquals(node.getName())) {
+                    JCTree.JCVariableDecl var = (JCTree.JCVariableDecl) node;
+
+                    assertEquals("in = null) { } } }", code.substring(var.pos));
+                }
+                return super.visitVariable(node, p);
+            }
+        }.scan(cut, null);
+    }
+
+    public void testVarPos() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        final String code = "package t; class Test { { java.io.InputStream in = null; } }";
+
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+
+        new TreeScanner<Void, Void>() {
+            @Override public Void visitVariable(VariableTree node, Void p) {
+                if ("in".contentEquals(node.getName())) {
+                    JCTree.JCVariableDecl var = (JCTree.JCVariableDecl) node;
+
+                    assertEquals("in = null; } }", code.substring(var.pos));
+                }
+                return super.visitVariable(node, p);
+            }
+        }.scan(cut, null);
+    }
+
 }
