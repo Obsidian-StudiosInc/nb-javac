@@ -626,33 +626,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             return keepComments || sourceOutput || stubOutput;
         }
 
-    private List<Diagnostic<? extends JavaFileObject>> tempDiags = List.nil();
-    private Set<Pair<JavaFileObject, Integer>> recordedOverlay;
-    private Map<JCTree, JCDiagnostic> errTreesOverlay;
-    private DiagnosticListener<? super JavaFileObject> temporaryDiagListener = new DiagnosticListener<JavaFileObject>() {
-        public void report(Diagnostic<? extends JavaFileObject> diagnostic) {
-            tempDiags = tempDiags.prepend(diagnostic);
-        }
-    };
-    public void flushTempDiags() {
-        DiagnosticListener<? super JavaFileObject> diagnosticListener = log.getDiagnosticListener();
-        if (diagnosticListener != null) {
-            tempDiags = tempDiags.reverse();
-            for (Diagnostic<? extends JavaFileObject> diagnostic : tempDiags) {
-                diagnosticListener.report(diagnostic);
-            }
-        }
-        if (recordedOverlay != null) {
-            log.pushRecordedOverlay(recordedOverlay);
-            recordedOverlay = null;
-        }
-        if (errTreesOverlay != null) {
-            log.pushErrTreesOverlay(errTreesOverlay);
-            errTreesOverlay = null;
-        }
-        tempDiags = List.nil();
-    }
-
     /** Parse contents of file.
      *  @param filename     The name of the file to be parsed.
      */
@@ -808,7 +781,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 } finally {
                     skipAnnotationProcessing = false;
                 }
-                flushTempDiags();
             }
         }
 
@@ -880,7 +852,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                     enterTrees(stopIfError(CompileState.PARSE, parseFiles(sourceFileObjects))),
                     classnames);
 
-            delegateCompiler.flushTempDiags();
             delegateCompiler.compile2();
             delegateCompiler.close();
             elapsed_msec = delegateCompiler.elapsed_msec;
@@ -1013,17 +984,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
     }
 
     private void complete(List<JCCompilationUnit> roots, ClassSymbol c) {
-        DiagnosticListener<? super JavaFileObject> oldDiagListener = log.getDiagnosticListener();
-        log.setRecordedOverlay(recordedOverlay = new HashSet<Pair<JavaFileObject, Integer>>());
-        log.setErrTreesOverlay(errTreesOverlay = new HashMap<JCTree, JCDiagnostic>());
-        log.setDiagnosticListener(temporaryDiagListener);
-        try {
-            enter.complete(roots, c);
-        } finally {
-            log.setRecordedOverlay(null);
-            log.setErrTreesOverlay(null);
-            log.setDiagnosticListener(oldDiagListener);
-        }
+        enter.complete(roots, c);
     }
 
     public void initNotYetEntered(Map<JavaFileObject, JCCompilationUnit> notYetEntered) {

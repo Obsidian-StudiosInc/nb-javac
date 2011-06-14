@@ -363,8 +363,6 @@ public class JavacTaskImpl extends JavacTask {
                     compiler.skipAnnotationProcessing = false;
                 }
             }
-            compiler.flushTempDiags();
-
             ListBuffer<TypeElement> elements = new ListBuffer<TypeElement>();
             for (JCCompilationUnit unit : units) {
                 boolean isPkgInfo = unit.sourcefile.isNameCompatible("package-info",
@@ -465,7 +463,6 @@ public class JavacTaskImpl extends JavacTask {
             }
             if (!compiler.skipAnnotationProcessing)
                 compiler = compiler.processAnnotations(List.<JCCompilationUnit>nil());
-            compiler.flushTempDiags();
         } finally {
             compiler.log.flush();
         }
