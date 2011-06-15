@@ -2345,7 +2345,7 @@ public class ClassReader implements Completer {
                 int bp = 0;
                 while (r != -1) {
                     bp += r;
-                    buf = ensureCapacity(buf, buf.length == bp ? bp + 1 : bp); //see ClassReaderTest
+                    buf = ensureCapacity(buf, bp);
                     r = s.read(buf, bp, buf.length - bp);
                 }
                 return buf;
