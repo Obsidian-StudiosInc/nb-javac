@@ -373,18 +373,6 @@ public class JavacTrees extends Trees {
                 leafCopy = t2;
             return t2;
         }
-
-        @Override
-        public <T extends JCTree> List<T> copy(List<T> trees, JCTree p) {
-            if (trees == null)
-                return null;
-            ListBuffer<T> lb = new ListBuffer<T>();
-            for (T tree: trees) {
-                if (tree.getTag() != JCTree.METHODDEF || (((JCMethodDecl)tree).mods.flags & Flags.GENERATEDCONSTR) == 0)
-                    lb.append(copy(tree, p));
-            }
-            return lb.toList();
-        }
     }
 
     /**
