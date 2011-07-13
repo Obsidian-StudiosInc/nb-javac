@@ -68,12 +68,7 @@ public class JavacScope implements com.sun.source.tree.Scope {
                     return null;
                 }
                 public Iterable<? extends Element> getLocalElements() {
-                    List<Element> l = List.nil();
-                    for (Symbol symbol : env.toplevel.starImportScope.getElements()) {
-                        if (env.toplevel.starImportScope.lookup(symbol.name).scope != null)
-                            l = l.prepend(symbol);
-                    }
-                    return l;
+                    return env.toplevel.starImportScope.getElements();
                 }
             };
         }
