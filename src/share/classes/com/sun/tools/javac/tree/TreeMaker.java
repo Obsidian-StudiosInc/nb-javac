@@ -499,13 +499,12 @@ public class TreeMaker implements JCTree.Factory {
     public JCClassDecl AnonymousClassDef(JCModifiers mods,
                                          List<JCTree> defs)
     {
-        final JCTree.JCClassDecl classDecl =  ClassDef(mods,
+        return ClassDef(mods,
                         names.empty,
                         List.<JCTypeParameter>nil(),
                         null,
                         List.<JCExpression>nil(),
                         defs);
-        return classDecl;
     }
 
     public LetExpr LetExpr(JCVariableDecl def, JCTree expr) {
@@ -909,4 +908,3 @@ public class TreeMaker implements JCTree.Factory {
      */
     public Name typaramName(int i) { return names.fromString("A" + i); }
 }
-
