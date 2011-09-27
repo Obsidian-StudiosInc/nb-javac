@@ -625,16 +625,14 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                                 for(List<Type> tvars = ((ForAll)tree.sym.type).tvars; tvars.nonEmpty(); tvars = tvars.tail)
                                     localEnv.info.scope.enter(tvars.head.tsym);
                             }
-                            List<VarSymbol> p = tree.sym.params();
+                            List<VarSymbol> p = tree.sym.params().reverse();
                             if (p != null) {
-                                List<JCVariableDecl> l = tree.params;
+                                List<JCVariableDecl> l = tree.params.reverse();
                                 while(l.nonEmpty() && p.nonEmpty()) {
-                                    if (sameType) {
-                                        p.head.setName(l.head.name);
-                                        if (l.head.getModifiers() != null && l.head.getModifiers().getFlags().contains(Modifier.FINAL)) {
-                                            //copy the final flag, as the symbol might have come from the classfile:
-                                            p.head.flags_field |= FINAL;
-                                        }
+                                    p.head.setName(l.head.name);
+                                    if (l.head.getModifiers() != null && l.head.getModifiers().getFlags().contains(Modifier.FINAL)) {
+                                        //copy the final flag, as the symbol might have come from the classfile:
+                                        p.head.flags_field |= FINAL;
                                     }
                                     localEnv.info.scope.enter(p.head);
                                     p.head.flags_field |= FROMCLASS;
