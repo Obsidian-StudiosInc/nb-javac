@@ -168,10 +168,10 @@ public class JavacTaskImpl extends JavacTask {
         } else {
             initContext();
             compilerMain.setOptions(Options.instance(context));
-            compilerMain.filenames = new ListBuffer<File>();
-            List<File> filenames = compilerMain.processArgs(CommandLine.parse(args));
+            compilerMain.filenames = new LinkedHashSet<File>();
+            Collection<File> filenames = compilerMain.processArgs(CommandLine.parse(args));
             if (!filenames.isEmpty())
-                throw new IllegalArgumentException("Malformed arguments " + filenames.toString(" "));
+                throw new IllegalArgumentException("Malformed arguments " + toString(filenames, " "));
             compiler = JavaCompiler.instance(context);
             // NOTE: this value will be updated after annotation processing
             compiler.initProcessAnnotations(processors);
@@ -184,6 +184,17 @@ public class JavacTaskImpl extends JavacTask {
             // TODO: should handle the case after each phase if errors have occurred
             args = null;
         }
+    }
+
+    <T> String toString(Iterable<T> items, String sep) {
+        String currSep = "";
+        StringBuilder sb = new StringBuilder();
+        for (T item: items) {
+            sb.append(currSep);
+            sb.append(item.toString());
+            currSep = sep;
+        }
+        return sb.toString();
     }
 
     private void initContext() {
