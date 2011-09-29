@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,6 +76,7 @@ class ParamTagImpl extends TagImpl implements ParamTag {
     /**
      * Return the kind of this tag.
      */
+    @Override
     public String kind() {
         return "@param";
     }
@@ -90,6 +91,7 @@ class ParamTagImpl extends TagImpl implements ParamTag {
     /**
      * convert this object to a string.
      */
+    @Override
     public String toString() {
         return name + ":" + text;
     }
@@ -102,6 +104,7 @@ class ParamTagImpl extends TagImpl implements ParamTag {
      * @see TagImpl#inlineTagImpls()
      * @see ThrowsTagImpl#inlineTagImpls()
      */
+    @Override
     public Tag[] inlineTags() {
         if (inlineTags == null) {
             inlineTags = Comment.getInlineTags(holder, parameterComment);
