@@ -25,18 +25,17 @@
 
 package com.sun.tools.javac.parser;
 
-import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import java.util.*;
 
-import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.tree.*;
+import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
+import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
+
 import static com.sun.tools.javac.util.ListBuffer.lb;
-
-import com.sun.tools.javac.tree.JCTree.*;
-
 import static com.sun.tools.javac.parser.Token.*;
 
 /** The parser maps a token sequence into an abstract syntax
@@ -103,7 +102,7 @@ public class JavacParser implements Parser {
         this.allowTWR = source.allowTryWithResources();
         this.allowDiamond = source.allowDiamond();
         this.allowMulticatch = source.allowMulticatch();
-        this.allowStringFolding = fac.options.get("disableStringFolding") == null; //NOI18N
+        this.allowStringFolding = fac.options.getBoolean("allowStringFolding", true);
         this.keepDocComments = keepDocComments;
         docComments = keepDocComments ? new HashMap<JCTree,String>() : null;
         this.keepLineMap = keepLineMap;
@@ -267,7 +266,7 @@ public class JavacParser implements Parser {
     private JCErroneous syntaxError(int pos, List<JCTree> errs, String key, Token... args) {
         setErrorEndPos(pos);
         JCErroneous err = F.at(pos).Erroneous(errs);
-        reportSyntaxError(err, pos, key, (Object[])args);
+        reportSyntaxError(err, key, (Object[])args);
         if (errs != null) {
             JCTree last = errs.last();
             if (last != null)
@@ -277,24 +276,25 @@ public class JavacParser implements Parser {
     }
 
     /**
-     * Report a syntax error at given position using the given
-     * argument unless one was already reported at the same position.
+     * Report a syntax using the given the position parameter and arguments,
+     * unless one was already reported at the same position.
      */
-    private void reportSyntaxError(JCDiagnostic.DiagnosticPosition diag, int pos, String key, Object... args) {
-        if (diag != null) {
-            pos = diag.getPreferredPosition();
-            if (pos > S.errPos() || pos == Position.NOPOS) {
-                if (S.token() == EOF)
-                    error(diag, "premature.eof");
-                else
-                    error(diag, key, args);
-            }
-        } else {
-            if (pos > S.errPos() || pos == Position.NOPOS) {
-                if (S.token() == EOF)
-                    error(pos, "premature.eof");
-                else
-                    error(pos, key, args);
+    private void reportSyntaxError(int pos, String key, Object... args) {
+        JCDiagnostic.DiagnosticPosition diag = new JCDiagnostic.SimpleDiagnosticPosition(pos);
+        reportSyntaxError(diag, key, args);
+    }
+
+    /**
+     * Report a syntax error using the given DiagnosticPosition object and
+     * arguments, unless one was already reported at the same position.
+     */
+    private void reportSyntaxError(JCDiagnostic.DiagnosticPosition diagPos, String key, Object... args) {
+        int pos = diagPos.getPreferredPosition();
+        if (pos > S.errPos() || pos == Position.NOPOS) {
+            if (S.token() == EOF) {
+                error(diagPos, "premature.eof");
+            } else {
+                error(diagPos, key, args);
             }
         }
         S.errPos(pos);
@@ -322,7 +322,7 @@ public class JavacParser implements Parser {
             S.nextToken();
         } else {
             setErrorEndPos(S.pos());
-            reportSyntaxError(null, S.prevEndPos(), "expected", token);
+            reportSyntaxError(S.prevEndPos(), "expected", token);
         }
     }
 
@@ -482,6 +482,10 @@ public class JavacParser implements Parser {
             t = toP(F.at(pos).Select(t, ident()));
         }
         return t;
+    }
+
+    JCExpression literal(Name prefix) {
+        return literal(prefix, S.pos());
     }
 
     /**
@@ -1334,8 +1338,7 @@ public class JavacParser implements Parser {
             JCExpression wc = toP(F.at(pos).Wildcard(t, null));
             JCIdent id = toP(F.at(S.pos()).Ident(ident()));
             JCErroneous err = F.at(pos).Erroneous(List.<JCTree>of(wc, id));
-            reportSyntaxError(err, S.prevEndPos(), "expected3",
-                    GT, EXTENDS, SUPER);
+            reportSyntaxError(err, "expected3", GT, EXTENDS, SUPER);
             return err;
         } else {
             TypeBoundKind t = toP(F.at(pos).TypeBoundKind(BoundKind.UNBOUND));
@@ -1412,20 +1415,23 @@ public class JavacParser implements Parser {
         int oldmode = mode;
         mode = TYPE;
         boolean diamondFound = false;
+        int lastTypeargsPos = -1;
         if (S.token() == LT) {
             checkGenerics();
+            lastTypeargsPos = S.pos();
             t = typeArguments(t, true);
             diamondFound = (mode & DIAMOND) != 0;
         }
         while (S.token() == DOT) {
             if (diamondFound) {
                 //cannot select after a diamond
-                illegal(S.pos());
+                illegal();
             }
             int pos = S.pos();
             S.nextToken();
             t = toP(F.at(pos).Select(t, ident()));
             if (S.token() == LT) {
+                lastTypeargsPos = S.pos();
                 checkGenerics();
                 t = typeArguments(t, true);
                 diamondFound = (mode & DIAMOND) != 0;
@@ -1434,7 +1440,11 @@ public class JavacParser implements Parser {
         mode = oldmode;
         if (S.token() == LBRACKET) {
             JCExpression e = arrayCreatorRest(newpos, t);
-            if (typeArgs != null) {
+            if (diamondFound) {
+                reportSyntaxError(lastTypeargsPos, "cannot.create.array.with.diamond");
+                return toP(F.at(newpos).Erroneous(List.of(e)));
+            }
+            else if (typeArgs != null) {
                 int pos = newpos;
                 if (!typeArgs.isEmpty() && typeArgs.head.pos != Position.NOPOS) {
                     // note: this should always happen but we should
@@ -1444,19 +1454,17 @@ public class JavacParser implements Parser {
                 }
                 setErrorEndPos(S.prevEndPos());
                 JCErroneous err = F.at(pos).Erroneous(typeArgs.prepend(e));
-                reportSyntaxError(err, pos, "cannot.create.array.with.type.arguments");
+                reportSyntaxError(err, "cannot.create.array.with.type.arguments");
                 return toP(err);
             }
             return e;
         } else if (S.token() == LPAREN) {
             return classCreatorRest(newpos, null, typeArgs, t);
         } else {
-            errorEndPos = S.pos();
+            setErrorEndPos(S.pos());
+            reportSyntaxError(S.pos(), "expected2", LPAREN, LBRACKET);
             t = toP(F.at(newpos).NewClass(null, typeArgs, t, List.<JCExpression>nil(), null));
-            JCErroneous err = F.at(newpos).Erroneous(List.<JCTree>of(t));
-            reportSyntaxError(err, S.pos(), "expected2",
-                               LPAREN, LBRACKET);
-            return toP(err);
+            return toP(F.at(newpos).Erroneous(List.<JCTree>of(t)));
         }
     }
 
@@ -1484,7 +1492,8 @@ public class JavacParser implements Parser {
             if (S.token() == LBRACE) {
                 return arrayInitializer(newpos, elemtype);
             } else {
-                return syntaxError(S.pos(), List.<JCTree>of(toP(F.at(newpos).NewArray(elemtype, List.<JCExpression>nil(), null))), "array.dimension.missing");
+                JCExpression t = toP(F.at(newpos).NewArray(elemtype, List.<JCExpression>nil(), null));
+                return syntaxError(S.pos(), List.<JCTree>of(t), "array.dimension.missing");
             }
         } else {
             ListBuffer<JCExpression> dims = new ListBuffer<JCExpression>();
@@ -2078,7 +2087,7 @@ public class JavacParser implements Parser {
         int lastPos = Position.NOPOS;
     loop:
         while (true) {
-            long flag = 0;
+            long flag;
             switch (S.token()) {
             case PRIVATE     : flag = Flags.PRIVATE; break;
             case PROTECTED   : flag = Flags.PROTECTED; break;
@@ -2092,7 +2101,7 @@ public class JavacParser implements Parser {
             case SYNCHRONIZED: flag = Flags.SYNCHRONIZED; break;
             case STRICTFP    : flag = Flags.STRICTFP; break;
             case MONKEYS_AT  : flag = Flags.ANNOTATION; break;
-            case ERROR       : S.nextToken(); break;
+            case ERROR       : flag = 0; S.nextToken(); break;
             default: break loop;
             }
             if ((flags & flag) != 0) error(S.pos(), "repeated.modifier");
@@ -2317,7 +2326,9 @@ public class JavacParser implements Parser {
     protected JCTree resource() {
         JCModifiers optFinal = optFinal(Flags.FINAL);
         JCExpression type = parseType();
-        return variableDeclaratorRest(S.pos(), optFinal, type, ident(), true, null);
+        int pos = S.pos();
+        Name ident = ident();
+        return variableDeclaratorRest(pos, optFinal, type, ident, true, null);
     }
 
     /** CompilationUnit = [ { "@" Annotation } PACKAGE Qualident ";"] {ImportDeclaration} {TypeDeclaration}
@@ -2354,9 +2365,9 @@ public class JavacParser implements Parser {
                     checkForPackage = false;
                 } else {
                     if (allowEnums)
-                        reportSyntaxError(null, S.pos(), "expected3", CLASS, INTERFACE, ENUM);
+                        reportSyntaxError(S.pos(), "expected3", CLASS, INTERFACE, ENUM);
                     else
-                        reportSyntaxError(null, S.pos(), "expected2", CLASS, INTERFACE);
+                        reportSyntaxError(S.pos(), "expected2", CLASS, INTERFACE);
                     S.nextToken();
                 }
                 dc = null;
