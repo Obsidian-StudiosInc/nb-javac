@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -98,6 +98,7 @@ class ThrowsTagImpl extends TagImpl implements ThrowsTag {
      * Return the kind of this tag.  Always "@throws" for instances
      * of ThrowsTagImpl.
      */
+    @Override
     public String kind() {
         return "@throws";
     }
@@ -110,6 +111,7 @@ class ThrowsTagImpl extends TagImpl implements ThrowsTag {
      * @see TagImpl#inlineTagImpls()
      * @see ParamTagImpl#inlineTagImpls()
      */
+    @Override
     public Tag[] inlineTags() {
         if (inlineTags == null) {
             inlineTags = Comment.getInlineTags(holder, exceptionComment());
