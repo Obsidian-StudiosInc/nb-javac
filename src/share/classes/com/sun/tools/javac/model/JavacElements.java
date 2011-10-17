@@ -169,8 +169,7 @@ public class JavacElements implements Elements {
 
             if (sym != null) {
                 sym.complete();
-                return (sym.kind != Kinds.ERR &&
-                    sym.exists() &&
+                return (sym.exists() &&
                     name.equals(sym.flatName()))
                     ? sym
                     : null;
