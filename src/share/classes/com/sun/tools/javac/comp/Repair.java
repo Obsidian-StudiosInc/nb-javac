@@ -134,7 +134,7 @@ public class Repair extends TreeTranslator {
         } finally {
             parents = parents.tail;            
         }
-        if (tree.type != null && tree.type.isErroneous()) {
+        if (tree.type != null && tree.type.isErroneous() || tree.type == syms.unknownType) {
             JCTree parent = parents.head;
             if (parent == null || parent.getTag() != JCTree.CLASSDEF) {
                 hasError = true;
@@ -176,7 +176,7 @@ public class Repair extends TreeTranslator {
         super.visitTypeParameter(tree);
         if (tree.type != null && tree.type.tag == TypeTags.TYPEVAR) {
             Type.TypeVar tv = (Type.TypeVar)tree.type;
-            if (tv.bound != null && tv.bound.isErroneous()) {
+            if (tv.bound != null && tv.bound.isErroneous() || tv.bound == syms.unknownType) {
                 if (err == null && errMessage == null)
                     errMessage = "Erroneous type var bound: " + tv.bound;
                 tv.bound = syms.objectType;
@@ -282,7 +282,7 @@ public class Repair extends TreeTranslator {
             hasError = true;
             if (err == null && errMessage == null)
                 errMessage = "Null sym type: " + meth;
-        } else if (meth.type.isErroneous()) {
+        } else if (meth.type.isErroneous() || meth.type == syms.unknownType) {
             hasError = true;
             if (err == null && errMessage == null)
                 errMessage = "Erroneous sym type: " + meth.type;
@@ -302,7 +302,7 @@ public class Repair extends TreeTranslator {
             hasError = true;
             if (err == null && errMessage == null)
                 errMessage = "Null ctor sym type: " + ctor;
-        } else if (tree.constructorType.isErroneous()) {
+        } else if (tree.constructorType.isErroneous() || tree.constructorType == syms.unknownType) {
             hasError = true;
             if (err == null && errMessage == null)
                 errMessage = "Erroneous ctor sym type: " + tree.constructorType;
@@ -441,7 +441,7 @@ public class Repair extends TreeTranslator {
                         break;
                 }
                 hasError = false;
-                isErrClass = c.type.isErroneous();
+                isErrClass = c.type.isErroneous() || c.type == syms.unknownType;
                 err = null;
                 staticInit = null;
                 JCClassDecl tree = (JCClassDecl)attrEnv.tree;
@@ -466,7 +466,7 @@ public class Repair extends TreeTranslator {
                     isErrClass = true;
                     classLevelErrTree = err.getTree();
                     classLevelErrMessage = err.getMessage(null);
-                } else if (c.type.isErroneous() && oldHasError && oldErr != null) {
+                } else if ((c.type.isErroneous() || c.type == syms.unknownType) && oldHasError && oldErr != null) {
                     classLevelErrTree = oldErr.getTree();
                     classLevelErrMessage = oldErr.getMessage(null);
                 }
