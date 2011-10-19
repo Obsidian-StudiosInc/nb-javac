@@ -344,10 +344,12 @@ public class Flow extends TreeScanner {
      *  is caught.
      */
     void markThrown(JCTree tree, Type exc) {
-        if (!chk.isUnchecked(tree.pos(), exc)) {
-            if (!chk.isHandled(exc, caught))
-                pendingExits.append(new PendingExit(tree, exc));
-                thrown = chk.incl(exc, thrown);
+        if (exc != syms.unknownType) {
+            if (!chk.isUnchecked(tree.pos(), exc)) {
+                if (!chk.isHandled(exc, caught))
+                    pendingExits.append(new PendingExit(tree, exc));
+                    thrown = chk.incl(exc, thrown);
+            }
         }
     }
 
