@@ -2426,6 +2426,30 @@ public class JavacParser implements Parser {
             } else {
                 pid = toP(F.at(pos1).Select(pid, ident()));
             }
+            
+            // Error recovery
+            if (S.token() == ERROR || S.token() == ELLIPSIS) {
+                String val = S.stringVal();
+                for (int i = 0; i < val.length() && val.charAt(i) == '.'; i++) {
+                    if (i < val.length() - 1) {
+                        pid = F.at(S.pos() + i).Select(pid, names.error);
+                        storeEnd(pid, S.pos() + i + 1);
+                        pid = F.Erroneous(List.of(pid));
+                    } else {
+                        S.token(DOT);
+                    }
+                }
+            } else if (S.token() == FLOATLITERAL || S.token() == DOUBLELITERAL) {
+                String val = S.stringVal();
+                if (val.length() > 0 && val.charAt(0) == '.') {
+                    setErrorEndPos(S.pos());
+                    reportSyntaxError(S.prevEndPos(), "expected", IDENTIFIER);
+                    pid = to(F.at(S.pos()).Select(pid, names.error));
+                    pid = F.Erroneous(List.of(pid));
+                    S.nextToken();
+                }
+            }
+            
         } while (S.token() == DOT);
         accept(SEMI);
         return toP(F.at(pos).Import(pid, importStatic));

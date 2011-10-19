@@ -994,7 +994,7 @@ public class Scanner implements Lexer {
      * sequences.
      */
     public void token(Token token) {
-        pos += this.token.name.length() - token.name.length();
+        pos += this.sp - token.name.length();
         prevEndPos = pos;
         this.token = token;
     }
