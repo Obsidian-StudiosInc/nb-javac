@@ -267,8 +267,12 @@ public class Enter extends JCTree.Visitor {
             assert typeEnvsShadow == null;
             typeEnvsShadow = new HashMap<TypeSymbol,Env<AttrContext>>();
         } else {
-            for (Map.Entry<TypeSymbol, Env<AttrContext>> entry : typeEnvsShadow.entrySet())
-                typeEnvs.put(entry.getKey(), entry.getValue());
+            for (Map.Entry<TypeSymbol, Env<AttrContext>> entry : typeEnvsShadow.entrySet()) {
+                if (entry.getValue() == null)
+                    typeEnvs.remove(entry.getKey());
+                else
+                    typeEnvs.put(entry.getKey(), entry.getValue());
+            }
             typeEnvsShadow = null;
         }
     }
