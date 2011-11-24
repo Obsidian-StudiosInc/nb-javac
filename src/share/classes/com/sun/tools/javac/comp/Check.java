@@ -954,29 +954,40 @@ public class Check {
                   // in the presence of inner classes. Should it be deleted here?
                   checkDisjoint(pos, flags,
                                 ABSTRACT,
-                                PRIVATE | STATIC))
-                 &&
-                 checkDisjoint(pos, flags,
-                               ABSTRACT | INTERFACE,
-                               FINAL | NATIVE | SYNCHRONIZED)
-                 &&
-                 checkDisjoint(pos, flags,
-                               PUBLIC,
-                               PRIVATE | PROTECTED)
-                 &&
-                 checkDisjoint(pos, flags,
-                               PRIVATE,
-                               PUBLIC | PROTECTED)
-                 &&
-                 checkDisjoint(pos, flags,
-                               FINAL,
-                               VOLATILE)
-                 &&
-                 (sym.kind == TYP ||
-                  checkDisjoint(pos, flags,
-                                ABSTRACT | NATIVE,
-                                STRICTFP))) {
-            // skip
+                                PRIVATE | STATIC))) {
+            if (checkDisjoint(pos, flags,
+                                ABSTRACT | INTERFACE,
+                                FINAL | NATIVE | SYNCHRONIZED)) {
+                if (checkDisjoint(pos, flags,
+                                    PUBLIC,
+                                    PRIVATE | PROTECTED)) {
+                    if (checkDisjoint(pos, flags,
+                                        PRIVATE,
+                                        PUBLIC | PROTECTED)) {
+                        if (checkDisjoint(pos, flags,
+                                            FINAL,
+                                            VOLATILE)) {
+                            if ((sym.kind == TYP ||
+                                    checkDisjoint(pos, flags,
+                                                ABSTRACT | NATIVE,
+                                                STRICTFP))) {
+                            } else {
+                                flags &= ~STRICTFP;
+                            }
+                        } else {
+                            flags &= ~(VOLATILE);
+                        }
+                    } else {
+                        flags &= ~(PUBLIC | PROTECTED);
+                    }
+                } else {
+                    flags &= ~(PRIVATE | PROTECTED);
+                }
+            } else {
+                flags &= ~(FINAL | NATIVE | SYNCHRONIZED);
+            }                
+        } else {
+            flags &= ~(PRIVATE | STATIC);
         }
         return flags & (mask | ~StandardFlags) | implicit;
     }
