@@ -580,6 +580,20 @@ public class Enter extends JCTree.Visitor {
         } else {
             c.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, c, tree) | (c.flags_field & (FROMCLASS | APT_CLEANED));
             ClassType ct = (ClassType)c.type;
+            if (owner.kind != PCK && (c.flags_field & STATIC) == 0) {
+                // We are seeing a local or inner class.
+                // Set outer_field of this class to closest enclosing class
+                // which contains this class in a non-static context
+                // (its "enclosing instance class"), provided such a class exists.
+                Symbol owner1 = owner;
+                while ((owner1.kind & (VAR | MTH)) != 0 &&
+                        (owner1.flags_field & STATIC) == 0) {
+                    owner1 = owner1.owner;
+                }
+                if (owner1.kind == TYP) {
+                    ct.setEnclosingType(owner1.type);
+                }
+            }
             boolean wasNull = false;
             if (ct.typarams_field != null) {
                 for (List<Type> l = ct.typarams_field; l.nonEmpty(); l = l.tail)
