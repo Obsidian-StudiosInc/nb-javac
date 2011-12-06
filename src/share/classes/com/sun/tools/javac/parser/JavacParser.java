@@ -76,15 +76,12 @@ public class JavacParser implements Parser {
     /** The name table. */
     private Names names;
 
-    private final CancelService cancelService;
-
     /** Construct a parser from a given scanner, tree factory and log.
      */
     protected JavacParser(ParserFactory fac,
                      Lexer S,
                      boolean keepDocComments,
-                     boolean keepLineMap,
-                     CancelService cancelService) {
+                     boolean keepLineMap) {
         this.S = S;
         S.nextToken(); // prime the pump
         this.F = fac.F;
@@ -107,7 +104,6 @@ public class JavacParser implements Parser {
         docComments = keepDocComments ? new HashMap<JCTree,String>() : null;
         this.keepLineMap = keepLineMap;
         this.errorTree = F.Erroneous();
-        this.cancelService = cancelService;
     }
 
     /** Switch: Should generics be recognized?
@@ -2519,10 +2515,7 @@ public class JavacParser implements Parser {
      *  @param mods    The modifiers starting the class declaration
      *  @param dc       The documentation comment for the class, or null.
      */
-    JCClassDecl classDeclaration(JCModifiers mods, String dc) {
-        if (cancelService != null) {
-            cancelService.abortIfCanceled();
-        }
+    protected JCClassDecl classDeclaration(JCModifiers mods, String dc) {
         int pos = S.pos();
         accept(CLASS);
         Name name = ident();
@@ -2551,10 +2544,7 @@ public class JavacParser implements Parser {
      *  @param mods    The modifiers starting the interface declaration
      *  @param dc       The documentation comment for the interface, or null.
      */
-    JCClassDecl interfaceDeclaration(JCModifiers mods, String dc) {
-        if (cancelService != null) {
-            cancelService.abortIfCanceled();
-        }
+    protected JCClassDecl interfaceDeclaration(JCModifiers mods, String dc) {
         int pos = S.pos();
         accept(INTERFACE);
         Name name = ident();
@@ -2577,10 +2567,7 @@ public class JavacParser implements Parser {
      *  @param mods    The modifiers starting the enum declaration
      *  @param dc       The documentation comment for the enum, or null.
      */
-    JCClassDecl enumDeclaration(JCModifiers mods, String dc) {
-        if (cancelService != null) {
-            cancelService.abortIfCanceled();
-        }
+    protected JCClassDecl enumDeclaration(JCModifiers mods, String dc) {
         int pos = S.pos();
         accept(ENUM);
         JCModifiers newMods =
@@ -2911,16 +2898,13 @@ public class JavacParser implements Parser {
      *  ConstructorDeclaratorRest =
      *      "(" FormalParameterListOpt ")" [THROWS TypeList] MethodBody
      */
-    JCTree methodDeclaratorRest(int pos,
+    protected JCTree methodDeclaratorRest(int pos,
                               JCModifiers mods,
                               JCExpression type,
                               Name name,
                               List<JCTypeParameter> typarams,
                               boolean isInterface, boolean isVoid,
                               String dc) {
-        if (cancelService != null) {
-            cancelService.abortIfCanceled();
-        }
         List<JCVariableDecl> params = formalParameters();
         if (!isVoid) type = bracketsOpt(type);
         List<JCExpression> thrown = List.nil();

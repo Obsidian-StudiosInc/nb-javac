@@ -74,7 +74,6 @@ import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.util.Abort;
 import com.sun.tools.javac.util.Assert;
-import com.sun.tools.javac.util.CancelAbort;
 import com.sun.tools.javac.util.ClientCodeException;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Convert;
@@ -1184,8 +1183,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         } catch (Throwable t) {
             if (t instanceof ThreadDeath)
                 throw (ThreadDeath)t;
-            if (t instanceof CancelAbort)
-                throw (CancelAbort)t;
+            if (t instanceof Abort)
+                throw (Abort)t;
             LOGGER.log(Level.INFO, "Error while re-entering:", t);
             throw new Abort(t);
         }            

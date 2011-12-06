@@ -86,7 +86,6 @@ public class Attr extends JCTree.Visitor {
     final JCDiagnostic.Factory diags;
     final Annotate annotate;
     final DeferredLintHandler deferredLintHandler;
-    private final CancelService cancelService;
     private final boolean isBackgroundCompilation;
 
     public static Attr instance(Context context) {
@@ -131,7 +130,6 @@ public class Attr extends JCTree.Visitor {
         findDiamonds = options.get("findDiamond") != null &&
                  source.allowDiamond();
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
-        cancelService = CancelService.instance(context);
         isBackgroundCompilation = options.get("backgroundCompilation") != null;     //NOI18N
     }
 
@@ -698,7 +696,6 @@ public class Attr extends JCTree.Visitor {
     }
 
     public void visitClassDef(JCClassDecl tree) {
-        cancelService.abortIfCanceled();
         // Local classes have not been entered yet, so we need to do it now:
         if ((env.info.scope.owner.kind & (VAR | MTH)) != 0
                 && (env.info.scope.owner.kind != ERR || tree.sym == null))
@@ -732,7 +729,6 @@ public class Attr extends JCTree.Visitor {
     }
 
     public void visitMethodDef(JCMethodDecl tree) {
-        cancelService.abortIfCanceled();
         MethodSymbol m = tree.sym;
         if (m == null) {
             // exit in case something drastic went wrong during enter.
@@ -934,7 +930,6 @@ public class Attr extends JCTree.Visitor {
     }
 
     public void visitBlock(JCBlock tree) {
-        cancelService.abortIfCanceled();
         if (env.info.scope.owner != null && (env.info.scope.owner.kind == TYP || env.info.scope.owner.kind == ERR)) {
             // Block is a static or instance initializer;
             // let the owner of the environment be a freshly

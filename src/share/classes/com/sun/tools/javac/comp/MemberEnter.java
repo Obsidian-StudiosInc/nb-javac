@@ -79,7 +79,6 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
     private final Target target;
     private final DeferredLintHandler deferredLintHandler;
     private final JavacMessages messages;
-    private final CancelService cancelService;
     private final LazyTreeLoader treeLoader;
 
     private final boolean skipAnnotations;
@@ -114,7 +113,6 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
         boolean backgroundCompilation = options.get("backgroundCompilation") != null;
         ignoreNoLang = ideMode && !backgroundCompilation;
         messages = JavacMessages.instance(context);
-        cancelService = CancelService.instance(context);
         treeLoader = LazyTreeLoader.instance(context);
     }
 
@@ -522,7 +520,6 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
     }
 
     public void visitTopLevel(JCCompilationUnit tree) {
-        cancelService.abortIfCanceled();
         if (tree.starImportScope.elems != null) {
             // we must have already processed this toplevel
             return;
@@ -555,7 +552,6 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
 
     // process the non-static imports and the static imports of types.
     public void visitImport(JCImport tree) {
-        cancelService.abortIfCanceled();
         JCTree imp = tree.qualid;
         Name name = TreeInfo.name(imp);
         TypeSymbol p;
@@ -592,7 +588,6 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
     }
 
     public void visitMethodDef(JCMethodDecl tree) {
-        cancelService.abortIfCanceled();
         Scope enclScope = enter.enterScope(env);
         MethodSymbol m = new MethodSymbol(0, tree.name, null, enclScope.owner);
         m.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, m, tree);
@@ -731,7 +726,6 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
     }
 
     public void visitVarDef(JCVariableDecl tree) {
-        cancelService.abortIfCanceled();
         Env<AttrContext> localEnv = env;
         if ((tree.mods.flags & STATIC) != 0 ||
             (env.info.scope.owner.flags() & INTERFACE) != 0) {
