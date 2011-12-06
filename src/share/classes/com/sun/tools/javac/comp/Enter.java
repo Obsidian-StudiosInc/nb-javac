@@ -113,7 +113,6 @@ public class Enter extends JCTree.Visitor {
     JavaFileManager fileManager;
     PkgInfo pkginfoOpt;
     
-    private final LowMemoryWatch memoryWatch;
     private final LazyTreeLoader treeLoader;
     private final DuplicateClassChecker duplicateClassChecker;
     private final Source source;
@@ -140,7 +139,6 @@ public class Enter extends JCTree.Visitor {
         annotate = Annotate.instance(context);
         lint = Lint.instance(context);
         names = Names.instance(context);
-        memoryWatch = LowMemoryWatch.instance(context);
         treeLoader = LazyTreeLoader.instance(context);
         duplicateClassChecker = context.get(DuplicateClassChecker.class);
 
@@ -314,7 +312,6 @@ public class Enter extends JCTree.Visitor {
             Type t = classEnter(l.head, env);
             if (t != null)
                 ts.append(t);
-            memoryWatch.abortIfMemoryLow();
         }
         return ts.toList();
     }
@@ -715,7 +712,6 @@ public class Enter extends JCTree.Visitor {
                     else
                         // defer
                         prevUncompleted.append(clazz);
-                    memoryWatch.abortIfMemoryLow();
                 }
 
                 // if there remain any unimported toplevels (these must have
@@ -726,7 +722,6 @@ public class Enter extends JCTree.Visitor {
                         Env<AttrContext> topEnv = topLevelEnv(tree);
                         memberEnter.memberEnter(tree, topEnv);
                         log.useSource(prev);
-                        memoryWatch.abortIfMemoryLow();
                     }
                 }
             }
