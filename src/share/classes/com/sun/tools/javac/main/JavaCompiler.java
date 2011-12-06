@@ -297,8 +297,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
 
     protected FlowListener flowListener;
     
-    protected LowMemoryWatch memoryWatch;
-
     /**
      * Annotation processing may require and provide a new instance
      * of the compiler to be used for the analyze and generate phases.
@@ -349,7 +347,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         memberEnter = MemberEnter.instance(context);
         todo = Todo.instance(context);
         flowListener = FlowListener.instance(context);
-        memoryWatch = LowMemoryWatch.instance(context);
 
         fileManager = context.get(JavaFileManager.class);
         parserFactory = ParserFactory.instance(context);
@@ -934,7 +931,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 filesSoFar.add(fileObject);
                 trees.append(parse(fileObject));
             }
-            memoryWatch.abortIfMemoryLow();
         }
         return trees.toList();
     }
@@ -1197,7 +1193,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         ListBuffer<Env<AttrContext>> results = lb();
         while (!envs.isEmpty()) {
             results.append(attribute(envs.remove()));
-            memoryWatch.abortIfMemoryLow();
         }
         return stopIfError(CompileState.ATTR, results);
     }
@@ -1247,7 +1242,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         ListBuffer<Env<AttrContext>> results = lb();
         for (Env<AttrContext> env: envs) {
             flow(env, results);
-            memoryWatch.abortIfMemoryLow();
         }
         return stopIfError(CompileState.FLOW, results);
     }
@@ -1318,7 +1312,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         ListBuffer<Pair<Env<AttrContext>, JCClassDecl>> results = lb();
         for (Env<AttrContext> env: envs) {
             desugar(env, results);
-            memoryWatch.abortIfMemoryLow();
         }
         return stopIfError(CompileState.FLOW, results);
     }
@@ -1511,8 +1504,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             }
 
             taskFinished(new TaskEvent(TaskEvent.Kind.GENERATE, env.toplevel, cdef.sym));
-            
-            memoryWatch.abortIfMemoryLow();
         }
     }
 
