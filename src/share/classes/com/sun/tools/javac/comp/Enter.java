@@ -113,7 +113,6 @@ public class Enter extends JCTree.Visitor {
     JavaFileManager fileManager;
     PkgInfo pkginfoOpt;
     
-    private final CancelService cancelService;
     private final LowMemoryWatch memoryWatch;
     private final LazyTreeLoader treeLoader;
     private final DuplicateClassChecker duplicateClassChecker;
@@ -141,7 +140,6 @@ public class Enter extends JCTree.Visitor {
         annotate = Annotate.instance(context);
         lint = Lint.instance(context);
         names = Names.instance(context);
-        cancelService = CancelService.instance(context);
         memoryWatch = LowMemoryWatch.instance(context);
         treeLoader = LazyTreeLoader.instance(context);
         duplicateClassChecker = context.get(DuplicateClassChecker.class);
@@ -410,7 +408,6 @@ public class Enter extends JCTree.Visitor {
 
     @Override
     public void visitClassDef(JCClassDecl tree) {
-        cancelService.abortIfCanceled();
         Symbol owner = env.info.scope.owner;
         Scope enclScope = enterScope(env);
         ClassSymbol c = null;

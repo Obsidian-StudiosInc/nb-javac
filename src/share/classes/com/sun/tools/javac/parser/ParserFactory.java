@@ -30,7 +30,6 @@ import java.util.Map;
 
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.tree.TreeMaker;
-import com.sun.tools.javac.util.CancelService;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Names;
@@ -64,7 +63,6 @@ public class ParserFactory {
     final Names names;
     final Options options;
     final ScannerFactory scannerFactory;
-    final CancelService cancelSevice;
 
     protected ParserFactory(Context context) {
         super();
@@ -76,7 +74,6 @@ public class ParserFactory {
         this.source = Source.instance(context);
         this.options = Options.instance(context);
         this.scannerFactory = ScannerFactory.instance(context);
-        this.cancelSevice = CancelService.instance(context);
     }
 
     public Parser newParser(CharSequence input, boolean keepDocComments, boolean keepEndPos, boolean keepLineMap) {
@@ -87,7 +84,7 @@ public class ParserFactory {
     public Parser newParser(CharSequence input, int startPos, Map<JCTree,Integer> endPos) {
         Lexer lexer = scannerFactory.newScanner(input, true);
         ((Scanner)lexer).seek(startPos);
-        JavacParser p = new EndPosParser(this, lexer, true, false, cancelSevice, endPos);
+        JavacParser p = new EndPosParser(this, lexer, true, false, endPos);
         return p;
     }
 
@@ -95,9 +92,9 @@ public class ParserFactory {
         Lexer lexer = scannerFactory.newScanner(input, keepDocComments);
         JavacParser p;
         if (keepEndPos) {
-            p = new EndPosParser(this, lexer, keepDocComments, keepLineMap, cancelSevice);
+            p = new EndPosParser(this, lexer, keepDocComments, keepLineMap);
         } else {
-            p = new JavacParser(this, lexer, keepDocComments, keepLineMap, cancelSevice);
+            p = new JavacParser(this, lexer, keepDocComments, keepLineMap);
         }
         return p;
     }

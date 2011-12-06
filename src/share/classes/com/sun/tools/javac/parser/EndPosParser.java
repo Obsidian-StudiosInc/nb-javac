@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.HashMap;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
-import com.sun.tools.javac.util.CancelService;
 
 import static com.sun.tools.javac.tree.JCTree.*;
 
@@ -44,12 +43,12 @@ import static com.sun.tools.javac.tree.JCTree.*;
  */
 public class EndPosParser extends JavacParser {
 
-    public EndPosParser(ParserFactory fac, Lexer S, boolean keepDocComments, boolean keepLineMap, CancelService cancelService) {
-        this(fac, S, keepDocComments, keepLineMap, cancelService, null);
+    public EndPosParser(ParserFactory fac, Lexer S, boolean keepDocComments, boolean keepLineMap) {
+        this(fac, S, keepDocComments, keepLineMap, null);
     }
 
-    public EndPosParser(ParserFactory fac, Lexer S, boolean keepDocComments, boolean keepLineMap, CancelService cancelService, Map<JCTree,Integer> endPositions) {
-        super(fac, S, keepDocComments, keepLineMap, cancelService);
+    public EndPosParser(ParserFactory fac, Lexer S, boolean keepDocComments, boolean keepLineMap, Map<JCTree,Integer> endPositions) {
+        super(fac, S, keepDocComments, keepLineMap);
         this.endPositions = endPositions == null ? new HashMap<JCTree,Integer>() : endPositions;
     }
 
