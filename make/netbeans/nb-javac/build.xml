@@ -111,7 +111,7 @@
     
     <target name="download-bcel" unless="bcel-found">
         <mkdir dir="ext"/>
-        <get dest="ext/bcel-5.2.zip" src="http://mirror.candidhosting.com/pub/apache/jakarta/bcel/binaries/bcel-5.2.zip" usetimestamp="true"/>
+        <get dest="ext/bcel-5.2.zip" src="http://ftp.sh.cvut.cz/MIRRORS/apache//commons/bcel/binaries/bcel-5.2.zip" usetimestamp="true"/>
         <unzip src="ext/bcel-5.2.zip" dest="ext" />
         <copy file="ext/bcel-5.2/bcel-5.2.jar" todir="ext" />
         <delete dir="ext/bcel-5.2" />
