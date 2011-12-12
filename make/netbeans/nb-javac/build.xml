@@ -99,22 +99,4 @@
     </target>
     <target name="-post-jar" depends="-post-init,-separate-jars,-copy-jars-to-build">
     </target>
-    
-    <target name="-pre-compile-test" depends="ensure-bcel-exists,jar"/>
-    <target name="-pre-compile-test-single" depends="ensure-bcel-exists"/>
-    
-    <target name="ensure-bcel-exists" depends="check-bcel,download-bcel"/>
-    
-    <target name="check-bcel">
-        <available file="ext/bcel-5.2.jar" property="bcel-found" />
-    </target>
-    
-    <target name="download-bcel" unless="bcel-found">
-        <mkdir dir="ext"/>
-        <get dest="ext/bcel-5.2.zip" src="http://ftp.sh.cvut.cz/MIRRORS/apache//commons/bcel/binaries/bcel-5.2.zip" usetimestamp="true"/>
-        <unzip src="ext/bcel-5.2.zip" dest="ext" />
-        <copy file="ext/bcel-5.2/bcel-5.2.jar" todir="ext" />
-        <delete dir="ext/bcel-5.2" />
-    </target>
-    
 </project>
