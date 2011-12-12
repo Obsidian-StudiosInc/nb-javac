@@ -26,32 +26,25 @@
 package global;
 
 import com.sun.tools.javac.api.JavacTaskImpl;
-import com.sun.tools.javac.file.BaseFileObject;
+import com.sun.tools.javap.DisassemblerTool.DisassemblerTask;
+import com.sun.tools.javap.JavapTask;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import javax.tools.FileObject;
-import javax.tools.ForwardingJavaFileManager;
-import javax.tools.JavaCompiler;
-import javax.tools.JavaFileManager;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.ElementFilter;
+import javax.tools.*;
 import javax.tools.JavaFileManager.Location;
-import javax.tools.JavaFileObject;
 import javax.tools.JavaFileObject.Kind;
-import javax.tools.SimpleJavaFileObject;
-import javax.tools.StandardJavaFileManager;
-import javax.tools.StandardLocation;
-import javax.tools.ToolProvider;
 import junit.framework.TestCase;
-import org.apache.bcel.classfile.ClassParser;
-import org.apache.bcel.classfile.Field;
-import org.apache.bcel.classfile.JavaClass;
-import org.apache.bcel.classfile.Method;
-import org.apache.bcel.generic.Type;
 
 /**
  *
@@ -369,7 +362,7 @@ public class ErrorToleranceTest extends TestCase {
         super.tearDown();
     }
 
-    private File[] compile(String code, boolean repair) throws Exception {
+    private String[] compile(String code, boolean repair) throws Exception {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
@@ -382,98 +375,32 @@ public class ErrorToleranceTest extends TestCase {
         JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, mjfm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new MyFileObject(code)));
         com.sun.tools.javac.main.JavaCompiler.instance(ct.getContext()).doRepair = repair;
         ct.parse();
-        ct.analyze();
+        Iterable<? extends Element> analyze = ct.analyze();
         
-        List<File> result = new LinkedList<File>();
-        
-        for (JavaFileObject jfo : ct.generate()) {
-            assertTrue(jfo instanceof BaseFileObject);
-            
-            BaseFileObject bfo = (BaseFileObject) jfo;
-            File file = new File(bfo.toUri());
-            
-            assertTrue(file.getAbsolutePath(), file.canRead());
-            
-            result.add(file);
-        }
-        
-        return result.toArray(new File[0]);
-    }
-    
-    private Collection<String> dumpSignatures(File[] fqns) throws Exception {
         List<String> result = new LinkedList<String>();
         
-        for (File f : fqns) {
-            result.add(toString(new ClassParser(f.getAbsolutePath()).parse()));
+        for (TypeElement te : ElementFilter.typesIn(analyze)) {
+            result.add(ct.getElements().getBinaryName(te).toString());
+        }
+        
+        ct.generate();
+        
+        return result.toArray(new String[0]);
+    }
+    
+    private Collection<String> dumpSignatures(String[] fqns) throws Exception {
+        List<String> result = new LinkedList<String>();
+        
+        for (String fqn : fqns) {
+            StringWriter s = new StringWriter();
+            PrintWriter w = new PrintWriter(s);
+            DisassemblerTask javapTool = new JavapTask(w, null, null, Arrays.<String>asList("-classpath", workingDir.getAbsolutePath(), "-private", "-c"), Collections.singletonList(fqn));
+            javapTool.call();
+            w.close();
+            result.add(s.toString());
         }
         
         return result;
-    }
-    
-    private String toString(JavaClass clazz) throws ClassNotFoundException {
-        StringBuilder sb = new StringBuilder();
-        
-        sb.append(Integer.toHexString(clazz.getAccessFlags()));
-        sb.append(" class ");
-        sb.append(clazz.getClassName());
-        sb.append(" extends ");
-        sb.append(clazz.getSuperClass().getClassName());
-        sb.append(" implements ");
-        for (JavaClass c : clazz.getInterfaces()) {
-            sb.append(c.getClassName());
-            sb.append(", ");
-        }
-        sb.append("{\n");
-        for (Field f: clazz.getFields()) {
-            sb.append(toString(f));
-            sb.append("\n");
-        }
-        for (Method m: clazz.getMethods()) {
-            sb.append(toString(m));
-            sb.append("\n");
-        }
-        sb.append("\n");
-        sb.append("}");
-        return sb.toString();
-    }
-
-    private String toString(Field clazz) throws ClassNotFoundException {
-        StringBuilder sb = new StringBuilder();
-        
-        sb.append(Integer.toHexString(clazz.getAccessFlags()));
-        sb.append(" ");
-        sb.append(clazz.getType().toString());
-        sb.append(" ");
-        sb.append(clazz.getName());
-        sb.append(" = ");
-        sb.append(clazz.getConstantValue());
-        
-        return sb.toString();
-    }
-    
-    private String toString(Method clazz) throws ClassNotFoundException {
-        StringBuilder sb = new StringBuilder();
-
-        sb.append(Integer.toHexString(clazz.getAccessFlags()));
-        sb.append(" ");
-        sb.append(clazz.getReturnType().toString());
-        sb.append(" ");
-        sb.append(clazz.getName());
-        sb.append("(");
-        for (Type t : clazz.getArgumentTypes()) {
-            sb.append(t.toString());
-            sb.append(", ");
-        }
-        sb.append(") {\n");
-        if (clazz.getCode() != null) {
-            clazz.getCode().setAttributes(null);
-            sb.append(clazz.getCode().toString());
-        } else {
-            sb.append("<<<no code>>>");
-        }
-        sb.append("\n}");
-
-        return sb.toString();
     }
     
     private void compareResults(String golden, String code) throws Exception {
