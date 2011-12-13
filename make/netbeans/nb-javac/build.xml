@@ -99,4 +99,7 @@
     </target>
     <target name="-post-jar" depends="-post-init,-separate-jars,-copy-jars-to-build">
     </target>
+
+    <target name="-pre-compile-test" depends="jar"/>
+
 </project>
