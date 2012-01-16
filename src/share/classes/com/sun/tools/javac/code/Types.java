@@ -754,7 +754,7 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
-                return true;
+                return s.isErroneous() && t.tsym.name == s.tsym.name;
             }
         };
     // </editor-fold>
@@ -809,7 +809,7 @@ public class Types {
                 return isSameType(t, s);
             }
         case ERROR:
-            return true;
+            return isSameType(t, s);
         default:
             return containsType(s, t);
         }
