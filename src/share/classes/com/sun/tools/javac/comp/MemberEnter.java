@@ -707,9 +707,9 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             if( chk.checkUnique(tree.pos(), m, enclScope))
                 enclScope.enter(m);
         }
-        annotateLater(tree.mods.annotations, localEnv, m);
+        annotateLater(tree.mods.annotations, localEnv, tree.sym);
         if (tree.defaultValue != null)
-            annotateDefaultValueLater(tree.defaultValue, localEnv, m);
+            annotateDefaultValueLater(tree.defaultValue, localEnv, tree.sym);
     }
 
     /** Create a fresh environment for method bodies.
