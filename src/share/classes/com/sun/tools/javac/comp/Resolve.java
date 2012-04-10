@@ -1062,6 +1062,8 @@ public class Resolve {
     Symbol loadClass(Env<AttrContext> env, Name name) {
         try {
             ClassSymbol c = reader.loadClass(name);
+            if (c.type.isErroneous())
+                return typeNotFound;
             return isAccessible(env, c) ? c : new AccessError(c);
         } catch (ClassReader.BadClassFile err) {
             if (ideMode) {
