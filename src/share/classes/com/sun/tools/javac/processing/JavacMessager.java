@@ -131,7 +131,7 @@ public class JavacMessager implements Messager {
                 break;
             }
         } finally {
-            if (oldSource != null)
+            if (newSource != null)
                 log.useSource(oldSource);
         }
     }
