@@ -734,7 +734,9 @@ public class ClassReader implements Completer {
                         public Type getEnclosingType() {
                             if (!completed) {
                                 completed = true;
-                                tsym.complete();
+                                try {
+                                    tsym.complete();
+                                } catch (CompletionFailure cf) {}
                                 Type enclosingType = tsym.type.getEnclosingType();
                                 if (enclosingType != Type.noType) {
                                     List<Type> typeArgs =
