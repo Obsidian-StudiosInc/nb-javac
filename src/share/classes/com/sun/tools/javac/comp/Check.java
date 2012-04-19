@@ -2143,7 +2143,7 @@ public class Check {
      *  @param sym  The method symbol to be checked.
      */
     void checkOverrideClashes(DiagnosticPosition pos, Type site, MethodSymbol sym) {
-        if (site.isErroneous())
+        if (site == null || site.isErroneous())
             return;
          ClashFilter cf = new ClashFilter(site);
          //for each method m1 that is a member of 'site'...
