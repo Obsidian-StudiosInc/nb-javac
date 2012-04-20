@@ -42,8 +42,9 @@ import com.sun.tools.javac.tree.JCTree.*;
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.TypeTags.*;
-import com.sun.tools.javac.model.LazyTreeLoader;
+import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
+import com.sun.tools.javac.model.LazyTreeLoader;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 
@@ -156,7 +157,7 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                     throw new MissingPlatformError (msg);
                 }
             } else {
-                log.error(pos, "doesnt.exist", tsym);
+                log.error(DiagnosticFlag.RESOLVE_ERROR, pos, "doesnt.exist", tsym);
             }
         }
         env.toplevel.starImportScope.importAll(tsym.members());

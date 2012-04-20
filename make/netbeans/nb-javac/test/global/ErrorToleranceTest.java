@@ -275,7 +275,7 @@ public class ErrorToleranceTest extends TestCase {
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    static {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code - test() is already defined in test.Test\");\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code - method test() is already defined in class test.Test\");\n" +
                       "    }\n" +
                       "    public void test() {" +
                       "    }\n" +
@@ -296,7 +296,7 @@ public class ErrorToleranceTest extends TestCase {
         final String golden = "package test;\n" +
                       "public class Test {\n" +
                       "    static {\n" +
-                      "        throw new RuntimeException(\"Uncompilable source code - test.Test.Nested is already defined in test.Test\");\n" +
+                      "        throw new RuntimeException(\"Uncompilable source code - class test.Test.Nested is already defined in class test.Test\");\n" +
                       "    }\n" +
                       "    public static class Nested {\n" +
                       "    }\n" +
