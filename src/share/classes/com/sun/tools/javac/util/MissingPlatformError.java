@@ -31,6 +31,8 @@ package com.sun.tools.javac.util;
  */
 public class MissingPlatformError extends FatalError {
     
+    private final JCDiagnostic diagnostic;
+    
     /** Construct a <code>FatalError</code> with no detail message.
      */
     public MissingPlatformError() {
@@ -42,6 +44,7 @@ public class MissingPlatformError extends FatalError {
      */
     public MissingPlatformError(JCDiagnostic d) {
         super(d);
+        this.diagnostic = d;
     }
 
     /** Construct a <code>FatalError</code> with the specified detail message.
@@ -50,6 +53,11 @@ public class MissingPlatformError extends FatalError {
      */
     public MissingPlatformError(String s) {
         super(s);
+        this.diagnostic = null;
+    }
+    
+    public JCDiagnostic getDiagnostic() {
+        return diagnostic;
     }
 
 }
