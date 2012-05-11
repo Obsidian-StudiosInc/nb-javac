@@ -36,6 +36,7 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.TypeTags;
 import com.sun.tools.javac.code.Types;
+import com.sun.tools.javac.parser.Token;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCAssignOp;
 import com.sun.tools.javac.tree.JCTree.JCBinary;
@@ -66,6 +67,8 @@ import com.sun.tools.javac.util.Name;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Logger;
+import javax.lang.model.element.ElementKind;
+import javax.tools.JavaFileObject;
 
 /**
  *
@@ -107,6 +110,7 @@ public class Repair extends TreeTranslator {
     private Set<ClassSymbol> repairedClasses = new HashSet<ClassSymbol>();
     private boolean isErrClass;
     private boolean insideErrEnum;
+    private Name fixedTopLevelName;
     
     private Repair(Context context) {
         context.put(repairKey, this);
@@ -445,6 +449,29 @@ public class Repair extends TreeTranslator {
                 err = null;
                 staticInit = null;
                 JCClassDecl tree = (JCClassDecl)attrEnv.tree;
+                final Symbol enclosingElement = c.getEnclosingElement();
+                if (c.name == c.name.table.names.error &&
+                    enclosingElement.getKind() == ElementKind.PACKAGE) {
+                    final JavaFileObject source = c.sourcefile;
+                    final String path = source.toUri().getPath();
+                    int start = path.lastIndexOf('/');
+                    int end = path.lastIndexOf('.');
+                    fixedTopLevelName = c.name.table.fromString(path.substring(start+1, end));
+                    c.name = fixedTopLevelName;
+                    c.fullname = Symbol.TypeSymbol.formFullName(c.name, enclosingElement);
+                    c.flatname = c.fullname;
+                    tree.name = c.name;
+                    isErrClass = true;
+                    hasError = true;
+                    err = diags.error(
+                            log.currentSource(),
+                            tree,
+                            "expected",         //NOI18N
+                            Token.IDENTIFIER);
+                } else if (fixedTopLevelName != null) {
+                    c.fullname = Symbol.TypeSymbol.formFullName(c.name, enclosingElement);
+                    c.flatname = Symbol.TypeSymbol.formFlatName(c.name, enclosingElement);
+                }
                 tree.mods = translate(tree.mods);
                 tree.typarams = translateTypeParams(tree.typarams);
                 tree.extending = translate(tree.extending);
@@ -482,30 +509,51 @@ public class Repair extends TreeTranslator {
                             nonAbstractMethods.remove(((JCMethodDecl)l.head).sym);
                         hasError = false;
                         err = null;
-                        l.head = translate(l.head);
-                        if ((l.head.getTag() == JCTree.METHODDEF && ((JCMethodDecl)l.head).sym == null)
-                                || (l.head.getTag() == JCTree.VARDEF && ((JCVariableDecl)l.head).sym == null)) {
-                            hasError = true;
-                        }
-                        if (hasError) {
-                            if (l.head.getTag() == JCTree.CLASSDEF && tree.sym.members_field.includes(((JCClassDecl)l.head).sym)) {
-                                last = l;
-                            } else {
-                                if (last != null)
-                                    last.tail = l.tail;
-                                else
-                                    tree.defs = l.tail;
-                            }
-                            if (classLevelErrTree == null) {
-                                if (err != null) {
-                                    classLevelErrTree = err.getTree();
-                                    classLevelErrMessage = err.getMessage(null);
+                        if (l.head.getTag() == JCTree.CLASSDEF && ((JCClassDecl)l.head).name == c.name.table.names.error) {
+                            Scope.Entry prev = null;
+                            for (Scope.Entry e = tree.sym.members_field.elems; e != null; e = e.sibling) {
+                                if (e.sym == ((JCClassDecl)l.head).sym) {
+                                    if (prev == null) {
+                                        tree.sym.members_field.elems = e.sibling;
+                                        break;
+                                    } else {
+                                        prev.sibling = e.sibling;
+                                        break;
+                                    }
                                 } else {
-                                    classLevelErrTree = l.head;
+                                    prev = e;      
                                 }
                             }
+                            if (last != null)
+                                last.tail = l.tail;
+                            else
+                                tree.defs = l.tail;
                         } else {
-                            last = l;
+                            l.head = translate(l.head);
+                            if ((l.head.getTag() == JCTree.METHODDEF && ((JCMethodDecl)l.head).sym == null)
+                                    || (l.head.getTag() == JCTree.VARDEF && ((JCVariableDecl)l.head).sym == null)) {
+                                hasError = true;
+                            }
+                            if (hasError) {
+                                if (l.head.getTag() == JCTree.CLASSDEF && tree.sym.members_field.includes(((JCClassDecl)l.head).sym)) {
+                                    last = l;
+                                } else {
+                                    if (last != null)
+                                        last.tail = l.tail;
+                                    else
+                                        tree.defs = l.tail;
+                                }
+                                if (classLevelErrTree == null) {
+                                    if (err != null) {
+                                        classLevelErrTree = err.getTree();
+                                        classLevelErrMessage = err.getMessage(null);
+                                    } else {
+                                        classLevelErrTree = l.head;
+                                    }
+                                }
+                            } else {
+                                last = l;
+                            }
                         }
                     }
                     if (classLevelErrTree != null) {
@@ -553,6 +601,7 @@ public class Repair extends TreeTranslator {
         } finally {
             attrEnv = null;
             make = null;
+            fixedTopLevelName = null;
         }
     }
     
