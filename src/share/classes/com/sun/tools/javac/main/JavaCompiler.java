@@ -1354,7 +1354,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             public void visitClassDef(JCClassDecl node) {
                 if (node.sym != null) {
                     Type st = types.supertype(node.sym.type);
-                    if (st.tag == TypeTags.CLASS) {
+                    if (st != null && st.tag == TypeTags.CLASS) {
                         ClassSymbol c = st.tsym.outermostClass();
                         Env<AttrContext> stEnv = enter.getEnv(c);
                         if (stEnv != null && env != stEnv) {
