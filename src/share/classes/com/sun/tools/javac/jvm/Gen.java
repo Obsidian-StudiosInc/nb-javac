@@ -831,7 +831,7 @@ public class Gen extends JCTree.Visitor {
     public Item genExpr(JCTree tree, Type pt) {
         Type prevPt = this.pt;
         try {
-            if (tree.type.constValue() != null) {
+            if (tree.type != null && tree.type.constValue() != null) {
                 // Short circuit any expressions which are constants
                 checkStringConstant(tree.pos(), tree.type.constValue());
                 result = items.makeImmediateItem(tree.type, tree.type.constValue());
