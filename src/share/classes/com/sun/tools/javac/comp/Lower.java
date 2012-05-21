@@ -578,7 +578,8 @@ public class Lower extends TreeTranslator {
         JCClassDecl odef = classDef(owner);
 
         // Enter class symbol in owner scope and compiled table.
-        enterSynthetic(odef.pos(), c, owner.members());
+        if (odef != null)
+            enterSynthetic(odef.pos(), c, owner.members());
         chk.compiled.put(c.flatname, c);
 
         // Create class definition tree.
@@ -590,7 +591,8 @@ public class Lower extends TreeTranslator {
         cdef.type = c.type;
 
         // Append class definition tree to owner's definitions.
-        odef.defs = odef.defs.prepend(cdef);
+        if (odef != null)
+            odef.defs = odef.defs.prepend(cdef);
 
         return c;
     }
