@@ -3351,7 +3351,7 @@ public class Types {
         while (commonSupers.nonEmpty()) {
             Type t1 = asSuper(from, commonSupers.head.tsym);
             Type t2 = commonSupers.head; // same as asSuper(to, commonSupers.head.tsym);
-            if (disjointTypes(t1.getTypeArguments(), t2.getTypeArguments()))
+            if (t1 == null || disjointTypes(t1.getTypeArguments(), t2.getTypeArguments()))
                 return false;
             giveWarning = giveWarning || (reverse ? giveWarning(t2, t1) : giveWarning(t1, t2));
             commonSupers = commonSupers.tail;
