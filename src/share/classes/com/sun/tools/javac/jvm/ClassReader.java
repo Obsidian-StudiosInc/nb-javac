@@ -2178,6 +2178,9 @@ public class ClassReader implements Completer {
                                     cs.sourcefile);
             throw new AssertionError(msg);
         }
+        if (flatName == null) {
+            flatName = names.empty;
+        }
         Name packageName = Convert.packagePart(flatName);
         PackageSymbol owner = packageName.isEmpty()
                                 ? syms.unnamedPackage
