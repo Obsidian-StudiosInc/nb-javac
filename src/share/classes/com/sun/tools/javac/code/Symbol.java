@@ -262,7 +262,7 @@ public abstract class Symbol implements Element {
     /** A class is an inner class if it it has an enclosing instance class.
      */
     public boolean isInner() {
-        return type.getEnclosingType().tag == CLASS;
+        return type.getEnclosingType() != null && type.getEnclosingType().tag == CLASS;
     }
 
     /** An inner class has an outer instance if it is not an interface
@@ -274,7 +274,7 @@ public abstract class Symbol implements Element {
      *  @see #isInner
      */
     public boolean hasOuterInstance() {
-        return
+        return type.getEnclosingType() != null &&
             type.getEnclosingType().tag == CLASS && (flags() & (INTERFACE | NOOUTERTHIS)) == 0;
     }
 
