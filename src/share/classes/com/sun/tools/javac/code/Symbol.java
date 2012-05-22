@@ -182,7 +182,7 @@ public abstract class Symbol implements Element {
      */
     public Type externalType(Types types) {
         Type t = erasure(types);
-        if (name == name.table.names.init && owner.hasOuterInstance()) {
+        if (name != null && name == name.table.names.init && owner != null && owner.hasOuterInstance()) {
             Type outerThisType = types.erasure(owner.type.getEnclosingType());
             return new MethodType(t.getParameterTypes().prepend(outerThisType),
                                   t.getReturnType(),
