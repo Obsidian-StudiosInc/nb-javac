@@ -601,7 +601,7 @@ public class Type implements PrimitiveType {
          */
         public String toString() {
             StringBuilder buf = new StringBuilder();
-            if (getEnclosingType().tag == CLASS && tsym.owner.kind == TYP) {
+            if (getEnclosingType() != null && getEnclosingType().tag == CLASS && tsym.owner.kind == TYP) {
                 buf.append(getEnclosingType().toString());
                 buf.append(".");
                 buf.append(className(tsym, false));
