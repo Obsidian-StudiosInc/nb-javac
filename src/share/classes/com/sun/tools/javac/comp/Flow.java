@@ -772,7 +772,7 @@ public class Flow extends TreeScanner {
             alive = true;
             scanStat(tree.body);
 
-            if (alive && tree.sym.type.getReturnType().tag != VOID)
+            if (alive && tree.sym.type.getReturnType() != null && tree.sym.type.getReturnType().tag != VOID)
                 log.error(TreeInfo.diagEndPos(tree.body), "missing.ret.stmt");
 
             if (isInitialConstructor) {
