@@ -3238,7 +3238,7 @@ public class Types {
         return buf.reverse();
     }
     public Type capture(Type t) {
-        if (t.tag != CLASS)
+        if (t == null || t.tag != CLASS)
             return t;
         if (t.getEnclosingType() != Type.noType) {
             Type capturedEncl = capture(t.getEnclosingType());
