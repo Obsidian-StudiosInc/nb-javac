@@ -2265,7 +2265,7 @@ public class Types {
         }
 
         Type subst(Type t) {
-            if (from.tail == null)
+            if (from.tail == null || t == null)
                 return t;
             else
                 return visit(t);
