@@ -2585,7 +2585,7 @@ public class Attr extends JCTree.Visitor {
                     //
                     // Then the type of the last expression above is
                     // Tree<Point>.Visitor.
-                    else if (ownOuter.tag == CLASS && site != ownOuter) {
+                    else if (ownOuter != null && ownOuter.tag == CLASS && site != ownOuter) {
                         Type normOuter = site;
                         if (normOuter.tag == CLASS)
                             normOuter = types.asEnclosingSuper(site, ownOuter.tsym);
