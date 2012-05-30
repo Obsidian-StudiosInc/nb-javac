@@ -2178,9 +2178,6 @@ public class ClassReader implements Completer {
                                     cs.sourcefile);
             throw new AssertionError(msg);
         }
-        if (flatName == null) {
-            flatName = names.empty;
-        }
         Name packageName = Convert.packagePart(flatName);
         PackageSymbol owner = packageName.isEmpty()
                                 ? syms.unnamedPackage
@@ -2195,6 +2192,8 @@ public class ClassReader implements Completer {
      *  and enter in `classes' unless already there.
      */
     public ClassSymbol enterClass(Name flatname) {
+        if (flatname == null)
+            flatname = names.empty;
         ClassSymbol c = classes.get(flatname);
         if (c == null)
             return enterClass(flatname, (JavaFileObject)null);
