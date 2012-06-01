@@ -36,6 +36,7 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.TypeTags;
 import com.sun.tools.javac.code.Types;
+import com.sun.tools.javac.jvm.Pool;
 import com.sun.tools.javac.parser.Token;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCAssignOp;
@@ -128,6 +129,9 @@ public class Repair extends TreeTranslator {
     public <T extends JCTree> T translate(T tree) {
         if (tree == null)
             return null;
+        if (tree.type != null && tree.type.constValue() instanceof String && ((String)tree.type.constValue()).length() >= Pool.MAX_STRING_LENGTH) {
+            log.error(tree.pos(), "limit.string"); //NOI18N
+        }
         parents = parents.prepend(tree);
         try {
             if (hasError)
@@ -209,6 +213,8 @@ public class Repair extends TreeTranslator {
                 hasError = false;
                 err = null;
                 errMessage = null;
+                if (tree.sym != null)
+                    tree.sym.setData(null);
             }
         } else if (tree.sym == null) {
             JCTree parent = parents != null ? parents.tail.head : null;
