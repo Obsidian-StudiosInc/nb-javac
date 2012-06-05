@@ -811,6 +811,10 @@ public class Scanner implements Lexer {
                         putChar('0');
                         if (ch == '_') {
                             int savePos = bp;
+                            if (!allowUnderscoresInLiterals) {
+                                lexError("unsupported.underscore.lit", source.name);
+                                allowUnderscoresInLiterals = true;
+                            }
                             do {
                                 scanChar();
                             } while (ch == '_');
