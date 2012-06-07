@@ -24,15 +24,19 @@
  */
 package com.sun.tools.javac.comp;
 
+import com.sun.tools.classfile.ClassFile;
+import com.sun.tools.classfile.Method;
 import com.sun.tools.javac.api.JavacTaskImpl;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import javax.tools.FileObject;
 import javax.tools.ForwardingJavaFileManager;
 import javax.tools.JavaCompiler;
@@ -88,12 +92,12 @@ public class LowerTest extends TestCase {
         
         ct.generate();
         
-        assertEquals(new HashSet<String>(Arrays.asList("Test", "Test$1", "Test$2")), new HashSet<String>(m.writtenClasses));
+        assertEquals(new HashSet<String>(Arrays.asList("Test", "Test$1", "Test$2")), new HashSet<String>(m.writtenClasses.keySet()));
     }
     
     private static class MemoryOutputJFM extends ForwardingJavaFileManager<StandardJavaFileManager> {
 
-        private List<String> writtenClasses = new LinkedList<String>();
+        private final Map<String, byte[]> writtenClasses = new HashMap<String, byte[]>();
         
         public MemoryOutputJFM(StandardJavaFileManager m) {
             super(m);
@@ -105,8 +109,12 @@ public class LowerTest extends TestCase {
                 return new SimpleJavaFileObject(URI.create("myfo:/" + className), kind) {
                     @Override
                     public OutputStream openOutputStream() throws IOException {
-                        writtenClasses.add(className);
-                        return new ByteArrayOutputStream();
+                        return new ByteArrayOutputStream() {
+                            @Override public void close() throws IOException {
+                                super.close();
+                                writtenClasses.put(className, toByteArray());
+                            }
+                        };
                     }
                 };
             } else {
@@ -116,4 +124,71 @@ public class LowerTest extends TestCase {
         
     }
 
+    public void testNoMethodsWithoutCodeAttributeOriginal() throws Exception {
+        String code = "public class Test {\n" +
+                      "    public static void main(String... args) {\n" +
+                      "        System.err.println(new I());\n" +
+                      "    }\n" +
+                      "    private void t() {\n" +
+                      "        Object o = true ? null : \n" +
+                      "        new Runnable() {\n" +
+                      "            @Override public void run() {\n" +
+                      "            }\n" +
+                      "        };\n" +
+                      "    }\n" +
+                      "    private static final class I {}\n" +
+                      "}\n";
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        
+        MemoryOutputJFM m = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
+
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, m, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        
+        ct.generate();
+        
+        for (Entry<String, byte[]> e : m.writtenClasses.entrySet()) {
+            ClassFile cf = ClassFile.read(new ByteArrayInputStream(e.getValue()));
+            
+            for (Method method : cf.methods) {
+                assertNotNull(e.getKey() + "." + method.getName(cf.constant_pool), method.attributes.get("Code"));
+            }
+        }
+    }
+    
+    public void testNoMethodsWithoutCodeAttributeWithRepair() throws Exception {
+        String code = "public class Test {\n" +
+                      "    public Object a() {\n" +
+                      "        return new I();\n" +
+                      "    }\n" +
+                      "    private void t() {\n" +
+                      "        s;\n" +
+                      "        new Runnable() {\n" +
+                      "            @Override public void run() {\n" +
+                      "            }\n" +
+                      "        };\n" +
+                      "    }\n" +
+                      "    private static final class I {}\n" +
+                      "}\n";
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        
+        MemoryOutputJFM m = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
+
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, m, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new MyFileObject(code)));
+        
+        ct.generate();
+        
+        assertTrue(m.writtenClasses.keySet().toString(), m.writtenClasses.keySet().contains("Test"));
+        
+        for (Entry<String, byte[]> e : m.writtenClasses.entrySet()) {
+            ClassFile cf = ClassFile.read(new ByteArrayInputStream(e.getValue()));
+            for (Method method : cf.methods) {
+                assertNotNull(e.getKey() + "." + method.getName(cf.constant_pool), method.attributes.get("Code"));
+            }
+            
+        }
+    }
 }

@@ -708,15 +708,11 @@ public class Lower extends TreeTranslator {
             ClassSymbol c = l.head;
             if (isTranslatedClassAvailable(c))
                 continue;
-            // Create class definition tree.
-            JCClassDecl cdef = make.ClassDef(
-                make.Modifiers(STATIC | SYNTHETIC), names.empty,
-                List.<JCTypeParameter>nil(),
-                null, List.<JCExpression>nil(), List.<JCTree>nil());
-            cdef.sym = c;
-            cdef.type = c.type;
-            // add it to the list of classes to be generated
-            translated.append(cdef);
+            JCClassDecl cdef = classdefs.get(c);
+            
+            Assert.checkNonNull(cdef);
+
+            translate(cdef);
         }
     }
     // where
@@ -1196,6 +1192,9 @@ public class Lower extends TreeTranslator {
                                          target.syntheticNameChar() +
                                          "1");
         ClassSymbol ctag = chk.compiled.get(flatname);
+        if (ctag != null && !isTranslatedClassAvailable(ctag)) {
+            ctag = null;
+        }
         if (ctag == null)
             ctag = makeEmptyClass(STATIC | SYNTHETIC, topClass);
         // keep a record of all tags, to verify that all are generated as required
