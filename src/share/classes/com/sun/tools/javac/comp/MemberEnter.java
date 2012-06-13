@@ -641,9 +641,15 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                                     p = p.tail;
                                 }
                             }
-                            tree.sym.type = signature(tree.typarams, tree.params,
-                                    tree.restype, tree.thrown,
-                                    localEnv);
+                            prevLintHandler =
+                                    chk.setDeferredLintHandler(deferredLintHandler.setPos(tree.pos()));
+                            try {
+                                tree.sym.type = signature(tree.typarams, tree.params,
+                                        tree.restype, tree.thrown,
+                                        localEnv);
+                            } finally {
+                                chk.setDeferredLintHandler(prevLintHandler);
+                            }
                             tree.sym.flags_field &= ~FROMCLASS;
                             localEnv.info.scope.leave();
 

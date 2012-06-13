@@ -37,6 +37,7 @@ import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import javax.tools.Diagnostic;
@@ -73,6 +74,12 @@ public class AnnotationProcessingTest extends TestCase {
         String code = "package test; @global.ap1.Ann(fqnToGenerate=\"test.G\", content=\"package test; public class G {}\") public class Test extends G {}";
 
         performErrorsTest(code, 0);
+    }
+    
+    public void testNoFalseEnterWarnings() throws IOException {
+        String code = "package test; public class Test { @SuppressWarnings(\"deprecation\") public java.rmi.server.Skeleton t() { return null; } }";
+
+        performErrorsTest(code, Arrays.asList("-Xlint"), 0);
     }
 
     public void testCorrectEnterErrors() throws IOException {
@@ -116,6 +123,10 @@ public class AnnotationProcessingTest extends TestCase {
     }
 
     private void performErrorsTest(String code, int expectedErrors) throws IOException {
+        performErrorsTest(code, new ArrayList<String>(), expectedErrors);
+    }
+    
+    private void performErrorsTest(String code, Collection<? extends String> extraOptions, int expectedErrors) throws IOException {
         File sourceOutput = File.createTempFile("NoFalseErrorsFromAP", "");
         sourceOutput.delete();
         assertTrue(sourceOutput.mkdirs());
@@ -126,7 +137,9 @@ public class AnnotationProcessingTest extends TestCase {
 
         URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
         DiagnosticCollector<JavaFileObject> diagnostic = new DiagnosticCollector<JavaFileObject>();
-        JavacTask ct = (JavacTask)tool.getTask(null, null, diagnostic, Arrays.asList("-bootclasspath",  bootPath, "-source", "1.6", "-classpath", myself.toExternalForm(), "-processor", AP.class.getName(), "-s", sourceOutput.getAbsolutePath(), "-XDbackgroundCompilation"), null, Arrays.asList(new MyFileObject(code)));
+        List<String> options = new ArrayList<String>(Arrays.asList("-bootclasspath",  bootPath, "-source", "1.6", "-classpath", myself.toExternalForm(), "-processor", AP.class.getName(), "-s", sourceOutput.getAbsolutePath(), "-XDbackgroundCompilation"));
+        options.addAll(extraOptions);
+        JavacTask ct = (JavacTask)tool.getTask(null, null, diagnostic, options, null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();
         assertEquals(diagnostic.getDiagnostics().toString(), expectedErrors, diagnostic.getDiagnostics().size());
 
