@@ -37,8 +37,8 @@ load_into_cache javac-impl-nb-7.0-b07.jar http://hg.netbeans.org/binaries/$IMPL_
 JUNIT_CP=$PWD/cache/junit-4.10.jar
 
 cd ../nb-javac
-ant clean
-ant -Dlibs.junit.classpath=$JUNIT_CP
+ant clean || exit 1
+ant -Dlibs.junit.classpath=$JUNIT_CP || exit 1
 cd -
 
 diff_jars $PWD/cache/javac-api-nb-7.0-b07.jar $PWD/../nb-javac/dist/javac-api.jar $PWD/../nb-javac/dist/javac-api.diff
