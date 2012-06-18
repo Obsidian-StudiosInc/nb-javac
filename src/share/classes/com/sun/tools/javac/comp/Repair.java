@@ -569,11 +569,14 @@ public class Repair extends TreeTranslator {
                             tree.defs = tree.defs.prepend(generateErrStaticInit(classLevelErrTree, classLevelErrMessage));
                     }
                     for (MethodSymbol symbol : nonAbstractMethods) {
+                        if ((symbol.flags() & Flags.BRIDGE) != 0) {
+                            continue;
+                        }
                         if ((symbol.owner.flags() & Flags.ENUM) != 0) {
                             if ((symbol.name == symbol.name.table.names.values
                                     && symbol.type.asMethodType().argtypes.isEmpty())
                                     || (symbol.name == symbol.name.table.names.valueOf
-                                    && symbol.type.asMethodType().argtypes.head == enter.syms.stringType
+                                    && types.isSameType(symbol.type.asMethodType().argtypes.head, enter.syms.stringType)
                                     && symbol.type.asMethodType().argtypes.tail.isEmpty())) {
                                 continue;
                             }
