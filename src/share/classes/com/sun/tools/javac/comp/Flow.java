@@ -808,6 +808,10 @@ public class Flow extends TreeScanner {
 
     public void visitVarDef(JCVariableDecl tree) {
         if (tree.sym == null) {
+            if (tree.type == null)
+                tree.type = syms.unknownType;
+            tree.sym = new VarSymbol(0, tree.name, tree.type, syms.noSymbol);
+            tree.sym.adr = 0;
             String variableName = String.valueOf(tree.name);
             int variableStart = tree.getStartPosition();
 
