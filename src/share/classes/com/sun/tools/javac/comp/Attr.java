@@ -2665,6 +2665,12 @@ public class Attr extends JCTree.Visitor {
                 chk.checkDeprecated(tree.pos(), env.info.scope.owner, sym);
                 chk.checkSunAPI(tree.pos(), sym);
             }
+            
+            Env<AttrContext> enclosing;
+            
+            if (owntype.isErroneous() && sym.name != names.error && ((enclosing = enter.getEnv(sym.enclClass())) == null || enclosing.toplevel != env.toplevel)) {
+                log.error(tree, "type.error", sym);
+            }
 
             // Test (3): if symbol is a variable, check that its type and
             // kind are compatible with the prototype and protokind.
