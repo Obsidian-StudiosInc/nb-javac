@@ -2668,7 +2668,7 @@ public class Attr extends JCTree.Visitor {
             
             Env<AttrContext> enclosing;
             
-            if (owntype.isErroneous() && sym.name != names.error && ((enclosing = enter.getEnv(sym.enclClass())) == null || enclosing.toplevel != env.toplevel)) {
+            if (owntype.isErroneous() && (sym.kind == MTH || sym.kind == VAR) && ((enclosing = enter.getEnv(sym.enclClass())) == null || enclosing.toplevel != env.toplevel)) {
                 log.error(tree, "type.error", sym);
             }
 
