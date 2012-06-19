@@ -210,4 +210,66 @@ public class AttrTest extends TestCase {
         
         assertEquals(new HashSet<String>(Arrays.<String>asList("/Use.java:47-52:compiler.err.cant.resolve.location")), diagnostics);
     }
+    
+    public void testErrorReturnType6() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String api = "package test; public class API { public static Undef VAR; }";
+        String use = "package test; public class Use { public void t() { Object str = API.VAR; } }";
+        DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
+        
+        ct.analyze();
+        
+        Set<String> diagnostics = new HashSet<String>();
+        
+        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
+            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
+        }
+        
+        assertEquals(new HashSet<String>(Arrays.asList("/API.java:47-52:compiler.err.cant.resolve.location", "/Use.java:64-71:compiler.err.type.error")), diagnostics);
+    }
+    
+    public void testErrorReturnType7() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String api = "package test; public class API { public static Undef VAR; }";
+        String use = "package test; public class Use { public void t() { Object str = API.UNDEF; } }";
+        DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
+        
+        ct.analyze();
+        
+        Set<String> diagnostics = new HashSet<String>();
+        
+        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
+            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
+        }
+        
+        assertEquals(new HashSet<String>(Arrays.asList("/API.java:47-52:compiler.err.cant.resolve.location", "/Use.java:64-73:compiler.err.cant.resolve.location")), diagnostics);
+    }
+    
+    public void testErrorReturnType8() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String use = "package test; public class Use { public void t() { Object str = Undef.UNDEF; } }";
+        DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("Use", use)));
+        
+        ct.analyze();
+        
+        Set<String> diagnostics = new HashSet<String>();
+        
+        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
+            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
+        }
+        
+        assertEquals(new HashSet<String>(Arrays.asList("/Use.java:64-69:compiler.err.cant.resolve.location")), diagnostics);
+    }
 }
