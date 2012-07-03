@@ -138,9 +138,7 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
         JCExpression extending = copy(t.extending, p);
         List<JCExpression> implementing = copy(t.implementing, p);
         List<JCTree> defs = copy(t.defs, p);
-         JCTree.JCClassDecl classDecl = M.at(t.pos).ClassDef(mods, t.name, typarams, extending, implementing, defs);
-         classDecl.index = t.index;
-         return classDecl;
+        return M.at(t.pos).ClassDef(mods, t.name, typarams, extending, implementing, defs);
     }
 
     public JCTree visitConditionalExpression(ConditionalExpressionTree node, P p) {

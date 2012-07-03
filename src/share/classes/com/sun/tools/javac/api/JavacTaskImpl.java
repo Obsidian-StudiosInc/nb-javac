@@ -818,65 +818,6 @@ public class JavacTaskImpl extends JavacTask {
         }
     }
 
-    public JCBlock reparseMethodBody(CompilationUnitTree topLevel, MethodTree methodToReparse, String newBodyText, int annonIndex,
-            final Map<? super JCTree,? super String> docComments) {
-        ParserFactory parserFactory = ParserFactory.instance(context);
-        CharBuffer buf = CharBuffer.wrap((newBodyText+"\u0000").toCharArray(), 0, newBodyText.length());
-        JavacParser parser = (JavacParser) parserFactory.newParser(buf, ((JCBlock)methodToReparse.getBody()).pos, ((JCCompilationUnit)topLevel).endPositions);
-        final JCStatement statement = parser.parseStatement();
-        JavacParser.assignAnonymousClassIndices(Names.instance(context), statement, Names.instance(context).empty, annonIndex);
-        if (statement.getKind() == Tree.Kind.BLOCK) {
-            if (docComments != null) {
-                docComments.putAll(parser.getDocComments());
-            }
-            return (JCBlock) statement;            
-        }
-        return null;
-    }
-
-    public BlockTree reattrMethodBody(MethodTree methodToReparse, BlockTree block) {
-        Attr attr = Attr.instance(context);
-        assert ((JCMethodDecl)methodToReparse).localEnv != null;
-        JCMethodDecl tree = (JCMethodDecl) methodToReparse;
-        final Names names = Names.instance(context);
-        final Symtab syms = Symtab.instance(context);
-        final MemberEnter memberEnter = MemberEnter.instance(context);
-        final Log log = Log.instance(context);
-        final TreeMaker make = TreeMaker.instance(context);
-        final Env<AttrContext> env = attr.dupLocalEnv(((JCMethodDecl) methodToReparse).localEnv);
-        final ClassSymbol owner = env.enclClass.sym;
-        if (tree.name == names.init && !owner.type.isErroneous() && owner.type != syms.objectType) {
-            JCBlock body = tree.body;
-            if (body.stats.isEmpty() || !TreeInfo.isSelfCall(body.stats.head)) {
-                body.stats = body.stats.
-                prepend(memberEnter.SuperCall(make.at(body.pos),
-                    List.<Type>nil(),
-                    List.<JCVariableDecl>nil(),
-                    false));
-            } else if ((env.enclClass.sym.flags() & Flags.ENUM) != 0 &&
-                (tree.mods.flags & Flags.GENERATEDCONSTR) == 0 &&
-                TreeInfo.isSuperCall(body.stats.head)) {
-                // enum constructors are not allowed to call super
-                // directly, so make sure there aren't any super calls
-                // in enum constructors, except in the compiler
-                // generated one.
-                log.error(tree.body.stats.head.pos(),
-                          "call.to.super.not.allowed.in.enum.ctor",
-                          env.enclClass.sym);
-                    }
-                }
-        attr.attribStat((JCBlock)block, env);
-        return block;
-    }
-
-    public BlockTree reflowMethodBody(CompilationUnitTree topLevel, ClassTree ownerClass, MethodTree methodToReparse) {
-        Flow flow = Flow.instance(context);
-        TreeMaker make = TreeMaker.instance(context);
-        flow.reanalyzeMethod(make.forToplevel((JCCompilationUnit)topLevel),
-                (JCClassDecl)ownerClass);
-        return methodToReparse.getBody();
-    }
-
     //Debug methods
     public String dumpTodo () {
         StringBuilder res = new StringBuilder ();

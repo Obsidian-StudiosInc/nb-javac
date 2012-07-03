@@ -112,7 +112,7 @@ public class JavacTrees extends Trees {
         return instance;
     }
 
-    private JavacTrees(Context context) {
+    protected JavacTrees(Context context) {
         context.put(JavacTrees.class, this);
         init(context);
     }
@@ -263,7 +263,7 @@ public class JavacTrees extends Trees {
 
 
         JCCompilationUnit unit = (JCCompilationUnit) path.getCompilationUnit();
-        Copier copier = new Copier(treeMaker.forToplevel(unit));
+        Copier copier = createCopier(treeMaker.forToplevel(unit));
 
         Env<AttrContext> env = null;
         JCClassDecl clazz = null;
@@ -359,13 +359,17 @@ public class JavacTrees extends Trees {
         }
     }
 
+    protected Copier createCopier(TreeMaker make) {
+        return new Copier(make);
+    }
+    
     /**
      * Makes a copy of a tree, noting the value resulting from copying a particular leaf.
      **/
-    static class Copier extends TreeCopier<JCTree> {
+    protected static class Copier extends TreeCopier<JCTree> {
         JCTree leafCopy = null;
 
-        Copier(TreeMaker M) {
+        protected Copier(TreeMaker M) {
             super(M);
         }
 

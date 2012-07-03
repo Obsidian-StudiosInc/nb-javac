@@ -569,7 +569,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public List<JCExpression> implementing;
         public List<JCTree> defs;
         public ClassSymbol sym;
-        public int index;
 
         protected JCClassDecl(JCModifiers mods,
                            Name name,
@@ -586,7 +585,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             this.implementing = implementing;
             this.defs = defs;
             this.sym = sym;
-            this.index = -1;
         }
 
 
