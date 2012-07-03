@@ -295,8 +295,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
     protected ParserFactory parserFactory;
 
 
-    protected FlowListener flowListener;
-    
     /**
      * Annotation processing may require and provide a new instance
      * of the compiler to be used for the analyze and generate phases.
@@ -346,7 +344,6 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         enter = Enter.instance(context);
         memberEnter = MemberEnter.instance(context);
         todo = Todo.instance(context);
-        flowListener = FlowListener.instance(context);
 
         fileManager = context.get(JavaFileManager.class);
         parserFactory = ParserFactory.instance(context);
@@ -1279,13 +1276,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             try {
                 make.at(Position.FIRSTPOS);
                 TreeMaker localMake = make.forToplevel(env.toplevel);
-                if (flowListener != null) {
-                    flowListener.flowStarted (env);
-                }
                 flow.analyzeTree(env, localMake);
-                if (flowListener != null) {
-                    flowListener.flowFinished (env);
-                }
                 compileStates.put(env, CompileState.FLOW);
 
                 if (shouldStop(CompileState.FLOW))
