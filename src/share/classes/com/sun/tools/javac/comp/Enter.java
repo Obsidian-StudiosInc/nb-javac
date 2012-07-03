@@ -474,13 +474,13 @@ public class Enter extends JCTree.Visitor {
                     }
                 } else {
                     // We are seeing a local class.
-                    if (tree.index == -1) {
+                    if (getIndex(tree) == -1) {
                         c = reader.defineClass(tree.name, owner);
                         c.flatname = chk.localClassName(c);
                         noctx = true;
                     }
                     else {
-                        Name flatname = chk.localClassName(owner.enclClass(), tree.name, tree.index);
+                        Name flatname = chk.localClassName(owner.enclClass(), tree.name, getIndex(tree));
                         if ((c=chk.compiled.get(flatname)) != null) {
                             reattr = true;
                         }
@@ -641,6 +641,10 @@ public class Enter extends JCTree.Visitor {
     /** Complain about a duplicate class. */
     protected void duplicateClass(DiagnosticPosition pos, ClassSymbol c) {
         log.error(pos, "duplicate.class", c.fullname);
+    }
+
+    protected int getIndex(JCClassDecl clazz) {
+        return -1;
     }
 
     /** Class enter visitor method for type parameters.
