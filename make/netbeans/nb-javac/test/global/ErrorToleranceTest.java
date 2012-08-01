@@ -28,11 +28,14 @@ package global;
 import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.tools.javap.DisassemblerTool.DisassemblerTask;
 import com.sun.tools.javap.JavapTask;
+import global.ap1.AP;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.URI;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -328,7 +331,142 @@ public class ErrorToleranceTest extends TestCase {
 
         compareResults(golden, code);
     }
+    
+    public void testIssue212342a() throws Exception {
+        final String code = "package test;\n" +
+                      "@global.ap1.Ann(fqnToGenerate=\"test.G\", content=\"package test; public class G {}\") public class Test { void t1(G g) {} G t2() { return null; } }\n";
 
+        final String golden = "package test;\n" +
+                      "public class Test { void t1(G g) {} G t2() { return null; } }\n" +
+                      "class G {}\n";
+
+        compile(code, true, AP.class.getName());
+        
+        Collection<String> codeSig = dumpSignatures("test.Test");
+        
+        compile(golden, true);
+        
+        Collection<String> goldenSig = dumpSignatures("test.Test");
+        assertEquals(goldenSig, codeSig);
+    }
+    
+    public void testIssue212342b() throws Exception {
+        final String code = "package test;\n" +
+                      "@global.ap1.Ann(fqnToGenerate=\"test.G\", content=\"package test; @global.ap1.Ann(fqnToGenerate=\\\"test.H\\\", content=\\\"package test; public class H {}\\\") public class G {}\") public class Test { void t(H h) { System.err.println(1); } void t(G g) { System.err.println(2); } }\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {  void t(H h) { System.err.println(1); } void t(G g) { System.err.println(2); } }\n" +
+                      "class G {}\n" +
+                      "class H {}\n";
+
+        compile(code, true, AP.class.getName());
+        
+        Collection<String> codeSig = dumpSignatures("test.Test");
+        
+        compile(golden, true);
+        
+        Collection<String> goldenSig = dumpSignatures("test.Test");
+        assertEquals(goldenSig, codeSig);
+    }
+    
+    public void testIssue212342c() throws Exception {
+        final String code = "package test;\n" +
+                      "@global.ap1.Ann(fqnToGenerate=\"test.G\", content=\"package test; @global.ap1.Ann(fqnToGenerate=\\\"test.H\\\", content=\\\"package test; public class H {}\\\") public class G {}\") public class Test { void t(G g) { System.err.println(2); } void t(H h) { System.err.println(1); } }\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {  void t(G g) { System.err.println(2); } void t(H h) { System.err.println(1); } }\n" +
+                      "class G {}\n" +
+                      "class H {}\n";
+
+        compile(code, true, AP.class.getName());
+        
+        Collection<String> codeSig = dumpSignatures("test.Test");
+        
+        compile(golden, true);
+        
+        Collection<String> goldenSig = dumpSignatures("test.Test");
+        assertEquals(goldenSig, codeSig);
+
+    }
+    public void testIssue212342d() throws Exception {
+        final String code = "package test;\n" +
+                      "@global.ap1.Ann(fqnToGenerate=\"test.G\", content=\"package test; @global.ap1.Ann(fqnToGenerate=\\\"test.H\\\", content=\\\"package test; public class H {}\\\") public class G {}\") public class Test { void t(G g, String str) { System.err.println(2); } void t(H h, String str) { System.err.println(1); } }\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {  void t(G g, String str) { System.err.println(2); } void t(H h, String str) { System.err.println(1); } }\n" +
+                      "class G {}\n" +
+                      "class H {}\n";
+
+        compile(code, true, AP.class.getName());
+        
+        Collection<String> codeSig = dumpSignatures("test.Test");
+        
+        compile(golden, true);
+        
+        Collection<String> goldenSig = dumpSignatures("test.Test");
+        assertEquals(goldenSig, codeSig);
+
+    }
+    
+    public void testIssue212342e() throws Exception {
+        final String code = "package test;\n" +
+                      "@global.ap1.Ann(fqnToGenerate=\"test.G\", content=\"package test; @global.ap1.Ann(fqnToGenerate=\\\"test.H\\\", content=\\\"package test; public class H {}\\\") public class G {}\") public class Test { <T> void t(G g, T t) { System.err.println(2); } <T> void t(H h, T t) { System.err.println(1); } }\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test { <T> void t(G g, T t) { System.err.println(2); } <T> void t(H h, T t) { System.err.println(1); } }\n" +
+                      "class G {}\n" +
+                      "class H {}\n";
+
+        compile(code, true, AP.class.getName());
+        
+        Collection<String> codeSig = dumpSignatures("test.Test");
+        
+        compile(golden, true);
+        
+        Collection<String> goldenSig = dumpSignatures("test.Test");
+        assertEquals(goldenSig, codeSig);
+
+    }
+    
+    public void testIssue212342f() throws Exception {
+        final String code = "package test;\n" +
+                      "@global.ap1.Ann(fqnToGenerate=\"test.G\", content=\"package test; @global.ap1.Ann(fqnToGenerate=\\\"test.H\\\", content=\\\"package test; public class H {}\\\") public class G {}\") public class Test { <T extends H> void t(G g, T t) { System.err.println(2); } <T extends G> void t(H h, T t) { System.err.println(1); } }\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test { <T extends H> void t(G g, T t) { System.err.println(2); } <T extends G> void t(H h, T t) { System.err.println(1); } }\n" +
+                      "class G {}\n" +
+                      "class H {}\n";
+
+        compile(code, true, AP.class.getName());
+        
+        Collection<String> codeSig = dumpSignatures("test.Test");
+        
+        compile(golden, true);
+        
+        Collection<String> goldenSig = dumpSignatures("test.Test");
+        assertEquals(goldenSig, codeSig);
+
+    }
+
+    public void testIssue212342g() throws Exception {
+        final String code = "package test;\n" +
+                      "@global.ap1.Ann(fqnToGenerate=\"test.G\", content=\"package test; @global.ap1.Ann(fqnToGenerate=\\\"test.H\\\", content=\\\"package test; public class H {}\\\") public class G {}\") public class Test { H h = new H(); G g = new G(); }\n";
+
+        final String golden = "package test;\n" +
+                      "public class Test {  H h = new H(); G g = new G(); }\n" +
+                      "class G {}\n" +
+                      "class H {}\n";
+
+        compile(code, true, AP.class.getName());
+        
+        Collection<String> codeSig = dumpSignatures("test.Test");
+        
+        compile(golden, true);
+        
+        Collection<String> goldenSig = dumpSignatures("test.Test");
+        assertEquals(goldenSig, codeSig);
+    }
+    
     //<editor-fold defaultstate="collapsed" desc=" Test Infrastructure ">
     static class MyFileObject extends SimpleJavaFileObject {
         private String text;
@@ -363,6 +501,10 @@ public class ErrorToleranceTest extends TestCase {
     }
 
     private String[] compile(String code, boolean repair) throws Exception {
+        return compile(code, repair, null);
+    }
+    
+    private String[] compile(String code, boolean repair, String apToRun) throws Exception {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
@@ -372,7 +514,15 @@ public class ErrorToleranceTest extends TestCase {
 
         std.setLocation(StandardLocation.CLASS_OUTPUT, Collections.singleton(workingDir));
         
-        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, mjfm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new MyFileObject(code)));
+        List<String> compilerOptions = new ArrayList<String>();
+        compilerOptions.addAll(Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=GENERATE", "-XDbackgroundCompilation"));
+        if (apToRun != null) {
+            URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
+            File sourceOutput = new File(workingDir, "sourceOutput");
+            sourceOutput.mkdirs();
+            compilerOptions.addAll(Arrays.asList("-classpath", myself.toExternalForm(), "-processor", AP.class.getName(), "-s", sourceOutput.getAbsolutePath()));
+        }
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, mjfm, null, compilerOptions, null, Arrays.asList(new MyFileObject(code)));
         com.sun.tools.javac.main.JavaCompiler.instance(ct.getContext()).doRepair = repair;
         ct.parse();
         Iterable<? extends Element> analyze = ct.analyze();
@@ -388,7 +538,7 @@ public class ErrorToleranceTest extends TestCase {
         return result.toArray(new String[0]);
     }
     
-    private Collection<String> dumpSignatures(String[] fqns) throws Exception {
+    private Collection<String> dumpSignatures(String... fqns) throws Exception {
         List<String> result = new LinkedList<String>();
         
         for (String fqn : fqns) {
