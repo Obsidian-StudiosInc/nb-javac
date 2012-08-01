@@ -588,6 +588,59 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
         }
     }
 
+    boolean hasSameBounds(ForAll t, ForAll s) {
+        List<Type> l1 = t.tvars;
+        List<Type> l2 = s.tvars;
+        while (l1.nonEmpty() && l2.nonEmpty() &&
+               isSameAPType(l1.head.getUpperBound(),
+                          types.subst(l2.head.getUpperBound(),
+                                s.tvars,
+                                t.tvars))) {
+            l1 = l1.tail;
+            l2 = l2.tail;
+        }
+        return l1.isEmpty() && l2.isEmpty();
+    }
+    
+    private boolean isSameAPType(Type t, Type s) {
+        return    types.isSameType(t, s)
+               || t.tsym != null && s.tsym != null && s.isErroneous() && t.tsym.name == s.tsym.name;
+    }
+    
+    private boolean isSameMethod(Type ot, Type os) {
+        if (ot.tag != os.tag) return false;
+        
+        switch (ot.tag) {
+            case METHOD: {
+                MethodType t = (MethodType) ot;
+                MethodType s = (MethodType) os;
+
+                if (t.getParameterTypes().size() != s.getParameterTypes().size()) return false;
+                if (!isSameAPType(t.getReturnType(), s.getReturnType())) return false;
+
+                List<Type> tp = t.getParameterTypes();
+                List<Type> sp = s.getParameterTypes();
+
+                while (!tp.isEmpty() && !sp.isEmpty()) {
+                    if (!isSameAPType(tp.head, sp.head)) return false;
+                    tp = tp.tail;
+                    sp = sp.tail;
+                }
+
+                return tp.isEmpty() == sp.isEmpty();
+            }
+            case FORALL: {
+                ForAll t = (ForAll) ot;
+                ForAll s = (ForAll) os;
+
+                return    hasSameBounds(t, s)
+                       && isSameMethod(t.qtype, types.subst(s.qtype, s.tvars, t.tvars));
+            }
+            default:
+                return false;
+        }
+    }
+    
     public void visitMethodDef(JCMethodDecl tree) {
         Scope enclScope = enter.enterScope(env);
         MethodSymbol m = new MethodSymbol(0, tree.name, null, enclScope.owner);
@@ -609,7 +662,7 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
         if ((enclScope.owner.flags_field & FROMCLASS) != 0) {
             for (Scope.Entry e = enclScope.lookup(tree.name); e.scope == enclScope; e = e.next()) {
                 if (e.sym.kind == MTH) {
-                    boolean sameType = types.isSameType(m.type, e.sym.type);
+                    boolean sameType = (enclScope.owner.flags_field & APT_CLEANED) != 0 ? isSameMethod(m.type, e.sym.type) : types.isSameType(m.type, e.sym.type);
                     if (sameType || m.name == names.init && (m.owner.name.isEmpty() || (m.owner.owner.kind & (VAR | MTH)) != 0)) {
                         if ((e.sym.flags_field & FROMCLASS) != 0) {
                             treeCleaner.scan(tree);
@@ -760,9 +813,11 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
         boolean doEnterSymbol = true;
         if ((enclScope.owner.flags_field & FROMCLASS) != 0) {
             for (Scope.Entry e = enclScope.lookup(tree.name); e.scope == enclScope; e = e.next()) {
-                if (e.sym.kind == VAR && types.isSameType(tree.vartype.type, e.sym.type)) {
+                boolean sameType = (enclScope.owner.flags_field & APT_CLEANED) != 0 ? isSameAPType(tree.vartype.type, e.sym.type) : types.isSameType(tree.vartype.type, e.sym.type);
+                if (e.sym.kind == VAR && sameType) {
                     if ((e.sym.flags_field & FROMCLASS) != 0) {
                         v = (VarSymbol)e.sym;
+                        v.type = tree.vartype.type;
                         e.sym.flags_field &= ~FROMCLASS;
                     }
                     break;
