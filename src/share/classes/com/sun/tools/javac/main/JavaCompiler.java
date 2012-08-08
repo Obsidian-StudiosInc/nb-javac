@@ -42,7 +42,6 @@ import java.util.logging.Logger;
 
 import javax.annotation.processing.Processor;
 import javax.lang.model.SourceVersion;
-import javax.tools.Diagnostic;
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.DiagnosticListener;
@@ -1126,32 +1125,28 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                     }
                 }
             }
-            try {
-                JavaCompiler c = this;
-                List<JCCompilationUnit> currentAnnotations = toProcessAnnotations.prependList(roots);
-                toProcessAnnotations = List.nil();
-                final boolean hasOrigin = currentAnnotations.nonEmpty();
-                if (hasOrigin) {
-                    fileManager.handleOption("apt-origin", Collections.singleton(currentAnnotations.head.getSourceFile().toUri().toString()).iterator());    //NOI18N
-                }
-                try {
-                    if (hasOrigin || classSymbols.nonEmpty() || pckSymbols.nonEmpty()) {
-                        c = procEnvImpl.doProcessing(context, currentAnnotations, classSymbols, pckSymbols);
-                    } //else: may happen when called from JavacTaskImpl.attribute, which forces processing of toProcessAnnotations
-                } finally {
-                    if (hasOrigin) {
-                        fileManager.handleOption("apt-origin", Collections.singletonList("").iterator());   //NOI18N
-                    }
-                }
-                if (c != this)
-                    annotationProcessingOccurred = c.annotationProcessingOccurred = true;
-                // doProcessing will have handled deferred diagnostics
-                Assert.check(c.log.deferDiagnostics == false
-                        && c.log.deferredDiagnostics.size() == 0);
-                return c;
-            } finally {
-                procEnvImpl.close(false);
+            JavaCompiler c = this;
+            List<JCCompilationUnit> currentAnnotations = toProcessAnnotations.prependList(roots);
+            toProcessAnnotations = List.nil();
+            final boolean hasOrigin = currentAnnotations.nonEmpty();
+            if (hasOrigin) {
+                fileManager.handleOption("apt-origin", Collections.singleton(currentAnnotations.head.getSourceFile().toUri().toString()).iterator());    //NOI18N
             }
+            try {
+                if (hasOrigin || classSymbols.nonEmpty() || pckSymbols.nonEmpty()) {
+                    c = procEnvImpl.doProcessing(context, currentAnnotations, classSymbols, pckSymbols);
+                } //else: may happen when called from JavacTaskImpl.attribute, which forces processing of toProcessAnnotations
+            } finally {
+                if (hasOrigin) {
+                    fileManager.handleOption("apt-origin", Collections.singletonList("").iterator());   //NOI18N
+                }
+            }
+            if (c != this)
+                annotationProcessingOccurred = c.annotationProcessingOccurred = true;
+            // doProcessing will have handled deferred diagnostics
+            Assert.check(c.log.deferDiagnostics == false
+                    && c.log.deferredDiagnostics.size() == 0);
+            return c;
         } catch (CompletionFailure ex) {
             log.error("cant.access", ex.sym, ex.getDetailValue());
             log.reportDeferredDiagnostics();
@@ -1612,7 +1607,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         try {
             fileManager.flush();
             if (procEnvImpl != null)
-                procEnvImpl.close(true);
+                procEnvImpl.close();
             procEnvImpl = null;
         } catch (IOException e) {
             throw new Abort(e);
