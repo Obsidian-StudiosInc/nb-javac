@@ -1172,9 +1172,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
         errorStatus = errorStatus || (compiler.errorCount() > 0);
 
-        // Free resources
-        this.close(false);
-
         if (taskListener != null)
             taskListener.finished(new TaskEvent(TaskEvent.Kind.ANNOTATION_PROCESSING));
 
@@ -1212,22 +1209,16 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
      * Free resources related to annotation processing.
      */
     public void close() {
-        close(true);
-    }
-
-    public void close(boolean dropProcessors) {
         filer.close();
-        if (dropProcessors) {
-            if (discoveredProcs != null) // Make calling close idempotent
-                discoveredProcs.close();
-            discoveredProcs = null;
-            if (processorClassLoader != null && processorClassLoader instanceof Closeable)
-            try {
-                ((Closeable) processorClassLoader).close();
-            } catch (IOException e) {
-                JCDiagnostic msg = diags.fragment("fatal.err.cant.close.loader");
-                throw new FatalError(msg, e);
-            }
+        if (discoveredProcs != null) // Make calling close idempotent
+            discoveredProcs.close();
+        discoveredProcs = null;
+        if (processorClassLoader != null && processorClassLoader instanceof Closeable)
+        try {
+            ((Closeable) processorClassLoader).close();
+        } catch (IOException e) {
+            JCDiagnostic msg = diags.fragment("fatal.err.cant.close.loader");
+            throw new FatalError(msg, e);
         }
     }
 
