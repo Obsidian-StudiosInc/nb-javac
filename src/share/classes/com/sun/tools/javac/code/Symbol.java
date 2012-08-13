@@ -781,7 +781,9 @@ public abstract class Symbol implements Element {
         }
 
         public List<Attribute.Compound> getAnnotationMirrors() {
-            if (completer != null) complete();
+            try {
+                if (completer != null) complete();
+            } catch (CompletionFailure cf) {}
             return Assert.checkNonNull(attributes_field);
         }
 
