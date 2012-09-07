@@ -822,6 +822,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     private boolean callProcessor(Processor proc,
                                          Set<? extends TypeElement> tes,
                                          RoundEnvironment renv) {
+        ClassLoader origContextCL = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(proc.getClass().getClassLoader());
         try {
             return proc.process(tes, renv);
         } catch (BadClassFile ex) {
@@ -839,6 +841,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 throw (ThreadDeath)t;
             LOGGER.log(Level.INFO, "Annotation processing error:", t);
             return false;
+        } finally {
+            Thread.currentThread().setContextClassLoader(origContextCL);
         }
     }
 
