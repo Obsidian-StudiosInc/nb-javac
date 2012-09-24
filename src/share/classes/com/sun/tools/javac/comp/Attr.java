@@ -1732,7 +1732,8 @@ public class Attr extends JCTree.Visitor {
         }
 
         // If we have made no mistakes in the class type...
-        if (clazztype.tag == CLASS || clazztype.tag == ERROR) {
+        boolean wasError = clazztype.tag == ERROR;
+        if (clazztype.tag == CLASS || wasError) {
             // Enums may not be instantiated except implicitly
             if (allowEnums &&
                 (clazztype.tsym.flags_field&Flags.ENUM) != 0 &&
@@ -1887,7 +1888,7 @@ public class Attr extends JCTree.Visitor {
             }
 
             if (tree.constructor != null && tree.constructor.kind == MTH)
-                owntype = clazztype;
+                owntype = wasError ? types.createErrorType(clazztype) : clazztype;
         }
         result = check(tree, owntype, VAL, pkind, pt);
         chk.validate(tree.typeargs, localEnv);
