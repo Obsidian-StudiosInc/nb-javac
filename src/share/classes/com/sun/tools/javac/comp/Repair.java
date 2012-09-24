@@ -418,7 +418,7 @@ public class Repair extends TreeTranslator {
         if (c == null)
             return;
         Type st = types.supertype(c.type);
-        if (st.tag == TypeTags.CLASS)
+        if (st != null && st.tag == TypeTags.CLASS)
             translateClass((ClassSymbol)st.tsym);
         LOGGER.finest("Repair.translateClass: " + c); //NOI18N
         if (repairedClasses.contains(c)) {

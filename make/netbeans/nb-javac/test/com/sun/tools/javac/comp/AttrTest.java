@@ -25,7 +25,6 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
@@ -34,7 +33,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -271,5 +269,25 @@ public class AttrTest extends TestCase {
         }
         
         assertEquals(new HashSet<String>(Arrays.asList("/Use.java:64-69:compiler.err.cant.resolve.location")), diagnostics);
+    }
+
+    public void testAnonymous() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String use = "package test; import java.util.*; public class Use { public void t() { List<String> ll = new ArrayList<>() { }; } }";
+        DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("Use", use)));
+        
+        ct.analyze();
+        
+        Set<String> diagnostics = new HashSet<String>();
+        
+        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
+            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
+        }
+        
+        assertEquals(new HashSet<String>(Arrays.asList("/Use.java:93-104:compiler.err.cant.apply.diamond.1")), diagnostics);
     }
 }
