@@ -1820,6 +1820,14 @@ public class Attr extends JCTree.Visitor {
                 //     }
                 if (Resolve.isStatic(env)) cdef.mods.flags |= STATIC;
 
+                if (clazztype.tsym.isInterface()) {
+                    cdef.implementing = List.of(clazz);
+                } else {
+                    cdef.extending = clazz;
+                }
+
+                attribStat(cdef, localEnv);
+
                 JCExpression clazzCopy = new TreeCopier<JCTree>(make) {
                     @Override
                     public <T extends JCTree> T copy(T tree, JCTree p) {
@@ -1852,8 +1860,6 @@ public class Attr extends JCTree.Visitor {
                 } else {
                     cdef.extending = clazzCopy;
                 }
-
-                attribStat(cdef, localEnv);
 
                 // If an outer instance is given,
                 // prefix it to the constructor arguments
