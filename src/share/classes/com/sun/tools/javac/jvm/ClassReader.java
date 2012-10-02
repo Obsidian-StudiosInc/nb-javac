@@ -1232,6 +1232,9 @@ public class ClassReader implements Completer {
         else
             self.fullname = ClassSymbol.formFullName(self.name, self.owner);
 
+        if (c.classfile.getKind() == JavaFileObject.Kind.SOURCE)
+            throw new Abort();
+
         if (m != null) {
             ((ClassType)sym.type).setEnclosingType(m.type);
         } else if ((self.flags_field & STATIC) == 0) {
@@ -2219,7 +2222,11 @@ public class ClassReader implements Completer {
                 suppressFlush = saveSuppressFlush;
             }
             if (c.members_field == tempScope) { // do not fill in when already completed as a result of completing owners
-                fillIn(c);
+                try {
+                    fillIn(c);
+                } catch (Abort a) {
+                    classes.remove(c.flatname);
+                }
             }
         } else if (sym.kind == PCK) {
             PackageSymbol p = (PackageSymbol)sym;
