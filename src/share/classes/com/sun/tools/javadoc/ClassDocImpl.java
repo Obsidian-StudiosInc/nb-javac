@@ -38,8 +38,6 @@ import javax.tools.StandardLocation;
 
 import com.sun.javadoc.*;
 
-import static com.sun.javadoc.LanguageVersion.*;
-
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Kinds;
 import com.sun.tools.javac.code.Scope;
@@ -494,7 +492,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
             return null;
         Type sup = env.types.supertype(type);
         return TypeMaker.getType(env,
-                                 (sup != type) ? sup : env.syms.objectType);
+                (sup != type && (sup.tag == TypeTags.CLASS || sup.tag == TypeTags.ERROR)) ? sup : env.syms.objectType);
     }
 
     /**

@@ -414,7 +414,7 @@ public class DocCommentScanner extends Scanner {
      *
      * @return a LineMap */
     public Position.LineMap getLineMap() {
-        char[] buf = getRawCharacters();
-        return Position.makeLineMap(buf, buf.length, true);
+        char[] buf = getVeryRawCharacters();
+        return Position.makeLineMap(buf, buf.length, '\n', true);
     }
 }

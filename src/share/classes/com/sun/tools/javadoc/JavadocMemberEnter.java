@@ -78,8 +78,7 @@ public class JavadocMemberEnter extends MemberEnter {
     public void visitVarDef(JCVariableDecl tree) {
         super.visitVarDef(tree);
         if (tree.sym != null &&
-                tree.sym.kind == Kinds.VAR &&
-                !isParameter(tree.sym)) {
+                tree.sym.getKind().isField()) {
             String docComment = env.toplevel.docComments.get(tree);
             Position.LineMap lineMap = env.toplevel.lineMap;
             docenv.makeFieldDoc(tree.sym, docComment, tree, lineMap);

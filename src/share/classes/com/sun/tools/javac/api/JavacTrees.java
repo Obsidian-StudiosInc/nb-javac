@@ -49,7 +49,6 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type.UnionClassType;
 import com.sun.tools.javac.comp.Attr;
@@ -68,6 +67,7 @@ import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Pair;
 
@@ -112,7 +112,7 @@ public class JavacTrees extends Trees {
         return instance;
     }
 
-    private JavacTrees(Context context) {
+    protected JavacTrees(Context context) {
         context.put(JavacTrees.class, this);
         init(context);
     }
@@ -154,20 +154,7 @@ public class JavacTrees extends Trees {
     }
 
     public JCTree getTree(Element element) {
-        Symbol symbol = (Symbol) element;
-        TypeSymbol enclosing = symbol.enclClass();
-        Env<AttrContext> env = enter.getEnv(enclosing);
-        if (env == null)
-            return null;
-        JCClassDecl classNode = env.enclClass;
-        if (classNode != null) {
-            if (TreeInfo.symbolFor(classNode) == element)
-                return classNode;
-            for (JCTree node : classNode.getMembers())
-                if (TreeInfo.symbolFor(node) == element)
-                    return node;
-        }
-        return null;
+        return getTree(element, null);
     }
 
     public JCTree getTree(Element e, AnnotationMirror a) {
@@ -276,9 +263,10 @@ public class JavacTrees extends Trees {
 
 
         JCCompilationUnit unit = (JCCompilationUnit) path.getCompilationUnit();
-        Copier copier = new Copier(treeMaker.forToplevel(unit));
+        Copier copier = createCopier(treeMaker.forToplevel(unit));
 
         Env<AttrContext> env = null;
+        JCClassDecl clazz = null;
         JCMethodDecl method = null;
         JCVariableDecl field = null;
 
@@ -301,15 +289,21 @@ public class JavacTrees extends Trees {
                 case ENUM:
                 case INTERFACE:
 //                    System.err.println("CLASS: " + ((JCClassDecl)tree).sym.getSimpleName());
-                    env = enter.getClassEnv(((JCClassDecl)tree).sym);
+                    clazz = (JCClassDecl)tree;
+                    Env<AttrContext> e = enter.getClassEnv(clazz.sym);
+                    if (e == null)
+                        return env;
+                    env = e;
                     break;
                 case METHOD:
 //                    System.err.println("METHOD: " + ((JCMethodDecl)tree).sym.getSimpleName());
                     method = (JCMethodDecl)tree;
+                    clazz = null;
                     break;
                 case VARIABLE:
 //                    System.err.println("FIELD: " + ((JCVariableDecl)tree).sym.getSimpleName());
                     field = (JCVariableDecl)tree;
+                    clazz = null;
                     break;
                 case BLOCK: {
 //                    System.err.println("BLOCK: ");
@@ -317,46 +311,65 @@ public class JavacTrees extends Trees {
                         env = memberEnter.getMethodEnv(method, env);
                     JCTree body = copier.copy((JCTree)tree, (JCTree) path.getLeaf());
                     env = attribStatToTree(body, env, copier.leafCopy);
+                    clazz = null;
                     return env;
                 }
                 default:
 //                    System.err.println("DEFAULT: " + tree.getKind());
+                    if (clazz != null) {
+                        env = memberEnter.getBaseEnv(clazz, env);
+                        clazz = null;
+                    }
                     if (field != null && field.getInitializer() == tree) {
                         env = memberEnter.getInitEnv(field, env);
                         JCExpression expr = copier.copy((JCExpression)tree, (JCTree) path.getLeaf());
                         env = attribExprToTree(expr, env, copier.leafCopy);
-                        return env;
                     }
+                    return env;
             }
         }
-        return field != null ? memberEnter.getInitEnv(field, env) : env;
+        return env;
     }
 
     private Env<AttrContext> attribStatToTree(JCTree stat, Env<AttrContext>env, JCTree tree) {
-        JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
+        JavaFileObject prev = log.useSource(null);
+        boolean old = log.suppressErrorsAndWarnings;
+        log.suppressErrorsAndWarnings = true;
+        enter.shadowTypeEnvs(true);
         try {
             return attr.attribStatToTree(stat, env, tree);
         } finally {
+            enter.shadowTypeEnvs(false);
+            log.suppressErrorsAndWarnings = old;
             log.useSource(prev);
         }
     }
 
     private Env<AttrContext> attribExprToTree(JCExpression expr, Env<AttrContext>env, JCTree tree) {
-        JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
+        JavaFileObject prev = log.useSource(null);
+        boolean old = log.suppressErrorsAndWarnings;
+        log.suppressErrorsAndWarnings = true;
+        enter.shadowTypeEnvs(true);
         try {
             return attr.attribExprToTree(expr, env, tree);
         } finally {
+            enter.shadowTypeEnvs(false);
+            log.suppressErrorsAndWarnings = old;
             log.useSource(prev);
         }
     }
 
+    protected Copier createCopier(TreeMaker make) {
+        return new Copier(make);
+    }
+    
     /**
      * Makes a copy of a tree, noting the value resulting from copying a particular leaf.
      **/
-    static class Copier extends TreeCopier<JCTree> {
+    protected static class Copier extends TreeCopier<JCTree> {
         JCTree leafCopy = null;
 
-        Copier(TreeMaker M) {
+        protected Copier(TreeMaker M) {
             super(M);
         }
 

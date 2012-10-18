@@ -45,8 +45,8 @@ import com.sun.tools.classfile.Method;
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
-class CodeWriter extends BasicWriter {
-    static CodeWriter instance(Context context) {
+public class CodeWriter extends BasicWriter {
+    public static CodeWriter instance(Context context) {
         CodeWriter instance = context.get(CodeWriter.class);
         if (instance == null)
             instance = new CodeWriter(context);

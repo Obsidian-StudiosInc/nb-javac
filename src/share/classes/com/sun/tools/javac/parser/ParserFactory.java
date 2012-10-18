@@ -25,6 +25,9 @@
 
 package com.sun.tools.javac.parser;
 
+import com.sun.tools.javac.tree.JCTree;
+import java.util.Map;
+
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
@@ -75,10 +78,24 @@ public class ParserFactory {
 
     public Parser newParser(CharSequence input, boolean keepDocComments, boolean keepEndPos, boolean keepLineMap) {
         Lexer lexer = scannerFactory.newScanner(input, keepDocComments);
+        return newParser (input, keepDocComments, keepEndPos, keepLineMap, false);
+    }
+
+    public Parser newParser(CharSequence input, int startPos, Map<JCTree,Integer> endPos) {
+        Lexer lexer = scannerFactory.newScanner(input, true);
+        ((Scanner)lexer).seek(startPos);
+        JavacParser p = new EndPosParser(this, lexer, true, false, endPos);
+        return p;
+    }
+
+    public Parser newParser(CharSequence input, boolean keepDocComments, boolean keepEndPos, boolean keepLineMap, boolean partial) {
+        Lexer lexer = scannerFactory.newScanner(input, keepDocComments);
+        JavacParser p;
         if (keepEndPos) {
-            return new EndPosParser(this, lexer, keepDocComments, keepLineMap);
+            p = new EndPosParser(this, lexer, keepDocComments, keepLineMap);
         } else {
-            return new JavacParser(this, lexer, keepDocComments, keepLineMap);
+            p = new JavacParser(this, lexer, keepDocComments, keepLineMap);
         }
+        return p;
     }
 }
