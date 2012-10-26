@@ -1232,7 +1232,7 @@ public class ClassReader implements Completer {
         else
             self.fullname = ClassSymbol.formFullName(self.name, self.owner);
 
-        if (c.classfile.getKind() == JavaFileObject.Kind.SOURCE)
+        if (c.classfile != null && c.classfile.getKind() == JavaFileObject.Kind.SOURCE)
             throw new Abort();
 
         if (m != null) {
