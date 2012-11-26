@@ -2076,10 +2076,6 @@ public class JavacParser implements Parser {
             annotations.appendList(partial.annotations);
             pos = partial.pos;
         }
-        if (S.deprecatedFlag()) {
-            flags |= Flags.DEPRECATED;
-            S.resetDeprecatedFlag();
-        }
         int lastPos = Position.NOPOS;
     loop:
         while (true) {
@@ -2125,6 +2121,11 @@ public class JavacParser implements Parser {
             break;
         case INTERFACE: flags |= Flags.INTERFACE; break;
         default: break;
+        }
+
+        if (S.deprecatedFlag()) {
+            flags |= Flags.DEPRECATED;
+            S.resetDeprecatedFlag();
         }
 
         /* A modifiers tree with no modifier tokens or annotations
