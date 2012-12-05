@@ -1863,11 +1863,10 @@ public class Attr extends JCTree.Visitor {
 
                 // If an outer instance is given,
                 // prefix it to the constructor arguments
-                // and delete it from the new expression
+                List<JCExpression> treeArgs = tree.args;
                 if (tree.encl != null && !clazztype.tsym.isInterface()) {
-                    tree.args = tree.args.prepend(makeNullCheck(tree.encl));
+                    treeArgs = treeArgs.prepend(makeNullCheck(tree.encl));
                     argtypes = argtypes.prepend(tree.encl.type);
-                    tree.encl = null;
                 }
 
                 // Reassign clazztype and recompute constructor.
@@ -1876,7 +1875,7 @@ public class Attr extends JCTree.Visitor {
                 Symbol sym = rs.resolveConstructor(
                     tree.pos(), localEnv, clazztype, argtypes,
                     typeargtypes, true, useVarargs);
-                if (!(sym.kind < AMBIGUOUS || (tree.constructorType != null && tree.constructorType.isErroneous())))
+                if (!(sym.kind < AMBIGUOUS || tree.constructorType == null || tree.constructorType.isErroneous()))
                         Assert.error("Attr.visitNewClass tree [" + tree + "] with constructor type [" + tree.constructorType + "] has symbol [" + sym + "] of kind [ " + sym.kind + "]");
                 tree.constructor = sym;
                 if (tree.constructor.kind > ERRONEOUS) {
@@ -1886,7 +1885,7 @@ public class Attr extends JCTree.Visitor {
                     tree.constructorType = checkMethod(clazztype,
                             tree.constructor,
                             localEnv,
-                            tree.args,
+                            treeArgs,
                             argtypes,
                             typeargtypes,
                             useVarargs);
