@@ -1145,7 +1145,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 annotationProcessingOccurred = c.annotationProcessingOccurred = true;
             // doProcessing will have handled deferred diagnostics
             Assert.check(c.log.deferDiagnostics == false
-                    && c.log.deferredDiagnostics.size() == 0);
+                    && c.log.deferredDiagnostics.size() == 0, "Deferred diagnistics: " + c.log.deferredDiagnostics);
             return c;
         } catch (CompletionFailure ex) {
             log.error("cant.access", ex.sym, ex.getDetailValue());
