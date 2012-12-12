@@ -721,11 +721,8 @@ public class JavacParser implements Parser {
      *                  | "*" | "/" | "%"
      */
     JCExpression term2Rest(JCExpression t, int minprec) {
-        List<JCExpression[]> savedOd = odStackSupply.elems;
         JCExpression[] odStack = newOdStack();
-        List<Token[]> savedOp = opStackSupply.elems;
         Token[] opStack = newOpStack();
-        List<int[]> savedPos = posStackSupply.elems;
         int[] posStack = newPosStack();
         // optimization, was odStack = new Tree[...]; opStack = new Tree[...];
         int top = 0;
@@ -759,10 +756,9 @@ public class JavacParser implements Parser {
             }
         }
 
-        odStackSupply.elems = savedOd; // optimization
-        posStackSupply.elems = savedPos; // optimization
-        opStackSupply.elems = savedOp; // optimization
-        posStackSupply.elems = savedPos; // optimization
+        odStackSupply.add(odStack);
+        opStackSupply.add(opStack);
+        posStackSupply.add(posStack);
         return t;
     }
 //where
@@ -816,32 +812,26 @@ public class JavacParser implements Parser {
         /** optimization: To save allocating a new operand/operator stack
          *  for every binary operation, we use supplys.
          */
-        ListBuffer<JCExpression[]> odStackSupply = new ListBuffer<JCExpression[]>();
-        ListBuffer<Token[]> opStackSupply = new ListBuffer<Token[]>();
-        ListBuffer<int[]> posStackSupply = new ListBuffer<int[]>();
+        ArrayList<JCExpression[]> odStackSupply = new ArrayList<JCExpression[]>();
+        ArrayList<Token[]> opStackSupply = new ArrayList<Token[]>();
+        ArrayList<int[]> posStackSupply = new ArrayList<int[]>();
 
         private JCExpression[] newOdStack() {
-            if (odStackSupply.elems == odStackSupply.last)
-                odStackSupply.append(new JCExpression[infixPrecedenceLevels + 1]);
-            JCExpression[] odStack = odStackSupply.elems.head;
-            odStackSupply.elems = odStackSupply.elems.tail;
-            return odStack;
+            if (odStackSupply.isEmpty())
+                return new JCExpression[infixPrecedenceLevels + 1];
+            return odStackSupply.remove(odStackSupply.size() - 1);
         }
 
         private Token[] newOpStack() {
-            if (opStackSupply.elems == opStackSupply.last)
-                opStackSupply.append(new Token[infixPrecedenceLevels + 1]);
-            Token[] opStack = opStackSupply.elems.head;
-            opStackSupply.elems = opStackSupply.elems.tail;
-            return opStack;
+            if (opStackSupply.isEmpty())
+                return new Token[infixPrecedenceLevels + 1];
+            return opStackSupply.remove(opStackSupply.size() - 1);
         }
 
         private int[] newPosStack() {
-            if (posStackSupply.elems == posStackSupply.last)
-                posStackSupply.append(new int[infixPrecedenceLevels + 1]);
-            int[] posStack = posStackSupply.elems.head;
-            posStackSupply.elems = posStackSupply.elems.tail;
-            return posStack;
+            if (posStackSupply.isEmpty())
+                return new int[infixPrecedenceLevels + 1];
+            return posStackSupply.remove(posStackSupply.size() - 1);
         }
 
     /** Expression3    = PrefixOp Expression3
@@ -1798,7 +1788,7 @@ public class JavacParser implements Parser {
                 stats.appendList(variableDeclarators(mods, t,
                                                      new ListBuffer<JCStatement>()));
                 // A "LocalVariableDeclarationStatement" subsumes the terminating semicolon
-                storeEnd(stats.elems.last(), S.endPos());
+                storeEnd(stats.last(), S.endPos());
                 accept(SEMI);
             }
             break;
@@ -1861,7 +1851,7 @@ public class JavacParser implements Parser {
                                                      new ListBuffer<JCStatement>()));
                 // A "LocalVariableDeclarationStatement" subsumes the terminating semicolon
                 accept(SEMI);
-                storeEnd(stats.elems.last(), S.prevEndPos());
+                storeEnd(stats.last(), S.prevEndPos());
             } else {
                 // This Exec is an "ExpressionStatement"; it subsumes the terminating semicolon
                 accept(SEMI);
@@ -2249,7 +2239,7 @@ public class JavacParser implements Parser {
         vdefs.append(variableDeclaratorRest(pos, mods, type, name, reqInit, dc));
         while (S.token() == COMMA) {
             // All but last of multiple declarators subsume a comma
-            storeEnd((JCTree)vdefs.elems.last(), S.endPos());
+            storeEnd((JCTree)vdefs.last(), S.endPos());
             S.nextToken();
             vdefs.append(variableDeclarator(mods, type, reqInit, dc));
         }
@@ -2390,7 +2380,7 @@ public class JavacParser implements Parser {
         }
         JCTree.JCCompilationUnit toplevel = F.at(pos).TopLevel(packageAnnotations, pid, defs.toList());
         attach(toplevel, toplevel_dc);
-        if (defs.elems.isEmpty())
+        if (defs.isEmpty())
             storeEnd(toplevel, S.prevEndPos());
         if (keepDocComments)
             toplevel.docComments = docComments;
