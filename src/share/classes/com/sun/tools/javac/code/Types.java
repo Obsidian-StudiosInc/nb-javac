@@ -419,6 +419,7 @@ public class Types {
                         s.tag == ARRAY || s.tag == TYPEVAR;
                 case WILDCARD: //we shouldn't be here - avoids crash (see 7034495)
                 case NONE:
+                case UNKNOWN:
                     return false;
                 default:
                     throw new AssertionError("isSubtype " + t.tag);

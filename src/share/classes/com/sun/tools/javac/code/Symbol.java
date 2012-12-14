@@ -579,7 +579,7 @@ public abstract class Symbol implements Element {
 
         public java.util.List<Symbol> getEnclosedElements() {
             List<Symbol> list = List.nil();
-            if (kind == TYP && type.tag == TYPEVAR) {
+            if (kind == NIL || (kind == TYP && type.tag == TYPEVAR || type.tag == UNKNOWN)) {
                 return list;
             }
             for (Scope.Entry e = members().elems; e != null; e = e.sibling) {
