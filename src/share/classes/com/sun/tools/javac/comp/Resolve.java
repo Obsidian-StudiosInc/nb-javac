@@ -1128,7 +1128,7 @@ public class Resolve {
     Symbol findGlobalType(Env<AttrContext> env, Scope scope, Name name) {
         Symbol bestSoFar = typeNotFound;
         for (Scope.Entry e = scope.lookup(name); e.scope != null; e = e.next()) {
-            Symbol sym = loadClass(env, e.sym.flatName());
+            Symbol sym = e.sym.type.isErroneous() ? e.sym : loadClass(env, e.sym.flatName());
             if (bestSoFar.kind == TYP && sym.kind == TYP &&
                 bestSoFar != sym)
                 return new AmbiguityError(bestSoFar, sym);
