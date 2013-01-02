@@ -1783,6 +1783,11 @@ public class Attr extends JCTree.Visitor {
                         rsEnv.info.varArgs);
                 if (rsEnv.info.varArgs)
                     Assert.check(tree.constructorType.isErroneous() || tree.varargsElement != null);
+                Env<AttrContext> enclosing;
+
+                if (tree.constructor.kind == MTH && tree.constructor.type.isErroneous() && ((enclosing = enter.getEnv(tree.constructor.enclClass())) == null || enclosing.toplevel != env.toplevel)) {
+                    log.error(tree, "type.error", tree.constructor);
+                }
             }
 
             if (cdef != null) {

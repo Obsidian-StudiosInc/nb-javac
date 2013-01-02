@@ -290,4 +290,25 @@ public class AttrTest extends TestCase {
         
         assertEquals(new HashSet<String>(Arrays.asList("/Use.java:93-104:compiler.err.cant.apply.diamond.1")), diagnostics);
     }
+
+    public void testErrorConstructor1() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String api = "package test; public class API { public API(Undef p) { } }";
+        String use = "package test; public class Use { public void t() { Object str = new API(null); } }";
+        DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
+        
+        ct.analyze();
+        
+        Set<String> diagnostics = new HashSet<String>();
+        
+        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
+            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
+        }
+        
+        assertEquals(new HashSet<String>(Arrays.asList("/API.java:44-49:compiler.err.cant.resolve.location", "/Use.java:64-77:compiler.err.type.error")), diagnostics);
+    }
 }
