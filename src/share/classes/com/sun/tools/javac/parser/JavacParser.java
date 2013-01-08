@@ -2419,7 +2419,6 @@ public class JavacParser implements Parser {
                     if (i < val.length() - 1) {
                         pid = F.at(S.pos() + i).Select(pid, names.error);
                         storeEnd(pid, S.pos() + i + 1);
-                        pid = F.Erroneous(List.of(pid));
                     } else {
                         S.token(DOT);
                     }
@@ -2430,8 +2429,11 @@ public class JavacParser implements Parser {
                     setErrorEndPos(S.pos());
                     reportSyntaxError(S.prevEndPos(), "expected", IDENTIFIER);
                     pid = to(F.at(S.pos()).Select(pid, names.error));
-                    pid = F.Erroneous(List.of(pid));
                     S.nextToken();
+                    if (S.token() == IDENTIFIER) {
+                        S.nextToken();
+                        storeEnd(pid, S.pos());
+                    }
                 }
             }
             
