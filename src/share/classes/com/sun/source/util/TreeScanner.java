@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,7 +52,7 @@ import com.sun.source.tree.*;
  *
  * <p>Here is an example to count the number of identifier nodes in a tree:
  * <pre>
- *   class CountIdentifiers extends TreeScanner<Integer,Void> {
+ *   class CountIdentifiers extends TreeScanner&lt;Integer,Void&gt; {
  *      {@literal @}Override
  *      public Integer visitIdentifier(IdentifierTree node, Void p) {
  *          return 1;
@@ -285,6 +285,12 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
         return r;
     }
 
+    public R visitLambdaExpression(LambdaExpressionTree node, P p) {
+        R r = scan(node.getParameters(), p);
+        r = scanAndReduce(node.getBody(), p, r);
+        return r;
+    }
+
     public R visitParenthesized(ParenthesizedTree node, P p) {
         return scan(node.getExpression(), p);
     }
@@ -333,6 +339,12 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
         return scan(node.getExpression(), p);
     }
 
+    public R visitMemberReference(MemberReferenceTree node, P p) {
+        R r = scan(node.getQualifierExpression(), p);
+        r = scanAndReduce(node.getTypeArguments(), p, r);
+        return r;
+    }
+
     public R visitIdentifier(IdentifierTree node, P p) {
         return null;
     }
@@ -357,6 +369,10 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
 
     public R visitUnionType(UnionTypeTree node, P p) {
         return scan(node.getTypeAlternatives(), p);
+    }
+
+    public R visitIntersectionType(IntersectionTypeTree node, P p) {
+        return scan(node.getBounds(), p);
     }
 
     public R visitTypeParameter(TypeParameterTree node, P p) {

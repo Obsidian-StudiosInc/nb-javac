@@ -25,17 +25,19 @@
 
 package com.sun.tools.doclets.internal.toolkit.util;
 
-import com.sun.tools.doclets.internal.toolkit.*;
-import com.sun.javadoc.*;
 import java.util.*;
+
+import com.sun.javadoc.*;
+import com.sun.tools.doclets.internal.toolkit.*;
 
 /**
  * Build Class Hierarchy for all the Classes. This class builds the Class
  * Tree and the Interface Tree separately.
  *
- * This code is not part of an API.
- * It is implementation that is subject to change.
- * Do not use it as an API
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
+ *  This code and its internal interfaces are subject to change or
+ *  deletion without notice.</b>
  *
  * @see java.util.HashMap
  * @see java.util.List
@@ -130,16 +132,6 @@ public class ClassTree {
                     Util.isDeprecated(classes[i].containingPackage()))) {
                 continue;
             }
-
-            if (classes[i].tags("treatAsPrivate").length > 0) {
-                continue;
-            }
-
-            if (Configuration.getJavafxJavadoc()
-                    && (classes[i].isPackagePrivate() || classes[i].isPrivate())) {
-                continue;
-            }
-
             if (classes[i].isEnum()) {
                 processType(classes[i], configuration, baseEnums, subEnums);
             } else if (classes[i].isClass()) {

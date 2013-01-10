@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,9 @@
 
 package javax.lang.model.util;
 
-import java.util.List;
-import javax.lang.model.element.*;
-
-import javax.lang.model.type.TypeMirror;
-import static javax.lang.model.SourceVersion.*;
-import javax.lang.model.SourceVersion;
 import javax.annotation.processing.SupportedSourceVersion;
+import javax.lang.model.SourceVersion;
+import static javax.lang.model.SourceVersion.*;
 
 /**
  * A simple visitor for annotation values with default behavior
@@ -66,6 +62,7 @@ import javax.annotation.processing.SupportedSourceVersion;
  * @param <P> the type of the additional parameter to this visitor's methods.
  *
  * @see SimpleAnnotationValueVisitor6
+ * @see SimpleAnnotationValueVisitor8
  * @since 1.7
  */
 @SupportedSourceVersion(RELEASE_7)

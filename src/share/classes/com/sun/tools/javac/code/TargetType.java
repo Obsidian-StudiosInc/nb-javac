@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,10 @@
 
 package com.sun.tools.javac.code;
 
-import static com.sun.tools.javac.code.TargetType.TargetAttribute.*;
-
 import java.util.EnumSet;
 import java.util.Set;
+
+import static com.sun.tools.javac.code.TargetType.TargetAttribute.*;
 
 /**
  * Describes the type of program element an extended annotation (or extended
@@ -166,7 +166,7 @@ public enum TargetType {
     static final int MAXIMUM_TARGET_TYPE_VALUE = 0x22;
 
     private final int targetTypeValue;
-    private Set<TargetAttribute> flags;
+    private final Set<TargetAttribute> flags;
 
     TargetType(int targetTypeValue, TargetAttribute... attributes) {
         if (targetTypeValue < Byte.MIN_VALUE
@@ -233,10 +233,10 @@ public enum TargetType {
         return this.targetTypeValue;
     }
 
-    private static TargetType[] targets = null;
+    private static final TargetType[] targets;
 
-    private static TargetType[] buildTargets() {
-        TargetType[] targets = new TargetType[MAXIMUM_TARGET_TYPE_VALUE + 1];
+    static {
+        targets = new TargetType[MAXIMUM_TARGET_TYPE_VALUE + 1];
         TargetType[] alltargets = values();
         for (TargetType target : alltargets) {
             if (target.targetTypeValue >= 0)
@@ -246,13 +246,9 @@ public enum TargetType {
             if (targets[i] == null)
                 targets[i] = UNKNOWN;
         }
-        return targets;
     }
 
     public static boolean isValidTargetTypeValue(int tag) {
-        if (targets == null)
-            targets = buildTargets();
-
         if (((byte)tag) == ((byte)UNKNOWN.targetTypeValue))
             return true;
 
@@ -260,9 +256,6 @@ public enum TargetType {
     }
 
     public static TargetType fromTargetTypeValue(int tag) {
-        if (targets == null)
-            targets = buildTargets();
-
         if (((byte)tag) == ((byte)UNKNOWN.targetTypeValue))
             return UNKNOWN;
 

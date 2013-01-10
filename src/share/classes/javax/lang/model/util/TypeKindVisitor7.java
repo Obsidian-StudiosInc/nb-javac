@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ package javax.lang.model.util;
 
 import javax.lang.model.type.*;
 import javax.annotation.processing.SupportedSourceVersion;
-import static javax.lang.model.element.ElementKind.*;
 import static javax.lang.model.SourceVersion.*;
 import javax.lang.model.SourceVersion;
 
@@ -71,6 +70,7 @@ import javax.lang.model.SourceVersion;
  *            additional parameter.
  *
  * @see TypeKindVisitor6
+ * @see TypeKindVisitor8
  * @since 1.7
  */
 @SupportedSourceVersion(RELEASE_7)

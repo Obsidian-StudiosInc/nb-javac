@@ -172,6 +172,10 @@ public class SimpleTreeVisitor <R,P> implements TreeVisitor<R,P> {
         return defaultAction(node, p);
     }
 
+    public R visitLambdaExpression(LambdaExpressionTree node, P p) {
+        return defaultAction(node, p);
+    }
+
     public R visitParenthesized(ParenthesizedTree node, P p) {
         return defaultAction(node, p);
     }
@@ -208,6 +212,10 @@ public class SimpleTreeVisitor <R,P> implements TreeVisitor<R,P> {
         return defaultAction(node, p);
     }
 
+    public R visitMemberReference(MemberReferenceTree node, P p) {
+        return defaultAction(node, p);
+    }
+
     public R visitIdentifier(IdentifierTree node, P p) {
         return defaultAction(node, p);
     }
@@ -229,6 +237,10 @@ public class SimpleTreeVisitor <R,P> implements TreeVisitor<R,P> {
     }
 
     public R visitUnionType(UnionTypeTree node, P p) {
+        return defaultAction(node, p);
+    }
+
+    public R visitIntersectionType(IntersectionTypeTree node, P p) {
         return defaultAction(node, p);
     }
 

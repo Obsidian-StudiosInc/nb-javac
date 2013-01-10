@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,16 +26,19 @@
 package com.sun.tools.javac.code;
 
 import java.util.Collections;
-
-import com.sun.tools.javac.util.*;
-import com.sun.tools.javac.code.Symbol.*;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Set;
 
 import javax.lang.model.type.*;
 
+import com.sun.tools.javac.code.Symbol.*;
+import com.sun.tools.javac.util.*;
+import static com.sun.tools.javac.code.BoundKind.*;
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
-import static com.sun.tools.javac.code.BoundKind.*;
-import static com.sun.tools.javac.code.TypeTags.*;
+import static com.sun.tools.javac.code.TypeTag.*;
 
 /** This class represents Java types. The class itself defines the behavior of
  *  the following types:
@@ -54,7 +57,7 @@ import static com.sun.tools.javac.code.TypeTags.*;
  *  package types (tag: PACKAGE, class: PackageType),
  *  type variables (tag: TYPEVAR, class: TypeVar),
  *  type arguments (tag: WILDCARD, class: WildcardType),
- *  polymorphic types (tag: FORALL, class: ForAll),
+ *  generic method types (tag: FORALL, class: ForAll),
  *  the error type (tag: ERROR, class: ErrorType).
  *  </pre>
  *
@@ -63,12 +66,15 @@ import static com.sun.tools.javac.code.TypeTags.*;
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  *
- *  @see TypeTags
+ *  @see TypeTag
  */
 public class Type implements PrimitiveType {
 
     /** Constant type: no type at all. */
     public static final JCNoType noType = new JCNoType(NONE);
+
+    /** Constant type: special type to be used during recovery of deferred expressions. */
+    public static final JCNoType recoveryType = new JCNoType(NONE);
 
     /** If this switch is turned on, the names of type variables
      *  and anonymous classes are printed with hashcodes appended.
@@ -77,13 +83,75 @@ public class Type implements PrimitiveType {
 
     /** The tag of this type.
      *
-     *  @see TypeTags
+     *  @see TypeTag
      */
-    public int tag;
+    protected TypeTag tag;
 
     /** The defining class / interface / package / type variable
      */
     public TypeSymbol tsym;
+
+    /**
+     * Checks if the current type tag is equal to the given tag.
+     * @return true if tag is equal to the current type tag.
+     */
+    public boolean hasTag(TypeTag tag) {
+        return this.tag == tag;
+    }
+
+    /**
+     * Returns the current type tag.
+     * @return the value of the current type tag.
+     */
+    public TypeTag getTag() {
+        return tag;
+    }
+
+    public boolean isNumeric() {
+        switch (tag) {
+            case BYTE: case CHAR:
+            case SHORT:
+            case INT: case LONG:
+            case FLOAT: case DOUBLE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public boolean isPrimitive() {
+        return (isNumeric() || tag == BOOLEAN);
+    }
+
+    public boolean isPrimitiveOrVoid() {
+        return (isPrimitive() || tag == VOID);
+    }
+
+    public boolean isReference() {
+        switch (tag) {
+        case CLASS:
+        case ARRAY:
+        case TYPEVAR:
+        case WILDCARD:
+        case ERROR:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    public boolean isNullOrReference() {
+        return (tag == BOT || isReference());
+    }
+
+    public boolean isPartial() {
+        switch(tag) {
+            case ERROR: case UNKNOWN: case UNDETVAR:
+                return true;
+            default:
+                return false;
+        }
+    }
 
     /**
      * The constant value of this type, null if this type does not
@@ -115,7 +183,7 @@ public class Type implements PrimitiveType {
 
     /** Define a type given its tag and type symbol
      */
-    public Type(int tag, TypeSymbol tsym) {
+    public Type(TypeTag tag, TypeSymbol tsym) {
         this.tag = tag;
         this.tsym = tsym;
     }
@@ -156,7 +224,7 @@ public class Type implements PrimitiveType {
      */
     public Type constType(Object constValue) {
         final Object value = constValue;
-        Assert.check(tag <= BOOLEAN);
+        Assert.check(isPrimitive());
         return new Type(tag, tsym) {
                 @Override
                 public Object constValue() {
@@ -234,10 +302,12 @@ public class Type implements PrimitiveType {
      * never complete classes. Where isSameType would complete a
      * class, equals assumes that the two types are different.
      */
+    @Override
     public boolean equals(Object t) {
         return super.equals(t);
     }
 
+    @Override
     public int hashCode() {
         return super.hashCode();
     }
@@ -344,10 +414,6 @@ public class Type implements PrimitiveType {
 
     public boolean isFinal() {
         return (tsym.flags() & FINAL) != 0;
-    }
-
-    public boolean isPrimitive() {
-        return tag < VOID;
     }
 
     /**
@@ -692,7 +758,7 @@ public class Type implements PrimitiveType {
         /** A class type is raw if it misses some
          *  of its type parameter sections.
          *  After validation, this is equivalent to:
-         *  allparams.isEmpty() && tsym.type.allparams.nonEmpty();
+         *  {@code allparams.isEmpty() && tsym.type.allparams.nonEmpty(); }
          */
         public boolean isRaw() {
             return
@@ -775,6 +841,49 @@ public class Type implements PrimitiveType {
         }
     }
 
+    // a clone of a ClassType that knows about the bounds of an intersection type.
+    public static class IntersectionClassType extends ClassType implements IntersectionType {
+
+        public boolean allInterfaces;
+
+        public enum IntersectionKind {
+            EXPLICIT,
+            IMPLICT;
+        }
+
+        public IntersectionKind intersectionKind;
+
+        public IntersectionClassType(List<Type> bounds, ClassSymbol csym, boolean allInterfaces) {
+            super(Type.noType, List.<Type>nil(), csym);
+            this.allInterfaces = allInterfaces;
+            Assert.check((csym.flags() & COMPOUND) != 0);
+            supertype_field = bounds.head;
+            interfaces_field = bounds.tail;
+            Assert.check(supertype_field.tsym.completer != null ||
+                    !supertype_field.isInterface(), supertype_field);
+        }
+
+        public java.util.List<? extends TypeMirror> getBounds() {
+            return Collections.unmodifiableList(getComponents());
+        }
+
+        public List<Type> getComponents() {
+            return interfaces_field.prepend(supertype_field);
+        }
+
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.INTERSECTION;
+        }
+
+        @Override
+        public <R, P> R accept(TypeVisitor<R, P> v, P p) {
+            return intersectionKind == IntersectionKind.EXPLICIT ?
+                v.visitIntersection(this, p) :
+                v.visitDeclared(this, p);
+        }
+    }
+
     public static class ArrayType extends Type
             implements javax.lang.model.type.ArrayType {
 
@@ -802,7 +911,7 @@ public class Type implements PrimitiveType {
         }
 
         public int hashCode() {
-            return (ARRAY << 5) + elemtype.hashCode();
+            return (ARRAY.ordinal() << 5) + elemtype.hashCode();
         }
 
         public boolean isVarargs() {
@@ -887,34 +996,6 @@ public class Type implements PrimitiveType {
          */
         public String toString() {
             return "(" + argtypes + ")" + restype;
-        }
-
-        public boolean equals(Object obj) {
-            if (this == obj)
-                return true;
-            if (!(obj instanceof MethodType))
-                return false;
-            MethodType m = (MethodType)obj;
-            List<Type> args1 = argtypes;
-            List<Type> args2 = m.argtypes;
-            while (!args1.isEmpty() && !args2.isEmpty()) {
-                if (!args1.head.equals(args2.head))
-                    return false;
-                args1 = args1.tail;
-                args2 = args2.tail;
-            }
-            if (!args1.isEmpty() || !args2.isEmpty())
-                return false;
-            return restype.equals(m.restype);
-        }
-
-        public int hashCode() {
-            int h = METHOD;
-            for (List<Type> thisargs = this.argtypes;
-                 thisargs.tail != null; /*inlined: thisargs.nonEmpty()*/
-                 thisargs = thisargs.tail)
-                h = (h << 5) + thisargs.head.hashCode();
-            return (h << 5) + this.restype.hashCode();
         }
 
         public List<Type>        getParameterTypes() { return argtypes; }
@@ -1093,7 +1174,7 @@ public class Type implements PrimitiveType {
 
     public static abstract class DelegatedType extends Type {
         public Type qtype;
-        public DelegatedType(int tag, Type qtype) {
+        public DelegatedType(TypeTag tag, Type qtype) {
             super(tag, qtype.tsym);
             this.qtype = qtype;
         }
@@ -1108,11 +1189,16 @@ public class Type implements PrimitiveType {
         public boolean isErroneous() { return qtype.isErroneous(); }
     }
 
+    /**
+     * The type of a generic method type. It consists of a method type and
+     * a list of method type-parameters that are used within the method
+     * type.
+     */
     public static class ForAll extends DelegatedType implements ExecutableType {
         public List<Type> tvars;
 
         public ForAll(List<Type> tvars, Type qtype) {
-            super(FORALL, qtype);
+            super(FORALL, (MethodType)qtype);
             this.tvars = tvars;
         }
 
@@ -1131,57 +1217,6 @@ public class Type implements PrimitiveType {
             return qtype.isErroneous();
         }
 
-        /**
-         * Replaces this ForAll's typevars with a set of concrete Java types
-         * and returns the instantiated generic type. Subclasses should override
-         * in order to check that the list of types is a valid instantiation
-         * of the ForAll's typevars.
-         *
-         * @param actuals list of actual types
-         * @param types types instance
-         * @return qtype where all occurrences of tvars are replaced
-         * by types in actuals
-         */
-        public Type inst(List<Type> actuals, Types types) {
-            return types.subst(qtype, tvars, actuals);
-        }
-
-        /**
-         * Kind of type-constraint derived during type inference
-         */
-        public enum ConstraintKind {
-            /**
-             * upper bound constraint (a type variable must be instantiated
-             * with a type T, where T is a subtype of all the types specified by
-             * its EXTENDS constraints).
-             */
-            EXTENDS,
-            /**
-             * lower bound constraint (a type variable must be instantiated
-             * with a type T, where T is a supertype of all the types specified by
-             * its SUPER constraints).
-             */
-            SUPER,
-            /**
-             * equality constraint (a type variable must be instantiated to the type
-             * specified by its EQUAL constraint.
-             */
-            EQUAL;
-        }
-
-        /**
-         * Get the type-constraints of a given kind for a given type-variable of
-         * this ForAll type. Subclasses should override in order to return more
-         * accurate sets of constraints.
-         *
-         * @param tv the type-variable for which the constraint is to be retrieved
-         * @param ck the constraint kind to be retrieved
-         * @return the list of types specified by the selected constraint
-         */
-        public List<Type> getConstraints(TypeVar tv, ConstraintKind ck) {
-            return List.nil();
-        }
-
         public Type map(Mapping f) {
             return f.apply(qtype);
         }
@@ -1191,7 +1226,7 @@ public class Type implements PrimitiveType {
         }
 
         public MethodType asMethodType() {
-            return qtype.asMethodType();
+            return (MethodType)qtype;
         }
 
         public void complete() {
@@ -1214,21 +1249,59 @@ public class Type implements PrimitiveType {
         }
     }
 
-    /** A class for instantiatable variables, for use during type
-     *  inference.
+    /** A class for inference variables, for use during method/diamond type
+     *  inference. An inference variable has upper/lower bounds and a set
+     *  of equality constraints. Such bounds are set during subtyping, type-containment,
+     *  type-equality checks, when the types being tested contain inference variables.
+     *  A change listener can be attached to an inference variable, to receive notifications
+     *  whenever the bounds of an inference variable change.
      */
     public static class UndetVar extends DelegatedType {
-        public List<Type> lobounds = List.nil();
-        public List<Type> hibounds = List.nil();
+
+        /** Inference variable change listener. The listener method is called
+         *  whenever a change to the inference variable's bounds occurs
+         */
+        public interface UndetVarListener {
+            /** called when some inference variable bounds (of given kinds ibs) change */
+            void varChanged(UndetVar uv, Set<InferenceBound> ibs);
+        }
+
+        /**
+         * Inference variable bound kinds
+         */
+        public enum InferenceBound {
+            /** upper bounds */
+            UPPER,
+            /** lower bounds */
+            LOWER,
+            /** equality constraints */
+            EQ;
+        }
+
+        /** inference variable bounds */
+        private Map<InferenceBound, List<Type>> bounds;
+
+        /** inference variable's inferred type (set from Infer.java) */
         public Type inst = null;
+
+        /** inference variable's change listener */
+        public UndetVarListener listener = null;
 
         @Override
         public <R,S> R accept(Type.Visitor<R,S> v, S s) {
             return v.visitUndetVar(this, s);
         }
 
-        public UndetVar(Type origin) {
+        public UndetVar(TypeVar origin, Types types) {
+            this(origin, types, true);
+        }
+
+        public UndetVar(TypeVar origin, Types types, boolean includeBounds) {
             super(UNDETVAR, origin);
+            bounds = new EnumMap<InferenceBound, List<Type>>(InferenceBound.class);
+            bounds.put(InferenceBound.UPPER, includeBounds ? types.getBounds(origin) : List.<Type>nil());
+            bounds.put(InferenceBound.LOWER, List.<Type>nil());
+            bounds.put(InferenceBound.EQ, List.<Type>nil());
         }
 
         public String toString() {
@@ -1240,12 +1313,54 @@ public class Type implements PrimitiveType {
             if (inst != null) return inst.baseType();
             else return this;
         }
+
+        /** get all bounds of a given kind */
+        public List<Type> getBounds(InferenceBound ib) {
+            return bounds.get(ib);
+        }
+
+        /** add a bound of a given kind - this might trigger listener notification */
+        public void addBound(InferenceBound ib, Type bound, Types types) {
+            List<Type> prevBounds = bounds.get(ib);
+            for (Type b : prevBounds) {
+                if (types.isSameType(b, bound)) {
+                    return;
+                }
+            }
+            bounds.put(ib, prevBounds.prepend(bound));
+            notifyChange(EnumSet.of(ib));
+        }
+
+        /** replace types in all bounds - this might trigger listener notification */
+        public void substBounds(List<Type> from, List<Type> to, Types types) {
+            EnumSet<InferenceBound> changed = EnumSet.noneOf(InferenceBound.class);
+            Map<InferenceBound, List<Type>> bounds2 = new EnumMap<InferenceBound, List<Type>>(InferenceBound.class);
+            for (Map.Entry<InferenceBound, List<Type>> _entry : bounds.entrySet()) {
+                InferenceBound ib = _entry.getKey();
+                List<Type> prevBounds = _entry.getValue();
+                List<Type> newBounds = types.subst(prevBounds, from, to);
+                bounds2.put(ib, newBounds);
+                if (prevBounds != newBounds) {
+                    changed.add(ib);
+                }
+            }
+            if (!changed.isEmpty()) {
+                bounds = bounds2;
+                notifyChange(changed);
+            }
+        }
+
+        private void notifyChange(EnumSet<InferenceBound> ibs) {
+            if (listener != null) {
+                listener.varChanged(this, ibs);
+            }
+        }
     }
 
     /** Represents VOID or NONE.
      */
     static class JCNoType extends Type implements NoType {
-        public JCNoType(int tag) {
+        public JCNoType(TypeTag tag) {
             super(tag, null);
         }
 
@@ -1267,7 +1382,7 @@ public class Type implements PrimitiveType {
 
     static class BottomType extends Type implements NullType {
         public BottomType() {
-            super(TypeTags.BOT, null);
+            super(BOT, null);
         }
 
         @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,6 @@
 package com.sun.tools.javac.jvm;
 import java.util.*;
 
-import javax.lang.model.element.ElementKind;
-
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
@@ -39,14 +37,17 @@ import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.jvm.Code.*;
 import com.sun.tools.javac.jvm.Items.*;
+import com.sun.tools.javac.tree.EndPosTable;
 import com.sun.tools.javac.tree.JCTree.*;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
-import static com.sun.tools.javac.code.TypeTags.*;
+import static com.sun.tools.javac.code.TypeTag.*;
 import static com.sun.tools.javac.jvm.ByteCodes.*;
 import static com.sun.tools.javac.jvm.CRTFlags.*;
-import static com.sun.tools.javac.main.OptionName.*;
+import static com.sun.tools.javac.main.Option.*;
+import static com.sun.tools.javac.tree.JCTree.Tag.*;
+import static com.sun.tools.javac.tree.JCTree.Tag.BLOCK;
 
 /** This pass maps flat Java (i.e. without inner classes) to bytecodes.
  *
@@ -70,6 +71,7 @@ public class Gen extends JCTree.Visitor {
     private final Map<Type,Symbol> stringBufferAppend;
     private Name accessDollar;
     private final Types types;
+    private final Lower lower;
 
     /** Switch: GJ mode?
      */
@@ -92,6 +94,10 @@ public class Gen extends JCTree.Visitor {
         return instance;
     }
 
+    /* Constant pool, reset by genClass.
+     */
+    private Pool pool;
+
     protected Gen(Context context) {
         context.put(genKey, this);
 
@@ -111,6 +117,7 @@ public class Gen extends JCTree.Visitor {
         stringBufferAppend = new HashMap<Type,Symbol>();
         accessDollar = names.
             fromString("access" + target.syntheticNameChar());
+        lower = Lower.instance(context);
 
         Options options = Options.instance(context);
         lineDebugInfo =
@@ -123,6 +130,7 @@ public class Gen extends JCTree.Visitor {
         genCrt = options.isSet(XJCOV);
         debugCode = options.isSet("debugcode");
         allowInvokedynamic = target.hasInvokedynamic() || options.isSet("invokedynamic");
+        pool = new Pool(types);
 
         generateIproxies =
             target.requiresIproxy() ||
@@ -171,10 +179,6 @@ public class Gen extends JCTree.Visitor {
      */
     private boolean useJsrLocally;
 
-    /* Constant pool, reset by genClass.
-     */
-    private Pool pool = new Pool();
-
     /** Code buffer, set by genMethod.
      */
     private Code code;
@@ -195,9 +199,10 @@ public class Gen extends JCTree.Visitor {
      */
     private int nerrs = 0;
 
-    /** A hash table mapping syntax trees to their ending source positions.
+    /** An object containing mappings of syntax trees to their
+     *  ending source positions.
      */
-    private Map<JCTree, Integer> endPositions;
+    EndPosTable endPosTable;
 
     /** Generate code to load an integer constant.
      *  @param n     The integer to be loaded.
@@ -245,10 +250,10 @@ public class Gen extends JCTree.Visitor {
     /** Construct a symbol to reflect the qualifying type that should
      *  appear in the byte code as per JLS 13.1.
      *
-     *  For target >= 1.2: Clone a method with the qualifier as owner (except
+     *  For {@literal target >= 1.2}: Clone a method with the qualifier as owner (except
      *  for those cases where we need to work around VM bugs).
      *
-     *  For target <= 1.1: If qualified variable or method is defined in a
+     *  For {@literal target <= 1.1}: If qualified variable or method is defined in a
      *  non-accessible class, clone it with the qualifier class as owner.
      *
      *  @param sym    The accessed symbol
@@ -256,7 +261,7 @@ public class Gen extends JCTree.Visitor {
      */
     Symbol binaryQualifier(Symbol sym, Type site) {
 
-        if (site.tag == ARRAY) {
+        if (site.hasTag(ARRAY)) {
             if (sym == syms.lengthVar ||
                 sym.owner != syms.arrayClass)
                 return sym;
@@ -303,13 +308,13 @@ public class Gen extends JCTree.Visitor {
      */
     int makeRef(DiagnosticPosition pos, Type type) {
         checkDimension(pos, type);
-        return pool.put(type.tag == CLASS ? (Object)type.tsym : (Object)type);
+        return pool.put(type.hasTag(CLASS) ? (Object)type.tsym : (Object)type);
     }
 
     /** Check if the given type is an array with too many dimensions.
      */
     private void checkDimension(DiagnosticPosition pos, Type t) {
-        switch (t.tag) {
+        switch (t.getTag()) {
         case METHOD:
             checkDimension(pos, t.getReturnType());
             for (List<Type> args = t.getParameterTypes(); args.nonEmpty(); args = args.tail)
@@ -433,7 +438,7 @@ public class Gen extends JCTree.Visitor {
      */
     boolean hasFinally(JCTree target, Env<GenContext> env) {
         while (env.tree != target) {
-            if (env.tree.getTag() == JCTree.TRY && env.info.finalize.hasFinalizer())
+            if (env.tree.hasTag(TRY) && env.info.finalize.hasFinalizer())
                 return true;
             env = env.next;
         }
@@ -444,7 +449,7 @@ public class Gen extends JCTree.Visitor {
  * Normalizing class-members.
  *************************************************************************/
 
-    /** Distribute member initializer code into constructors and <clinit>
+    /** Distribute member initializer code into constructors and {@code <clinit>}
      *  method.
      *  @param defs         The list of class member declarations.
      *  @param c            The enclosing class.
@@ -460,17 +465,17 @@ public class Gen extends JCTree.Visitor {
         for (List<JCTree> l = defs; l.nonEmpty(); l = l.tail) {
             JCTree def = l.head;
             switch (def.getTag()) {
-            case JCTree.BLOCK:
+            case BLOCK:
                 JCBlock block = (JCBlock)def;
                 if ((block.flags & STATIC) != 0)
                     clinitCode.append(block);
                 else
                     initCode.append(block);
                 break;
-            case JCTree.METHODDEF:
+            case METHODDEF:
                 methodDefs.append(def);
                 break;
-            case JCTree.VARDEF:
+            case VARDEF:
                 JCVariableDecl vdef = (JCVariableDecl) def;
                 VarSymbol sym = vdef.sym;
                 checkDimension(vdef.pos(), sym.type);
@@ -480,20 +485,14 @@ public class Gen extends JCTree.Visitor {
                         JCStatement init = make.at(vdef.pos()).
                             Assignment(sym, vdef.init);
                         initCode.append(init);
-                        if (endPositions != null) {
-                            Integer endPos = endPositions.remove(vdef);
-                            if (endPos != null) endPositions.put(init, endPos);
-                        }
+                        endPosTable.replaceTree(vdef, init);
                     } else if (sym.getConstValue() == null) {
                         // Initialize class (static) variables only if
                         // they are not compile-time constants.
                         JCStatement init = make.at(vdef.pos).
                             Assignment(sym, vdef.init);
                         clinitCode.append(init);
-                        if (endPositions != null) {
-                            Integer endPos = endPositions.remove(vdef);
-                            if (endPos != null) endPositions.put(init, endPos);
-                        }
+                        endPosTable.replaceTree(vdef, init);
                     } else {
                         checkStringConstant(vdef.init.pos(), sym.getConstValue());
                     }
@@ -693,7 +692,7 @@ public class Gen extends JCTree.Visitor {
      *  should be emitted, if so, put a new entry into CRTable
      *  and call method to generate bytecode.
      *  If not, just call method to generate bytecode.
-     *  @see    #genStat(Tree, Env)
+     *  @see    #genStat(JCTree, Env)
      *
      *  @param  tree     The tree to be visited.
      *  @param  env      The environment to use.
@@ -707,7 +706,7 @@ public class Gen extends JCTree.Visitor {
         }
         int startpc = code.curPc();
         genStat(tree, env);
-        if (tree.getTag() == JCTree.BLOCK) crtFlags |= CRT_BLOCK;
+        if (tree.hasTag(Tag.BLOCK)) crtFlags |= CRT_BLOCK;
         code.crt.put(tree, crtFlags, startpc, code.curPc());
     }
 
@@ -717,7 +716,7 @@ public class Gen extends JCTree.Visitor {
         if (code.isAlive()) {
             code.statBegin(tree.pos);
             genDef(tree, env);
-        } else if (env.info.isSwitch && tree.getTag() == JCTree.VARDEF) {
+        } else if (env.info.isSwitch && tree.hasTag(VARDEF)) {
             // variables whose declarations are in a switch
             // can be used even if the decl is unreachable.
             code.newLocal(((JCVariableDecl) tree).sym);
@@ -760,7 +759,7 @@ public class Gen extends JCTree.Visitor {
      *  should be emitted, if so, put a new entry into CRTable
      *  and call method to generate bytecode.
      *  If not, just call method to generate bytecode.
-     *  @see    #genCond(Tree,boolean)
+     *  @see    #genCond(JCTree,boolean)
      *
      *  @param  tree     The tree to be visited.
      *  @param  crtFlags The CharacterRangeTable flags
@@ -784,7 +783,7 @@ public class Gen extends JCTree.Visitor {
      */
     public CondItem genCond(JCTree _tree, boolean markBranches) {
         JCTree inner_tree = TreeInfo.skipParens(_tree);
-        if (inner_tree.getTag() == JCTree.CONDEXPR) {
+        if (inner_tree.hasTag(CONDEXPR)) {
             JCConditional tree = (JCConditional)inner_tree;
             CondItem cond = genCond(tree.cond, CRT_FLOW_CONTROLLER);
             if (cond.isTrue()) {
@@ -820,6 +819,62 @@ public class Gen extends JCTree.Visitor {
         }
     }
 
+    /** Visitor class for expressions which might be constant expressions.
+     *  This class is a subset of TreeScanner. Intended to visit trees pruned by
+     *  Lower as long as constant expressions looking for references to any
+     *  ClassSymbol. Any such reference will be added to the constant pool so
+     *  automated tools can detect class dependencies better.
+     */
+    class ClassReferenceVisitor extends JCTree.Visitor {
+
+        @Override
+        public void visitTree(JCTree tree) {}
+
+        @Override
+        public void visitBinary(JCBinary tree) {
+            tree.lhs.accept(this);
+            tree.rhs.accept(this);
+        }
+
+        @Override
+        public void visitSelect(JCFieldAccess tree) {
+            if (tree.selected.type.hasTag(CLASS)) {
+                makeRef(tree.selected.pos(), tree.selected.type);
+            }
+        }
+
+        @Override
+        public void visitIdent(JCIdent tree) {
+            if (tree.sym.owner instanceof ClassSymbol) {
+                pool.put(tree.sym.owner);
+            }
+        }
+
+        @Override
+        public void visitConditional(JCConditional tree) {
+            tree.cond.accept(this);
+            tree.truepart.accept(this);
+            tree.falsepart.accept(this);
+        }
+
+        @Override
+        public void visitUnary(JCUnary tree) {
+            tree.arg.accept(this);
+        }
+
+        @Override
+        public void visitParens(JCParens tree) {
+            tree.expr.accept(this);
+        }
+
+        @Override
+        public void visitTypeCast(JCTypeCast tree) {
+            tree.expr.accept(this);
+        }
+    }
+
+    private ClassReferenceVisitor classReferenceVisitor = new ClassReferenceVisitor();
+
     /** Visitor method: generate code for an expression, catching and reporting
      *  any completion failures.
      *  @param tree    The expression to be visited.
@@ -830,6 +885,7 @@ public class Gen extends JCTree.Visitor {
         try {
             if (tree.type.constValue() != null) {
                 // Short circuit any expressions which are constants
+                tree.accept(classReferenceVisitor);
                 checkStringConstant(tree.pos(), tree.type.constValue());
                 result = items.makeImmediateItem(tree.type, tree.type.constValue());
             } else {
@@ -926,7 +982,7 @@ public class Gen extends JCTree.Visitor {
                 if (code.isAlive()) {
                     code.statBegin(TreeInfo.endPos(tree.body));
                     if (env.enclMethod == null ||
-                        env.enclMethod.sym.type.getReturnType().tag == VOID) {
+                        env.enclMethod.sym.type.getReturnType().hasTag(VOID)) {
                         code.emitop0(return_);
                     } else {
                         // sometime dead code seems alive (4415991);
@@ -959,6 +1015,9 @@ public class Gen extends JCTree.Visitor {
                     code.lastFrame = null;
                     code.frameBeforeLast = null;
                 }
+
+                //compress exception table
+                code.compressCatchTable();
             }
         }
 
@@ -1030,7 +1089,7 @@ public class Gen extends JCTree.Visitor {
         Env<GenContext> localEnv = env.dup(tree, new GenContext());
         genStats(tree.stats, localEnv);
         // End the scope of all block-local variables in variable info.
-        if (env.tree.getTag() != JCTree.METHODDEF) {
+        if (!env.tree.hasTag(METHODDEF)) {
             code.statBegin(tree.endpos);
             code.endScopes(limit);
             code.pendingStatPos = Position.NOPOS;
@@ -1111,7 +1170,7 @@ public class Gen extends JCTree.Visitor {
 
     public void visitSwitch(JCSwitch tree) {
         int limit = code.nextreg;
-        Assert.check(tree.selector.type.tag != CLASS);
+        Assert.check(!tree.selector.type.hasTag(CLASS));
         int startpcCrt = genCrt ? code.curPc() : 0;
         Item sel = genExpr(tree.selector, syms.intType);
         List<JCCase> cases = tree.cases;
@@ -1437,7 +1496,6 @@ public class Gen extends JCTree.Visitor {
                     code.markDead();
                 }
             }
-
             // Resolve all breaks.
             code.resolve(exitChain);
 
@@ -1496,23 +1554,21 @@ public class Gen extends JCTree.Visitor {
         void registerCatch(DiagnosticPosition pos,
                            int startpc, int endpc,
                            int handler_pc, int catch_type) {
-            if (startpc != endpc) {
-                char startpc1 = (char)startpc;
-                char endpc1 = (char)endpc;
-                char handler_pc1 = (char)handler_pc;
-                if (startpc1 == startpc &&
-                    endpc1 == endpc &&
-                    handler_pc1 == handler_pc) {
-                    code.addCatch(startpc1, endpc1, handler_pc1,
-                                  (char)catch_type);
+            char startpc1 = (char)startpc;
+            char endpc1 = (char)endpc;
+            char handler_pc1 = (char)handler_pc;
+            if (startpc1 == startpc &&
+                endpc1 == endpc &&
+                handler_pc1 == handler_pc) {
+                code.addCatch(startpc1, endpc1, handler_pc1,
+                              (char)catch_type);
+            } else {
+                if (!useJsrLocally && !target.generateStackMapTable()) {
+                    useJsrLocally = true;
+                    throw new CodeSizeOverflow();
                 } else {
-                    if (!useJsrLocally && !target.generateStackMapTable()) {
-                        useJsrLocally = true;
-                        throw new CodeSizeOverflow();
-                    } else {
-                        log.error(pos, "limit.code.too.large.for.try.stmt");
-                        nerrs++;
-                    }
+                    log.error(pos, "limit.code.too.large.for.try.stmt");
+                    nerrs++;
                 }
             }
         }
@@ -1628,11 +1684,11 @@ public class Gen extends JCTree.Visitor {
         // Optimize x++ to ++x and x-- to --x.
         JCExpression e = tree.expr;
         switch (e.getTag()) {
-            case JCTree.POSTINC:
-                ((JCUnary) e).setTag(JCTree.PREINC);
+            case POSTINC:
+                ((JCUnary) e).setTag(PREINC);
                 break;
-            case JCTree.POSTDEC:
-                ((JCUnary) e).setTag(JCTree.PREDEC);
+            case POSTDEC:
+                ((JCUnary) e).setTag(PREDEC);
                 break;
         }
         genExpr(tree.expr, tree.expr.type).drop();
@@ -1689,6 +1745,8 @@ public class Gen extends JCTree.Visitor {
         // outer instance of a super(...) call appears as first parameter).
         genArgs(tree.args,
                 TreeInfo.symbol(tree.meth).externalType(types).getParameterTypes());
+        code.statBegin(tree.pos);
+        code.markStatBegin();
         result = m.invoke();
     }
 
@@ -1817,13 +1875,13 @@ public class Gen extends JCTree.Visitor {
             // If we have an increment of -32768 to +32767 of a local
             // int variable we can use an incr instruction instead of
             // proceeding further.
-            if ((tree.getTag() == JCTree.PLUS_ASG || tree.getTag() == JCTree.MINUS_ASG) &&
+            if ((tree.hasTag(PLUS_ASG) || tree.hasTag(MINUS_ASG)) &&
                 l instanceof LocalItem &&
-                tree.lhs.type.tag <= INT &&
-                tree.rhs.type.tag <= INT &&
+                tree.lhs.type.getTag().isSubRangeOf(INT) &&
+                tree.rhs.type.getTag().isSubRangeOf(INT) &&
                 tree.rhs.type.constValue() != null) {
                 int ival = ((Number) tree.rhs.type.constValue()).intValue();
-                if (tree.getTag() == JCTree.MINUS_ASG) ival = -ival;
+                if (tree.hasTag(MINUS_ASG)) ival = -ival;
                 ((LocalItem)l).incr(ival);
                 result = l;
                 return;
@@ -1839,29 +1897,29 @@ public class Gen extends JCTree.Visitor {
 
     public void visitUnary(JCUnary tree) {
         OperatorSymbol operator = (OperatorSymbol)tree.operator;
-        if (tree.getTag() == JCTree.NOT) {
+        if (tree.hasTag(NOT)) {
             CondItem od = genCond(tree.arg, false);
             result = od.negate();
         } else {
             Item od = genExpr(tree.arg, operator.type.getParameterTypes().head);
             switch (tree.getTag()) {
-            case JCTree.POS:
+            case POS:
                 result = od.load();
                 break;
-            case JCTree.NEG:
+            case NEG:
                 result = od.load();
                 code.emitop0(operator.opcode);
                 break;
-            case JCTree.COMPL:
+            case COMPL:
                 result = od.load();
                 emitMinusOne(od.typecode);
                 code.emitop0(operator.opcode);
                 break;
-            case JCTree.PREINC: case JCTree.PREDEC:
+            case PREINC: case PREDEC:
                 od.duplicate();
                 if (od instanceof LocalItem &&
                     (operator.opcode == iadd || operator.opcode == isub)) {
-                    ((LocalItem)od).incr(tree.getTag() == JCTree.PREINC ? 1 : -1);
+                    ((LocalItem)od).incr(tree.hasTag(PREINC) ? 1 : -1);
                     result = od;
                 } else {
                     od.load();
@@ -1875,12 +1933,12 @@ public class Gen extends JCTree.Visitor {
                     result = items.makeAssignItem(od);
                 }
                 break;
-            case JCTree.POSTINC: case JCTree.POSTDEC:
+            case POSTINC: case POSTDEC:
                 od.duplicate();
                 if (od instanceof LocalItem &&
                     (operator.opcode == iadd || operator.opcode == isub)) {
                     Item res = od.load();
-                    ((LocalItem)od).incr(tree.getTag() == JCTree.POSTINC ? 1 : -1);
+                    ((LocalItem)od).incr(tree.hasTag(POSTINC) ? 1 : -1);
                     result = res;
                 } else {
                     Item res = od.load();
@@ -1896,7 +1954,7 @@ public class Gen extends JCTree.Visitor {
                     result = res;
                 }
                 break;
-            case JCTree.NULLCHK:
+            case NULLCHK:
                 result = od.load();
                 code.emitop0(dup);
                 genNullCheck(tree.pos());
@@ -1924,7 +1982,7 @@ public class Gen extends JCTree.Visitor {
             // Convert buffer to string.
             bufferToString(tree.pos());
             result = items.makeStackItem(syms.stringType);
-        } else if (tree.getTag() == JCTree.AND) {
+        } else if (tree.hasTag(AND)) {
             CondItem lcond = genCond(tree.lhs, CRT_FLOW_CONTROLLER);
             if (!lcond.isFalse()) {
                 Chain falseJumps = lcond.jumpFalse();
@@ -1938,7 +1996,7 @@ public class Gen extends JCTree.Visitor {
             } else {
                 result = lcond;
             }
-        } else if (tree.getTag() == JCTree.OR) {
+        } else if (tree.hasTag(OR)) {
             CondItem lcond = genCond(tree.lhs, CRT_FLOW_CONTROLLER);
             if (!lcond.isTrue()) {
                 Chain trueJumps = lcond.jumpTrue();
@@ -1971,7 +2029,7 @@ public class Gen extends JCTree.Visitor {
          */
         void appendString(JCTree tree) {
             Type t = tree.type.baseType();
-            if (t.tag > lastBaseTag && t.tsym != syms.stringType.tsym) {
+            if (!t.isPrimitive() && t.tsym != syms.stringType.tsym) {
                 t = syms.objectType;
             }
             items.makeMemberItem(getStringBufferAppend(tree, t), false).invoke();
@@ -1995,7 +2053,7 @@ public class Gen extends JCTree.Visitor {
          */
         void appendStrings(JCTree tree) {
             tree = TreeInfo.skipParens(tree);
-            if (tree.getTag() == JCTree.PLUS && tree.type.constValue() == null) {
+            if (tree.hasTag(PLUS) && tree.type.constValue() == null) {
                 JCBinary op = (JCBinary) tree;
                 if (op.operator.kind == MTH &&
                     ((OperatorSymbol) op.operator).opcode == string_add) {
@@ -2069,7 +2127,7 @@ public class Gen extends JCTree.Visitor {
         // which is not statically a supertype of the expression's type.
         // For basic types, the coerce(...) in genExpr(...) will do
         // the conversion.
-        if (tree.clazz.type.tag > lastBaseTag &&
+        if (!tree.clazz.type.isPrimitive() &&
             types.asSuper(tree.expr.type, tree.clazz.type.tsym) == null) {
             code.emitop2(checkcast, makeRef(tree.pos(), tree.clazz.type));
         }
@@ -2105,6 +2163,8 @@ public class Gen extends JCTree.Visitor {
             result = res;
         } else if (sym.kind == VAR && sym.owner.kind == MTH) {
             result = items.makeLocalItem((VarSymbol)sym);
+        } else if (isInvokeDynamic(sym)) {
+            result = items.makeDynamicItem(sym);
         } else if ((sym.flags() & STATIC) != 0) {
             if (!isAccessSuper(env.enclMethod))
                 sym = binaryQualifier(sym, env.enclClass.type);
@@ -2154,8 +2214,12 @@ public class Gen extends JCTree.Visitor {
             result = items.
                 makeImmediateItem(sym.type, ((VarSymbol) sym).getConstValue());
         } else {
-            if (!accessSuper)
+            if (isInvokeDynamic(sym)) {
+                result = items.makeDynamicItem(sym);
+                return;
+            } else if (!accessSuper) {
                 sym = binaryQualifier(sym, tree.selected.type);
+            }
             if ((sym.flags() & STATIC) != 0) {
                 if (!selectSuper && (ssym == null || ssym.kind != TYP))
                     base = base.load();
@@ -2176,8 +2240,12 @@ public class Gen extends JCTree.Visitor {
         }
     }
 
+    public boolean isInvokeDynamic(Symbol sym) {
+        return sym.kind == MTH && ((MethodSymbol)sym).isDynamic();
+    }
+
     public void visitLiteral(JCLiteral tree) {
-        if (tree.type.tag == TypeTags.BOT) {
+        if (tree.type.hasTag(BOT)) {
             code.emitop0(aconst_null);
             if (types.dimensions(pt) > 1) {
                 code.emitop2(checkcast, makeRef(tree.pos(), pt));
@@ -2197,6 +2265,15 @@ public class Gen extends JCTree.Visitor {
         code.endScopes(limit);
     }
 
+    private void generateReferencesToPrunedTree(ClassSymbol classSymbol, Pool pool) {
+        List<JCTree> prunedInfo = lower.prunedTree.get(classSymbol);
+        if (prunedInfo != null) {
+            for (JCTree prunedTree: prunedInfo) {
+                prunedTree.accept(classReferenceVisitor);
+            }
+        }
+    }
+
 /* ************************************************************************
  * main method
  *************************************************************************/
@@ -2213,7 +2290,7 @@ public class Gen extends JCTree.Visitor {
             attrEnv = env;
             ClassSymbol c = cdef.sym;
             this.toplevel = env.toplevel;
-            this.endPositions = toplevel.endPositions;
+            this.endPosTable = toplevel.endPositions;
             // If this is a class definition requiring Miranda methods,
             // add them.
             if (generateIproxies &&
@@ -2224,6 +2301,7 @@ public class Gen extends JCTree.Visitor {
             cdef.defs = normalizeDefs(cdef.defs, c);
             c.pool = pool;
             pool.reset();
+            generateReferencesToPrunedTree(c, pool);
             Env<GenContext> localEnv =
                 new Env<GenContext>(cdef, new GenContext());
             localEnv.toplevel = env.toplevel;
@@ -2238,7 +2316,7 @@ public class Gen extends JCTree.Visitor {
             if (nerrs != 0) {
                 // if errors, discard code
                 for (List<JCTree> l = cdef.defs; l.nonEmpty(); l = l.tail) {
-                    if (l.head.getTag() == JCTree.METHODDEF)
+                    if (l.head.hasTag(METHODDEF))
                         ((JCMethodDecl) l.head).sym.code = null;
                 }
             }
@@ -2249,7 +2327,7 @@ public class Gen extends JCTree.Visitor {
             attrEnv = null;
             this.env = null;
             toplevel = null;
-            endPositions = null;
+            endPosTable = null;
             nerrs = 0;
         }
     }

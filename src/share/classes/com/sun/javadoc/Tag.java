@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,14 +70,14 @@ public interface Tag {
      * than one tag of a given kind:
      * <p>
      * <table border="1" cellpadding="4" cellspacing="0">
-     * <tr><th><tt> kind()  </th>  <th><tt> name()      </th></tr>
-     * <tr><td><tt> @throws </td>  <td><tt> @throws     </td></tr>
-     * <tr><td><tt> @throws </td>  <td><tt> @exception  </td></tr>
-     * <tr><td><tt> @see    </td>  <td><tt> @see        </td></tr>
-     * <tr><td><tt> @see    </td>  <td><tt> @link       </td></tr>
-     * <tr><td><tt> @see    </td>  <td><tt> @linkplain  </td></tr>
-     * <tr><td><tt> @serial </td>  <td><tt> @serial     </td></tr>
-     * <tr><td><tt> @serial </td>  <td><tt> @serialData </td></tr>
+     * <tr><th><tt> kind()  </tt></th>  <th><tt> name()      </tt></th></tr>
+     * <tr><td><tt> @throws </tt></td>  <td><tt> @throws     </tt></td></tr>
+     * <tr><td><tt> @throws </tt></td>  <td><tt> @exception  </tt></td></tr>
+     * <tr><td><tt> @see    </tt></td>  <td><tt> @see        </tt></td></tr>
+     * <tr><td><tt> @see    </tt></td>  <td><tt> @link       </tt></td></tr>
+     * <tr><td><tt> @see    </tt></td>  <td><tt> @linkplain  </tt></td></tr>
+     * <tr><td><tt> @serial </tt></td>  <td><tt> @serial     </tt></td></tr>
+     * <tr><td><tt> @serial </tt></td>  <td><tt> @serialData </tt></td></tr>
      * </table>
      */
     String kind();
@@ -127,7 +127,7 @@ public interface Tag {
     /**
      * Return the first sentence of the comment as an array of tags.
      * Includes inline tags
-     * (i.e. {&#64link <i>reference</i>} tags)  but not
+     * (i.e. {&#64;link <i>reference</i>} tags)  but not
      * block tags.
      * Each section of plain text is represented as a {@link Tag}
      * of kind "Text".

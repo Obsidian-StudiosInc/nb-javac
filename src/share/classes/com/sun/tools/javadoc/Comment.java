@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,11 @@ import com.sun.tools.javac.util.ListBuffer;
  * Comment contains all information in comment part.
  *      It allows users to get first sentence of this comment, get
  *      comment for different tags...
+ *
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
+ *  This code and its internal interfaces are subject to change or
+ *  deletion without notice.</b>
  *
  * @author Kaiyang Liu (original)
  * @author Robert Field (rewrite)
@@ -386,7 +391,7 @@ class Comment {
     }
 
     /**
-     * Recursively search for the string "{@" followed by
+     * Recursively search for the characters '{', '@', followed by
      * name of inline tag and white space,
      * if found
      *    return the index of the text following the white space.

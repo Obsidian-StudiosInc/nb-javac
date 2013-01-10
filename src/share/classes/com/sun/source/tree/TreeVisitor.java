@@ -85,9 +85,11 @@ public interface TreeVisitor<R,P> {
     R visitModifiers(ModifiersTree node, P p);
     R visitNewArray(NewArrayTree node, P p);
     R visitNewClass(NewClassTree node, P p);
+    R visitLambdaExpression(LambdaExpressionTree node, P p);
     R visitParenthesized(ParenthesizedTree node, P p);
     R visitReturn(ReturnTree node, P p);
     R visitMemberSelect(MemberSelectTree node, P p);
+    R visitMemberReference(MemberReferenceTree node, P p);
     R visitEmptyStatement(EmptyStatementTree node, P p);
     R visitSwitch(SwitchTree node, P p);
     R visitSynchronized(SynchronizedTree node, P p);
@@ -96,6 +98,7 @@ public interface TreeVisitor<R,P> {
     R visitTry(TryTree node, P p);
     R visitParameterizedType(ParameterizedTypeTree node, P p);
     R visitUnionType(UnionTypeTree node, P p);
+    R visitIntersectionType(IntersectionTypeTree node, P p);
     R visitArrayType(ArrayTypeTree node, P p);
     R visitTypeCast(TypeCastTree node, P p);
     R visitPrimitiveType(PrimitiveTypeTree node, P p);

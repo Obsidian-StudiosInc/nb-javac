@@ -60,6 +60,7 @@ import javax.lang.model.type.*;
  * @author Peter von der Ah&eacute;
  *
  * @see AbstractTypeVisitor7
+ * @see AbstractTypeVisitor8
  * @since 1.6
  */
 public abstract class AbstractTypeVisitor6<R, P> implements TypeVisitor<R, P> {
@@ -106,6 +107,20 @@ public abstract class AbstractTypeVisitor6<R, P> implements TypeVisitor<R, P> {
      * @since 1.7
      */
     public R visitUnion(UnionType t, P p) {
+        return visitUnknown(t, p);
+    }
+
+    /**
+     * Visits an {@code IntersectionType} element by calling {@code
+     * visitUnknown}.
+
+     * @param t  {@inheritDoc}
+     * @param p  {@inheritDoc}
+     * @return the result of {@code visitUnknown}
+     *
+     * @since 1.8
+     */
+    public R visitIntersection(IntersectionType t, P p) {
         return visitUnknown(t, p);
     }
 

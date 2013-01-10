@@ -282,6 +282,12 @@ public class TreeTranslator extends JCTree.Visitor {
         result = tree;
     }
 
+    public void visitLambda(JCLambda tree) {
+        tree.params = translate(tree.params);
+        tree.body = translate(tree.body);
+        result = tree;
+    }
+
     public void visitNewArray(JCNewArray tree) {
         tree.elemtype = translate(tree.elemtype);
         tree.dims = translate(tree.dims);
@@ -340,6 +346,11 @@ public class TreeTranslator extends JCTree.Visitor {
         result = tree;
     }
 
+    public void visitReference(JCMemberReference tree) {
+        tree.expr = translate(tree.expr);
+        result = tree;
+    }
+
     public void visitIdent(JCIdent tree) {
         result = tree;
     }
@@ -365,6 +376,11 @@ public class TreeTranslator extends JCTree.Visitor {
 
     public void visitTypeUnion(JCTypeUnion tree) {
         tree.alternatives = translate(tree.alternatives);
+        result = tree;
+    }
+
+    public void visitTypeIntersection(JCTypeIntersection tree) {
+        tree.bounds = translate(tree.bounds);
         result = tree;
     }
 

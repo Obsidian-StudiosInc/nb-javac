@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@ import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.util.*;
 
-import static com.sun.tools.javac.main.OptionName.*;
+import static com.sun.tools.javac.main.Option.*;
 
 /** The classfile version target.
  *
@@ -66,7 +66,10 @@ public enum Target {
     JDK1_6("1.6", 50, 0),
 
     /** JDK 7. */
-    JDK1_7("1.7", 51, 0);
+    JDK1_7("1.7", 51, 0),
+
+    /** JDK 8. */
+    JDK1_8("1.8", 52, 0);
 
     private static final Context.Key<Target> targetKey =
         new Context.Key<Target>();
@@ -83,22 +86,21 @@ public enum Target {
         return instance;
     }
 
-    private static Target MIN;
+    private static final Target MIN = values()[0];
     public static Target MIN() { return MIN; }
 
-    private static Target MAX;
+    private static final Target MAX = values()[values().length - 1];
     public static Target MAX() { return MAX; }
 
-    private static Map<String,Target> tab = new HashMap<String,Target>();
+    private static final Map<String,Target> tab = new HashMap<String,Target>();
     static {
         for (Target t : values()) {
-            if (MIN == null) MIN = t;
-            MAX = t;
             tab.put(t.name, t);
         }
         tab.put("5", JDK1_5);
         tab.put("6", JDK1_6);
         tab.put("7", JDK1_7);
+        tab.put("8", JDK1_8);
     }
 
     public final String name;
@@ -110,7 +112,7 @@ public enum Target {
         this.minorVersion = minorVersion;
     }
 
-    public static final Target DEFAULT = JDK1_7;
+    public static final Target DEFAULT = JDK1_8;
 
     public static Target lookup(String name) {
         return tab.get(name);

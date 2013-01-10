@@ -25,12 +25,17 @@
 
 package com.sun.tools.doclets.internal.toolkit.taglets;
 
+import com.sun.javadoc.*;
 import com.sun.tools.doclets.internal.toolkit.*;
 import com.sun.tools.doclets.internal.toolkit.util.*;
-import com.sun.javadoc.*;
 
 /**
  * The interface for the taglet writer.
+ *
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
+ *  This code and its internal interfaces are subject to change or
+ *  deletion without notice.</b>
  *
  * @since 1.5
  * @author Jamie Ho
@@ -41,7 +46,11 @@ public abstract class TagletWriter {
     /**
      * True if we only want to write the first sentence.
      */
-    protected boolean isFirstSentence = false;
+    protected final boolean isFirstSentence;
+
+    protected TagletWriter(boolean isFirstSentence) {
+        this.isFirstSentence = isFirstSentence;
+    }
 
     /**
      * @return an instance of the output object.
@@ -171,7 +180,6 @@ public abstract class TagletWriter {
         tagletManager.checkTags(doc, doc.inlineTags(), true);
         TagletOutput currentOutput = null;
         for (int i = 0; i < taglets.length; i++) {
-            currentOutput = null;
             if (doc instanceof ClassDoc && taglets[i] instanceof ParamTaglet) {
                 //The type parameters are documented in a special section away
                 //from the tag info, so skip here.

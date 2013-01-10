@@ -60,7 +60,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVisitor;
 import javax.lang.model.util.ElementFilter;
-import javax.lang.model.util.SimpleTypeVisitor7;
+import javax.lang.model.util.SimpleTypeVisitor8;
 import javax.lang.model.util.Types;
 
 import javax.tools.Diagnostic;
@@ -79,7 +79,7 @@ import com.sun.tools.javac.main.CommandLine;
 
 /**
  * Javah generates support files for native methods.
- * Parse commandline options & Invokes javadoc to execute those commands.
+ * Parse commandline options and invokes javadoc to execute those commands.
  *
  * <p><b>This is NOT part of any supported API.
  * If you write code that depends on this, you do so at your own
@@ -147,7 +147,7 @@ public class JavahTask implements NativeHeaderTool.NativeHeaderTask {
         }
     }
 
-    static Option[] recognizedOptions = {
+    static final Option[] recognizedOptions = {
         new Option(true, "-o") {
             void process(JavahTask task, String opt, String arg) {
                 task.ofile = new File(arg);
@@ -500,7 +500,7 @@ public class JavahTask implements NativeHeaderTool.NativeHeaderTask {
         g.setForce(force);
 
         if (fileManager instanceof JavahFileManager)
-            ((JavahFileManager) fileManager).setIgnoreSymbolFile(true);
+            ((JavahFileManager) fileManager).setSymbolFileEnabled(false);
 
         JavaCompiler c = ToolProvider.getSystemJavaCompiler();
         List<String> opts = new ArrayList<String>();
@@ -745,7 +745,7 @@ public class JavahTask implements NativeHeaderTool.NativeHeaderTask {
         }
 
         private TypeVisitor<Void,Types> checkMethodParametersVisitor =
-                new SimpleTypeVisitor7<Void,Types>() {
+                new SimpleTypeVisitor8<Void,Types>() {
             @Override
             public Void visitArray(ArrayType t, Types types) {
                 visit(t.getComponentType(), types);

@@ -25,15 +25,16 @@
 
 package com.sun.tools.doclets.internal.toolkit;
 
-import com.sun.tools.doclets.internal.toolkit.util.*;
 import com.sun.javadoc.*;
+import com.sun.tools.doclets.internal.toolkit.util.*;
 
 /**
  * The interface for a factory creates writers.
  *
- * This code is not part of an API.
- * It is implementation that is subject to change.
- * Do not use it as an API
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
+ *  This code and its internal interfaces are subject to change or
+ *  deletion without notice.</b>
  *
  * @author Jamie Ho
  * @since 1.4
@@ -143,16 +144,6 @@ public interface WriterFactory {
      * writer is not supported by the doclet.
      */
     public abstract FieldWriter getFieldWriter(ClassWriter classWriter)
-            throws Exception;
-
-    /**
-     * Return the property writer for a given class.
-     *
-     * @param classWriter the writer for the class being documented.
-     * @return the property writer for the give class.  Return null if this
-     * writer is not supported by the doclet.
-     */
-    public abstract PropertyWriter getPropertyWriter(ClassWriter classWriter)
             throws Exception;
 
     /**
