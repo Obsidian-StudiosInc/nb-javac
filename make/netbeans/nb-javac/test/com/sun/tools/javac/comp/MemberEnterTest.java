@@ -32,11 +32,13 @@ import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.api.JavacTaskImpl;
 import global.AnnotationProcessingTest;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
@@ -116,4 +118,15 @@ public class MemberEnterTest extends TestCase {
         assertEquals(3, found[0]);
     }
 
+    public void testVeryBrokenLambdaNoException() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test; public class Test { private void t() { Iterable<Integer> map = null; Integer reduce = map.reduce(0, (o, t) -); } }";
+
+        DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new com.sun.tools.javac.comp.AttrTest.MyFileObject(code)));
+        ct.analyze();
+    }
 }

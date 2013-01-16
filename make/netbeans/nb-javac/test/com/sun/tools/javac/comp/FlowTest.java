@@ -196,4 +196,23 @@ public class FlowTest extends TestCase {
         assertNotNull("Must run on JDK7 with ARM", ct.getElements().getTypeElement("java.lang.AutoCloseable"));
         ct.analyze();
     }
+
+    public void testReturnInInitializer() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test;\n" +
+                      "class Test{\n" +
+                      "    {\n" +
+                      "        return ;\n" +
+                      "    }\n" +
+                      "}";
+
+        DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+
+        ct.analyze();
+    }
 }

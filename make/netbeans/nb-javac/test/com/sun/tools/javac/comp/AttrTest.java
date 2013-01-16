@@ -25,10 +25,19 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.LambdaExpressionTree;
+import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.VariableTree;
+import com.sun.source.util.SourcePositions;
+import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
+import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
+import com.sun.tools.javac.api.JavacScope;
 import com.sun.tools.javac.api.JavacTaskImpl;
+import com.sun.tools.javac.api.JavacTrees;
+import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCLambda;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
@@ -42,6 +51,8 @@ import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertNotNull;
 import junit.framework.TestCase;
 
 /**
@@ -310,5 +321,92 @@ public class AttrTest extends TestCase {
         }
         
         assertEquals(new HashSet<String>(Arrays.asList("/API.java:44-49:compiler.err.cant.resolve.location", "/Use.java:64-77:compiler.err.type.error")), diagnostics);
+    }
+
+    public void testLambda1() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test; public class Test { public static void main(String[] args) { Task<String> t = (String c) -> { System.err.println(\"Lambda!\"); return ; }; } public interface Task<C> { public void run(C c); } }";
+
+        DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        ct.analyze();
+
+        assertEquals(dc.getDiagnostics().toString(), 0, dc.getDiagnostics().size());
+    }
+
+    public void testLambda2() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test; public class Test { Task<String> t = (String c) -> { System.err.println(\"Lambda!\"); return ; }; public interface Task<C> { public void run(C c); } }";
+
+        DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        ct.analyze();
+
+        assertEquals(dc.getDiagnostics().toString(), 0, dc.getDiagnostics().size());
+    }
+    
+    public void testNonVoidReturnType() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test; public class Test { private void t() { r(() -> { return 1; }); } private int r(Task t) { return t.run(); } public interface Task { public int run(); } }";
+
+        DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        ct.analyze();
+
+        assertEquals(dc.getDiagnostics().toString(), 0, dc.getDiagnostics().size());
+    }
+    
+    public void testBreakAttrDuringLambdaAttribution() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test; public class Test { public void t(Comparable c) { } }";
+
+        DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        
+        ct.analyze();
+        
+        final JavacScope[] scope = new JavacScope[1];
+        
+        new TreePathScanner<Void, Void>() {
+            @Override public Void visitMethod(MethodTree node, Void p) {
+                if (node.getName().contentEquals("t"))
+                    scope[0] = JavacTrees.instance(ct.getContext()).getScope(new TreePath(getCurrentPath(), node.getBody()));
+                return super.visitMethod(node, p); //To change body of generated methods, choose Tools | Templates.
+            }
+        }.scan(cut, null);
+        
+        JCTree.JCStatement statement = ct.parseStatement("t((other) -> return 0;)", new SourcePositions[1], new DiagnosticCollector<JavaFileObject>());
+        
+        final JCTree[] attributeTo = new JCTree[1];
+        final JCLambda[] lambdaTree = new JCLambda[1];
+        
+        new TreeScanner<Void, Void>() {
+            @Override public Void visitVariable(VariableTree node, Void p) {
+                attributeTo[0] = (JCTree) node;
+                return super.visitVariable(node, p); //To change body of generated methods, choose Tools | Templates.
+            }
+
+            @Override
+            public Void visitLambdaExpression(LambdaExpressionTree node, Void p) {
+                lambdaTree[0] = (JCLambda) node;
+                return super.visitLambdaExpression(node, p); //To change body of generated methods, choose Tools | Templates.
+            }            
+        }.scan(statement, null);
+                
+        ct.attributeTreeTo(statement, scope[0].getEnv(), attributeTo[0]);
+        assertNotNull(lambdaTree[0].type);
     }
 }
