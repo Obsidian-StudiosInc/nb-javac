@@ -31,6 +31,7 @@ import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionStatementTree;
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ModifiersTree;
@@ -40,12 +41,14 @@ import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
 import com.sun.source.util.SourcePositions;
+import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.tools.javac.tree.JCTree;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -184,6 +187,7 @@ public class JavacParserTest extends TestCase {
             "throw UnsupportedOperationException()",
             "assert true",
             "1 + 1",
+            "vartype varname",
         };
 
         for (String command : commands) {
@@ -301,6 +305,7 @@ public class JavacParserTest extends TestCase {
         performPositionsSanityTest("package test; class Test { private void method() { java.util.List<? extends java.util.List<? extends String>> l; } }");
         performPositionsSanityTest("package test; class Test { private void method() { java.util.List<? super java.util.List<? super String>> l; } }");
         performPositionsSanityTest("package test; class Test { private void method() { java.util.List<? super java.util.List<?>> l; } }");
+        performPositionsSanityTest("package test; class Test { private void method() { java.util.List<String> l = null; l.reduce(null, (String s1, String s2) -> { return s1; }); } }");
     }
 
     private void performPositionsSanityTest(String code) throws IOException {
@@ -539,7 +544,8 @@ public class JavacParserTest extends TestCase {
             codes.add(d.getCode());
         }
 
-        assertEquals(Arrays.<String>asList("compiler.err.illegal.start.of.expr"), codes);
+        assertEquals(Arrays.<String>asList("compiler.err.expected3"), codes);//TODO: was "compiler.err.illegal.start.of.expr" before JDK8 merge
+//        assertEquals(Arrays.<String>asList("compiler.err.illegal.start.of.expr"), codes);
     }
 
     //see javac bug #6882235, NB bug #98234:
@@ -599,4 +605,54 @@ public class JavacParserTest extends TestCase {
         }.scan(cut, null);
     }
 
+    public void testLambdaPositions() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        final String code = "package test; class Test { private void method() { java.util.List<String> l = null; l.reduce(null, (String s1, String s2) -> { return s1 + s2; }); } }";
+
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final CompilationUnitTree cut = ct.parse().iterator().next();
+        final Trees trees = Trees.instance(ct);
+        final List<String> content = new ArrayList<String>();
+
+        new TreePathScanner<Void, Void>() {
+            boolean record;
+            @Override
+            public Void scan(Tree node, Void p) {
+                if (node == null) return null;
+
+                if (record) {
+                    long start = trees.getSourcePositions().getStartPosition(cut, node);
+
+                    if (start == (-1)) {
+                        return null; //synthetic tree
+                    }
+
+                    long end = trees.getSourcePositions().getEndPosition(cut, node);
+
+                    content.add(code.substring((int) start, (int) end));
+                }
+
+                return super.scan(node, p);
+            }
+
+            @Override
+            public Void visitLambdaExpression(LambdaExpressionTree node, Void p) {
+                boolean old = record;
+
+                record = true;
+
+                try {
+                    return super.visitLambdaExpression(node, p);
+                } finally {
+                    record = old;
+                }
+            }
+
+        }.scan(cut, null);
+
+        assertEquals(Arrays.asList("String s1", "String", "String s2", "String", "{ return s1 + s2; }", "return s1 + s2;", "s1 + s2", "s1", "s2"), content);
+    }
 }

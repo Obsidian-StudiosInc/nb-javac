@@ -43,7 +43,7 @@ public class FlagsTest extends TestCase {
         super(testName);
     }
 
-    private static final Set<String> ignoredFields = new HashSet<String>(Arrays.asList("ACC_SUPER", "ACC_BRIDGE", "ACC_VARARGS"));
+    private static final Set<String> ignoredFields = new HashSet<String>(Arrays.asList("ACC_SUPER", "ACC_BRIDGE", "ACC_VARARGS", "ACC_DEFENDER"));
     public void testCheckFlagsNotClashing() throws Exception {
         Map<Long, String> value2Name = new HashMap<Long, String>();
 

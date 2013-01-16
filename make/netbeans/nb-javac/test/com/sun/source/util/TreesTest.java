@@ -27,6 +27,7 @@ package com.sun.source.util;
 
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Scope;
 import com.sun.source.tree.Tree;
@@ -40,6 +41,7 @@ import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
@@ -224,6 +226,72 @@ public class TreesTest extends TestCase {
                     found.set(true);
                 }
                 return super.visitMethod(node, p);
+            }
+        }.scan(cut, null);
+
+        assertTrue(found.get());
+    }
+
+    public void XtestStartPositionForBrokenLambdaParameter() throws IOException {
+        final String code = "package test;\n" +
+                  "public class Test {\n" +
+                  "    public Test() {\n" +
+                  "        Object o = (str -> {System.err.println(str);});\n" +
+                  "    }\n" +
+                  "}\n";
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-XDide"), null, Arrays.asList(new MyFileObject(code)));
+
+        final CompilationUnitTree cut = ct.parse().iterator().next();
+
+        ct.analyze();
+
+        final Trees trees = JavacTrees.instance(ct);
+        final AtomicBoolean found = new AtomicBoolean();
+
+        new TreePathScanner<Void, Void>() {
+            @Override public Void visitVariable(VariableTree node, Void p) {
+                if ("str".equals(node.getName().toString())) {
+                    assertEquals(74, trees.getSourcePositions().getStartPosition(cut, node));
+                    found.set(true);
+                }
+                return super.visitVariable(node, p);
+            }
+        }.scan(cut, null);
+
+        assertTrue(found.get());
+    }
+
+    public void testGetElementForMemberReference() throws IOException {
+        final String code = "package test;\n" +
+                  "public class Test {\n" +
+                  "    private static void method() {\n" +
+                  "        javax.swing.SwingUtilities.invokeLater(Test::method);\n" +
+                  "    }\n" +
+                  "}\n";
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", "1.8"), null, Arrays.asList(new MyFileObject(code)));
+
+        final CompilationUnitTree cut = ct.parse().iterator().next();
+
+        ct.analyze();
+
+        final Trees trees = JavacTrees.instance(ct);
+        final AtomicBoolean found = new AtomicBoolean();
+
+        new TreePathScanner<Void, Void>() {
+            @Override public Void visitMemberReference(MemberReferenceTree node, Void p) {
+                Element el = trees.getElement(getCurrentPath());
+                assertNotNull(el);
+                assertEquals(ElementKind.METHOD, el.getKind());
+                assertEquals("method", el.getSimpleName().toString());
+                assertEquals("test.Test", ((TypeElement) el.getEnclosingElement()).getQualifiedName().toString());
+                found.set(true);
+                return super.visitMemberReference(node, p);
             }
         }.scan(cut, null);
 
