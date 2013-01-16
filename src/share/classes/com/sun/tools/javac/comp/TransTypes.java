@@ -367,6 +367,8 @@ public class TransTypes extends TreeTranslator {
         private boolean isBridgeNeeded(MethodSymbol method,
                                        MethodSymbol impl,
                                        Type dest) {
+            if (method.type.isErroneous())
+                return false;
             if (impl != method) {
                 // If either method or impl have different erasures as
                 // members of dest, a bridge is needed.

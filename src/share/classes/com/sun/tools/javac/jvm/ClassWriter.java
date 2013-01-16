@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.logging.Logger;
 
 import javax.tools.JavaFileManager;
 import javax.tools.FileObject;
@@ -99,7 +100,7 @@ public class ClassWriter extends ClassFile {
     /** Switch: describe the generated stackmap
      */
     boolean debugstackmap;
-
+    
     /**
      * Target class version.
      */
@@ -158,6 +159,10 @@ public class ClassWriter extends ClassFile {
 
     /** Access to files. */
     private final JavaFileManager fileManager;
+    
+    private boolean allowGenerics;
+    private boolean preserveErrors = false;
+    private ClassSymbol generatedClass;
 
     /** The tags and constants used in compressed stackmap. */
     static final int SAME_FRAME_SIZE = 64;
@@ -207,6 +212,8 @@ public class ClassWriter extends ClassFile {
             (dumpModFlags != null && dumpModFlags.indexOf('i') != -1);
         dumpMethodModifiers =
             (dumpModFlags != null && dumpModFlags.indexOf('m') != -1);
+        
+        allowGenerics = source.allowGenerics() || options.get("ide") != null;
     }
 
 /******************************************************************
@@ -307,6 +314,13 @@ public class ClassWriter extends ClassFile {
         case VOID:
             sigbuf.appendByte('V');
             break;
+        case ERROR:
+            if (preserveErrors) {
+                sigbuf.appendByte('R');
+                assembleClassSig(type);
+                sigbuf.appendByte(';');
+                break;
+            }
         case CLASS:
             sigbuf.appendByte('L');
             assembleClassSig(type);
@@ -396,7 +410,12 @@ public class ClassWriter extends ClassFile {
                               ? c.flatname.subName(c.owner.enclClass().flatname.getByteLength()+1,c.flatname.getByteLength())
                               : c.name);
         } else {
-            sigbuf.appendBytes(externalize(c.flatname));
+            if (c == syms.errSymbol) {
+                Logger.getLogger(ClassWriter.class.getName()).warning("ClassWriter.assembleClassSig: <any> appears in the [" + generatedClass + "]'s signature."); //NOI18N
+                sigbuf.appendBytes(externalize(names.java_lang_Object));
+            } else {
+                sigbuf.appendBytes(externalize(c.flatname));
+            }
         }
         if (ct.getTypeArguments().nonEmpty()) {
             sigbuf.appendByte('<');
@@ -444,6 +463,8 @@ public class ClassWriter extends ClassFile {
      *  external representation.
      */
     public Name xClassName(Type t) {
+        if (t.hasTag(ERROR))
+            t = syms.objectType;
         if (t.hasTag(CLASS)) {
             return names.fromUtf(externalize(t.tsym.flatName()));
         } else if (t.hasTag(ARRAY)) {
@@ -709,7 +730,7 @@ public class ClassWriter extends ClassFile {
     int writeMemberAttrs(Symbol sym) {
         int acount = writeFlagAttrs(sym.flags());
         long flags = sym.flags();
-        if (source.allowGenerics() &&
+        if (allowGenerics &&
             (flags & (SYNTHETIC|BRIDGE)) != SYNTHETIC &&
             (flags & ANONCONSTR) == 0 &&
             (!types.isSameType(sym.type, sym.erasure(types)) ||
@@ -722,6 +743,17 @@ public class ClassWriter extends ClassFile {
             acount++;
         }
         acount += writeJavaAnnotations(sym.getRawAttributes());
+        if (sym.externalType(types).isErroneous()) {
+            int rsIdx = writeAttr(names._org_netbeans_TypeSignature);
+            try {
+                preserveErrors = true;
+                databuf.appendChar(pool.put(typeSig(sym.type)));
+            } finally {
+                preserveErrors = false;
+            }
+            endAttr(rsIdx);
+            acount++;
+        }
         return acount;
     }
 
@@ -753,10 +785,11 @@ public class ClassWriter extends ClassFile {
     int writeParameterAttrs(MethodSymbol m) {
         boolean hasVisible = false;
         boolean hasInvisible = false;
+        boolean hasSourceLevel = false;
         if (m.params != null) for (VarSymbol s : m.params) {
             for (Attribute.Compound a : s.getRawAttributes()) {
                 switch (types.getRetention(a)) {
-                case SOURCE: break;
+                case SOURCE: hasSourceLevel = true; break;
                 case CLASS: hasInvisible = true; break;
                 case RUNTIME: hasVisible = true; break;
                 default: ;// /* fail soft */ throw new AssertionError(vis);
@@ -795,6 +828,28 @@ public class ClassWriter extends ClassFile {
             endAttr(attrIndex);
             attrCount++;
         }
+        if (hasSourceLevel) {
+            int attrIndex = writeAttr(names._org_netbeans_SourceLevelParameterAnnotations);
+            databuf.appendByte(m.params.length());
+            for (VarSymbol s : m.params) {
+                ListBuffer<Attribute.Compound> buf = new ListBuffer<Attribute.Compound>();
+                for (Attribute.Compound a : s.getAnnotationMirrors())
+                    if (types.getRetention(a) == RetentionPolicy.SOURCE)
+                        buf.append(a);
+                databuf.appendChar(buf.length());
+                for (Attribute.Compound a : buf)
+                    writeCompoundAttribute(a);
+            }
+            endAttr(attrIndex);
+            attrCount++;
+        }
+        if (m.code == null && m.params != null && m.params.nonEmpty()) {
+            int attrIndex = writeAttr(names._org_netbeans_ParameterNames);
+            for (VarSymbol s : m.params)
+                databuf.appendChar(pool.put(s.name));
+            endAttr(attrIndex);
+            attrCount++;
+        }
         return attrCount;
     }
 
@@ -809,9 +864,10 @@ public class ClassWriter extends ClassFile {
         if (attrs.isEmpty()) return 0;
         ListBuffer<Attribute.Compound> visibles = new ListBuffer<Attribute.Compound>();
         ListBuffer<Attribute.Compound> invisibles = new ListBuffer<Attribute.Compound>();
+        ListBuffer<Attribute.Compound> sourceLevel = new ListBuffer<Attribute.Compound>();
         for (Attribute.Compound a : attrs) {
             switch (types.getRetention(a)) {
-            case SOURCE: break;
+            case SOURCE: sourceLevel.append(a); break;
             case CLASS: invisibles.append(a); break;
             case RUNTIME: visibles.append(a); break;
             default: ;// /* fail soft */ throw new AssertionError(vis);
@@ -831,6 +887,14 @@ public class ClassWriter extends ClassFile {
             int attrIndex = writeAttr(names.RuntimeInvisibleAnnotations);
             databuf.appendChar(invisibles.length());
             for (Attribute.Compound a : invisibles)
+                writeCompoundAttribute(a);
+            endAttr(attrIndex);
+            attrCount++;
+        }
+        if (sourceLevel.length() != 0) {
+            int attrIndex = writeAttr(names._org_netbeans_SourceLevelAnnotations);
+            databuf.appendChar(sourceLevel.length());
+            for (Attribute.Compound a : sourceLevel)
                 writeCompoundAttribute(a);
             endAttr(attrIndex);
             attrCount++;
@@ -930,7 +994,7 @@ public class ClassWriter extends ClassFile {
             System.err.println("error: " + c + ": " + ex.getMessage());
             throw ex;
         }
-        if (!c.type.hasTag(CLASS)) return; // arrays
+        if (!c.type.hasTag(CLASS) && !c.type.hasTag(ERROR)) return; // arrays
         if (pool != null && // pool might be null if called from xClassName
             c.owner.enclClass() != null &&
             (innerClasses == null || !innerClasses.contains(c))) {
@@ -1037,7 +1101,6 @@ public class ClassWriter extends ClassFile {
         if (m.code != null) {
             int alenIdx = writeAttr(names.Code);
             writeCode(m.code);
-            m.code = null; // to conserve space
             endAttr(alenIdx);
             acount++;
         }
@@ -1061,6 +1124,7 @@ public class ClassWriter extends ClassFile {
         acount += writeMemberAttrs(m);
         acount += writeParameterAttrs(m);
         endAttrs(acountIdx, acount);
+        m.code = null; // to conserve space
     }
 
     /** Write code attribute of method.
@@ -1265,6 +1329,8 @@ public class ClassWriter extends ClassFile {
                 if (debugstackmap) System.out.print("null");
                 databuf.appendByte(5);
                 break;
+            case ERROR:
+                t = syms.objectType;
             case CLASS:
             case ARRAY:
                 if (debugstackmap) System.out.print("object(" + t + ")");
@@ -1561,6 +1627,7 @@ public class ClassWriter extends ClassFile {
     public void writeClassFile(OutputStream out, ClassSymbol c)
         throws IOException, PoolOverflow, StringOverflow {
         Assert.check((c.flags() & COMPOUND) == 0);
+        generatedClass = c;
         databuf.reset();
         poolbuf.reset();
         sigbuf.reset();
@@ -1587,6 +1654,8 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(flags);
 
         databuf.appendChar(pool.put(c));
+        if (supertype.hasTag(ERROR))
+            supertype = syms.objectType;
         databuf.appendChar(supertype.hasTag(CLASS) ? pool.put(supertype.tsym) : 0);
         databuf.appendChar(interfaces.length());
         for (List<Type> l = interfaces; l.nonEmpty(); l = l.tail)
@@ -1598,8 +1667,9 @@ public class ClassWriter extends ClassFile {
             case VAR: fieldsCount++; break;
             case MTH: if ((e.sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
                       break;
-            case TYP: enterInner((ClassSymbol)e.sym); break;
-            default : Assert.error();
+            case TYP:
+            case ERR: enterInner((ClassSymbol)e.sym); break;
+            default : Assert.error("ClassWriter.writeClassFile: Member [" + e.sym + "] of a kind ["+ e.sym.kind + "] contained in class [" + c + "]."); //NOI18N
             }
         }
 
@@ -1622,7 +1692,7 @@ public class ClassWriter extends ClassFile {
         for (List<Type> l = interfaces; !sigReq && l.nonEmpty(); l = l.tail)
             sigReq = l.head.allparams().length() != 0;
         if (sigReq) {
-            Assert.check(source.allowGenerics());
+            Assert.check(allowGenerics);
             int alenIdx = writeAttr(names.Signature);
             if (typarams.length() != 0) assembleParamsSig(typarams);
             assembleSig(supertype);
