@@ -79,10 +79,15 @@ public class DeferredLintHandler {
             loggersQueue.remove(pos);
         }
     }
+    
+    public DiagnosticPosition getPos() {
+        return currentPos;
+    }
 
     public DeferredLintHandler setPos(DiagnosticPosition currentPos) {
         this.currentPos = currentPos;
-        loggersQueue.put(currentPos, ListBuffer.<LintLogger>lb());
+        if (!loggersQueue.containsKey(currentPos))
+            loggersQueue.put(currentPos, ListBuffer.<LintLogger>lb());
         return this;
     }
 
@@ -90,6 +95,11 @@ public class DeferredLintHandler {
         @Override
         public void report(LintLogger logger) {
             logger.report();
+        }
+        @Override
+        public DeferredLintHandler setPos(DiagnosticPosition currentPos) {
+            super.currentPos = currentPos;
+            return this;
         }
     };
 }

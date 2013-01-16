@@ -28,6 +28,7 @@ package com.sun.tools.javac.util;
 import java.io.*;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
@@ -38,6 +39,7 @@ import com.sun.tools.javac.api.DiagnosticFormatter;
 import com.sun.tools.javac.main.Main;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.tree.EndPosTable;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
 
@@ -221,6 +223,11 @@ public class Log extends AbstractLog {
      */
     private DiagnosticHandler diagnosticHandler;
 
+    private boolean partialReparse;
+
+    private final Set<Pair<JavaFileObject, Integer>> partialReparseRecorded = new HashSet<Pair<JavaFileObject,Integer>>();
+    private final HashMap<JCTree, JCDiagnostic> errTrees = new HashMap<JCTree, JCDiagnostic>();
+
     /** Construct a log with given I/O redirections.
      */
     protected Log(Context context, PrintWriter errWriter, PrintWriter warnWriter, PrintWriter noticeWriter) {
@@ -343,10 +350,30 @@ public class Log extends AbstractLog {
         getSource(name).setEndPosTable(endPosTable);
     }
 
+    public void startPartialReparse () {
+        assert partialReparseRecorded.isEmpty();
+        this.nerrors = 0;
+        this.nwarnings = 0;
+        this.partialReparse = true;
+    }
+
+    public void endPartialReparse () {
+        this.partialReparseRecorded.clear();
+        this.partialReparse = false;
+    }
+
     /** Return current sourcefile.
      */
     public JavaFileObject currentSourceFile() {
         return source == null ? null : source.getFile();
+    }
+
+    public DiagnosticListener<? super JavaFileObject> getDiagnosticListener() {
+        return diagListener;
+    }
+
+    public void setDiagnosticListener(DiagnosticListener<? super JavaFileObject> diagListener) {
+        this.diagListener = diagListener;
     }
 
     /** Get the current diagnostic formatter.
@@ -426,10 +453,20 @@ public class Log extends AbstractLog {
             return true;
 
         Pair<JavaFileObject,Integer> coords = new Pair<JavaFileObject,Integer>(file, pos);
-        boolean shouldReport = !recorded.contains(coords);
-        if (shouldReport)
-            recorded.add(coords);
-        return shouldReport;
+        if (partialReparse) {
+            boolean shouldReport = !partialReparseRecorded.contains(coords);
+            if (shouldReport) {
+                partialReparseRecorded.add(coords);
+            }
+            return shouldReport;
+        }
+        else {
+            boolean shouldReport = !recorded.contains(coords);
+            if (shouldReport) {
+                recorded.add(coords);
+            }
+            return shouldReport;
+        }
     }
 
     /** Prompt user after an error.
@@ -585,6 +622,9 @@ public class Log extends AbstractLog {
                 break;
 
             case ERROR:
+                if (diagnostic.getTree() != null && !errTrees.containsKey(diagnostic.getTree())) {
+                    errTrees.put(diagnostic.getTree(), diagnostic);
+                }
                 if (nerrors < MaxErrors
                     && shouldReport(diagnostic.getSource(), diagnostic.getIntPosition())) {
                     writeDiagnostic(diagnostic);
@@ -721,5 +761,8 @@ public class Log extends AbstractLog {
     public static String format(String fmt, Object... args) {
         return String.format((java.util.Locale)null, fmt, args);
     }
-
+    
+    public JCDiagnostic getErrDiag(JCTree tree) {
+        return errTrees.get(tree);
+    }
 }

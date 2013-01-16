@@ -133,4 +133,9 @@ public class Scanner implements Lexer {
     public void errPos(int pos) {
         tokenizer.errPos(pos);
     }
+    
+    public void seek(int seek) {
+        assert seek >= 0;
+        tokenizer.seek = seek;
+    }
 }

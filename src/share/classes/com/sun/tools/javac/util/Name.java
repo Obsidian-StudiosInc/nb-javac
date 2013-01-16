@@ -25,6 +25,8 @@
 
 package com.sun.tools.javac.util;
 
+import com.sun.tools.javac.model.LazyTreeLoader;
+
 /** An abstraction for internal compiler strings. They are stored in
  *  Utf8 format. Names are stored in a Name.Table, and are unique within
  *  that table.
@@ -190,8 +192,14 @@ public abstract class Name implements javax.lang.model.element.Name {
          */
         public final Names names;
 
-        Table(Names names) {
+        /** The tree loader
+         */
+        public LazyTreeLoader loader;
+
+
+        Table(Names names, Context context) {
             this.names = names;
+            loader = LazyTreeLoader.instance(context);
         }
 
         /** Get the name from the characters in cs[start..start+len-1].

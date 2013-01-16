@@ -133,8 +133,9 @@ public class DiagnosticSource {
 
     public void setEndPosTable(EndPosTable t) {
         if (endPosTable != null && endPosTable != t)
-            throw new IllegalStateException("endPosTable already set");
+            throw new IllegalStateException("endPosTable already set for : " + fileObject.toUri(), thr);
         endPosTable = t;
+        thr = new Throwable();
     }
 
     /** Find the line in the buffer that contains the current position
@@ -217,4 +218,6 @@ public class DiagnosticSource {
 
     /** A log for reporting errors, such as errors accessing the content. */
     protected AbstractLog log;
+    
+    private Throwable thr;
 }
