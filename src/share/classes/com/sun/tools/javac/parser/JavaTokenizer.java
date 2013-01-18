@@ -715,13 +715,13 @@ public class JavaTokenizer {
     /** Return the position where a lexical error occurred;
      */
     public int errPos() {
-        return seek + errPos;
+        return errPos == Position.NOPOS ? errPos : seek + errPos;
     }
 
     /** Set the position where a lexical error occurred;
      */
     public void errPos(int pos) {
-        errPos = pos - seek;
+        errPos = pos == Position.NOPOS ? pos: pos - seek;
     }
 
     /**

@@ -150,16 +150,17 @@ public class Position {
         protected void build(char[] src, int max) {
             int c = 0;
             int i = 0;
-            int[] linebuf = new int[max];
-            while (i < max) {
-                linebuf[c++] = i;
+            int[] linebuf = new int[src.length + 1];
+            linebuf[c++] = i;
+            while (i < src.length) {
                 do {
                     char ch = src[i];
                     if (ch == '\r' || ch == '\n') {
-                        if (ch == '\r' && (i+1) < max && src[i+1] == '\n')
+                        if (ch == '\r' && (i+1) < src.length && src[i+1] == '\n')
                             i += 2;
                         else
                             ++i;
+                        linebuf[c++] = i;
                         break;
                     }
                     else if (ch == '\t')

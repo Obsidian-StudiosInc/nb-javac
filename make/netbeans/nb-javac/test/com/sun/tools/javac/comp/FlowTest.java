@@ -197,7 +197,7 @@ public class FlowTest extends TestCase {
         ct.analyze();
     }
 
-    public void testReturnInInitializer() throws IOException {
+    public void XtestReturnInInitializer() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;

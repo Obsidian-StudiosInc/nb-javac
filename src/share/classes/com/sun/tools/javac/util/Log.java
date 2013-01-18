@@ -160,7 +160,7 @@ public class Log extends AbstractLog {
                 if (kinds.contains(d.getKind()))
                     prev.report(d);
             }
-            deferred = null; // prevent accidental ongoing use
+            Assert.check(deferred.isEmpty());
         }
     }
 

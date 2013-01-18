@@ -1464,7 +1464,7 @@ public class JavacParser implements Parser {
         accept(ARROW);
 
         return token.kind == LBRACE ?
-            lambdaStatement(args, pos, pos) :
+            lambdaStatement(args, pos, token.pos) :
             lambdaExpression(args, pos);
     }
 
@@ -2049,13 +2049,13 @@ public class JavacParser implements Parser {
                 ListBuffer<JCStatement> stats =
                         variableDeclarators(mods, t, new ListBuffer<JCStatement>());
                 // A "LocalVariableDeclarationStatement" subsumes the terminating semicolon
-                storeEnd(stats.last(), token.endPos);
                 accept(SEMI);
+                storeEnd(stats.last(), S.prevToken().endPos);
                 return stats.toList();
             } else {
                 // This Exec is an "ExpressionStatement"; it subsumes the terminating semicolon
-                JCExpressionStatement expr = to(F.at(pos).Exec(checkExprStat(t)));
                 accept(SEMI);
+                JCExpressionStatement expr = toP(F.at(pos).Exec(checkExprStat(t)));
                 return List.<JCStatement>of(expr);
             }
         }
@@ -2142,8 +2142,8 @@ public class JavacParser implements Parser {
             JCStatement body = parseStatementAsBlock();
             accept(WHILE);
             JCExpression cond = parExpression();
-            JCDoWhileLoop t = to(F.at(pos).DoLoop(body, cond));
             accept(SEMI);
+            JCDoWhileLoop t = toP(F.at(pos).DoLoop(body, cond));
             return t;
         }
         case TRY: {
@@ -2191,29 +2191,29 @@ public class JavacParser implements Parser {
         case RETURN: {
             nextToken();
             JCExpression result = token.kind == SEMI ? null : parseExpression();
-            JCReturn t = to(F.at(pos).Return(result));
             accept(SEMI);
+            JCReturn t = toP(F.at(pos).Return(result));
             return t;
         }
         case THROW: {
             nextToken();
             JCExpression exc = parseExpression();
-            JCThrow t = to(F.at(pos).Throw(exc));
             accept(SEMI);
+            JCThrow t = toP(F.at(pos).Throw(exc));
             return t;
         }
         case BREAK: {
             nextToken();
             Name label = (token.kind == IDENTIFIER || token.kind == ASSERT || token.kind == ENUM) ? ident() : null;
-            JCBreak t = to(F.at(pos).Break(label));
             accept(SEMI);
+            JCBreak t = toP(F.at(pos).Break(label));
             return t;
         }
         case CONTINUE: {
             nextToken();
             Name label = (token.kind == IDENTIFIER || token.kind == ASSERT || token.kind == ENUM) ? ident() : null;
-            JCContinue t =  to(F.at(pos).Continue(label));
             accept(SEMI);
+            JCContinue t =  toP(F.at(pos).Continue(label));
             return t;
         }
         case SEMI:
@@ -2238,8 +2238,8 @@ public class JavacParser implements Parser {
                     nextToken();
                     message = parseExpression();
                 }
-                JCAssert t = to(F.at(pos).Assert(assertion, message));
                 accept(SEMI);
+                JCAssert t = toP(F.at(pos).Assert(assertion, message));
                 return t;
             }
             /* else fall through to default case */
@@ -2255,6 +2255,8 @@ public class JavacParser implements Parser {
             } else {
                 // This Exec is an "ExpressionStatement"; it subsumes the terminating semicolon
                 JCExpressionStatement stat = to(F.at(pos).Exec(checkExprStat(expr)));
+                if (token.kind != SEMI) // Error recovery
+                    storeEnd(stat, token.pos);
                 accept(SEMI);
                 return stat;
             }
@@ -2688,21 +2690,8 @@ public class JavacParser implements Parser {
         boolean seenImport = false;
         boolean seenPackage = false;
         List<JCAnnotation> packageAnnotations = List.nil();
-        if (token.kind == MONKEYS_AT)
-            mods = modifiersOpt();
-
-        if (token.kind == PACKAGE) {
-            seenPackage = true;
-            if (mods != null) {
-                checkNoMods(mods.flags);
-                packageAnnotations = mods.annotations;
-                mods = null;
-            }
-            nextToken();
-            pid = qualident();
-            accept(SEMI);
-        }
         ListBuffer<JCTree> defs = new ListBuffer<JCTree>();
+        boolean checkForPackage = true;
         boolean checkForImports = true;
         boolean firstTypeDecl = true;
         while (token.kind != EOF) {
@@ -2712,21 +2701,43 @@ public class JavacParser implements Parser {
                 if (token.kind == EOF)
                     break;
             }
-            if (checkForImports && mods == null && token.kind == IMPORT) {
+            if (checkForPackage && token.kind == MONKEYS_AT) {
+                mods = modifiersOpt();
+            } else if (token.kind == PACKAGE) {
+                if (checkForPackage) {
+                    seenPackage = true;
+                    checkForPackage = false;
+                    if (mods != null) {
+                        checkNoMods(mods.flags);
+                        packageAnnotations = mods.annotations;
+                        mods = null;
+                    }
+                    nextToken();
+                    pid = qualident();
+                    accept(SEMI);
+                } else {
+                    if (allowEnums)
+                        reportSyntaxError(token.pos, "expected3", CLASS, INTERFACE, ENUM);
+                    else
+                        reportSyntaxError(token.pos, "expected2", CLASS, INTERFACE);
+                    nextToken();
+                }
+            } else if (checkForImports && mods == null && token.kind == IMPORT) {
                 seenImport = true;
+                checkForPackage = false;
                 defs.append(importDeclaration());
             } else {
                 Comment docComment = token.comment(CommentStyle.JAVADOC);
-                if (firstTypeDecl && !seenImport && !seenPackage) {
+                if (docComment == null && firstTypeDecl && !seenImport && !seenPackage) {
                     docComment = firstToken.comment(CommentStyle.JAVADOC);
                     consumedToplevelDoc = true;
                 }
                 JCTree def = typeDeclaration(mods, docComment);
-                if (def instanceof JCExpressionStatement)
-                    def = ((JCExpressionStatement)def).expr;
                 defs.append(def);
-                if (def instanceof JCClassDecl)
+                if (def instanceof JCClassDecl) {
+                    checkForPackage = false;
                     checkForImports = false;
+                }
                 mods = null;
                 firstTypeDecl = false;
             }

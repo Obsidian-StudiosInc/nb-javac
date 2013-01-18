@@ -1942,7 +1942,7 @@ public class Attr extends JCTree.Visitor {
                 // Error recovery: pretend no arguments were supplied.
                 argtypes = List.nil();
                 typeargtypes = List.nil();
-            } else if (TreeInfo.isDiamond(tree)) {
+            } else if (TreeInfo.isDiamond(tree) && !wasError) {
                 ClassType site = new ClassType(clazztype.getEnclosingType(),
                             clazztype.tsym.type.getTypeArguments(),
                             clazztype.tsym);
@@ -2237,6 +2237,7 @@ public class Attr extends JCTree.Visitor {
         final Env<AttrContext> localEnv = lambdaEnv(that, env);
         boolean needsRecovery =
                 resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.CHECK;
+        Type target = null;
         try {
             List<Type> explicitParamTypes = null;
             if (TreeInfo.isExplicitLambda(that)) {
@@ -2245,7 +2246,6 @@ public class Attr extends JCTree.Visitor {
                 explicitParamTypes = TreeInfo.types(that.params);
             }
 
-            Type target;
             Type lambdaType;
             if (pt() != Type.recoveryType) {
                 target = infer.instantiateFunctionalInterface(that, checkIntersectionTarget(that, resultInfo), explicitParamTypes, resultInfo.checkContext);
@@ -2339,6 +2339,10 @@ public class Attr extends JCTree.Visitor {
             resultInfo.checkContext.report(that, cause);
             result = that.type = types.createErrorType(pt());
             return;
+        } catch (BreakAttr ba) {
+            check(that, target, VAL, resultInfo);
+            needsRecovery = false;
+            throw ba;
         } finally {
             localEnv.info.scope.leave();
             if (needsRecovery) {

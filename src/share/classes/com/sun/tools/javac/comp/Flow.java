@@ -195,6 +195,8 @@ public class Flow {
     private       TreeMaker make;
     private final Resolve rs;
     private final JCDiagnostic.Factory diags;
+    private final Enter enter;
+    private JCClassDecl reanalyzedClass;
     private Env<AttrContext> attrEnv;
     private       Lint lint;
     private final boolean allowImprovedRethrowAnalysis;
@@ -235,6 +237,20 @@ public class Flow {
         }
     }
 
+    public void reanalyzeMethod (final TreeMaker make, final JCClassDecl classDef) {
+        JCClassDecl oldReanalyzedClass = reanalyzedClass;
+        try {
+            reanalyzedClass = classDef;
+            Env<AttrContext> env = enter.getEnv(classDef.sym);
+            new AliveAnalyzer().analyzeTree(env, classDef, make);
+            new AssignAnalyzer().analyzeTree(env, classDef, make);
+            new FlowAnalyzer().analyzeTree(env, classDef, make);
+            new CaptureAnalyzer().analyzeTree(env, classDef, make);
+        } finally {
+            reanalyzedClass = oldReanalyzedClass;
+        }
+    }
+
     /**
      * Definite assignment scan mode
      */
@@ -272,6 +288,7 @@ public class Flow {
         lint = Lint.instance(context);
         rs = Resolve.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
+        enter = Enter.instance(context);
         Source source = Source.instance(context);
         allowImprovedRethrowAnalysis = source.allowImprovedRethrowAnalysis();
         allowImprovedCatchAnalysis = source.allowImprovedCatchAnalysis();
@@ -1392,9 +1409,10 @@ public class Flow {
         boolean trackable(VarSymbol sym) {
             return sym != null && sym.owner != null &&
                 sym.pos >= startPos &&
-                ((sym.owner.kind == MTH ||
+                (sym.owner.kind == MTH ||
                  ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL &&
-                  classDef.sym.isEnclosedBy((ClassSymbol)sym.owner))));
+                  classDef.sym.isEnclosedBy((ClassSymbol)sym.owner)) &&
+                  (reanalyzedClass == null || ((ClassSymbol)sym.owner).isEnclosedBy(reanalyzedClass.sym)));
         }
 
         /** Initialize new trackable variable by setting its address field
