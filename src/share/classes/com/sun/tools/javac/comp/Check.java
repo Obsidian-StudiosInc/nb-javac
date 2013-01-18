@@ -2441,6 +2441,9 @@ public class Check {
      }
 
     void checkDefaultMethodClashes(DiagnosticPosition pos, Type site) {
+        if (site == null || site.isErroneous()) {
+            return;
+        }
         DefaultMethodClashFilter dcf = new DefaultMethodClashFilter(site);
         for (Symbol m : types.membersClosure(site, false).getElements(dcf)) {
             Assert.check(m.kind == MTH);

@@ -786,6 +786,8 @@ public class TreeInfo {
             return ((JCIdent) node).sym;
         case SELECT:
             return ((JCFieldAccess) node).sym;
+        case REFERENCE:
+            return ((JCMemberReference) node).sym;
         case NEWCLASS:
             return ((JCNewClass) node).constructor;
         case APPLY:

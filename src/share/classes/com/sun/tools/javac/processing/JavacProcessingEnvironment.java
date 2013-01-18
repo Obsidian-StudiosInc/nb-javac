@@ -870,12 +870,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             log = Log.instance(context);
             log.nerrors = priorErrors;
             log.nwarnings += priorWarnings;
-            if (number == 1) {
-                Assert.checkNonNull(deferredDiagnosticHandler);
-                this.deferredDiagnosticHandler = deferredDiagnosticHandler;
-            } else {
-                this.deferredDiagnosticHandler = new Log.DeferredDiagnosticHandler(log);
-            }
+            Assert.checkNonNull(deferredDiagnosticHandler);
+            this.deferredDiagnosticHandler = deferredDiagnosticHandler;
 
             // the following is for the benefit of JavacProcessingEnvironment.getContext()
             JavacProcessingEnvironment.this.context = context;
@@ -910,7 +906,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     prev.number+1,
                     prev.nMessagerErrors,
                     prev.compiler.log.nwarnings,
-                    null);
+                    prev.deferredDiagnosticHandler);
             this.genClassFiles = prev.genClassFiles;
 
             updateProcessingState();
@@ -1068,7 +1064,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 kinds.remove(JCDiagnostic.Kind.ERROR);
             }
             deferredDiagnosticHandler.reportDeferredDiagnostics(kinds);
-            log.popDiagnosticHandler(deferredDiagnosticHandler);
         }
 
         /** Update the processing state for the current context. */
@@ -1173,7 +1168,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             taskListener.finished(new TaskEvent(TaskEvent.Kind.ANNOTATION_PROCESSING));
 
         try {
-            compiler.enterTreesIfNeeded(roots);
+            compiler.enterTrees(roots);
         } catch (Throwable t) {
             rethrowAbort(t);
             LOGGER.log(Level.INFO, "Error while re-entering:", t);
