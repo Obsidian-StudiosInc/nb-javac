@@ -515,7 +515,7 @@ public class JavacParser implements Parser {
      * @param tree  The tree node
      */
     public int getEndPos(JCTree tree) {
-        return endPosTable.getEndPos(tree);
+        return TreeInfo.getEndPos(tree, endPosTable);
     }
 
 
@@ -1961,9 +1961,8 @@ public class JavacParser implements Parser {
         int pos = token.pos;
         List<JCStatement> stats = blockStatement();
         if (stats.isEmpty()) {
-            JCErroneous e = F.at(pos).Erroneous();
-            error(e, "illegal.start.of.stmt");
-            return F.at(pos).Exec(e);
+            JCErroneous e = syntaxError(pos, "illegal.start.of.stmt");
+            return toP(F.at(pos).Exec(e));
         } else {
             JCStatement first = stats.head;
             String error = null;
@@ -3052,7 +3051,7 @@ public class JavacParser implements Parser {
                 mods.pos = pos;
             }
             TokenKind tk = token.kind;
-            name = token.name();
+            name = tk.tag == Tokens.Token.Tag.NAMED ? token.name() : names.error;
             pos = token.pos;
             JCExpression type;
             boolean isVoid = tk == VOID;
@@ -3184,8 +3183,7 @@ public class JavacParser implements Parser {
                     mods.pos = pos;
                     storeEnd(mods, pos);
                 }
-                TokenKind tk = token.kind;
-                Name name = token.name();
+                Name name = token.kind.tag == Tokens.Token.Tag.NAMED ? token.name() : names.error;
                 pos = token.pos;
                 JCExpression type;
                 boolean isVoid = token.kind == VOID;
@@ -3665,7 +3663,7 @@ public class JavacParser implements Parser {
 
         private final Map<JCTree, Integer> endPosMap;
 
-        SimpleEndPosTable() {
+        protected SimpleEndPosTable() {
             endPosMap = new HashMap<JCTree, Integer>();
         }
 

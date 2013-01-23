@@ -86,7 +86,7 @@ public class ParserFactory {
         return new JavacParser(this, lexer, keepDocComments, keepLineMap, keepEndPos);
     }
 
-    public Parser newParser(CharSequence input, int startPos, final EndPosTable endPos) {
+    public JavacParser newParser(CharSequence input, int startPos, final EndPosTable endPos) {
         Lexer lexer = scannerFactory.newScanner(input, true);
         ((Scanner)lexer).seek(startPos);
         return new JavacParser(this, lexer, true, false, true) {

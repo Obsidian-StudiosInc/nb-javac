@@ -70,7 +70,7 @@ public class UnicodeReader {
      */
     protected char[] sbuf = new char[128];
     private char replacedCharacter;
-    private int realLength;
+    protected int realLength;
     protected int sp;
 
     /**

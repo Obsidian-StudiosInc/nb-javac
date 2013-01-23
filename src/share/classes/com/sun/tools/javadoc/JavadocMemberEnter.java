@@ -78,9 +78,6 @@ public class JavadocMemberEnter extends MemberEnter {
             docenv.makeAnnotationTypeElementDoc(meth, treePath);
         else
             docenv.makeMethodDoc(meth, treePath);
-
-        // release resources
-        tree.body = null;
     }
 
     @Override
