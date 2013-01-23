@@ -60,12 +60,13 @@ public abstract class JavacTask implements CompilationTask {
      * @since 1.8
      */
     public static JavacTask instance(ProcessingEnvironment processingEnvironment) {
-        if (!processingEnvironment.getClass().getName().equals(
-                "com.sun.tools.javac.processing.JavacProcessingEnvironment"))
-            throw new IllegalArgumentException();
-        Context c = ((JavacProcessingEnvironment) processingEnvironment).getContext();
-        JavacTask t = c.get(JavacTask.class);
-        return (t != null) ? t : new BasicJavacTask(c, true);
+//        if (!processingEnvironment.getClass().getName().equals(
+//                "com.sun.tools.javac.processing.JavacProcessingEnvironment"))
+//            throw new IllegalArgumentException();
+//        Context c = ((JavacProcessingEnvironment) processingEnvironment).getContext();
+//        JavacTask t = c.get(JavacTask.class);
+//        return (t != null) ? t : new BasicJavacTask(c, true);
+        throw new UnsupportedOperationException();
     }
 
     /**

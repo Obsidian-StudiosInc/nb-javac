@@ -675,7 +675,7 @@ public class JavaTokenizer {
                             scanIdent();
                         } else if (reader.bp == reader.buflen || reader.ch == EOI && reader.bp + 1 == reader.buflen) { // JLS 3.5
                             tk = TokenKind.EOF;
-                            pos = reader.buflen;
+                            pos = reader.realLength;
                         } else {
                             String arg = (32 < reader.ch && reader.ch < 127) ?
                                             String.format("%s", reader.ch) :
