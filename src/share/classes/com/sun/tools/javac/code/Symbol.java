@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,7 +87,15 @@ public abstract class Symbol implements Element {
      *  method to make sure that the class symbol is loaded.
      */
     public List<Attribute.Compound> getRawAttributes() {
-        return annotations.getAttributes();
+        return annotations.getDeclarationAttributes();
+    }
+
+    /** An accessor method for the type attributes of this symbol.
+     *  Attributes of class symbols should be accessed through the accessor
+     *  method to make sure that the class symbol is loaded.
+     */
+    public List<Attribute.TypeCompound> getRawTypeAttributes() {
+        return annotations.getTypeAttributes();
     }
 
     /** Fetch a particular annotation from a symbol. */
@@ -453,8 +461,16 @@ public abstract class Symbol implements Element {
      * This is the implementation for {@code
      * javax.lang.model.element.Element.getAnnotationMirrors()}.
      */
-    public final List<Attribute.Compound> getAnnotationMirrors() {
+    public final List<? extends AnnotationMirror> getAnnotationMirrors() {
         return getRawAttributes();
+    }
+
+    /**
+     * TODO: Should there be a {@code
+     * javax.lang.model.element.Element.getTypeAnnotationMirrors()}.
+     */
+    public final List<Attribute.TypeCompound> getTypeAnnotationMirrors() {
+        return getRawTypeAttributes();
     }
 
     /**
@@ -463,6 +479,11 @@ public abstract class Symbol implements Element {
     @Deprecated
     public <A extends java.lang.annotation.Annotation> A getAnnotation(Class<A> annoType) {
         return JavacElements.getAnnotation(this, annoType);
+    }
+
+    // This method is part of the javax.lang.model API, do not use this in javac code.
+    public <A extends java.lang.annotation.Annotation> A[] getAnnotations(Class<A> annoType) {
+        return JavacElements.getAnnotations(this, annoType);
     }
 
     // TODO: getEnclosedElements should return a javac List, fix in FilteredMemberList
@@ -802,6 +823,12 @@ public abstract class Symbol implements Element {
                 if (completer != null) complete();
             } catch (CompletionFailure cf) {}
             return super.getRawAttributes();
+        }
+
+        @Override
+        public List<Attribute.TypeCompound> getRawTypeAttributes() {
+            if (completer != null) complete();
+            return super.getRawTypeAttributes();
         }
 
         public Type erasure(Types types) {
@@ -1321,7 +1348,8 @@ public abstract class Symbol implements Element {
             case Flags.PRIVATE:
                 return false;
             case Flags.PUBLIC:
-                return true;
+                return !this.owner.isInterface() ||
+                        (flags_field & STATIC) == 0;
             case Flags.PROTECTED:
                 return (origin.flags() & INTERFACE) == 0;
             case 0:
@@ -1332,6 +1360,18 @@ public abstract class Symbol implements Element {
                     (origin.flags() & INTERFACE) == 0;
             default:
                 return false;
+            }
+        }
+
+        @Override
+        public boolean isInheritedIn(Symbol clazz, Types types) {
+            switch ((int)(flags_field & Flags.AccessFlags)) {
+                case PUBLIC:
+                    return !this.owner.isInterface() ||
+                            clazz == owner ||
+                            (flags_field & STATIC) == 0;
+                default:
+                    return super.isInheritedIn(clazz, types);
             }
         }
 
@@ -1463,7 +1503,7 @@ public abstract class Symbol implements Element {
             return defaultValue;
         }
 
-         public List<VarSymbol> getParameters() {
+        public List<VarSymbol> getParameters() {
             return params();
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,7 +71,7 @@ public class JavadocMemberEnter extends MemberEnter {
         super.visitMethodDef(tree);
         MethodSymbol meth = tree.sym;
         if (meth == null || meth.kind != Kinds.MTH) return;
-        TreePath treePath = docenv.getTreePath(env.toplevel, tree);
+        TreePath treePath = docenv.getTreePath(env.toplevel, env.enclClass, tree);
         if (meth.isConstructor())
             docenv.makeConstructorDoc(meth, treePath);
         else if (isAnnotationTypeElement(meth))
@@ -85,7 +85,7 @@ public class JavadocMemberEnter extends MemberEnter {
         super.visitVarDef(tree);
         if (tree.sym != null &&
                 tree.sym.getKind().isField()) {
-            docenv.makeFieldDoc(tree.sym, docenv.getTreePath(env.toplevel, tree));
+            docenv.makeFieldDoc(tree.sym, docenv.getTreePath(env.toplevel, env.enclClass, tree));
         }
     }
 
