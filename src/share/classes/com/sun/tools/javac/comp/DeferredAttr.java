@@ -274,7 +274,7 @@ public class DeferredAttr extends JCTree.Visitor {
         Log.DeferredDiagnosticHandler deferredDiagnosticHandler =
                 new Log.DeferredDiagnosticHandler(log, new Filter<JCDiagnostic>() {
             public boolean accepts(JCDiagnostic t) {
-                return t.getDiagnosticSource().getFile().equals(currentSource);
+                return t.getDiagnosticSource().getFile() != null && t.getDiagnosticSource().getFile().equals(currentSource);
             }
         });
         try {
