@@ -454,6 +454,7 @@ public class Flow {
                     if (!l.head.hasTag(METHODDEF) &&
                         (TreeInfo.flags(l.head) & STATIC) != 0) {
                         scanDef(l.head);
+                        if (pendingExits.nonEmpty()) pendingExits.clear();
                     }
                 }
 
@@ -462,6 +463,7 @@ public class Flow {
                     if (!l.head.hasTag(METHODDEF) &&
                         (TreeInfo.flags(l.head) & STATIC) == 0) {
                         scanDef(l.head);
+                        if (pendingExits.nonEmpty()) pendingExits.clear();
                     }
                 }
 
@@ -1610,6 +1612,7 @@ public class Flow {
                     if (!l.head.hasTag(METHODDEF) &&
                         (TreeInfo.flags(l.head) & STATIC) != 0) {
                         scan(l.head);
+                        if (pendingExits.nonEmpty()) pendingExits.clear();
                     }
                 }
 
@@ -1630,6 +1633,7 @@ public class Flow {
                     if (!l.head.hasTag(METHODDEF) &&
                         (TreeInfo.flags(l.head) & STATIC) == 0) {
                         scan(l.head);
+                        if (pendingExits.nonEmpty()) pendingExits.clear();
                     }
                 }
 
