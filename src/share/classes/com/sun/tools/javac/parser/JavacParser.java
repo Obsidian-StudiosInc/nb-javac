@@ -3140,9 +3140,9 @@ public class JavacParser implements Parser {
                     setErrorEndPos(token.pos);
                     reportSyntaxError(S.prevToken().endPos, "expected", IDENTIFIER);
                     pid = to(F.at(token.pos).Select(pid, names.error));
-                    S.nextToken();
+                    nextToken();
                     if (token.kind == IDENTIFIER) {
-                        S.nextToken();
+                        nextToken();
                         storeEnd(pid, token.pos);
                     }
                 }
@@ -3271,11 +3271,8 @@ public class JavacParser implements Parser {
     protected JCClassDecl enumDeclaration(JCModifiers mods, Comment dc) {
         int pos = token.pos;
         accept(ENUM);
-        JCModifiers newMods =
-            F.at(mods.pos).Modifiers(mods.flags|Flags.ENUM, mods.annotations);
-        storeEnd(newMods, getEndPos(mods));
         Name name = ident();
-        return enumDeclaration(newMods, dc, pos, name);
+        return enumDeclaration(mods, dc, pos, name);
     }
 
     JCClassDecl enumDeclaration(JCModifiers mods, Comment dc, int pos, Name name) {
@@ -3304,11 +3301,11 @@ public class JavacParser implements Parser {
             // error recovery
             skip(false, true, false, false);
             if (token.kind == LBRACE)
-                S.nextToken();
+                nextToken();
         }
         ListBuffer<JCTree> defs = new ListBuffer<JCTree>();
         if (token.kind == COMMA) {
-            S.nextToken();
+            nextToken();
         } else if (token.kind != RBRACE && token.kind != SEMI) {
             boolean hasError = false;
             List<JCTree> decl = enumeratorDeclaration(enumName);
@@ -3317,7 +3314,7 @@ public class JavacParser implements Parser {
                 hasError = true;
             while (token.kind != RBRACE && token.kind != SEMI && !hasError) {
                 if (token.kind == COMMA)
-                    S.nextToken();
+                    nextToken();
                 else
                     syntaxError(token.pos, "expected3", COMMA, RBRACE, SEMI);
                 if (token.kind == RBRACE || token.kind == SEMI) break;
@@ -3403,7 +3400,7 @@ public class JavacParser implements Parser {
             boolean isVoid = tk == VOID;
             if (isVoid) {
                 type = to(F.at(pos).TypeIdent(TypeTag.VOID));
-                S.nextToken();
+                nextToken();
             } else {
                 type = parseType();
             }
@@ -3479,7 +3476,7 @@ public class JavacParser implements Parser {
             if (token.pos <= endPosTable.errorEndPos) {
                // error recovery
                if (token.kind == LBRACE && isInterface)
-                   S.nextToken();
+                   nextToken();
                skip(false, true, true, false);
            }
         }
