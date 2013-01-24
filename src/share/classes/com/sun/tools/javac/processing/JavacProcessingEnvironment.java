@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,21 +47,17 @@ import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.util.*;
-import javax.tools.DiagnosticListener;
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import static javax.tools.StandardLocation.*;
 
-import com.sun.source.util.JavacTask;
 import com.sun.source.util.TaskEvent;
-import com.sun.tools.javac.api.BasicJavacTask;
 import com.sun.tools.javac.api.JavacTrees;
 import com.sun.tools.javac.api.MultiTaskListener;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.comp.Check;
-import com.sun.tools.javac.file.FSInfo;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.jvm.ClassReader.BadClassFile;
@@ -69,7 +65,6 @@ import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.main.JavaCompiler.CompileState;
 import com.sun.tools.javac.model.JavacElements;
 import com.sun.tools.javac.model.JavacTypes;
-import com.sun.tools.javac.parser.*;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.util.Abort;
@@ -857,9 +852,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         /** The set of package-info files to be processed this round. */
         List<PackageSymbol> packageInfoFiles;
 
-        /** The number of Messager errors generated in this round. */
-        int nMessagerErrors;
-
         /** Create a round (common code). */
         private Round(Context context, int number, int priorErrors, int priorWarnings,
                 Log.DeferredDiagnosticHandler deferredDiagnosticHandler) {
@@ -869,7 +861,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             compiler = JavaCompiler.instance(context);
             log = Log.instance(context);
             log.nerrors = priorErrors;
-            log.nwarnings += priorWarnings;
+            log.nwarnings = priorWarnings;
             Assert.checkNonNull(deferredDiagnosticHandler);
             this.deferredDiagnosticHandler = deferredDiagnosticHandler;
 
@@ -904,7 +896,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 Set<JavaFileObject> newSourceFiles, Map<String,JavaFileObject> newClassFiles) {
             this(prev.context,
                     prev.number+1,
-                    prev.nMessagerErrors,
+                    prev.compiler.log.nerrors,
                     prev.compiler.log.nwarnings,
                     prev.deferredDiagnosticHandler);
             this.genClassFiles = prev.genClassFiles;
@@ -943,13 +935,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
 
         /** Create the compiler to be used for the final compilation. */
-        JavaCompiler finalCompiler(boolean errorStatus) {
-            JavaCompiler c = JavaCompiler.instance(context);
-            c.log.nwarnings += compiler.log.nwarnings;
-            if (errorStatus) {
-                c.log.nerrors += compiler.log.nerrors;
-            }
-            return c;
+        JavaCompiler finalCompiler() {
+            return JavaCompiler.instance(context);
         }
 
         /** Return the number of errors found so far in this round.
@@ -1053,8 +1040,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 if (!taskListener.isEmpty())
                     taskListener.finished(new TaskEvent(TaskEvent.Kind.ANNOTATION_PROCESSING_ROUND));
             }
-
-            nMessagerErrors = messager.errorCount();
         }
 
         void showDiagnostics(boolean showAll) {
@@ -1157,7 +1142,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 new LinkedHashSet<JavaFileObject>(filer.getGeneratedSourceFileObjects());
         roots = cleanTrees(round.roots);
 
-        JavaCompiler compiler = round.finalCompiler(errorStatus);
+        JavaCompiler compiler = round.finalCompiler();
 
         if (newSourceFiles.size() > 0)
             roots = roots.appendList(compiler.parseFiles(newSourceFiles));
@@ -1401,6 +1386,10 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             public void visitIdent(JCIdent node) {
                 node.sym = null;
                 super.visitIdent(node);
+            }
+            public void visitAnnotation(JCAnnotation node) {
+                node.attribute = null;
+                super.visitAnnotation(node);
             }
         };
 
