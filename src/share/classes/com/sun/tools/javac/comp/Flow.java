@@ -495,13 +495,7 @@ public class Flow {
                 if (alive && tree.sym.type.getReturnType() != null && !tree.sym.type.getReturnType().hasTag(VOID))
                     log.error(TreeInfo.diagEndPos(tree.body), "missing.ret.stmt");
 
-                List<PendingExit> exits = pendingExits.toList();
                 pendingExits = new ListBuffer<PendingExit>();
-                while (exits.nonEmpty()) {
-                    PendingExit exit = exits.head;
-                    exits = exits.tail;
-                    Assert.check(exit.tree.hasTag(RETURN));
-                }
             } finally {
                 lint = lintPrev;
             }
@@ -958,9 +952,7 @@ public class Flow {
                 while (exits.nonEmpty()) {
                     FlowPendingExit exit = exits.head;
                     exits = exits.tail;
-                    if (exit.thrown == null) {
-                        Assert.check(exit.tree.hasTag(RETURN));
-                    } else {
+                    if (exit.thrown != null) {
                         // uncaught throws will be reported later
                         pendingExits.append(exit);
                     }
