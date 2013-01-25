@@ -197,7 +197,7 @@ public class FlowTest extends TestCase {
         ct.analyze();
     }
 
-    public void XtestReturnInInitializer() throws IOException {
+    public void testReturnInInitializer() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
@@ -215,4 +215,26 @@ public class FlowTest extends TestCase {
 
         ct.analyze();
     }
+    
+    public void testBreakContinueUnresolvedTarget() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package test;\n" +
+                      "class Test{\n" +
+                      "    private void test() {\n" +
+                      "        while (true) {\n" +
+                      "            break undef;\n" +
+                      "        }\n" +
+                      "    }\n" +
+                      "}";
+
+        DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+
+        ct.analyze();
+    }
+    
 }
