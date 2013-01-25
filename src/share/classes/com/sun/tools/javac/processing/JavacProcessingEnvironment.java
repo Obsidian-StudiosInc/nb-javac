@@ -862,8 +862,12 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             log = Log.instance(context);
             log.nerrors = priorErrors;
             log.nwarnings = priorWarnings;
-            Assert.checkNonNull(deferredDiagnosticHandler);
-            this.deferredDiagnosticHandler = deferredDiagnosticHandler;
+            if (number == 1) {
+                Assert.checkNonNull(deferredDiagnosticHandler);
+                this.deferredDiagnosticHandler = deferredDiagnosticHandler;
+            } else {
+                this.deferredDiagnosticHandler = new Log.DeferredDiagnosticHandler(log);
+            }
 
             // the following is for the benefit of JavacProcessingEnvironment.getContext()
             JavacProcessingEnvironment.this.context = context;
@@ -1049,6 +1053,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 kinds.remove(JCDiagnostic.Kind.ERROR);
             }
             deferredDiagnosticHandler.reportDeferredDiagnostics(kinds);
+            log.popDiagnosticHandler(deferredDiagnosticHandler);
         }
 
         /** Update the processing state for the current context. */
