@@ -863,7 +863,7 @@ public class TypeAnnotations {
                         // Use null to mark that the annotations go with the symbol.
                         separateAnnotationsKinds(tree, null, tree.sym, pos);
                     } else {
-                        pos.pos = tree.restype.pos;
+                        pos.pos = tree.restype != null ? tree.restype.pos : tree.pos;
                         separateAnnotationsKinds(tree.restype, tree.sym.type.getReturnType(),
                                 tree.sym, pos);
                     }
