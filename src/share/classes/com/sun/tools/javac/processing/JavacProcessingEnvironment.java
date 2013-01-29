@@ -837,8 +837,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         final JavaCompiler compiler;
         /** The log for the round. */
         final Log log;
-        /** The diagnostic handler for the round. */
-        final Log.DeferredDiagnosticHandler deferredDiagnosticHandler;
 
         /** The ASTs to be compiled. */
         List<JCCompilationUnit> roots;
@@ -853,8 +851,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         List<PackageSymbol> packageInfoFiles;
 
         /** Create a round (common code). */
-        private Round(Context context, int number, int priorErrors, int priorWarnings,
-                Log.DeferredDiagnosticHandler deferredDiagnosticHandler) {
+        private Round(Context context, int number, int priorErrors, int priorWarnings) {
             this.context = context;
             this.number = number;
 
@@ -862,12 +859,9 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             log = Log.instance(context);
             log.nerrors = priorErrors;
             log.nwarnings = priorWarnings;
-            if (number == 1) {
-                Assert.checkNonNull(deferredDiagnosticHandler);
-                this.deferredDiagnosticHandler = deferredDiagnosticHandler;
-            } else {
-                this.deferredDiagnosticHandler = new Log.DeferredDiagnosticHandler(log);
-            }
+            
+            if (compiler.deferredDiagnosticHandler == null)
+                compiler.deferredDiagnosticHandler = new Log.DeferredDiagnosticHandler(log);
 
             // the following is for the benefit of JavacProcessingEnvironment.getContext()
             JavacProcessingEnvironment.this.context = context;
@@ -878,9 +872,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
 
         /** Create the first round. */
-        Round(Context context, List<JCCompilationUnit> roots, List<ClassSymbol> classSymbols,
-                Log.DeferredDiagnosticHandler deferredDiagnosticHandler) {
-            this(context, 1, 0, 0, deferredDiagnosticHandler);
+        Round(Context context, List<JCCompilationUnit> roots, List<ClassSymbol> classSymbols) {
+            this(context, 1, 0, 0);
             this.roots = roots;
             genClassFiles = new HashMap<String,JavaFileObject>();
 
@@ -901,8 +894,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             this(prev.context,
                     prev.number+1,
                     prev.compiler.log.nerrors,
-                    prev.compiler.log.nwarnings,
-                    prev.deferredDiagnosticHandler);
+                    prev.compiler.log.nwarnings);
             this.genClassFiles = prev.genClassFiles;
 
             updateProcessingState();
@@ -960,7 +952,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             if (messager.errorRaised())
                 return true;
 
-            for (JCDiagnostic d: deferredDiagnosticHandler.getDiagnostics()) {
+            for (JCDiagnostic d: compiler.deferredDiagnosticHandler.getDiagnostics()) {
                 switch (d.getKind()) {
                     case WARNING:
                         if (werror)
@@ -1052,8 +1044,9 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 // suppress errors, which are all presumed to be transient resolve errors
                 kinds.remove(JCDiagnostic.Kind.ERROR);
             }
-            deferredDiagnosticHandler.reportDeferredDiagnostics(kinds);
-            log.popDiagnosticHandler(deferredDiagnosticHandler);
+            compiler.deferredDiagnosticHandler.reportDeferredDiagnostics(kinds);
+            log.popDiagnosticHandler(compiler.deferredDiagnosticHandler);
+            compiler.deferredDiagnosticHandler = null;                    
         }
 
         /** Update the processing state for the current context. */
@@ -1086,8 +1079,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     public JavaCompiler doProcessing(Context context,
                                      List<JCCompilationUnit> roots,
                                      List<ClassSymbol> classSymbols,
-                                     Iterable<? extends PackageSymbol> pckSymbols,
-                                     Log.DeferredDiagnosticHandler deferredDiagnosticHandler) {
+                                     Iterable<? extends PackageSymbol> pckSymbols) {
         log = Log.instance(context);
 
         Set<PackageSymbol> specifiedPackages = new LinkedHashSet<PackageSymbol>();
@@ -1095,7 +1087,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             specifiedPackages.add(psym);
         this.specifiedPackages = Collections.unmodifiableSet(specifiedPackages);
 
-        Round round = new Round(context, roots, classSymbols, deferredDiagnosticHandler);
+        Round round = new Round(context, roots, classSymbols);
         
         boolean errorStatus = false;
         boolean moreToDo = false;
