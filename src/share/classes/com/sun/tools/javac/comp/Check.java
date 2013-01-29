@@ -2010,6 +2010,9 @@ public class Check {
      *  @param c            The class.
      */
     void checkAllDefined(DiagnosticPosition pos, ClassSymbol c) {
+        if (c.type == null || c.type.isErroneous()) {
+            return ;
+        }
         try {
             MethodSymbol undef = firstUndef(c, c);
             if (undef != null) {
