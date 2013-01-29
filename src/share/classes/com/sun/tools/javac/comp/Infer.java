@@ -231,7 +231,7 @@ public class Infer {
             UndetVar uv = (UndetVar)t;
             if (uv.inst == null) {
                 TypeSymbol fresh_tvar = new TypeSymbol(Flags.SYNTHETIC, uv.qtype.tsym.name, null, uv.qtype.tsym.owner);
-                fresh_tvar.type = new TypeVar(fresh_tvar, types.makeCompoundType(uv.getBounds(InferenceBound.UPPER)), null);
+                fresh_tvar.type = new TypeVar(fresh_tvar, types.makeCompoundType(uv.getBounds(InferenceBound.UPPER)), syms.botType);
                 todo.append(uv);
                 uv.inst = fresh_tvar.type;
             }

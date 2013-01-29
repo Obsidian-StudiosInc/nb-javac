@@ -117,5 +117,14 @@ public class TypesTest extends TestCase {
         final JavacTask ct = (JavacTask) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-source", "1.8", "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new MyFileObject(code), new MyFileObject(code)));
         ct.analyze();
     }
+    
+    public void testTypeVarBOT() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        String code = "import java.util.Comparator; public class Test<E> { public static <T extends Comparable<? super T>> Comparator<T> naturalOrder() { return null; } public void t() { Object o = (Comparator<? super E>) naturalOrder(); } }";
+        final JavacTask ct = (JavacTask) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-source", "1.8", "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new MyFileObject(code), new MyFileObject(code)));
+        ct.analyze();
+    }
 
 }
