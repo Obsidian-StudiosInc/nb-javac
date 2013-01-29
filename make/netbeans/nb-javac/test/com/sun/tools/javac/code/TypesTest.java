@@ -108,5 +108,14 @@ public class TypesTest extends TestCase {
             }            
         }.scan(tree, null);
     }
+    
+    public void testDuplicateTest() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        String code = "class Test { abstract void t(); }";
+        final JavacTask ct = (JavacTask) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-source", "1.8", "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new MyFileObject(code), new MyFileObject(code)));
+        ct.analyze();
+    }
 
 }
