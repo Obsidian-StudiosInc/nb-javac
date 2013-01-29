@@ -314,7 +314,7 @@ public class JavacTaskImpl extends BasicJavacTask {
             return List.nil();
 
         prepareCompiler();
-
+        
         ListBuffer<JCCompilationUnit> roots = null;
 
         if (trees == null) {
@@ -351,6 +351,9 @@ public class JavacTaskImpl extends BasicJavacTask {
 
         if (roots == null)
             return List.nil();
+
+        if (compiler.processAnnotations && compiler.deferredDiagnosticHandler == null)
+            compiler.deferredDiagnosticHandler = new Log.DeferredDiagnosticHandler(compiler.log);
 
         try {
             List<JCCompilationUnit> units = compiler.enterTrees(roots.toList());

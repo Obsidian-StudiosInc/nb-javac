@@ -808,6 +808,9 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             taskListener.started(e);
         }
 
+        if (!skipAnnotationProcessing && processAnnotations && deferredDiagnosticHandler == null)
+            deferredDiagnosticHandler = new Log.DeferredDiagnosticHandler(log);
+
         complete(List.of(tree), c);
 
         if (!taskListener.isEmpty()) {
@@ -1069,9 +1072,9 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      * advanced logic to figure out if annotation processing is
      * needed.
      */
-    boolean processAnnotations = false;
+    public boolean processAnnotations = false;
 
-    Log.DeferredDiagnosticHandler deferredDiagnosticHandler;
+    public Log.DeferredDiagnosticHandler deferredDiagnosticHandler;
 
     /**
      * Object to handle annotation processing.
@@ -1137,6 +1140,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             if (unrecoverableError()) {
                 deferredDiagnosticHandler.reportDeferredDiagnostics();
                 log.popDiagnosticHandler(deferredDiagnosticHandler);
+                deferredDiagnosticHandler = null;
                 return this;
             }
         }
@@ -1176,6 +1180,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                               classnames);
                     deferredDiagnosticHandler.reportDeferredDiagnostics();
                     log.popDiagnosticHandler(deferredDiagnosticHandler);
+                    deferredDiagnosticHandler = null;
                     return this; // TODO: Will this halt compilation?
                 } else {
                     boolean errors = false;
@@ -1210,6 +1215,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                     if (errors) {
                         deferredDiagnosticHandler.reportDeferredDiagnostics();
                         log.popDiagnosticHandler(deferredDiagnosticHandler);
+                        deferredDiagnosticHandler = null;
                         return this;
                     }
                 }
@@ -1223,8 +1229,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             }
             try {
                 if (hasOrigin || classSymbols.nonEmpty() || pckSymbols.nonEmpty()) {
-                    c = procEnvImpl.doProcessing(context, currentAnnotations, classSymbols, pckSymbols,
-                            deferredDiagnosticHandler);
+                    c = procEnvImpl.doProcessing(context, currentAnnotations, classSymbols, pckSymbols);
                 } //else: may happen when called from JavacTaskImpl.attribute, which forces processing of toProcessAnnotations
             } finally {
                 if (hasOrigin) {
@@ -1239,6 +1244,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             log.error("cant.access", ex.sym, ex.getDetailValue());
             deferredDiagnosticHandler.reportDeferredDiagnostics();
             log.popDiagnosticHandler(deferredDiagnosticHandler);
+            deferredDiagnosticHandler = null;
             return this;
         }
     }
