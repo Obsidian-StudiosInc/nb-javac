@@ -282,7 +282,7 @@ public class AttrTest extends TestCase {
         assertEquals(new HashSet<String>(Arrays.asList("/Use.java:64-69:compiler.err.cant.resolve.location")), diagnostics);
     }
 
-    public void XtestAnonymous() throws IOException {
+    public void testAnonymous() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
@@ -299,7 +299,7 @@ public class AttrTest extends TestCase {
             diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
         }
         
-        assertEquals(new HashSet<String>(Arrays.asList("/Use.java:93-104:compiler.err.cant.apply.diamond.1")), diagnostics);
+        assertEquals(new HashSet<String>(Arrays.asList("/Use.java:93-104:compiler.err.cant.apply.diamond.1", "/Use.java:89-110:compiler.err.cant.resolve.args")), diagnostics);
     }
 
     public void testErrorConstructor1() throws IOException {
