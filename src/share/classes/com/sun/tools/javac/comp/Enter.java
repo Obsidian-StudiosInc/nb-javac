@@ -377,6 +377,8 @@ public class Enter extends JCTree.Visitor {
         compilationUnits.put(tree.sourcefile.toUri(), tree);
         classEnter(tree.defs, topEnv);
         if (addEnv) {
+            if ((tree.packge.flags_field & APT_CLEANED) != 0)
+                todo.remove(tree.packge);
             todo.append(topEnv);
         }
         log.useSource(prev);
