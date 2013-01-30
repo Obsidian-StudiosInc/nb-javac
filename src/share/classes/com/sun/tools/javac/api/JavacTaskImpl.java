@@ -352,7 +352,7 @@ public class JavacTaskImpl extends BasicJavacTask {
         if (roots == null)
             return List.nil();
 
-        if (compiler.processAnnotations && compiler.deferredDiagnosticHandler == null)
+        if (!compiler.skipAnnotationProcessing && compiler.processAnnotations && compiler.deferredDiagnosticHandler == null)
             compiler.deferredDiagnosticHandler = new Log.DeferredDiagnosticHandler(compiler.log);
 
         try {
