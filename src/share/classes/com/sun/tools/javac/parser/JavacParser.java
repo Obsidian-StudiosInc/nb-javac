@@ -2774,6 +2774,8 @@ public class JavacParser implements Parser {
             }
             if ((flags & flag) != 0) error(token.pos, "repeated.modifier");
             lastPos = token.pos;
+            if (token.deprecatedFlag())
+                flags |= Flags.DEPRECATED;
             nextToken();
             if (flag == Flags.ANNOTATION) {
                 checkAnnotations();
@@ -2796,10 +2798,6 @@ public class JavacParser implements Parser {
             break;
         case INTERFACE: flags |= Flags.INTERFACE; break;
         default: break;
-        }
-
-        if (token.deprecatedFlag()) {
-            flags |= Flags.DEPRECATED;
         }
 
         /* A modifiers tree with no modifier tokens or annotations
