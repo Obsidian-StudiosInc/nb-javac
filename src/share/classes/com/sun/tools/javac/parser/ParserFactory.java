@@ -29,7 +29,6 @@ import java.util.Locale;
 
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.tree.DocTreeMaker;
-import com.sun.tools.javac.tree.EndPosTable;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Log;
@@ -84,15 +83,5 @@ public class ParserFactory {
     public JavacParser newParser(CharSequence input, boolean keepDocComments, boolean keepEndPos, boolean keepLineMap) {
         Lexer lexer = scannerFactory.newScanner(input, keepDocComments);
         return new JavacParser(this, lexer, keepDocComments, keepLineMap, keepEndPos);
-    }
-
-    public JavacParser newParser(CharSequence input, int startPos, final EndPosTable endPos) {
-        Lexer lexer = scannerFactory.newScanner(input, true);
-        ((Scanner)lexer).seek(startPos);
-        return new JavacParser(this, lexer, true, false, true) {
-            @Override protected AbstractEndPosTable newEndPosTable(boolean keepEndPositions) {
-                return (AbstractEndPosTable) endPos;
-            }
-        };
     }
 }
