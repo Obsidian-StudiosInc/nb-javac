@@ -403,6 +403,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         devVerbose    = options.isSet("dev");
         processPcks   = options.isSet("process.packages");
         werror        = options.isSet(WERROR);
+        keepComments  = options.getBoolean("keepComments");
 
         if (source.compareTo(Source.DEFAULT) < 0) {
             if (options.isUnset(XLINT_CUSTOM, "-" + LintCategory.OPTIONS.option)) {
