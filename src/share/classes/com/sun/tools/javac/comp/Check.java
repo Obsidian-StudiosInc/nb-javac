@@ -1207,6 +1207,8 @@ public class Check {
     /** Is given type a subtype of some of the types in given list?
      */
     boolean subset(Type t, List<Type> ts) {
+        if (t == null)
+            return false;
         for (List<Type> l = ts; l.nonEmpty(); l = l.tail)
             if (types.isSubtype(t, l.head)) return true;
         return false;
@@ -1216,6 +1218,8 @@ public class Check {
      *  some of the types in given list?
      */
     boolean intersects(Type t, List<Type> ts) {
+        if (t == null)
+            return false;
         for (List<Type> l = ts; l.nonEmpty(); l = l.tail)
             if (types.isSubtype(t, l.head) || types.isSubtype(l.head, t)) return true;
         return false;
@@ -1225,13 +1229,13 @@ public class Check {
      *  in the list.
      */
     List<Type> incl(Type t, List<Type> ts) {
-        return subset(t, ts) ? ts : excl(t, ts).prepend(t);
+        return (t == null || subset(t, ts)) ? ts : excl(t, ts).prepend(t);
     }
 
     /** Remove type set from type set list.
      */
     List<Type> excl(Type t, List<Type> ts) {
-        if (ts.isEmpty()) {
+        if (t == null || ts.isEmpty()) {
             return ts;
         } else {
             List<Type> ts1 = excl(t, ts.tail);
