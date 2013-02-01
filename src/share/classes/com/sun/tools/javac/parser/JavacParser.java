@@ -3572,8 +3572,8 @@ public class JavacParser implements Parser {
                         List<JCTree> defs =
                             variableDeclaratorsRest(pos, mods, type, name, isInterface, dc,
                                                     new ListBuffer<JCTree>()).toList();
-                        storeEnd(defs.last(), token.endPos);
                         accept(SEMI);
+                        storeEnd(defs.last(), S.prevToken().endPos);
                         return defs;
                     } else {
                         pos = token.pos;
