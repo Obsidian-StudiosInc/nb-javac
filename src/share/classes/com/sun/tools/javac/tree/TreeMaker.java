@@ -36,6 +36,7 @@ import com.sun.tools.javac.tree.JCTree.*;
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.TypeTag.*;
+import com.sun.tools.javac.jvm.ClassReader;
 
 /** Factory class for trees.
  *
@@ -78,6 +79,8 @@ public class TreeMaker implements JCTree.Factory {
      */
     protected TreeMaker(Context context) {
         context.put(treeMakerKey, this);
+        //ClassReader needs to be instantiated before Symtab:
+        ClassReader.instance(context);
         this.pos = Position.NOPOS;
         this.toplevel = null;
         this.names = Names.instance(context);
