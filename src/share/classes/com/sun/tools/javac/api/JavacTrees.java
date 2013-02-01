@@ -95,6 +95,7 @@ import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Pair;
 import static com.sun.tools.javac.code.TypeTag.*;
+import com.sun.tools.javac.jvm.ClassReader;
 
 /**
  * Provides an implementation of Trees.
@@ -151,6 +152,8 @@ public class JavacTrees extends DocTrees {
     }
 
     private void init(Context context) {
+        //Need ensure ClassReader is initialized before Symtab:
+        ClassReader.instance(context);
         attr = Attr.instance(context);
         enter = Enter.instance(context);
         elements = JavacElements.instance(context);
