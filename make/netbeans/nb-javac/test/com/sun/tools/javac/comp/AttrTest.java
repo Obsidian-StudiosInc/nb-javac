@@ -27,6 +27,7 @@ package com.sun.tools.javac.comp;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePath;
@@ -409,4 +410,25 @@ public class AttrTest extends TestCase {
         ct.attributeTreeTo(statement, scope[0].getEnv(), attributeTo[0]);
         assertNotNull(lambdaTree[0].type);
     }
+
+    public void testCheckMethodNPE() throws Exception {
+        String code = "public class Test { class Inner { Inner(int i) {} } public static void main(String[] args) { int i = 1; Test c = null; c.new Inner(i++) {}; } }";
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        
+        ct.analyze();
+        
+        new TreePathScanner<Void, Void>() {
+            @Override public Void visitNewClass(NewClassTree node, Void p) {
+                assertNotNull(node.getEnclosingExpression());
+                assertEquals(1, node.getArguments().size());
+                return super.visitNewClass(node, p);
+            }
+        }.scan(cut, null);
+    }
+    
 }

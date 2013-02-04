@@ -2187,11 +2187,17 @@ public class Attr extends JCTree.Visitor {
                     tree.pos(), localEnv, clazztype, argtypes, typeargtypes);
                 Assert.check(sym.kind < AMBIGUOUS, "Attr.visitNewClass tree [" + tree + "] with constructor type [" + tree.constructorType + "] has symbol [" + sym + "] of kind [ " + sym.kind + "]");
                 tree.constructor = sym;
-                tree.constructorType = checkId(tree,
-                    clazztype,
-                    tree.constructor,
-                    localEnv,
-                    new ResultInfo(VAL, newMethodTemplate(syms.voidType, argtypes, typeargtypes)));
+                List<JCExpression> origArgs = tree.args;
+                tree.args = treeArgs;
+                try {
+                    tree.constructorType = checkId(tree,
+                        clazztype,
+                        tree.constructor,
+                        localEnv,
+                        new ResultInfo(VAL, newMethodTemplate(syms.voidType, argtypes, typeargtypes)));
+                } finally {
+                    tree.args = origArgs;
+                }
             }
 
             if (tree.constructor != null && tree.constructor.kind == MTH)
