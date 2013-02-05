@@ -3668,7 +3668,7 @@ public class Attr extends JCTree.Visitor {
             //invalid target type - propagate exception outwards or report error
             //depending on the current check context
             resultInfo.checkContext.report(env.tree.pos(), ex.getDiagnostic());
-            return types.createErrorType(site);
+            return types.createErrorType(sym.type);
         } catch (Resolve.InapplicableMethodException ex) {
             Assert.error(ex.getDiagnostic().getMessage(Locale.getDefault()));
             return null;
