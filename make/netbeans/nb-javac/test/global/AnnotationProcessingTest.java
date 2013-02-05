@@ -88,7 +88,7 @@ public class AnnotationProcessingTest extends TestCase {
         performErrorsTest(code, 1);
     }
 
-    public void XtestDuplicatedErrorsReported() throws IOException {
+    public void testDuplicatedErrorsReported() throws IOException {
         String code = "package test; @global.ap1.Ann(fqnToGenerate=\"test.H\", content=\"package test; public class H {}\") public class Test {}";
 
         performAPErrorsTest(code, ErrorProducingAP.class.getName(), new FileContent[0], "14-117:message 1", "14-117:message 2", "14-117:message 3");

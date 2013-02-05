@@ -126,6 +126,7 @@ public class Log extends AbstractLog {
      */
     public static class DeferredDiagnosticHandler extends DiagnosticHandler {
         private Queue<JCDiagnostic> deferred = ListBuffer.lb();
+        private final Log log;
         private final Filter<JCDiagnostic> filter;
 
         public DeferredDiagnosticHandler(Log log) {
@@ -133,15 +134,20 @@ public class Log extends AbstractLog {
         }
 
         public DeferredDiagnosticHandler(Log log, Filter<JCDiagnostic> filter) {
+            this.log = log;
             this.filter = filter;
             install(log);
         }
 
         public void report(JCDiagnostic diag) {
-            if (filter == null || filter.accepts(diag))
+            if (filter == null || filter.accepts(diag)) {
+                if (log.multipleErrors) {
+                    diag = new DeferredMultiDiagnostic(diag);
+                }
                 deferred.add(diag);
-            else
+            } else {
                 prev.report(diag);
+            }
         }
 
         public Queue<JCDiagnostic> getDiagnostics() {
@@ -157,10 +163,30 @@ public class Log extends AbstractLog {
         public void reportDeferredDiagnostics(Set<JCDiagnostic.Kind> kinds) {
             JCDiagnostic d;
             while ((d = deferred.poll()) != null) {
-                if (kinds.contains(d.getKind()))
-                    prev.report(d);
+                if (kinds.contains(d.getKind())) {
+                    boolean orig = log.multipleErrors;
+                    try {
+                        if (d instanceof DeferredMultiDiagnostic) {
+                            log.multipleErrors = true;
+                            d = ((DeferredMultiDiagnostic)d).original;
+                        }
+                        prev.report(d);
+                    } finally {
+                        log.multipleErrors = orig;
+                    }
+                }
             }
             Assert.check(deferred.isEmpty());
+        }
+        
+        private static class DeferredMultiDiagnostic extends JCDiagnostic {
+            
+            final JCDiagnostic original;
+
+            private DeferredMultiDiagnostic(JCDiagnostic original) {
+                super(original);
+                this.original = original;
+            }
         }
     }
 
