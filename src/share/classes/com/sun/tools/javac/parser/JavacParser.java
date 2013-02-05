@@ -3000,9 +3000,8 @@ public class JavacParser implements Parser {
         ListBuffer<JCTree> defs = new ListBuffer<JCTree>();
         defs.append(resource());
         while (token.kind == SEMI) {
-            // All but last of multiple declarators must subsume a semicolon
-            storeEnd(defs.last(), token.endPos);
-            int semiColonPos = token.pos;
+            //nb-javac: do not subsume the semicolon, so that it can be considered
+            //to be a separator by the code generator
             nextToken();
             if (token.kind == RPAREN) { // Optional trailing semicolon
                                        // after last resource
