@@ -398,6 +398,10 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
             column = source.getColumnNumber(n, true);
         }
     }
+    
+    protected JCDiagnostic(JCDiagnostic original) {
+        this(original.defaultFormatter, original.type, original.lintCategory, original.flags, original.source, original.position, original.key, original.args);
+    }
 
     /**
      * Get the type of this diagnostic.
