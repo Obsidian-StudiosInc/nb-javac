@@ -115,7 +115,7 @@ public class Tokens {
      */
     public enum TokenKind implements Formattable, Filter<TokenKind> {
         EOF(),
-        ERROR(),
+        ERROR(Tag.STRING),
         IDENTIFIER(Tag.NAMED),
         ABSTRACT("abstract"),
         ASSERT("assert", Tag.NAMED),
@@ -477,5 +477,5 @@ public class Tokens {
     }
 
     public static final Token DUMMY =
-                new Token(TokenKind.ERROR, 0, 0, null);
+                new StringToken(TokenKind.ERROR, 0, 0, null, null);
 }

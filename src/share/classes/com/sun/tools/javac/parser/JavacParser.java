@@ -3121,30 +3121,62 @@ public class JavacParser implements Parser {
             }
             
             // Error recovery
-            if (token.kind == ERROR || token.kind == ELLIPSIS) {
-                String val = token.stringVal();
-                for (int i = 0; i < val.length() && val.charAt(i) == '.'; i++) {
-                    if (i < val.length() - 1) {
-                        pid = F.at(token.pos + i).Select(pid, names.error);
-                        storeEnd(pid, token.pos + i + 1);
-                    } else {
-                        token = S.split();
+            switch (token.kind) {
+                case ERROR:
+                    String val = token.stringVal();
+                    for (int i = 0; i < val.length() && val.charAt(i) == '.'; i++) {
+                        if (i < val.length() - 1) {
+                            pid = F.at(token.pos + i).Select(pid, names.error);
+                            setErrorEndPos(token.pos + i + 1);
+                            reportSyntaxError(token.pos + i, "expected", IDENTIFIER);
+                            storeEnd(pid, token.pos + i + 1);
+                        } else {
+                            nextToken();
+                            if (token.kind == STAR) {
+                                pid = to(F.at(pos1).Select(pid, names.asterisk));
+                                nextToken();
+                                break;
+                            } else {
+                                pid = toP(F.at(pos1).Select(pid, ident()));
+                            }
+                        }
                     }
-                }
-            } else if (token.kind == FLOATLITERAL || token.kind == DOUBLELITERAL) {
-                String val = token.stringVal();
-                if (val.length() > 0 && val.charAt(0) == '.') {
-                    setErrorEndPos(token.pos);
-                    reportSyntaxError(S.prevToken().endPos, "expected", IDENTIFIER);
-                    pid = to(F.at(token.pos).Select(pid, names.error));
-                    nextToken();
-                    if (token.kind == IDENTIFIER) {
+                    break;
+                case ELLIPSIS:
+                    val = "...";
+                    for (int i = 0; i < val.length() && val.charAt(i) == '.'; i++) {
+                        if (i < val.length() - 1) {
+                            pid = F.at(token.pos + i).Select(pid, names.error);
+                            setErrorEndPos(token.pos + i + 1);
+                            reportSyntaxError(token.pos + i, "expected", IDENTIFIER);
+                            storeEnd(pid, token.pos + i + 1);
+                        } else {
+                            nextToken();
+                            if (token.kind == STAR) {
+                                pid = to(F.at(pos1).Select(pid, names.asterisk));
+                                nextToken();
+                                break;
+                            } else {
+                                pid = toP(F.at(pos1).Select(pid, ident()));
+                            }
+                        }
+                    }
+                    break;
+                case FLOATLITERAL:
+                case DOUBLELITERAL:
+                    val = token.stringVal();
+                    if (val.length() > 0 && val.charAt(0) == '.') {
+                        setErrorEndPos(token.pos);
+                        reportSyntaxError(S.prevToken().endPos, "expected", IDENTIFIER);
+                        pid = to(F.at(token.pos).Select(pid, names.error));
                         nextToken();
-                        storeEnd(pid, token.pos);
+                        if (token.kind == IDENTIFIER) {
+                            nextToken();
+                            storeEnd(pid, token.pos);
+                        }
                     }
-                }
+                    break;
             }
-            
         } while (token.kind == DOT);
         accept(SEMI);
         return toP(F.at(pos).Import(pid, importStatic));
