@@ -122,19 +122,19 @@ public class ClassWriter extends ClassFile {
 
     /** An output buffer for member info.
      */
-    ByteBuffer databuf = new ByteBuffer(DATA_BUF_SIZE);
+    protected ByteBuffer databuf = new ByteBuffer(DATA_BUF_SIZE);
 
     /** An output buffer for the constant pool.
      */
-    ByteBuffer poolbuf = new ByteBuffer(POOL_BUF_SIZE);
+    protected ByteBuffer poolbuf = new ByteBuffer(POOL_BUF_SIZE);
 
     /** An output buffer for type signatures.
      */
-    ByteBuffer sigbuf = new ByteBuffer();
+    protected ByteBuffer sigbuf = new ByteBuffer();
 
     /** The constant pool.
      */
-    Pool pool;
+    protected Pool pool;
 
     /** The inner classes to be written, as a set.
      */
@@ -161,7 +161,6 @@ public class ClassWriter extends ClassFile {
     private final JavaFileManager fileManager;
     
     private boolean allowGenerics;
-    private boolean preserveErrors = false;
     private ClassSymbol generatedClass;
 
     /** The tags and constants used in compressed stackmap. */
@@ -285,7 +284,7 @@ public class ClassWriter extends ClassFile {
 
     /** Assemble signature of given type in string buffer.
      */
-    void assembleSig(Type type) {
+    protected void assembleSig(Type type) {
         type = type.unannotatedType();
         switch (type.getTag()) {
         case BYTE:
@@ -316,12 +315,6 @@ public class ClassWriter extends ClassFile {
             sigbuf.appendByte('V');
             break;
         case ERROR:
-            if (preserveErrors) {
-                sigbuf.appendByte('R');
-                assembleClassSig(type);
-                sigbuf.appendByte(';');
-                break;
-            }
         case CLASS:
             sigbuf.appendByte('L');
             assembleClassSig(type);
@@ -393,7 +386,7 @@ public class ClassWriter extends ClassFile {
         return false;
     }
 
-    void assembleClassSig(Type type) {
+    protected void assembleClassSig(Type type) {
         type = type.unannotatedType();
         ClassType ct = (ClassType)type;
         ClassSymbol c = (ClassSymbol)ct.tsym;
@@ -451,7 +444,7 @@ public class ClassWriter extends ClassFile {
 
     /** Return signature of given type
      */
-    Name typeSig(Type type) {
+    protected Name typeSig(Type type) {
         Assert.check(sigbuf.length == 0);
         //- System.out.println(" ? " + type);
         assembleSig(type);
@@ -633,7 +626,7 @@ public class ClassWriter extends ClassFile {
     /** Write header for an attribute to data buffer and return
      *  position past attribute length index.
      */
-    int writeAttr(Name attrName) {
+    protected int writeAttr(Name attrName) {
         databuf.appendChar(pool.put(attrName));
         databuf.appendInt(0);
         return databuf.length;
@@ -641,7 +634,7 @@ public class ClassWriter extends ClassFile {
 
     /** Fill in attribute length.
      */
-    void endAttr(int index) {
+    protected void endAttr(int index) {
         putInt(databuf, index - 4, databuf.length - index);
     }
 
@@ -745,19 +738,18 @@ public class ClassWriter extends ClassFile {
             acount++;
         }
         acount += writeJavaAnnotations(sym.getRawAttributes());
+        acount += writeExtraJavaAnnotations(sym.getRawAttributes());
         acount += writeTypeAnnotations(sym.getRawTypeAttributes());
-        if (sym.externalType(types).isErroneous()) {
-            int rsIdx = writeAttr(names._org_netbeans_TypeSignature);
-            try {
-                preserveErrors = true;
-                databuf.appendChar(pool.put(typeSig(sym.type)));
-            } finally {
-                preserveErrors = false;
-            }
-            endAttr(rsIdx);
-            acount++;
-        }
+        acount += writeExtraTypeAnnotations(sym.getRawTypeAttributes());
         return acount;
+    }
+
+    /**Allows subclasses to write additional member attributes
+     *
+     * @return the number of attributes written
+     */
+    protected int writeExtraMemberAttributes(Symbol sym) {
+        return 0;
     }
 
     /**
@@ -788,11 +780,9 @@ public class ClassWriter extends ClassFile {
     int writeParameterAttrs(MethodSymbol m) {
         boolean hasVisible = false;
         boolean hasInvisible = false;
-        boolean hasSourceLevel = false;
         if (m.params != null) for (VarSymbol s : m.params) {
             for (Attribute.Compound a : s.getRawAttributes()) {
                 switch (types.getRetention(a)) {
-                case SOURCE: hasSourceLevel = true; break;
                 case CLASS: hasInvisible = true; break;
                 case RUNTIME: hasVisible = true; break;
                 default: ;// /* fail soft */ throw new AssertionError(vis);
@@ -831,31 +821,16 @@ public class ClassWriter extends ClassFile {
             endAttr(attrIndex);
             attrCount++;
         }
-        if (hasSourceLevel) {
-            int attrIndex = writeAttr(names._org_netbeans_SourceLevelParameterAnnotations);
-            databuf.appendByte(m.params.length());
-            for (VarSymbol s : m.params) {
-                ListBuffer<Attribute.Compound> buf = new ListBuffer<Attribute.Compound>();
-                for (Attribute.Compound a : s.getRawAttributes())
-                    if (types.getRetention(a) == RetentionPolicy.SOURCE)
-                        buf.append(a);
-                databuf.appendChar(buf.length());
-                for (Attribute.Compound a : buf)
-                    writeCompoundAttribute(a);
-            }
-            endAttr(attrIndex);
-            attrCount++;
-        }
-        if (m.code == null && m.params != null && m.params.nonEmpty()) {
-            int attrIndex = writeAttr(names._org_netbeans_ParameterNames);
-            for (VarSymbol s : m.params)
-                databuf.appendChar(pool.put(s.name));
-            endAttr(attrIndex);
-            attrCount++;
-        }
         return attrCount;
     }
 
+    /**Allows subclasses to write additional parameter attributes
+     *
+     * @return the number of attributes written
+     */
+    protected int writeExtraParameterAttributes(MethodSymbol m) {
+        return 0;
+    }
 /**********************************************************************
  * Writing Java-language annotations (aka metadata, attributes)
  **********************************************************************/
@@ -867,10 +842,8 @@ public class ClassWriter extends ClassFile {
         if (attrs.isEmpty()) return 0;
         ListBuffer<Attribute.Compound> visibles = new ListBuffer<Attribute.Compound>();
         ListBuffer<Attribute.Compound> invisibles = new ListBuffer<Attribute.Compound>();
-        ListBuffer<Attribute.Compound> sourceLevel = new ListBuffer<Attribute.Compound>();
         for (Attribute.Compound a : attrs) {
             switch (types.getRetention(a)) {
-            case SOURCE: sourceLevel.append(a); break;
             case CLASS: invisibles.append(a); break;
             case RUNTIME: visibles.append(a); break;
             default: ;// /* fail soft */ throw new AssertionError(vis);
@@ -894,15 +867,15 @@ public class ClassWriter extends ClassFile {
             endAttr(attrIndex);
             attrCount++;
         }
-        if (sourceLevel.length() != 0) {
-            int attrIndex = writeAttr(names._org_netbeans_SourceLevelAnnotations);
-            databuf.appendChar(sourceLevel.length());
-            for (Attribute.Compound a : sourceLevel)
-                writeCompoundAttribute(a);
-            endAttr(attrIndex);
-            attrCount++;
-        }
         return attrCount;
+    }
+    
+    /**Allows subclasses to write additional Java-language annotations
+     *
+     * @return the number of JVM attributes written
+     */
+    protected int writeExtraJavaAnnotations(List<Attribute.Compound> attrs) {
+        return 0;
     }
 
     int writeTypeAnnotations(List<Attribute.TypeCompound> typeAnnos) {
@@ -975,6 +948,14 @@ public class ClassWriter extends ClassFile {
         return attrCount;
     }
 
+    /**Allows subclasses to write additional type annotations
+     *
+     * @return the number of JVM attributes written
+     */
+    protected int writeExtraTypeAnnotations(List<Attribute.TypeCompound> attrs) {
+        return 0;
+    }
+
     /** A visitor to write an attribute including its leading
      *  single-character marker.
      */
@@ -1043,7 +1024,7 @@ public class ClassWriter extends ClassFile {
     AttributeWriter awriter = new AttributeWriter();
 
     /** Write a compound attribute excluding the '@' marker. */
-    void writeCompoundAttribute(Attribute.Compound c) {
+    protected void writeCompoundAttribute(Attribute.Compound c) {
         databuf.appendChar(pool.put(typeSig(c.type)));
         databuf.appendChar(c.values.length());
         for (Pair<Symbol.MethodSymbol,Attribute> p : c.values) {
@@ -1242,6 +1223,7 @@ public class ClassWriter extends ClassFile {
             acount++;
         }
         acount += writeMemberAttrs(v);
+        acount += writeExtraMemberAttributes(v);
         endAttrs(acountIdx, acount);
     }
 
@@ -1283,7 +1265,9 @@ public class ClassWriter extends ClassFile {
         if (options.isSet(PARAMETERS))
             acount += writeMethodParametersAttr(m);
         acount += writeMemberAttrs(m);
+        acount += writeExtraMemberAttributes(m);
         acount += writeParameterAttrs(m);
+        acount += writeExtraParameterAttributes(m);
         endAttrs(acountIdx, acount);
         m.code = null; // to conserve space
     }
@@ -1892,7 +1876,9 @@ public class ClassWriter extends ClassFile {
 
         acount += writeFlagAttrs(c.flags());
         acount += writeJavaAnnotations(c.getRawAttributes());
+        acount += writeExtraJavaAnnotations(c.getRawAttributes());
         acount += writeTypeAnnotations(c.getRawTypeAttributes());
+        acount += writeExtraTypeAnnotations(c.getRawTypeAttributes());
         acount += writeEnclosingMethodAttribute(c);
         acount += writeExtraClassAttributes(c);
 

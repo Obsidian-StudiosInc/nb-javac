@@ -351,7 +351,7 @@ public class ClassReader implements Completer {
 
     /** Read a character.
      */
-    char nextChar() {
+    protected char nextChar() {
         return (char)(((buf[bp++] & 0xFF) << 8) + (buf[bp++] & 0xFF));
     }
 
@@ -545,7 +545,7 @@ public class ClassReader implements Completer {
 
     /** Read signature and convert to type.
      */
-    Type readType(int i) {
+    protected Type readType(int i) {
         int index = poolIdx[i];
         return sigToType(buf, index + 3, getChar(index + 1));
     }
@@ -581,7 +581,7 @@ public class ClassReader implements Completer {
 
     /** Read name.
      */
-    Name readName(int i) {
+    protected Name readName(int i) {
         return (Name) (readPool(i));
     }
 
@@ -1198,47 +1198,6 @@ public class ClassReader implements Completer {
                 }
             },
 
-            // nb-javac attributes
-
-            new AttributeReader(names._org_netbeans_TypeSignature, V49, CLASS_OR_MEMBER_ATTRIBUTE) {
-                protected void read(Symbol sym, int attrLen) {
-                    sym.type = readType(nextChar());
-                }
-            },
-            
-            new AttributeReader(names._org_netbeans_ParameterNames, V49, CLASS_OR_MEMBER_ATTRIBUTE) {
-                protected void read(Symbol sym, int attrLen) {
-                    int newbp = bp + attrLen;
-                    List<Name> parameterNames = List.nil();
-                    int numParams = 0;
-                    if (sym.type != null) {
-                        List<Type> parameterTypes = sym.type.getParameterTypes();
-                        if (parameterTypes != null)
-                            numParams = parameterTypes.length();
-                    }
-                    for (int i = 0; i < numParams; i++) {
-                        if (bp < newbp - 1)
-                            parameterNames = parameterNames.prepend(readName(nextChar()));
-                    }
-                    parameterNames = parameterNames.reverse();
-                    while(parameterNames.length() < numParams)
-                        parameterNames = parameterNames.prepend(names.empty);
-                    ((MethodSymbol)sym).savedParameterNames = parameterNames;
-                }
-            },
-
-            new AttributeReader(names._org_netbeans_SourceLevelAnnotations, V49, CLASS_OR_MEMBER_ATTRIBUTE) {
-                protected void read(Symbol sym, int attrLen) {
-                    attachAnnotations(sym);
-                }
-            },
-
-            new AttributeReader(names._org_netbeans_SourceLevelParameterAnnotations, V49, CLASS_OR_MEMBER_ATTRIBUTE) {
-                protected void read(Symbol sym, int attrLen) {
-                    attachParameterAnnotations(sym);
-                }
-            },
-
             // The following attributes for a Code attribute are not currently handled
             // StackMapTable
             // SourceDebugExtension
@@ -1422,7 +1381,7 @@ public class ClassReader implements Completer {
 
     /** Attach annotations.
      */
-    void attachAnnotations(final Symbol sym) {
+    protected void attachAnnotations(final Symbol sym) {
         int numAttributes = nextChar();
         if (numAttributes != 0) {
             ListBuffer<CompoundAnnotationProxy> proxies =
@@ -1440,7 +1399,7 @@ public class ClassReader implements Completer {
 
     /** Attach parameter annotations.
      */
-    void attachParameterAnnotations(final Symbol method) {
+    protected void attachParameterAnnotations(final Symbol method) {
         final MethodSymbol meth = (MethodSymbol)method;
         int numParameters = buf[bp++] & 0xFF;
         List<VarSymbol> parameters = meth.params();
