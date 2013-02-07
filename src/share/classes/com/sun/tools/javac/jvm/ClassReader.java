@@ -1414,7 +1414,7 @@ public class ClassReader implements Completer {
         }
     }
 
-    void attachTypeAnnotations(final Symbol sym) {
+    protected void attachTypeAnnotations(final Symbol sym) {
         int numAttributes = nextChar();
         if (numAttributes != 0) {
             ListBuffer<TypeAnnotationProxy> proxies =
