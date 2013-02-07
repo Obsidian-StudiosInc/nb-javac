@@ -1033,7 +1033,7 @@ public class ClassWriter extends ClassFile {
         }
     }
 
-    void writeTypeAnnotation(Attribute.TypeCompound c) {
+    protected void writeTypeAnnotation(Attribute.TypeCompound c) {
         writePosition(c.position);
         writeCompoundAttribute(c);
     }
