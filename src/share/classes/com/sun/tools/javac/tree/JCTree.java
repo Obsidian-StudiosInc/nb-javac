@@ -1506,7 +1506,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         }
         public JCExpression getIdentifier() { return clazz; }
         public List<JCExpression> getArguments() {
-            return args;
+            return encl != null && def != null ? args.tail : args;
         }
         public JCClassDecl getClassBody() { return def; }
         @Override

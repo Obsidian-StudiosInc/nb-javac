@@ -648,8 +648,14 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitNewClass(JCNewClass tree) {
-        if (tree.encl != null)
-            tree.encl = translate(tree.encl, erasure(tree.encl.type));
+        if (tree.encl != null) {
+            if (tree.def == null) {
+                tree.encl = translate(tree.encl, erasure(tree.encl.type));
+            } else {
+                //originally was deleted in Attr.visitNewClass
+                tree.encl = null;
+            }
+        }
         tree.clazz = translate(tree.clazz, null);
         if (tree.varargsElement != null)
             tree.varargsElement = types.erasure(tree.varargsElement);

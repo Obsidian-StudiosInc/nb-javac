@@ -28,6 +28,7 @@ import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePath;
@@ -39,18 +40,28 @@ import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.tools.javac.api.JavacTrees;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCLambda;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
+import javax.tools.FileObject;
+import javax.tools.ForwardingJavaFileManager;
 import javax.tools.JavaCompiler;
+import javax.tools.JavaFileManager;
+import javax.tools.JavaFileManager.Location;
 import javax.tools.JavaFileObject;
+import javax.tools.JavaFileObject.Kind;
 import javax.tools.SimpleJavaFileObject;
+import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertNotNull;
@@ -417,7 +428,8 @@ public class AttrTest extends TestCase {
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
         
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavaFileManager fm = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         
         ct.analyze();
@@ -429,6 +441,132 @@ public class AttrTest extends TestCase {
                 return super.visitNewClass(node, p);
             }
         }.scan(cut, null);
+        
+        ct.generate(); //verify no exceptions during generate
     }
     
+    public void test208454() throws Exception {
+        String code = "public class Test { public static void main(String[] args) { String.new Runnable() { public void run() {} }; } }";
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        
+        JavaFileManager fm = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        
+        ct.analyze();
+        
+        new TreePathScanner<Void, Void>() {
+            @Override public Void scan(Tree tree, Void p) {
+                if (tree == null) return null;
+                
+                TreePath path = new TreePath(getCurrentPath(), tree);
+                
+                Trees.instance(ct).getScope(path);
+                return super.scan(tree, p);
+            }
+        }.scan(cut, null);
+        
+        ct.generate(); //verify no exceptions during generate
+    }
+
+    public void testNewClassWithEnclosingNoAnonymous() throws Exception {
+        String code = "public class Test { class Inner { Inner(int i) {} } public static void main(String[] args) { int i = 1; Test c = null; c.new Inner(i++); } }";
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        
+        JavaFileManager fm = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        
+        ct.analyze();
+        
+        new TreePathScanner<Void, Void>() {
+            @Override public Void visitNewClass(NewClassTree node, Void p) {
+                assertNotNull(node.getEnclosingExpression());
+                assertEquals(1, node.getArguments().size());
+                return super.visitNewClass(node, p);
+            }
+        }.scan(cut, null);
+        
+        ct.generate(); //verify no exceptions during generate
+    }
+    
+    public void testNewClassWithoutEnclosingAnonymous() throws Exception {
+        String code = "public class Test { class Inner { Inner(int i) {} } public static void main(String[] args) { int i = 1; new Inner(i++) {}; } }";
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        
+        JavaFileManager fm = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        
+        ct.analyze();
+        
+        new TreePathScanner<Void, Void>() {
+            @Override public Void visitNewClass(NewClassTree node, Void p) {
+                assertNull(node.getEnclosingExpression());
+                assertEquals(1, node.getArguments().size());
+                return super.visitNewClass(node, p);
+            }
+        }.scan(cut, null);
+        
+        ct.generate(); //verify no exceptions during generate
+    }
+    
+    public void testNewClassWithoutEnclosingNoAnonymous() throws Exception {
+        String code = "public class Test { class Inner { Inner(int i) {} } public static void main(String[] args) { int i = 1; new Inner(i++); } }";
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        
+        JavaFileManager fm = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        
+        ct.analyze();
+        
+        new TreePathScanner<Void, Void>() {
+            @Override public Void visitNewClass(NewClassTree node, Void p) {
+                assertNull(node.getEnclosingExpression());
+                assertEquals(1, node.getArguments().size());
+                return super.visitNewClass(node, p);
+            }
+        }.scan(cut, null);
+        
+        ct.generate(); //verify no exceptions during generate
+    }
+
+    private static class MemoryOutputJFM extends ForwardingJavaFileManager<StandardJavaFileManager> {
+
+        private final Map<String, byte[]> writtenClasses = new HashMap<String, byte[]>();
+        
+        public MemoryOutputJFM(StandardJavaFileManager m) {
+            super(m);
+        }
+
+        @Override
+        public JavaFileObject getJavaFileForOutput(Location location, final String className, Kind kind, FileObject sibling) throws IOException {
+            if (location.isOutputLocation() && kind == Kind.CLASS) {
+                return new SimpleJavaFileObject(URI.create("myfo:/" + className), kind) {
+                    @Override
+                    public OutputStream openOutputStream() throws IOException {
+                        return new ByteArrayOutputStream() {
+                            @Override public void close() throws IOException {
+                                super.close();
+                                writtenClasses.put(className, toByteArray());
+                            }
+                        };
+                    }
+                };
+            } else {
+                return super.getJavaFileForOutput(location, className, kind, sibling);
+            }
+        }
+        
+    }
+
 }
