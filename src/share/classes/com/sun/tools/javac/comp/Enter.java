@@ -513,7 +513,7 @@ public class Enter extends JCTree.Visitor {
                 public Void visitType(TypeElement e, Void p) {
                     if (e instanceof ClassSymbol)
                         ((ClassSymbol) e).flags_field |= FROMCLASS;
-                    return null;
+                    return super.visitType(e, p);
                 }
                 @Override
                 public Void visitExecutable(ExecutableElement e, Void p) {
