@@ -2175,9 +2175,9 @@ public class Attr extends JCTree.Visitor {
 
                 // If an outer instance is given,
                 // prefix it to the constructor arguments
-                List<JCExpression> treeArgs = tree.args;
+                // "encl" will be cleared in TransTypes
                 if (tree.encl != null && !clazztype.tsym.isInterface()) {
-                    treeArgs = treeArgs.prepend(makeNullCheck(tree.encl));
+                    tree.args = tree.args.prepend(makeNullCheck(tree.encl));
                     argtypes = argtypes.prepend(tree.encl.type);
                 }
 
@@ -2187,17 +2187,11 @@ public class Attr extends JCTree.Visitor {
                     tree.pos(), localEnv, clazztype, argtypes, typeargtypes);
                 Assert.check(sym.kind < AMBIGUOUS, "Attr.visitNewClass tree [" + tree + "] with constructor type [" + tree.constructorType + "] has symbol [" + sym + "] of kind [ " + sym.kind + "]");
                 tree.constructor = sym;
-                List<JCExpression> origArgs = tree.args;
-                tree.args = treeArgs;
-                try {
-                    tree.constructorType = checkId(tree,
-                        clazztype,
-                        tree.constructor,
-                        localEnv,
-                        new ResultInfo(VAL, newMethodTemplate(syms.voidType, argtypes, typeargtypes)));
-                } finally {
-                    tree.args = origArgs;
-                }
+                tree.constructorType = checkId(tree,
+                    clazztype,
+                    tree.constructor,
+                    localEnv,
+                    new ResultInfo(VAL, newMethodTemplate(syms.voidType, argtypes, typeargtypes)));
             }
 
             if (tree.constructor != null && tree.constructor.kind == MTH)
