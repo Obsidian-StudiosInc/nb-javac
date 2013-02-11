@@ -2799,6 +2799,11 @@ public class JavacParser implements Parser {
         case INTERFACE: flags |= Flags.INTERFACE; break;
         default: break;
         }
+        
+        /* A modifiers tree with no modifier tokens or annotations
+         * has no text position. */
+        if ((flags & (Flags.ModifierFlags | Flags.ANNOTATION | Flags.DEFAULT)) == 0 && annotations.isEmpty())
+            pos = Position.NOPOS;
 
         JCModifiers mods = F.at(pos).Modifiers(flags, annotations.toList());
         if (pos != Position.NOPOS)
