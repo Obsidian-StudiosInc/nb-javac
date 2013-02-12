@@ -1490,7 +1490,7 @@ public class Flow {
         /** Check that trackable variable is initialized.
          */
         void checkInit(DiagnosticPosition pos, VarSymbol sym) {
-            if ((sym.adr >= firstadr || (sym.owner != null && sym.owner.kind != TYP)) &&
+            if ((sym.adr >= firstadr || (sym.owner != null && sym.owner.kind != TYP && sym.owner.kind != ERR)) &&
                 trackable(sym) &&
                 inits != null && !inits.isMember(sym.adr)) {
                 log.error(pos, "var.might.not.have.been.initialized",
