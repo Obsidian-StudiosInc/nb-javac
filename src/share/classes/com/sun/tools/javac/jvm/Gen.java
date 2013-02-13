@@ -515,7 +515,8 @@ public class Gen extends JCTree.Visitor {
             Symbol clinit = c.members().lookup(names.clinit).sym;
             if (!(clinit instanceof MethodSymbol)) {
                 clinit = new MethodSymbol(
-                    STATIC, names.clinit,
+                    STATIC | (c.flags() & STRICTFP),
+                    names.clinit,
                     new MethodType(
                         List.<Type>nil(), syms.voidType,
                         List.<Type>nil(), syms.methodClass),

@@ -43,7 +43,7 @@ import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.comp.Check.CheckContext;
 import com.sun.tools.javac.comp.DeferredAttr.AttrMode;
 import com.sun.tools.javac.comp.Infer.InferenceContext;
-import com.sun.tools.javac.comp.Infer.InferenceContext.FreeTypeListener;
+import com.sun.tools.javac.comp.Infer.FreeTypeListener;
 import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
@@ -246,8 +246,8 @@ public class Attr extends JCTree.Visitor {
                     @Override
                     public void typesInferred(InferenceContext inferenceContext) {
                         ResultInfo pendingResult =
-                                    resultInfo.dup(inferenceContext.asInstType(resultInfo.pt, types));
-                        check(tree, inferenceContext.asInstType(found, types), ownkind, pendingResult);
+                                    resultInfo.dup(inferenceContext.asInstType(resultInfo.pt));
+                        check(tree, inferenceContext.asInstType(found), ownkind, pendingResult);
                     }
                 });
                 return tree.type = resultInfo.pt;
@@ -770,6 +770,8 @@ public class Attr extends JCTree.Visitor {
         JavaFileObject prevSource = log.useSource(env.toplevel.sourcefile);
 
         try {
+            memberEnter.typeAnnotate(initializer, env, env.info.enclVar);
+            annotate.flush();
             Type itype = attribExpr(initializer, env, type);
             if (itype.constValue() != null)
                 return coerce(itype, type).constValue();
@@ -1122,8 +1124,9 @@ public class Attr extends JCTree.Visitor {
             Env<AttrContext> localEnv =
                 env.dup(tree, env.info.dup(env.info.scope.dupUnshared()));
             localEnv.info.scope.owner =
-                new MethodSymbol(tree.flags | BLOCK, names.empty, null,
-                                 env.info.scope.owner);
+                new MethodSymbol(tree.flags | BLOCK |
+                    env.info.scope.owner.flags() & STRICTFP, names.empty, null,
+                    env.info.scope.owner);
             if ((tree.flags & STATIC) != 0) localEnv.info.staticLevel++;
 
             // Attribute all type annotations in the block
@@ -2486,7 +2489,7 @@ public class Attr extends JCTree.Visitor {
                 inferenceContext.addFreeTypeListener(ts, new FreeTypeListener() {
                     @Override
                     public void typesInferred(InferenceContext inferenceContext) {
-                        checkAccessibleTypes(pos, env, inferenceContext, inferenceContext.asInstTypes(ts, types));
+                        checkAccessibleTypes(pos, env, inferenceContext, inferenceContext.asInstTypes(ts));
                     }
                 });
             } else {
@@ -2511,7 +2514,7 @@ public class Attr extends JCTree.Visitor {
             @Override
             public boolean compatible(Type found, Type req, Warner warn) {
                 //return type must be compatible in both current context and assignment context
-                return chk.basicHandler.compatible(found, inferenceContext().asFree(req, types), warn);
+                return chk.basicHandler.compatible(found, inferenceContext().asFree(req), warn);
             }
 
             @Override
@@ -2546,7 +2549,7 @@ public class Attr extends JCTree.Visitor {
         * descriptor.
         */
         private void checkLambdaCompatible(JCLambda tree, Type descriptor, CheckContext checkContext, boolean speculativeAttr) {
-            Type returnType = checkContext.inferenceContext().asFree(descriptor.getReturnType(), types);
+            Type returnType = checkContext.inferenceContext().asFree(descriptor.getReturnType());
 
             //return values have already been checked - but if lambda has no return
             //values, we must ensure that void/value compatibility is correct;
@@ -2558,13 +2561,13 @@ public class Attr extends JCTree.Visitor {
                         diags.fragment("missing.ret.val", returnType)));
             }
 
-            List<Type> argTypes = checkContext.inferenceContext().asFree(descriptor.getParameterTypes(), types);
+            List<Type> argTypes = checkContext.inferenceContext().asFree(descriptor.getParameterTypes());
             if (!types.isSameTypes(argTypes, TreeInfo.types(tree.params))) {
                 checkContext.report(tree, diags.fragment("incompatible.arg.types.in.lambda"));
             }
 
             if (!speculativeAttr) {
-                List<Type> thrownTypes = checkContext.inferenceContext().asFree(descriptor.getThrownTypes(), types);
+                List<Type> thrownTypes = checkContext.inferenceContext().asFree(descriptor.getThrownTypes());
                 if (chk.unhandled(tree.inferredThrownTypes == null ? List.<Type>nil() : tree.inferredThrownTypes, thrownTypes).nonEmpty()) {
                     log.error(tree, "incompatible.thrown.types.in.lambda", tree.inferredThrownTypes);
                 }
@@ -2609,7 +2612,7 @@ public class Attr extends JCTree.Visitor {
 
             if (exprType.isErroneous()) {
                 //if the qualifier expression contains problems,
-                //give up atttribution of method reference
+                //give up attribution of method reference
                 result = that.type = exprType;
                 return;
             }
@@ -2751,7 +2754,7 @@ public class Attr extends JCTree.Visitor {
 
     @SuppressWarnings("fallthrough")
     void checkReferenceCompatible(JCMemberReference tree, Type descriptor, Type refType, CheckContext checkContext, boolean speculativeAttr) {
-        Type returnType = checkContext.inferenceContext().asFree(descriptor.getReturnType(), types);
+        Type returnType = checkContext.inferenceContext().asFree(descriptor.getReturnType());
 
         Type resType;
         switch (tree.getMode()) {
@@ -2783,7 +2786,7 @@ public class Attr extends JCTree.Visitor {
         }
 
         if (!speculativeAttr) {
-            List<Type> thrownTypes = checkContext.inferenceContext().asFree(descriptor.getThrownTypes(), types);
+            List<Type> thrownTypes = checkContext.inferenceContext().asFree(descriptor.getThrownTypes());
             if (chk.unhandled(refType.getThrownTypes(), thrownTypes).nonEmpty()) {
                 log.error(tree, "incompatible.thrown.types.in.mref", refType.getThrownTypes());
             }
@@ -2799,7 +2802,7 @@ public class Attr extends JCTree.Visitor {
         if (inferenceContext.free(descriptorType)) {
             inferenceContext.addFreeTypeListener(List.of(pt, descriptorType), new FreeTypeListener() {
                 public void typesInferred(InferenceContext inferenceContext) {
-                    setFunctionalInfo(fExpr, pt, inferenceContext.asInstType(descriptorType, types), inferenceContext);
+                    setFunctionalInfo(fExpr, pt, inferenceContext.asInstType(descriptorType), inferenceContext);
                 }
             });
         } else {
@@ -4245,7 +4248,9 @@ public class Attr extends JCTree.Visitor {
         }
 
     private Type capture(Type type) {
-        return types.capture(type);
+        //do not capture free types
+        return resultInfo.checkContext.inferenceContext().free(type) ?
+                type : types.capture(type);
     }
 
     private void validateTypeAnnotations(JCTree tree) {
