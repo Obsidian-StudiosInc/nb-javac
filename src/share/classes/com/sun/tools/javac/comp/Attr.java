@@ -1255,7 +1255,8 @@ public class Attr extends JCTree.Visitor {
             boolean hasDefault = false;      // Is there a default label?
             for (List<JCCase> l = tree.cases; l.nonEmpty(); l = l.tail) {
                 JCCase c = l.head;
-                if (c == breakTree)
+                if (c == breakTree &&
+                        resultInfo.checkContext.deferredAttrContext().mode == AttrMode.CHECK)
                     throw new BreakAttr(env);
                 Env<AttrContext> caseEnv =
                     switchEnv.dup(c, env.info.dup(switchEnv.info.scope.dup()));
@@ -2371,7 +2372,7 @@ public class Attr extends JCTree.Visitor {
                     Type argType = arityMismatch ?
                             syms.errType :
                             actuals.head;
-                    params.head.vartype = make.Type(argType);
+                    params.head.vartype = make.at(Position.NOPOS).Type(argType);
                     params.head.sym = null;
                     actuals = actuals.isEmpty() ?
                             actuals :
@@ -2408,6 +2409,10 @@ public class Attr extends JCTree.Visitor {
                 attribTree(that.getBody(), localEnv, bodyResultInfo);
             } else {
                 JCBlock body = (JCBlock)that.body;
+                if (body == breakTree &&
+                        resultInfo.checkContext.deferredAttrContext().mode == AttrMode.CHECK) {
+                    throw new BreakAttr(localEnv);
+                }
                 attribStats(body.stats, localEnv);
             }
 
