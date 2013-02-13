@@ -570,10 +570,19 @@ public class Lower extends TreeTranslator {
      *  @param flags    The class symbol's flags
      *  @param owner    The class symbol's owner
      */
-    private ClassSymbol makeEmptyClass(long flags, ClassSymbol owner) {
+    JCClassDecl makeEmptyClass(long flags, ClassSymbol owner) {
+        return makeEmptyClass(flags, owner, null, true);
+    }
+
+    JCClassDecl makeEmptyClass(long flags, ClassSymbol owner, Name flatname,
+            boolean addToDefs) {
         // Create class symbol.
         ClassSymbol c = reader.defineClass(names.empty, owner);
-        c.flatname = chk.localClassName(c);
+        if (flatname != null) {
+            c.flatname = flatname;
+        } else {
+            c.flatname = chk.localClassName(c);
+        }
         c.sourcefile = owner.sourcefile;
         c.completer = null;
         c.members_field = new Scope(c);
@@ -598,10 +607,9 @@ public class Lower extends TreeTranslator {
         cdef.type = c.type;
 
         // Append class definition tree to owner's definitions.
-        if (odef != null)
+        if (addToDefs && odef != null)
             odef.defs = odef.defs.prepend(cdef);
-
-        return c;
+        return cdef;
     }
 
 /**************************************************************************
@@ -708,7 +716,7 @@ public class Lower extends TreeTranslator {
      * and synthethise a class (with makeEmptyClass) if one is not available.
      * However, there is a small possibility that an existing class will not
      * be generated as expected if it is inside a conditional with a constant
-     * expression. If that is found to be the case, create an empty class here.
+     * expression. If that is found to be the case, create an empty class tree here.
      */
     private void checkAccessConstructorTags() {
         for (List<ClassSymbol> l = accessConstrTags; l.nonEmpty(); l = l.tail) {
@@ -1212,7 +1220,7 @@ public class Lower extends TreeTranslator {
             ctag = null;
         }
         if (ctag == null)
-            ctag = makeEmptyClass(STATIC | SYNTHETIC, topClass);
+            ctag = makeEmptyClass(STATIC | SYNTHETIC, topClass).sym;
         // keep a record of all tags, to verify that all are generated as required
         accessConstrTags = accessConstrTags.prepend(ctag);
         return ctag;
@@ -1776,7 +1784,7 @@ public class Lower extends TreeTranslator {
             if (e.sym.kind == TYP &&
                 e.sym.name == names.empty &&
                 (e.sym.flags() & INTERFACE) == 0) return (ClassSymbol) e.sym;
-        return makeEmptyClass(STATIC | SYNTHETIC, clazz);
+        return makeEmptyClass(STATIC | SYNTHETIC, clazz).sym;
     }
 
     /** Return symbol for "class$" method. If there is no method definition
@@ -3062,55 +3070,38 @@ public class Lower extends TreeTranslator {
     }
 
     public void visitAssignop(final JCAssignOp tree) {
-        if (!tree.lhs.type.isPrimitive() && !tree.lhs.type.isErroneous() &&
-            tree.operator.type.getReturnType().isPrimitive()) {
-            // boxing required; need to rewrite as x = (unbox typeof x)(x op y);
-            // or if x == (typeof x)z then z = (unbox typeof x)((typeof x)z op y)
-            // (but without recomputing x)
-            JCTree newTree = abstractLval(tree.lhs, new TreeBuilder() {
-                    public JCTree build(final JCTree lhs) {
-                        JCTree.Tag newTag = tree.getTag().noAssignOp();
-                        // Erasure (TransTypes) can change the type of
-                        // tree.lhs.  However, we can still get the
-                        // unerased type of tree.lhs as it is stored
-                        // in tree.type in Attr.
-                        Symbol newOperator = rs.resolveBinaryOperator(tree.pos(),
-                                                                      newTag,
-                                                                      attrEnv,
-                                                                      tree.type,
-                                                                      tree.rhs.type);
-                        JCExpression expr = (JCExpression)lhs;
-                        if (expr.type != tree.type)
-                            expr = make.TypeCast(tree.type, expr);
-                        JCBinary opResult = make.Binary(newTag, expr, tree.rhs);
-                        opResult.operator = newOperator;
-                        opResult.type = newOperator.type.getReturnType();
-                        JCTypeCast newRhs = make.TypeCast(types.unboxedType(tree.type),
-                                                          opResult);
-                        return make.Assign((JCExpression)lhs, newRhs).setType(tree.type);
-                    }
-                });
-            result = translate(newTree);
-            return;
-        }
-        tree.lhs = translate(tree.lhs, tree);
-        tree.rhs = translate(tree.rhs, tree.operator.type.getParameterTypes().tail.head);
+        final boolean boxingReq = !tree.lhs.type.isPrimitive() && !tree.lhs.type.isErroneous() &&
+            tree.operator.type.getReturnType().isPrimitive();
 
-        // If translated left hand side is an Apply, we are
-        // seeing an access method invocation. In this case, append
-        // right hand side as last argument of the access method.
-        if (tree.lhs.hasTag(APPLY)) {
-            JCMethodInvocation app = (JCMethodInvocation)tree.lhs;
-            // if operation is a += on strings,
-            // make sure to convert argument to string
-            JCExpression rhs = (((OperatorSymbol)tree.operator).opcode == string_add)
-              ? makeString(tree.rhs)
-              : tree.rhs;
-            app.args = List.of(rhs).prependList(app.args);
-            result = app;
-        } else {
-            result = tree;
-        }
+        // boxing required; need to rewrite as x = (unbox typeof x)(x op y);
+        // or if x == (typeof x)z then z = (unbox typeof x)((typeof x)z op y)
+        // (but without recomputing x)
+        JCTree newTree = abstractLval(tree.lhs, new TreeBuilder() {
+                public JCTree build(final JCTree lhs) {
+                    JCTree.Tag newTag = tree.getTag().noAssignOp();
+                    // Erasure (TransTypes) can change the type of
+                    // tree.lhs.  However, we can still get the
+                    // unerased type of tree.lhs as it is stored
+                    // in tree.type in Attr.
+                    Symbol newOperator = rs.resolveBinaryOperator(tree.pos(),
+                                                                  newTag,
+                                                                  attrEnv,
+                                                                  tree.type,
+                                                                  tree.rhs.type);
+                    JCExpression expr = (JCExpression)lhs;
+                    if (expr.type != tree.type)
+                        expr = make.TypeCast(tree.type, expr);
+                    JCBinary opResult = make.Binary(newTag, expr, tree.rhs);
+                    opResult.operator = newOperator;
+                    opResult.type = newOperator.type.getReturnType();
+                    JCExpression newRhs = boxingReq ?
+                            make.TypeCast(types.unboxedType(tree.type),
+                                                      opResult) :
+                            opResult;
+                    return make.Assign((JCExpression)lhs, newRhs).setType(tree.type);
+                }
+            });
+        result = translate(newTree);
     }
 
     /** Lower a tree of the form e++ or e-- where e is an object type */
