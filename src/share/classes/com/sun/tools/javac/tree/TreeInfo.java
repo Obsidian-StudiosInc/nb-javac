@@ -490,7 +490,7 @@ public class TreeInfo {
                 int pos = getStartPos(node.mods);
                 if (pos != Position.NOPOS) {
                     return pos;
-                } else if (node.vartype == null || (node.vartype.hasTag(JCTree.Tag.IDENT) && ((JCIdent)node.vartype).pos == Position.NOPOS)) {
+                } else if (node.vartype == null || node.vartype.pos == Position.NOPOS) {
                     //if there's no type (partially typed lambda parameter)
                     //simply return node position
                     return node.pos;
