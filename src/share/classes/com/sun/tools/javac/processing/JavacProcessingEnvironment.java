@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.processing;
 
+import com.sun.source.util.JavacTask;
 import java.io.Closeable;
 import java.io.File;
 import java.io.PrintWriter;
@@ -53,6 +54,7 @@ import javax.tools.StandardJavaFileManager;
 import static javax.tools.StandardLocation.*;
 
 import com.sun.source.util.TaskEvent;
+import com.sun.tools.javac.api.BasicJavacTask;
 import com.sun.tools.javac.api.JavacTrees;
 import com.sun.tools.javac.api.MultiTaskListener;
 import com.sun.tools.javac.code.*;
@@ -1529,5 +1531,10 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         if (t instanceof ThreadDeath || t instanceof Abort) {
             throw (Error) t;
         }
+    }
+    
+    public JavacTask getJavacTask() {
+        JavacTask t = context.get(JavacTask.class);
+        return (t != null) ? t : new BasicJavacTask(context, true);
     }
 }
