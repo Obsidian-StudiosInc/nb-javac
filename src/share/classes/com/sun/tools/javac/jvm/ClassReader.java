@@ -1891,7 +1891,7 @@ public class ClassReader implements Completer {
         }
         // implement Annotate.Annotator.enterAnnotation()
         public void enterAnnotation() {
-            if ((sym.flags_field & FROMCLASS) == 0)
+            if ((sym.flags_field & FROMCLASS) == 0 && ((sym.flags_field & PARAMETER) == 0 || (sym.owner.flags_field & FROMCLASS) == 0))
                 return;
             JavaFileObject previousClassFile = currentClassFile;
             try {
