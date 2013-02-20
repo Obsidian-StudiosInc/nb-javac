@@ -3288,7 +3288,20 @@ public class Resolve {
 
         @Override
         public Symbol access(Name name, TypeSymbol location) {
-            return types.createErrorType(name, location, syms.errSymbol.type).tsym;
+            Candidate c = bestCandidate();
+            return types.createErrorType(name, location, c != null ? c.sym.type : syms.errSymbol.type).tsym;
+        }
+        
+        private Candidate bestCandidate() {
+            Candidate bestSoFar = null;
+            for (Candidate c : resolveContext.candidates) {
+                if (bestSoFar != null && bestSoFar.sym != c.sym) {
+                    bestSoFar = null;
+                    break;
+                }
+                bestSoFar = c;
+            }
+            return bestSoFar;
         }
 
         private Candidate errCandidate() {

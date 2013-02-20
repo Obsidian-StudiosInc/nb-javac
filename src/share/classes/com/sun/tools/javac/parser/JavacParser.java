@@ -1722,6 +1722,8 @@ public class JavacParser implements Parser {
 
     JCExpression lambdaExpression(List<JCVariableDecl> args, int pos) {
         JCTree expr = parseExpression();
+        if (expr.hasTag(ERRONEOUS) && ((JCErroneous)expr).errs.isEmpty() && S.prevToken().endPos < expr.pos)
+            expr.pos = S.prevToken().endPos;
         return toP(F.at(pos).Lambda(args, expr));
     }
 

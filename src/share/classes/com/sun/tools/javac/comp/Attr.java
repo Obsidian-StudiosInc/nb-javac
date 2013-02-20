@@ -537,7 +537,11 @@ public class Attr extends JCTree.Visitor {
     class RecoveryInfo extends ResultInfo {
 
         public RecoveryInfo(final DeferredAttr.DeferredAttrContext deferredAttrContext) {
-            super(Kinds.VAL, Type.recoveryType, new Check.NestedCheckContext(chk.basicHandler) {
+            this(deferredAttrContext, Type.recoveryType);
+        }
+        
+        public RecoveryInfo(final DeferredAttr.DeferredAttrContext deferredAttrContext, final Type pt) {
+            super(Kinds.VAL, pt, new Check.NestedCheckContext(chk.basicHandler) {
                 @Override
                 public DeferredAttr.DeferredAttrContext deferredAttrContext() {
                     return deferredAttrContext;
@@ -620,7 +624,7 @@ public class Attr extends JCTree.Visitor {
     /** Derived visitor method: attribute an expression tree.
      */
     public Type attribExpr(JCTree tree, Env<AttrContext> env, Type pt) {
-        return attribTree(tree, env, new ResultInfo(VAL, pt != null && !pt.hasTag(ERROR) ? pt : Type.noType));
+        return attribTree(tree, env, new ResultInfo(VAL, pt != null ? pt : Type.noType));
     }
 
     /** Derived visitor method: attribute an expression tree with
@@ -2318,8 +2322,6 @@ public class Attr extends JCTree.Visitor {
                 //lambda only allowed in assignment or method invocation/cast context
                 log.error(that.pos(), "unexpected.lambda");
             }
-            result = that.type = types.createErrorType(pt());
-            return;
         }
         //create an environment for attribution of the lambda expression
         final Env<AttrContext> localEnv = lambdaEnv(that, env);
