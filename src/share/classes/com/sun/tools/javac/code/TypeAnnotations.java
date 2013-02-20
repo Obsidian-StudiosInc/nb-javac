@@ -487,6 +487,9 @@ public class TypeAnnotations {
                 return inferTargetMetaInfo(a, s);
             }
             Attribute atValue = atTarget.member(names.value);
+            if (atValue == null) {
+                return inferTargetMetaInfo(a, s);
+            }
             if (!(atValue instanceof Attribute.Array)) {
                 Assert.error("annotationType(): bad @Target argument " + atValue +
                         " (" + atValue.getClass() + ")");

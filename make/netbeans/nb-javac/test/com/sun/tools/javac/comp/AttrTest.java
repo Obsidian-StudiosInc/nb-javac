@@ -540,6 +540,17 @@ public class AttrTest extends TestCase {
         ct.generate(); //verify no exceptions during generate
     }
 
+    public void testNPEForEmptyTargetOfTypeAnnotation() throws Exception {
+        String code = "class Test { private void t(@NonNull String a) {} } @java.lang.annotation.Target() @interface NonNull { }";
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new MyFileObject(code)));
+        
+        ct.analyze();
+    }
+    
     private static class MemoryOutputJFM extends ForwardingJavaFileManager<StandardJavaFileManager> {
 
         private final Map<String, byte[]> writtenClasses = new HashMap<String, byte[]>();
