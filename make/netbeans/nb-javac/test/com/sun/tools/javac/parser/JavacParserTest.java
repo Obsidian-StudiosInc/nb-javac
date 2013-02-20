@@ -52,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import javax.lang.model.element.Modifier;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.DiagnosticListener;
@@ -654,5 +655,30 @@ public class JavacParserTest extends TestCase {
         }.scan(cut, null);
 
         assertEquals(Arrays.asList("String s1", "String", "String s2", "String", "{ return s1 + s2; }", "return s1 + s2;", "s1 + s2", "s1", "s2"), content);
+    }
+
+    public void testInfiniteParsing() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        final String code = "111\npackage t; class Test { }";
+
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        assertNotNull(cut);
+    }
+    
+    public void testShouldNotSkipFirstStrictFP8005931() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        final String code = "strictfp class Test { }";
+
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+
+        assertTrue(((ClassTree) cut.getTypeDecls().get(0)).getModifiers().getFlags().contains(Modifier.STRICTFP));
     }
 }
