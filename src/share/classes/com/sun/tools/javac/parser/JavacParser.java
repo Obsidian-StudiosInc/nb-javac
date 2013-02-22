@@ -1679,7 +1679,7 @@ public class JavacParser implements Parser {
                     break;
                 default:
                     //this includes EOF
-                    return ParensResult.PARENS;
+                    return type ? ParensResult.IMPLICIT_LAMBDA : ParensResult.PARENS;
             }
         }
     }
@@ -1722,7 +1722,8 @@ public class JavacParser implements Parser {
 
     JCExpression lambdaExpression(List<JCVariableDecl> args, int pos) {
         JCTree expr = parseExpression();
-        if (expr.hasTag(ERRONEOUS) && ((JCErroneous)expr).errs.isEmpty() && S.prevToken().endPos < expr.pos)
+        if (expr.hasTag(ERRONEOUS) && ((JCErroneous)expr).errs.isEmpty()
+                && S.prevToken().kind == ARROW && S.prevToken().endPos < expr.pos)
             expr.pos = S.prevToken().endPos;
         return toP(F.at(pos).Lambda(args, expr));
     }
