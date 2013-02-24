@@ -26,6 +26,7 @@ package com.sun.tools.javac.comp;
 
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.LambdaExpressionTree;
+import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
@@ -51,6 +52,8 @@ import java.util.Map;
 import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.FileObject;
@@ -551,6 +554,30 @@ public class AttrTest extends TestCase {
         ct.analyze();
     }
     
+    public void testAssignmentToError() throws Exception {
+        String code = "public class Test { public static void main(String[] args) { bbb = 0; } }";
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+        
+        JavaFileManager fm = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final Trees trees = Trees.instance(ct);
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        
+        ct.analyze();
+        
+        new TreePathScanner<Void, Void>() {
+            @Override public Void visitLiteral(LiteralTree node, Void p) {
+                TypeMirror type = trees.getTypeMirror(getCurrentPath());
+                
+                assertNotNull(type);
+                assertEquals(TypeKind.INT, type.getKind());
+                
+                return super.visitLiteral(node, p);
+            }
+        }.scan(cut, null);
+    }
     private static class MemoryOutputJFM extends ForwardingJavaFileManager<StandardJavaFileManager> {
 
         private final Map<String, byte[]> writtenClasses = new HashMap<String, byte[]>();
