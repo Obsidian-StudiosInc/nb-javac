@@ -1560,8 +1560,8 @@ public class JavacParser implements Parser {
                     if (lookahead != 0) {
                         // '(' in a non-starting position -> parens
                         return ParensResult.PARENS;
-                    } else if (peekToken(lookahead, RPAREN)) {
-                        // '(', ')' -> explicit lambda
+                    } else if (peekToken(lookahead, RPAREN, ARROW)) {
+                        // '(', ')', '->' -> explicit lambda
                         return ParensResult.EXPLICIT_LAMBDA;
                     }
                     break;
