@@ -2339,7 +2339,7 @@ public class Attr extends JCTree.Visitor {
             }
 
             Type lambdaType;
-            if (pt() != Type.recoveryType && pt() != Infer.anyPoly) {
+            if (pt() != Type.recoveryType && pt() != Type.noType && pt() != Infer.anyPoly) {
                 target = checkIntersectionTarget(that, target, resultInfo.checkContext);
                 lambdaType = types.findDescriptorType(target);
                 chk.checkFunctionalInterface(that, target);
