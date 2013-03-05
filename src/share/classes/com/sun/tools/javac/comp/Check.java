@@ -81,6 +81,7 @@ public class Check {
     private boolean enableSunApiLintControl;
     private final TreeInfo treeinfo;
     private final JavaFileManager fileManager;
+    private final Profile profile;
 
     // The set of lint options currently in effect. It is initialized
     // from the context, and then is set/reset as needed by Attr as it
@@ -111,7 +112,7 @@ public class Check {
         enter = Enter.instance(context);
         deferredAttr = DeferredAttr.instance(context);
         infer = Infer.instance(context);
-        this.types = Types.instance(context);
+        types = Types.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
         Options options = Options.instance(context);
         lint = Lint.instance(context);
@@ -133,6 +134,8 @@ public class Check {
 
         Target target = Target.instance(context);
         syntheticNameChar = target.syntheticNameChar();
+
+        profile = Profile.instance(context);
 
         boolean verboseDeprecated = lint.isEnabled(LintCategory.DEPRECATION);
         boolean verboseUnchecked = lint.isEnabled(LintCategory.UNCHECKED);
@@ -3093,6 +3096,12 @@ public class Check {
                       log.mandatoryWarning(pos, "sun.proprietary", s);
                 }
             });
+        }
+    }
+
+    void checkProfile(final DiagnosticPosition pos, final Symbol s) {
+        if (profile != Profile.DEFAULT && (s.flags() & NOT_IN_PROFILE) != 0) {
+            log.error(pos, "not.in.profile", s, profile);
         }
     }
 

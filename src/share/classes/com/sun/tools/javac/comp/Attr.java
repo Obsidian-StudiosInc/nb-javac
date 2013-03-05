@@ -3479,6 +3479,7 @@ public class Attr extends JCTree.Visitor {
             if (sym.name != names.init) {
                 chk.checkDeprecated(tree.pos(), env.info.scope.owner, sym);
                 chk.checkSunAPI(tree.pos(), sym);
+                chk.checkProfile(tree.pos(), sym);
             }
             
             Env<AttrContext> enclosing;            
