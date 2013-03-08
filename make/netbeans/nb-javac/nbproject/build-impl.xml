@@ -188,6 +188,13 @@ is divided into following sections:
         <condition else="" property="endorsed.classpath.cmd.line.arg" value="-Xbootclasspath/p:'${toString:endorsed.classpath.path}'">
             <length length="0" string="${endorsed.classpath}" when="greater"/>
         </condition>
+        <condition else="" property="javac.profile.cmd.line.arg" value="-profile ${javac.profile}">
+            <and>
+                <isset property="javac.profile"/>
+                <length length="0" string="${javac.profile}" when="greater"/>
+                <matches pattern="1\.[89](\..*)?" string="${javac.source}"/>
+            </and>
+        </condition>
         <condition else="false" property="jdkBug6558476">
             <and>
                 <matches pattern="1\.[56]" string="${java.specification.version}"/>
@@ -275,6 +282,7 @@ is divided into following sections:
                         <path path="@{classpath}"/>
                     </classpath>
                     <compilerarg line="${endorsed.classpath.cmd.line.arg}"/>
+                    <compilerarg line="${javac.profile.cmd.line.arg}"/>
                     <compilerarg line="${javac.compilerargs}"/>
                     <compilerarg value="-processorpath"/>
                     <compilerarg path="@{processorpath}:${empty.dir}"/>
@@ -314,6 +322,7 @@ is divided into following sections:
                         <path path="@{classpath}"/>
                     </classpath>
                     <compilerarg line="${endorsed.classpath.cmd.line.arg}"/>
+                    <compilerarg line="${javac.profile.cmd.line.arg}"/>
                     <compilerarg line="${javac.compilerargs}"/>
                     <customize/>
                 </javac>
