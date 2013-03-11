@@ -2910,8 +2910,8 @@ public class Attr extends JCTree.Visitor {
         boolean baCatched = false;
         try {
             // Attribute arguments.
-            Type left = chk.checkNonVoid(tree.lhs.pos(), attribExpr(tree.lhs, env));
-            Type right = chk.checkNonVoid(tree.lhs.pos(), attribExpr(tree.rhs, env));
+            Type left = chk.checkNonVoid(tree.lhs.pos(), attribTree(tree.lhs, env, new ResultInfo(VAL | TYP , Type.noType)));
+            Type right = chk.checkNonVoid(tree.lhs.pos(), attribTree(tree.rhs, env, new ResultInfo(VAL | TYP , Type.noType)));
 
             // Find operator.
             Symbol operator = tree.operator =
@@ -2967,10 +2967,15 @@ public class Attr extends JCTree.Visitor {
                 //error recovery
                 List<JCExpression> bounds = collectIntersectionBounds(tree);
                 if (bounds != null) {
-                    attribTypes(bounds, env);
-                    Type owntype = checkIntersection(tree, bounds);
-                    if (!owntype.isErroneous())
-                        tree.type = owntype;
+                    Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
+                    try {
+                        Type owntype = checkIntersection(tree, bounds);
+                        if (!owntype.isErroneous()) {
+                            tree.type = result = owntype;
+                        }
+                    } finally {
+                        log.popDiagnosticHandler(discardHandler);
+                    }
                 }
             }
         }
@@ -2986,34 +2991,7 @@ public class Attr extends JCTree.Visitor {
                 }
             }
         } else if (tree instanceof JCExpression) {
-            return List.of(new TreeTranslator() {
-                @Override
-                public <T extends JCTree> T translate(T tree) {
-                    if (tree != null && tree.type.isErroneous()) {
-                        tree.type = null;
-                        return super.translate(tree);
-                    }
-                    return tree;
-                }
-
-                @Override
-                public void visitIdent(JCIdent tree) {
-                    tree.sym = null;
-                    super.visitIdent(tree);
-                }
-
-                @Override
-                public void visitSelect(JCFieldAccess tree) {
-                    tree.sym = null;
-                    super.visitSelect(tree);
-                }
-
-                @Override
-                public void visitReference(JCMemberReference tree) {
-                    tree.sym = null;
-                    super.visitReference(tree);
-                }                
-            }.translate((JCExpression)tree));
+            return List.of((JCExpression)tree);
         }
         return null;
     }
