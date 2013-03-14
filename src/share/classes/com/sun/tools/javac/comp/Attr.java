@@ -3981,7 +3981,9 @@ public class Attr extends JCTree.Visitor {
 
         ListBuffer<Attribute.TypeCompound> buf = ListBuffer.lb();
         for (JCAnnotation anno : annotations) {
-            buf.append((Attribute.TypeCompound) anno.attribute);
+            if (anno.attribute != null) {
+                buf.append((Attribute.TypeCompound) anno.attribute);
+            }
         }
         return buf.toList();
     }
