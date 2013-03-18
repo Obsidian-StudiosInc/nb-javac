@@ -607,6 +607,9 @@ public class JavacTrees extends DocTrees {
 
     public boolean isAccessible(Scope scope, TypeElement type) {
         if (scope instanceof JavacScope && type instanceof ClassSymbol) {
+            if ((((ClassSymbol)type).flags_field & Flags.NOT_IN_PROFILE) != 0) {
+                return false;
+            }
             Env<AttrContext> env = ((JavacScope) scope).env;
             return resolve.isAccessible(env, (ClassSymbol)type, true);
         } else
