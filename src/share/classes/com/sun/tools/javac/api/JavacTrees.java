@@ -620,6 +620,9 @@ public class JavacTrees extends DocTrees {
         if (scope instanceof JavacScope
                 && member instanceof Symbol
                 && type instanceof com.sun.tools.javac.code.Type) {
+            if ((((com.sun.tools.javac.code.Type)type).tsym.flags_field & Flags.NOT_IN_PROFILE) != 0) {
+                return false;
+            }
             Env<AttrContext> env = ((JavacScope) scope).env;
             return resolve.isAccessible(env, (com.sun.tools.javac.code.Type)type, (Symbol)member, true);
         } else
