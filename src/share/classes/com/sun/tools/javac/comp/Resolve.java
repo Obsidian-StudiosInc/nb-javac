@@ -2414,10 +2414,11 @@ public class Resolve {
             env.info.pendingResolutionPhase = currentResolutionContext.step = BASIC;
             Symbol sym = findMethod(env, syms.predefClass.type, name, argtypes,
                                     null, false, false, true);
-            if (boxingEnabled && sym.kind >= WRONG_MTHS)
+            if (boxingEnabled && sym.kind >= WRONG_MTHS) {
                 env.info.pendingResolutionPhase = currentResolutionContext.step = BOX;
                 sym = findMethod(env, syms.predefClass.type, name, argtypes,
                                  null, true, false, true);
+            }
             return accessMethod(sym, pos, env.enclClass.sym.type, name,
                           false, argtypes, null);
         }
