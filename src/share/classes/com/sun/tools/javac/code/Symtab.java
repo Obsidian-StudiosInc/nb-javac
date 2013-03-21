@@ -52,7 +52,7 @@ import static com.sun.tools.javac.code.TypeTag.*;
  */
 public class Symtab {
     /** The context key for the symbol table. */
-    protected static final Context.Key<Symtab> symtabKey =
+    public static final Context.Key<Symtab> symtabKey =
         new Context.Key<Symtab>();
 
     /** Get the symbol table instance. */
@@ -407,6 +407,9 @@ public class Symtab {
         noSymbol = new TypeSymbol(0, names.empty, Type.noType, rootPackage) {
             public <R, P> R accept(ElementVisitor<R, P> v, P p) {
                 return v.visitUnknown(this, p);
+            }
+            public boolean hasOuterInstance() {
+                return false;
             }
         };
         noSymbol.kind = Kinds.NIL;

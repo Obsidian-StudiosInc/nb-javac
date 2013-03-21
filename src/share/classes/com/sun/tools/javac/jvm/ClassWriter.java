@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
 
-import javax.lang.model.type.TypeKind;
 import javax.tools.JavaFileManager;
 import javax.tools.FileObject;
 import javax.tools.JavaFileObject;
@@ -39,9 +38,6 @@ import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Attribute.TypeCompound;
-import static com.sun.tools.javac.code.BoundKind.EXTENDS;
-import static com.sun.tools.javac.code.BoundKind.SUPER;
-import static com.sun.tools.javac.code.BoundKind.UNBOUND;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.code.Types.UniqueType;
@@ -72,6 +68,8 @@ public class ClassWriter extends ClassFile {
     protected static final Context.Key<ClassWriter> classWriterKey =
         new Context.Key<ClassWriter>();
 
+    private final Symtab syms;
+
     private final Options options;
 
     /** Switch: verbose output.
@@ -101,7 +99,7 @@ public class ClassWriter extends ClassFile {
     /** Switch: describe the generated stackmap.
      */
     boolean debugstackmap;
-
+    
     /**
      * Target class version.
      */
@@ -123,15 +121,15 @@ public class ClassWriter extends ClassFile {
 
     /** An output buffer for member info.
      */
-    ByteBuffer databuf = new ByteBuffer(DATA_BUF_SIZE);
+    protected ByteBuffer databuf = new ByteBuffer(DATA_BUF_SIZE);
 
     /** An output buffer for the constant pool.
      */
-    ByteBuffer poolbuf = new ByteBuffer(POOL_BUF_SIZE);
+    protected ByteBuffer poolbuf = new ByteBuffer(POOL_BUF_SIZE);
 
     /** The constant pool.
      */
-    Pool pool;
+    protected Pool pool;
 
     /** The inner classes to be written, as a set.
      */
@@ -156,6 +154,9 @@ public class ClassWriter extends ClassFile {
 
     /** Access to files. */
     private final JavaFileManager fileManager;
+    
+    private boolean allowGenerics;
+    private ClassSymbol generatedClass;
 
     /** Sole signature generator */
     private final CWSignatureGenerator signatureGen;
@@ -182,6 +183,7 @@ public class ClassWriter extends ClassFile {
 
         log = Log.instance(context);
         names = Names.instance(context);
+        syms = Symtab.instance(context);
         options = Options.instance(context);
         target = Target.instance(context);
         source = Source.instance(context);
@@ -208,6 +210,8 @@ public class ClassWriter extends ClassFile {
             (dumpModFlags != null && dumpModFlags.indexOf('i') != -1);
         dumpMethodModifiers =
             (dumpModFlags != null && dumpModFlags.indexOf('m') != -1);
+        
+        allowGenerics = source.allowGenerics() || options.get("ide") != null;
     }
 
 /******************************************************************
@@ -342,7 +346,7 @@ public class ClassWriter extends ClassFile {
     /**
      * Return signature of given type
      */
-    Name typeSig(Type type) {
+    protected Name typeSig(Type type) {
         Assert.check(signatureGen.isEmpty());
         //- System.out.println(" ? " + type);
         signatureGen.assembleSig(type);
@@ -356,6 +360,8 @@ public class ClassWriter extends ClassFile {
      *  external representation.
      */
     public Name xClassName(Type t) {
+        if (t.hasTag(ERROR))
+            t = syms.objectType;
         if (t.hasTag(CLASS)) {
             return names.fromUtf(externalize(t.tsym.flatName()));
         } else if (t.hasTag(ARRAY)) {
@@ -520,7 +526,7 @@ public class ClassWriter extends ClassFile {
     /** Write header for an attribute to data buffer and return
      *  position past attribute length index.
      */
-    int writeAttr(Name attrName) {
+    protected int writeAttr(Name attrName) {
         databuf.appendChar(pool.put(attrName));
         databuf.appendInt(0);
         return databuf.length;
@@ -528,7 +534,7 @@ public class ClassWriter extends ClassFile {
 
     /** Fill in attribute length.
      */
-    void endAttr(int index) {
+    protected void endAttr(int index) {
         putInt(databuf, index - 4, databuf.length - index);
     }
 
@@ -619,7 +625,7 @@ public class ClassWriter extends ClassFile {
     int writeMemberAttrs(Symbol sym) {
         int acount = writeFlagAttrs(sym.flags());
         long flags = sym.flags();
-        if (source.allowGenerics() &&
+        if (allowGenerics &&
             (flags & (SYNTHETIC|BRIDGE)) != SYNTHETIC &&
             (flags & ANONCONSTR) == 0 &&
             (!types.isSameType(sym.type, sym.erasure(types)) ||
@@ -632,8 +638,18 @@ public class ClassWriter extends ClassFile {
             acount++;
         }
         acount += writeJavaAnnotations(sym.getRawAttributes());
+        acount += writeExtraJavaAnnotations(sym.getRawAttributes());
         acount += writeTypeAnnotations(sym.getRawTypeAttributes());
+        acount += writeExtraTypeAnnotations(sym.getRawTypeAttributes());
         return acount;
+    }
+
+    /**Allows subclasses to write additional member attributes
+     *
+     * @return the number of attributes written
+     */
+    protected int writeExtraMemberAttributes(Symbol sym) {
+        return 0;
     }
 
     /**
@@ -677,7 +693,6 @@ public class ClassWriter extends ClassFile {
         if (m.params != null) for (VarSymbol s : m.params) {
             for (Attribute.Compound a : s.getRawAttributes()) {
                 switch (types.getRetention(a)) {
-                case SOURCE: break;
                 case CLASS: hasInvisible = true; break;
                 case RUNTIME: hasVisible = true; break;
                 default: ;// /* fail soft */ throw new AssertionError(vis);
@@ -719,6 +734,13 @@ public class ClassWriter extends ClassFile {
         return attrCount;
     }
 
+    /**Allows subclasses to write additional parameter attributes
+     *
+     * @return the number of attributes written
+     */
+    protected int writeExtraParameterAttributes(MethodSymbol m) {
+        return 0;
+    }
 /**********************************************************************
  * Writing Java-language annotations (aka metadata, attributes)
  **********************************************************************/
@@ -732,7 +754,6 @@ public class ClassWriter extends ClassFile {
         ListBuffer<Attribute.Compound> invisibles = new ListBuffer<Attribute.Compound>();
         for (Attribute.Compound a : attrs) {
             switch (types.getRetention(a)) {
-            case SOURCE: break;
             case CLASS: invisibles.append(a); break;
             case RUNTIME: visibles.append(a); break;
             default: ;// /* fail soft */ throw new AssertionError(vis);
@@ -757,6 +778,14 @@ public class ClassWriter extends ClassFile {
             attrCount++;
         }
         return attrCount;
+    }
+    
+    /**Allows subclasses to write additional Java-language annotations
+     *
+     * @return the number of JVM attributes written
+     */
+    protected int writeExtraJavaAnnotations(List<Attribute.Compound> attrs) {
+        return 0;
     }
 
     int writeTypeAnnotations(List<Attribute.TypeCompound> typeAnnos) {
@@ -829,6 +858,14 @@ public class ClassWriter extends ClassFile {
         return attrCount;
     }
 
+    /**Allows subclasses to write additional type annotations
+     *
+     * @return the number of JVM attributes written
+     */
+    protected int writeExtraTypeAnnotations(List<Attribute.TypeCompound> attrs) {
+        return 0;
+    }
+
     /** A visitor to write an attribute including its leading
      *  single-character marker.
      */
@@ -897,7 +934,7 @@ public class ClassWriter extends ClassFile {
     AttributeWriter awriter = new AttributeWriter();
 
     /** Write a compound attribute excluding the '@' marker. */
-    void writeCompoundAttribute(Attribute.Compound c) {
+    protected void writeCompoundAttribute(Attribute.Compound c) {
         databuf.appendChar(pool.put(typeSig(c.type)));
         databuf.appendChar(c.values.length());
         for (Pair<Symbol.MethodSymbol,Attribute> p : c.values) {
@@ -906,7 +943,7 @@ public class ClassWriter extends ClassFile {
         }
     }
 
-    void writeTypeAnnotation(Attribute.TypeCompound c) {
+    protected void writeTypeAnnotation(Attribute.TypeCompound c) {
         writePosition(c.position);
         writeCompoundAttribute(c);
     }
@@ -1009,7 +1046,7 @@ public class ClassWriter extends ClassFile {
             System.err.println("error: " + c + ": " + ex.getMessage());
             throw ex;
         }
-        if (!c.type.hasTag(CLASS)) return; // arrays
+        if (!c.type.hasTag(CLASS) && !c.type.hasTag(ERROR)) return; // arrays
         if (pool != null && // pool might be null if called from xClassName
             c.owner.enclClass() != null &&
             (innerClasses == null || !innerClasses.contains(c))) {
@@ -1096,6 +1133,7 @@ public class ClassWriter extends ClassFile {
             acount++;
         }
         acount += writeMemberAttrs(v);
+        acount += writeExtraMemberAttributes(v);
         endAttrs(acountIdx, acount);
     }
 
@@ -1116,7 +1154,6 @@ public class ClassWriter extends ClassFile {
         if (m.code != null) {
             int alenIdx = writeAttr(names.Code);
             writeCode(m.code);
-            m.code = null; // to conserve space
             endAttr(alenIdx);
             acount++;
         }
@@ -1138,8 +1175,11 @@ public class ClassWriter extends ClassFile {
         if (options.isSet(PARAMETERS))
             acount += writeMethodParametersAttr(m);
         acount += writeMemberAttrs(m);
+        acount += writeExtraMemberAttributes(m);
         acount += writeParameterAttrs(m);
+        acount += writeExtraParameterAttributes(m);
         endAttrs(acountIdx, acount);
+        m.code = null; // to conserve space
     }
 
     /** Write code attribute of method.
@@ -1344,6 +1384,8 @@ public class ClassWriter extends ClassFile {
                 if (debugstackmap) System.out.print("null");
                 databuf.appendByte(5);
                 break;
+            case ERROR:
+                t = syms.objectType;
             case CLASS:
             case ARRAY:
                 if (debugstackmap) System.out.print("object(" + t + ")");
@@ -1640,6 +1682,7 @@ public class ClassWriter extends ClassFile {
     public void writeClassFile(OutputStream out, ClassSymbol c)
         throws IOException, PoolOverflow, StringOverflow {
         Assert.check((c.flags() & COMPOUND) == 0);
+        generatedClass = c;
         databuf.reset();
         poolbuf.reset();
         signatureGen.reset();
@@ -1666,6 +1709,8 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(flags);
 
         databuf.appendChar(pool.put(c));
+        if (supertype.hasTag(ERROR))
+            supertype = syms.objectType;
         databuf.appendChar(supertype.hasTag(CLASS) ? pool.put(supertype.tsym) : 0);
         databuf.appendChar(interfaces.length());
         for (List<Type> l = interfaces; l.nonEmpty(); l = l.tail)
@@ -1677,8 +1722,9 @@ public class ClassWriter extends ClassFile {
             case VAR: fieldsCount++; break;
             case MTH: if ((e.sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
                       break;
-            case TYP: enterInner((ClassSymbol)e.sym); break;
-            default : Assert.error();
+            case TYP:
+            case ERR: enterInner((ClassSymbol)e.sym); break;
+            default : Assert.error("ClassWriter.writeClassFile: Member [" + e.sym + "] of a kind ["+ e.sym.kind + "] contained in class [" + c + "]."); //NOI18N
             }
         }
 
@@ -1701,7 +1747,7 @@ public class ClassWriter extends ClassFile {
         for (List<Type> l = interfaces; !sigReq && l.nonEmpty(); l = l.tail)
             sigReq = l.head.allparams().length() != 0;
         if (sigReq) {
-            Assert.check(source.allowGenerics());
+            Assert.check(allowGenerics);
             int alenIdx = writeAttr(names.Signature);
             if (typarams.length() != 0) signatureGen.assembleParamsSig(typarams);
             signatureGen.assembleSig(supertype);
@@ -1740,7 +1786,9 @@ public class ClassWriter extends ClassFile {
 
         acount += writeFlagAttrs(c.flags());
         acount += writeJavaAnnotations(c.getRawAttributes());
+        acount += writeExtraJavaAnnotations(c.getRawAttributes());
         acount += writeTypeAnnotations(c.getRawTypeAttributes());
+        acount += writeExtraTypeAnnotations(c.getRawTypeAttributes());
         acount += writeEnclosingMethodAttribute(c);
         acount += writeExtraClassAttributes(c);
 

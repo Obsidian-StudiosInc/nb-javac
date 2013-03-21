@@ -95,6 +95,7 @@ public class Resolve {
     public final boolean allowStructuralMostSpecific;
     private final boolean debugResolve;
     final EnumSet<VerboseResolutionMode> verboseResolutionMode;
+    private final boolean ideMode;
 
     Scope polymorphicSignatureScope;
 
@@ -132,6 +133,7 @@ public class Resolve {
         polymorphicSignatureScope = new Scope(syms.noSymbol);
 
         inapplicableMethodException = new InapplicableMethodException(diags);
+        this.ideMode = options.get("ide") != null;
     }
 
     /** error symbols, which are returned when resolution fails
@@ -258,7 +260,7 @@ public class Resolve {
     /** An environment is "static" if its static level is greater than
      *  the one of its outer environment
      */
-    protected static boolean isStatic(Env<AttrContext> env) {
+    public static boolean isStatic(Env<AttrContext> env) {
         return env.info.staticLevel > env.outer.info.staticLevel;
     }
 
@@ -284,6 +286,8 @@ public class Resolve {
 
     public boolean isAccessible(Env<AttrContext> env, TypeSymbol c, boolean checkInner) {
         boolean isAccessible = false;
+        if (c == null)
+            return isAccessible;
         switch ((short)(c.flags() & AccessFlags)) {
             case PRIVATE:
                 isAccessible =
@@ -315,7 +319,7 @@ public class Resolve {
                     isInnerSubClass(env.enclClass.sym, c.owner);
                 break;
         }
-        return (checkInner == false || c.type.getEnclosingType() == Type.noType) ?
+        return (checkInner == false || c.type.isErroneous() || c.type.getEnclosingType() == Type.noType) ?
             isAccessible :
             isAccessible && isAccessible(env, c.type.getEnclosingType(), checkInner);
     }
@@ -698,7 +702,7 @@ public class Resolve {
                 reportMC(MethodCheckDiag.ARITY_MISMATCH, inferenceContext); // not enough args
             }
 
-            while (argtypes.nonEmpty() && formals.head != varargsFormal) {
+            while (argtypes.nonEmpty() && formals.nonEmpty() && formals.head != varargsFormal) {
                 ResultInfo mresult = methodCheckResult(false, formals.head, deferredAttrContext, warn);
                 mresult.check(null, argtypes.head);
                 argtypes = argtypes.tail;
@@ -1695,9 +1699,16 @@ public class Resolve {
     Symbol loadClass(Env<AttrContext> env, Name name) {
         try {
             ClassSymbol c = reader.loadClass(name);
+            if (c.type.isErroneous())
+                return typeNotFound;
             return isAccessible(env, c) ? c : new AccessError(c);
         } catch (ClassReader.BadClassFile err) {
-            throw err;
+            if (ideMode) {
+                return typeNotFound;
+            }
+            else {
+                throw err;
+            }
         } catch (CompletionFailure ex) {
             return typeNotFound;
         }
@@ -1753,7 +1764,7 @@ public class Resolve {
     Symbol findGlobalType(Env<AttrContext> env, Scope scope, Name name) {
         Symbol bestSoFar = typeNotFound;
         for (Scope.Entry e = scope.lookup(name); e.scope != null; e = e.next()) {
-            Symbol sym = loadClass(env, e.sym.flatName());
+            Symbol sym = e.sym.type.isErroneous() ? e.sym : loadClass(env, e.sym.flatName());
             if (bestSoFar.kind == TYP && sym.kind == TYP &&
                 bestSoFar != sym)
                 return new AmbiguityError(bestSoFar, sym);
@@ -2406,10 +2417,11 @@ public class Resolve {
             env.info.pendingResolutionPhase = currentResolutionContext.step = BASIC;
             Symbol sym = findMethod(env, syms.predefClass.type, name, argtypes,
                                     null, false, false, true);
-            if (boxingEnabled && sym.kind >= WRONG_MTHS)
+            if (boxingEnabled && sym.kind >= WRONG_MTHS) {
                 env.info.pendingResolutionPhase = currentResolutionContext.step = BOX;
                 sym = findMethod(env, syms.predefClass.type, name, argtypes,
                                  null, true, false, true);
+            }
             return accessMethod(sym, pos, env.enclClass.sym.type, name,
                           false, argtypes, null);
         }
@@ -2836,6 +2848,19 @@ public class Resolve {
                        Env<AttrContext> env,
                        TypeSymbol c,
                        Name name) {
+        // Check that declarations in inner classes are not static. If so,
+        // 'Inner classes cannot have static declarations is already reported
+        // and there is no need to report 'Non-static {0} {1} cannot be referenced from a static context'.
+        boolean staticInnerDecl = false;
+        if (env.tree.hasTag(VARDEF) && (TreeInfo.flags(env.tree) & (STATIC | INTERFACE)) != 0) {
+            Symbol sym = ((JCVariableDecl)env.tree).sym;
+            if (sym == null || sym.kind != VAR || ((VarSymbol) sym).getConstValue() == null) {
+                sym = env.enclClass.sym;
+                if (sym != null && sym.owner.kind != PCK && ((sym.flags() & STATIC) == 0 || sym.name == names.empty)) {
+                    staticInnerDecl = true;
+                }
+            }
+        }
         Env<AttrContext> env1 = env;
         boolean staticOnly = false;
         while (env1.outer != null) {
@@ -2843,7 +2868,7 @@ public class Resolve {
             if (env1.enclClass.sym == c) {
                 Symbol sym = env1.info.scope.lookup(name).sym;
                 if (sym != null) {
-                    if (staticOnly) sym = new StaticError(sym);
+                    if (staticOnly && !staticInnerDecl) sym = new StaticError(sym);
                     return accessBase(sym, pos, env.enclClass.sym.type,
                                   name, true);
                 }
@@ -3258,7 +3283,20 @@ public class Resolve {
 
         @Override
         public Symbol access(Name name, TypeSymbol location) {
-            return types.createErrorType(name, location, syms.errSymbol.type).tsym;
+            Candidate c = bestCandidate();
+            return types.createErrorType(name, location, c != null ? c.sym.type : syms.errSymbol.type).tsym;
+        }
+        
+        private Candidate bestCandidate() {
+            Candidate bestSoFar = null;
+            for (Candidate c : resolveContext.candidates) {
+                if (bestSoFar != null && bestSoFar.sym != c.sym) {
+                    bestSoFar = null;
+                    break;
+                }
+                bestSoFar = c;
+            }
+            return bestSoFar;
         }
 
         private Candidate errCandidate() {
