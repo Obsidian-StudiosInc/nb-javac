@@ -324,7 +324,9 @@ public class ClassReader implements Completer {
     /** Add member to class unless it is synthetic.
      */
     private void enterMember(ClassSymbol c, Symbol sym) {
-        if ((sym.flags_field & (SYNTHETIC|BRIDGE)) != SYNTHETIC)
+        // Synthetic members are not entered -- reason lost to history (optimization?).
+        // Lambda methods must be entered because they may have inner classes (which reference them)
+        if ((sym.flags_field & (SYNTHETIC|BRIDGE)) != SYNTHETIC || sym.name.startsWith(names.lambda))
             c.members_field.enter(sym);
     }
 
@@ -1057,7 +1059,7 @@ public class ClassReader implements Completer {
                         haveParameterNameIndices = true;
                         for (int i = 0; i < numEntries; i++) {
                             int nameIndex = nextChar();
-                            int flags = nextInt();
+                            int flags = nextChar();
                             parameterNameIndices[i] = nameIndex;
                         }
                     }

@@ -988,7 +988,7 @@ public class Resolve {
                                 Type ret_t = desc_t.getReturnType();
                                 Type ret_s = desc_s.getReturnType();
                                 result &= ((tree.refPolyKind == PolyKind.STANDALONE)
-                                        ? standaloneMostSpecific(ret_t, ret_s, tree.type, warn)
+                                        ? standaloneMostSpecific(ret_t, ret_s, tree.sym.type.getReturnType(), warn)
                                         : polyMostSpecific(ret_t, ret_s, warn));
                             } else {
                                 return;
@@ -1248,9 +1248,12 @@ public class Resolve {
                       boolean useVarargs,
                       boolean operator) {
         if (sym.kind == ERR ||
-                !sym.isInheritedIn(site.tsym, types) ||
-                (useVarargs && (sym.flags() & VARARGS) == 0)) {
+                !sym.isInheritedIn(site.tsym, types)) {
             return bestSoFar;
+        } else if (useVarargs && (sym.flags() & VARARGS) == 0) {
+            return bestSoFar.kind >= ERRONEOUS ?
+                    new BadVarargsMethod((ResolveError)bestSoFar) :
+                    bestSoFar;
         }
         Assert.check(sym.kind < AMBIGUOUS);
         try {
@@ -2513,10 +2516,10 @@ public class Resolve {
 
         //merge results
         Pair<Symbol, ReferenceLookupHelper> res;
-        if (unboundSym.kind != MTH) {
+        if (!lookupSuccess(unboundSym)) {
             res = new Pair<Symbol, ReferenceLookupHelper>(boundSym, boundLookupHelper);
             env.info.pendingResolutionPhase = boundEnv.info.pendingResolutionPhase;
-        } else if (boundSym.kind == MTH) {
+        } else if (lookupSuccess(boundSym)) {
             res = new Pair<Symbol, ReferenceLookupHelper>(ambiguityError(boundSym, unboundSym), boundLookupHelper);
             env.info.pendingResolutionPhase = boundEnv.info.pendingResolutionPhase;
         } else {
@@ -2526,6 +2529,10 @@ public class Resolve {
 
         return res;
     }
+    //private
+        boolean lookupSuccess(Symbol s) {
+            return s.kind == MTH || s.kind == AMBIGUOUS;
+        }
 
     /**
      * Helper for defining custom method-like lookup logic; a lookup helper
@@ -2666,20 +2673,10 @@ public class Resolve {
             super(referenceTree, name, site, argtypes, typeargtypes, maxPhase);
         }
 
-        protected Symbol lookupReferenceInternal(Env<AttrContext> env, MethodResolutionPhase phase) {
-            return findMethod(env, site, name, argtypes, typeargtypes,
-                    phase.isBoxingRequired(), phase.isVarargsRequired(), syms.operatorNames.contains(name));
-        }
-
-        protected Symbol adjustLookupResult(Env<AttrContext> env, Symbol sym) {
-            return !TreeInfo.isStaticSelector(referenceTree.expr, names) ||
-                        sym.kind != MTH ||
-                        sym.isStatic() ? sym : new StaticError(sym);
-        }
-
         @Override
         final Symbol lookup(Env<AttrContext> env, MethodResolutionPhase phase) {
-            return adjustLookupResult(env, lookupReferenceInternal(env, phase));
+            return findMethod(env, site, name, argtypes, typeargtypes,
+                    phase.isBoxingRequired(), phase.isVarargsRequired(), syms.operatorNames.contains(name));
         }
 
         @Override
@@ -2718,14 +2715,11 @@ public class Resolve {
 
         UnboundMethodReferenceLookupHelper(JCMemberReference referenceTree, Name name, Type site,
                 List<Type> argtypes, List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
-            super(referenceTree, name,
-                    site.isRaw() ? types.asSuper(argtypes.head, site.tsym) : site,
-                    argtypes.tail, typeargtypes, maxPhase);
-        }
-
-        @Override
-        protected Symbol adjustLookupResult(Env<AttrContext> env, Symbol sym) {
-            return sym.kind != MTH || !sym.isStatic() ? sym : new StaticError(sym);
+            super(referenceTree, name, site, argtypes.tail, typeargtypes, maxPhase);
+            Type asSuperSite = types.asSuper(argtypes.head, site.tsym);
+            if (site.isRaw() && !asSuperSite.isErroneous()) {
+                this.site = asSuperSite;
+            }
         }
 
         @Override
@@ -3554,6 +3548,31 @@ public class Resolve {
         }
     }
 
+    class BadVarargsMethod extends ResolveError {
+
+        ResolveError delegatedError;
+
+        BadVarargsMethod(ResolveError delegatedError) {
+            super(delegatedError.kind, "badVarargs");
+            this.delegatedError = delegatedError;
+        }
+
+        @Override
+        protected Symbol access(Name name, TypeSymbol location) {
+            return delegatedError.access(name, location);
+        }
+
+        @Override
+        public boolean exists() {
+            return true;
+        }
+
+        @Override
+        JCDiagnostic getDiagnostic(DiagnosticType dkind, DiagnosticPosition pos, Symbol location, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes) {
+            return delegatedError.getDiagnostic(dkind, pos, location, site, name, argtypes, typeargtypes);
+        }
+    }
+
     enum MethodResolutionPhase {
         BASIC(false, false),
         BOX(true, false),
@@ -3638,6 +3657,7 @@ public class Resolve {
          * while inapplicable candidates contain further details about the
          * reason why the method has been considered inapplicable.
          */
+        @SuppressWarnings("overrides")
         class Candidate {
 
             final MethodResolutionPhase step;

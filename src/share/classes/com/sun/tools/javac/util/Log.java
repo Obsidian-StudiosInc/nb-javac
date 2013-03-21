@@ -140,7 +140,8 @@ public class Log extends AbstractLog {
         }
 
         public void report(JCDiagnostic diag) {
-            if (filter == null || filter.accepts(diag)) {
+            if (!diag.isFlagSet(JCDiagnostic.DiagnosticFlag.NON_DEFERRABLE) &&
+                (filter == null || filter.accepts(diag))) {
                 if (log.multipleErrors) {
                     diag = new DeferredMultiDiagnostic(diag);
                 }
@@ -176,11 +177,11 @@ public class Log extends AbstractLog {
                     }
                 }
             }
-            Assert.check(deferred.isEmpty());
+            deferred = null; // prevent accidental ongoing use
         }
-        
+
         private static class DeferredMultiDiagnostic extends JCDiagnostic {
-            
+
             final JCDiagnostic original;
 
             private DeferredMultiDiagnostic(JCDiagnostic original) {
