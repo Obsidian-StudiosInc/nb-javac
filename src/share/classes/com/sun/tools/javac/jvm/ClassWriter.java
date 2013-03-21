@@ -156,7 +156,6 @@ public class ClassWriter extends ClassFile {
     private final JavaFileManager fileManager;
     
     private boolean allowGenerics;
-    private ClassSymbol generatedClass;
 
     /** Sole signature generator */
     private final CWSignatureGenerator signatureGen;
@@ -305,6 +304,12 @@ public class ClassWriter extends ClassFile {
                     // local variable table
                     assembleSig(types.erasure(((UninitializedType)type).qtype));
                     break;
+                case ERROR:
+                    if (preserveErrors) {
+                        append('R');
+                        assembleClassSig(type);
+                        append(';');
+                    }
                 default:
                     super.assembleSig(type);
             }
@@ -343,6 +348,8 @@ public class ClassWriter extends ClassFile {
         }
     }
 
+    protected boolean preserveErrors = false;
+    
     /**
      * Return signature of given type
      */
@@ -1682,7 +1689,6 @@ public class ClassWriter extends ClassFile {
     public void writeClassFile(OutputStream out, ClassSymbol c)
         throws IOException, PoolOverflow, StringOverflow {
         Assert.check((c.flags() & COMPOUND) == 0);
-        generatedClass = c;
         databuf.reset();
         poolbuf.reset();
         signatureGen.reset();
