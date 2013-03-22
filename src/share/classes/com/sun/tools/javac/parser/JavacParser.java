@@ -931,7 +931,7 @@ public class JavacParser implements Parser {
         // optimization, was odStack = new Tree[...]; opStack = new Tree[...];
         int top = 0;
         odStack[0] = t;
-        int startPos = token.pos;
+        int startPos = TreeInfo.getStartPos(t);
         Token topOp = Tokens.DUMMY;
         while (prec(token.kind) >= minprec) {
             opStack[top] = topOp;
@@ -978,10 +978,10 @@ public class JavacParser implements Parser {
          *  by a single literal representing the concatenated string.
          */
         protected StringBuilder foldStrings(JCTree tree) {
-            if (!allowStringFolding)
-                return null;
+            int depth = 0;
             List<String> buf = List.nil();
             while (true) {
+                depth++;
                 if (tree.hasTag(LITERAL)) {
                     JCLiteral lit = (JCLiteral) tree;
                     if (lit.typetag == TypeTag.CLASS) {
@@ -991,7 +991,7 @@ public class JavacParser implements Parser {
                             sbuf.append(buf.head);
                             buf = buf.tail;
                         }
-                        return sbuf;
+                        return allowStringFolding || depth > 1024 ? sbuf : null;
                     }
                 } else if (tree.hasTag(JCTree.Tag.PLUS)) {
                     JCBinary op = (JCBinary)tree;
