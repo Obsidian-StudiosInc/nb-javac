@@ -82,7 +82,6 @@
                 <include name="javax/lang/**/*"/>
                 <include name="javax/tools/*"/>
                 <include name="javax/annotation/**/*"/>
-                <include name="jdk/*"/>
             </fileset>
         </jar>
         <jar destfile="${dist.dir}/javac-impl.jar">
