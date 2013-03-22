@@ -4027,8 +4027,13 @@ public class Attr extends JCTree.Visitor {
 
     public void visitErroneous(JCErroneous tree) {
         if (tree.errs != null)
-            for (JCTree err : tree.errs)
-                attribTree(err, env, new ResultInfo(ERR - PCK, pt()));
+            for (JCTree err : tree.errs) {
+                try {
+                    attribTree(err, env, new ResultInfo(ERR - PCK, pt()));
+                } catch (AssertionError ae) {
+                    //ignore
+                }
+            }
         result = tree.type = syms.errType;
     }
 
