@@ -309,6 +309,7 @@ public class ClassWriter extends ClassFile {
                         append('R');
                         assembleClassSig(type);
                         append(';');
+                        break;
                     }
                 default:
                     super.assembleSig(type);
