@@ -1219,8 +1219,10 @@ public class JavacParser implements Parser {
 
                     // need to report an error later if LBRACKET is for array
                     // index access rather than array creation level
-                    if (!annos.isEmpty() && token.kind != LBRACKET && token.kind != ELLIPSIS)
-                        return illegal(annos.head.pos);
+                    if (!annos.isEmpty() && token.kind != LBRACKET && token.kind != ELLIPSIS) {
+                        t = toP(F.at(pos).AnnotatedType(annos, t));
+                        return syntaxError(annos.head.pos, List.<JCTree>of(t), (mode & EXPR) != 0 ? "illegal.start.of.expr" : "illegal.start.of.type");
+                    }
 
                     switch (token.kind) {
                     case LBRACKET:
