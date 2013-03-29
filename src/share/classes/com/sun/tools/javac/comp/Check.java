@@ -2050,10 +2050,12 @@ public class Check {
                     .tsym.members().lookup(names.equals).sym;
             MethodSymbol hashCodeAtObject = (MethodSymbol)syms.objectType
                     .tsym.members().lookup(names.hashCode).sym;
-            boolean overridesEquals = types.implementation(equalsAtObject,
-                someClass, false, equalsHasCodeFilter).owner == someClass;
-            boolean overridesHashCode = types.implementation(hashCodeAtObject,
-                someClass, false, equalsHasCodeFilter) != hashCodeAtObject;
+            MethodSymbol equalsImpl = types.implementation(equalsAtObject,
+                    someClass, false, equalsHasCodeFilter);
+            boolean overridesEquals = equalsImpl != null && equalsImpl.owner == someClass;
+            MethodSymbol hasCodeImpl = types.implementation(hashCodeAtObject,
+                    someClass, false, equalsHasCodeFilter);
+            boolean overridesHashCode = hasCodeImpl != null && hasCodeImpl != hashCodeAtObject;
 
             if (overridesEquals && !overridesHashCode) {
                 log.warning(LintCategory.OVERRIDES, pos,
