@@ -552,7 +552,7 @@ public class Check {
             return req;
         if (req.hasTag(NONE))
             return found;
-        if (checkContext.compatible(found, req, checkContext.checkWarner(pos, found, req))) {
+        if (found == null || checkContext.compatible(found, req, checkContext.checkWarner(pos, found, req))) {
             return found;
         } else {
             if (found.getTag().isSubRangeOf(DOUBLE) && req.getTag().isSubRangeOf(DOUBLE)) {
