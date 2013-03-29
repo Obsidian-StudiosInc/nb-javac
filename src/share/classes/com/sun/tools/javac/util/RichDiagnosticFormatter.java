@@ -289,7 +289,7 @@ public class RichDiagnosticFormatter extends
 
         public String simplify(Symbol s) {
             String name = s.getQualifiedName().toString();
-            if (!s.type.isCompound() && !s.type.isPrimitive()) {
+            if (!s.type.isCompound() && !s.type.isPrimitive() && !s.type.hasTag(VOID)) {
                 List<Symbol> conflicts = nameClashes.get(s.getSimpleName());
                 if (conflicts == null ||
                     (conflicts.size() == 1 &&
