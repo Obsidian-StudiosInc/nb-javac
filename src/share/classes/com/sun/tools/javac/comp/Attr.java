@@ -1240,7 +1240,7 @@ public class Attr extends JCTree.Visitor {
         try {
 
             boolean enumSwitch =
-                allowEnums &&
+                allowEnums && seltype.tsym != null &&
                 (seltype.tsym.flags() & Flags.ENUM) != 0;
             boolean stringSwitch = false;
             if (types.isSameType(seltype, syms.stringType)) {
