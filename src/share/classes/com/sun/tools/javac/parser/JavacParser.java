@@ -3429,11 +3429,9 @@ public class JavacParser implements Parser {
                 List<JCTree> defs = classOrInterfaceBody(names.empty, false);
                 body = toP(F.at(identPos).AnonymousClassDef(mods1, defs));
             }
-            if (args.isEmpty() && body == null)
-                createPos = Position.NOPOS;
             JCIdent ident = F.at(Position.NOPOS).Ident(enumName);
             JCNewClass create = F.at(createPos).NewClass(null, typeArgs, ident, args, body);
-            if (createPos != Position.NOPOS)
+            if (args.nonEmpty() || body != null)
                 storeEnd(create, S.prevToken().endPos);
             ident = F.at(Position.NOPOS).Ident(enumName);
             JCTree result = toP(F.at(identPos).VarDef(mods, name, ident, create));
