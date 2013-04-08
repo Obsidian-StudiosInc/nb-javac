@@ -529,8 +529,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             for (JCTree tree : defs) {
                 if (tree.hasTag(IMPORT))
                     imports.append((JCImport)tree);
-                else if (!tree.hasTag(SKIP))
-                    break;
             }
             return imports.toList();
         }
@@ -542,11 +540,12 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             return lineMap;
         }
         public List<JCTree> getTypeDecls() {
-            List<JCTree> typeDefs;
-            for (typeDefs = defs; !typeDefs.isEmpty(); typeDefs = typeDefs.tail)
-                if (!typeDefs.head.hasTag(IMPORT))
-                    break;
-            return typeDefs;
+            ListBuffer<JCTree> typeDefs = new ListBuffer<JCTree>();
+            for (JCTree tree : defs) {
+                if (!tree.hasTag(IMPORT))
+                    typeDefs.append(tree);
+            }
+            return typeDefs.toList();
         }
         @Override
         public <R,D> R accept(TreeVisitor<R,D> v, D d) {
