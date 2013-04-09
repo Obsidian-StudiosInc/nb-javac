@@ -1264,6 +1264,7 @@ public class Attr extends JCTree.Visitor {
                     throw new BreakAttr(env);
                 Env<AttrContext> caseEnv =
                     switchEnv.dup(c, env.info.dup(switchEnv.info.scope.dup()));
+                boolean baCatched = false;
                 try {
                     if (c.pat != null) {
                         if (enumSwitch) {
@@ -1292,9 +1293,14 @@ public class Attr extends JCTree.Visitor {
                         hasDefault = true;
                     }
                     attribStats(c.stats, caseEnv);
+                } catch (BreakAttr ba) {
+                    baCatched = true;
+                    throw ba;
                 } finally {
                     caseEnv.info.scope.leave();
-                    addVars(c.stats, switchEnv.info.scope);
+                    if (!baCatched) {
+                        addVars(c.stats, switchEnv.info.scope);
+                    }
                 }
             }
 
