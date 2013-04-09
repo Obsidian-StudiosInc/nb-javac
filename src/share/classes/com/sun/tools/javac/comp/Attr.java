@@ -843,7 +843,7 @@ public class Attr extends JCTree.Visitor {
     }
 
     Type attribIdentAsEnumType(Env<AttrContext> env, JCIdent id) {
-        Assert.check((env.enclClass.sym.flags() & ENUM) != 0);
+        Assert.check((env.enclClass.sym.flags() & ENUM) != 0 || env.enclClass.sym.kind == ERR);
         id.type = env.info.scope.owner.type;
         id.sym = env.info.scope.owner;
         return id.type;
