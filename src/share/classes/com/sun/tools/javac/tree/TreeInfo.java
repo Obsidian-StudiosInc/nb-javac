@@ -451,7 +451,7 @@ public class TreeInfo {
                 int pos = getStartPos(node.mods);
                 if (pos != Position.NOPOS)
                     return pos;
-                if (node.typarams.nonEmpty()) // List.nil() used for no typarams
+                if (node.typarams != null && node.typarams.nonEmpty())
                     return getStartPos(node.typarams.head);
                 return node.restype == null ? node.pos : getStartPos(node.restype);
             }
