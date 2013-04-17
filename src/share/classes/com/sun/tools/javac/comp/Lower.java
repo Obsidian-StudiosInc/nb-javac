@@ -3816,7 +3816,7 @@ public class Lower extends TreeTranslator {
          */
         if (tree.resources.isEmpty()) {
             if (tree.catchers.isEmpty() &&
-                tree.finalizer.getStatements().isEmpty()) {
+                (tree.finalizer == null || tree.finalizer.getStatements().isEmpty())) {
                 result = translate(tree.body);
             } else {
                 super.visitTry(tree);
