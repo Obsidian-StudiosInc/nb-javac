@@ -944,8 +944,13 @@ public class ClassWriter extends ClassFile {
     /** Write a compound attribute excluding the '@' marker. */
     protected void writeCompoundAttribute(Attribute.Compound c) {
         databuf.appendChar(pool.put(typeSig(c.type)));
-        databuf.appendChar(c.values.length());
+        int count = c.values.length();//don't try to write erroneous attributes
         for (Pair<Symbol.MethodSymbol,Attribute> p : c.values) {
+            if (p.snd instanceof Attribute.Error) count--;
+        }
+        databuf.appendChar(count);
+        for (Pair<Symbol.MethodSymbol,Attribute> p : c.values) {
+            if (p.snd instanceof Attribute.Error) continue;
             databuf.appendChar(pool.put(p.fst.name));
             p.snd.accept(awriter);
         }
