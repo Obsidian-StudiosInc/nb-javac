@@ -262,7 +262,7 @@ public class Annotate {
                 log.error(left.pos(), "no.annotation.member", left.name, a.type);
             Type result = method.type.getReturnType();
             Attribute value = enterAttributeValue(result, assign.rhs, env);
-            if (!method.type.isErroneous() && !(value instanceof Attribute.Error))
+            if (!method.type.isErroneous())
                 buf.append(new Pair<MethodSymbol,Attribute>
                            ((MethodSymbol)method, value));
             t.type = result;
