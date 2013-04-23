@@ -658,8 +658,7 @@ public class JavacElements implements Elements {
                         && (overrider.sym.flags() & Flags.SYNTHETIC) == 0)
                     {
                         if (overrider.sym.getKind() == ElementKind.METHOD
-                        && (overrides((ExecutableElement)overrider.sym, (ExecutableElement)e.sym, (TypeElement)type.asElement())
-                        || isAbstract && types.isSubSignature(types.memberType(scope.owner.type, e.sym), types.memberType(scope.owner.type, overrider.sym)))) {
+                        && (overrides((ExecutableElement)overrider.sym, (ExecutableElement)e.sym, (TypeElement)type.asElement()))) {
                             continue members;
                         }
                     }
