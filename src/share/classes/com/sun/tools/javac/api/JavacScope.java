@@ -30,9 +30,10 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 
+import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Env;
-
+import com.sun.tools.javac.util.List;
 
 
 /**
@@ -75,7 +76,7 @@ public class JavacScope implements com.sun.source.tree.Scope {
 
     public TypeElement getEnclosingClass() {
         // hide the dummy class that javac uses to enclose the top level declarations
-        return (env.outer == null || env.outer == env ? null : env.enclClass.sym);
+        return (env.outer == null || env.outer == env || env.baseClause ? null : env.enclClass.sym);
     }
 
     public ExecutableElement getEnclosingMethod() {
