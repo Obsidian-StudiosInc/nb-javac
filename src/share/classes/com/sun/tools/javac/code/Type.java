@@ -25,6 +25,9 @@
 
 package com.sun.tools.javac.code;
 
+import com.sun.tools.javac.model.JavacAnnoConstructs;
+import com.sun.tools.javac.model.JavacTypes;
+import java.lang.annotation.Annotation;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.EnumSet;
@@ -246,12 +249,33 @@ public class Type implements PrimitiveType {
         return this;
     }
 
+    public boolean isAnnotated() {
+        return false;
+    }
+
     /**
      * If this is an annotated type, return the underlying type.
      * Otherwise, return the type itself.
      */
     public Type unannotatedType() {
         return this;
+    }
+
+    @Override
+    public List<? extends Attribute.TypeCompound> getAnnotationMirrors() {
+        return List.nil();
+    }
+
+    @Override
+    public <A extends Annotation> A getAnnotation(Class<A> annotationType) {
+        return null;
+    }
+
+    @Override
+    public <A extends Annotation> A[] getAnnotationsByType(Class<A> annotationType) {
+        @SuppressWarnings("unchecked")
+        A[] tmp = (A[]) java.lang.reflect.Array.newInstance(annotationType, 0);
+        return tmp;
     }
 
     /** Return the base types of a list of types.
@@ -350,8 +374,8 @@ public class Type implements PrimitiveType {
         }
         if (args.head.unannotatedType().tag == ARRAY) {
             buf.append(((ArrayType)args.head.unannotatedType()).elemtype);
-            if (args.head.getAnnotations().nonEmpty()) {
-                buf.append(args.head.getAnnotations());
+            if (args.head.getAnnotationMirrors().nonEmpty()) {
+                buf.append(args.head.getAnnotationMirrors());
             }
             buf.append("...");
         } else {
@@ -362,7 +386,6 @@ public class Type implements PrimitiveType {
 
     /** Access methods.
      */
-    public List<? extends AnnotationMirror> getAnnotations() { return List.nil(); }
     public List<Type>        getTypeArguments()  { return List.nil(); }
     public Type              getEnclosingType()  { return null; }
     public List<Type>        getParameterTypes() { return List.nil(); }
@@ -891,6 +914,12 @@ public class Type implements PrimitiveType {
             return interfaces_field.prepend(supertype_field);
         }
 
+        public List<Type> getExplicitComponents() {
+            return allInterfaces ?
+                    interfaces_field :
+                    getComponents();
+        }
+
         @Override
         public TypeKind getKind() {
             return TypeKind.INTERSECTION;
@@ -1122,7 +1151,7 @@ public class Type implements PrimitiveType {
 
         public TypeVar(Name name, Symbol owner, Type lower) {
             super(TYPEVAR, null);
-            tsym = new TypeSymbol(0, name, this, owner);
+            tsym = new TypeVariableSymbol(0, name, this, owner);
             assert lower != null;
             this.lower = lower;
         }
@@ -1565,7 +1594,12 @@ public class Type implements PrimitiveType {
     }
 
     public static class AnnotatedType extends Type
-            implements javax.lang.model.type.AnnotatedType {
+            implements
+                javax.lang.model.type.ArrayType,
+                javax.lang.model.type.DeclaredType,
+                javax.lang.model.type.PrimitiveType,
+                javax.lang.model.type.TypeVariable,
+                javax.lang.model.type.WildcardType {
         /** The type annotations on this type.
          */
         public List<Attribute.TypeCompound> typeAnnotations;
@@ -1578,7 +1612,7 @@ public class Type implements PrimitiveType {
             super(underlyingType.tag, underlyingType.tsym);
             this.typeAnnotations = List.nil();
             this.underlyingType = underlyingType;
-            Assert.check(underlyingType.getKind() != TypeKind.ANNOTATED,
+            Assert.check(!underlyingType.isAnnotated(),
                     "Can't annotate already annotated type: " + underlyingType);
         }
 
@@ -1587,24 +1621,34 @@ public class Type implements PrimitiveType {
             super(underlyingType.tag, underlyingType.tsym);
             this.typeAnnotations = typeAnnotations;
             this.underlyingType = underlyingType;
-            Assert.check(underlyingType.getKind() != TypeKind.ANNOTATED,
+            Assert.check(!underlyingType.isAnnotated(),
                     "Can't annotate already annotated type: " + underlyingType +
                     "; adding: " + typeAnnotations);
         }
 
         @Override
-        public TypeKind getKind() {
-            return TypeKind.ANNOTATED;
+        public boolean isAnnotated() {
+            return true;
         }
 
         @Override
-        public List<? extends AnnotationMirror> getAnnotations() {
+        public List<? extends Attribute.TypeCompound> getAnnotationMirrors() {
             return typeAnnotations;
         }
 
         @Override
-        public TypeMirror getUnderlyingType() {
-            return underlyingType;
+        public <A extends Annotation> A getAnnotation(Class<A> annotationType) {
+            return JavacAnnoConstructs.getAnnotation(this, annotationType);
+        }
+
+        @Override
+        public <A extends Annotation> A[] getAnnotationsByType(Class<A> annotationType) {
+            return JavacAnnoConstructs.getAnnotationsByType(this, annotationType);
+        }
+
+        @Override
+        public TypeKind getKind() {
+            return underlyingType.getKind();
         }
 
         @Override
@@ -1619,7 +1663,7 @@ public class Type implements PrimitiveType {
 
         @Override
         public <R, P> R accept(TypeVisitor<R, P> v, P p) {
-            return v.visitAnnotated(this, p);
+            return underlyingType.accept(v, p);
         }
 
         @Override

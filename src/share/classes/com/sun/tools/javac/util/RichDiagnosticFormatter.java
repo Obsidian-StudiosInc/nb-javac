@@ -395,6 +395,9 @@ public class RichDiagnosticFormatter extends
 
         @Override
         public String visitClassSymbol(ClassSymbol s, Locale locale) {
+            if (s.type.isCompound()) {
+                return visit(s.type, locale);
+            }
             String name = nameSimplifier.simplify(s);
             if (name.length() == 0 ||
                     !getConfiguration().isEnabled(RichFormatterFeature.SIMPLE_NAMES)) {
@@ -509,6 +512,16 @@ public class RichDiagnosticFormatter extends
                     visit(supertype);
                     visit(interfaces);
                 }
+            } else if (t.tsym.name.isEmpty()) {
+                //anon class
+                ClassType norm = (ClassType) t.tsym.type;
+                if (norm != null) {
+                    if (norm.interfaces_field != null && norm.interfaces_field.nonEmpty()) {
+                        visit(norm.interfaces_field.head);
+                    } else {
+                        visit(norm.supertype_field);
+                    }
+                }
             }
             nameSimplifier.addUsage(t.tsym);
             visit(t.getTypeArguments());
@@ -562,7 +575,7 @@ public class RichDiagnosticFormatter extends
     // <editor-fold defaultstate="collapsed" desc="symbol scanner">
     /**
      * Preprocess a given symbol looking for (i) additional info (where clauses) to be
-     * asdded to the main diagnostic (ii) names to be compacted
+     * added to the main diagnostic (ii) names to be compacted
      */
     protected void preprocessSymbol(Symbol s) {
         symbolPreprocessor.visit(s, null);
@@ -573,7 +586,11 @@ public class RichDiagnosticFormatter extends
 
         @Override
         public Void visitClassSymbol(ClassSymbol s, Void ignored) {
-            nameSimplifier.addUsage(s);
+            if (s.type.isCompound()) {
+                typePreprocessor.visit(s.type);
+            } else {
+                nameSimplifier.addUsage(s);
+            }
             return null;
         }
 

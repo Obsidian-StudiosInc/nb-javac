@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,9 +21,31 @@
  * questions.
  */
 
-// key: compiler.err.prob.found.req
-// key: compiler.misc.secondary.bound.must.be.marker.intf
+/*
+ * @test
+ * @bug 8010303
+ * @summary Graph inference: missing incorporation step causes spurious inference error
+ * @compile TargetType69.java
+ */
+import java.util.*;
 
-class SecondaryBoundMustBeMarkerInterface {
-    Runnable r = (Runnable & Comparable<?>)()->{};
+class TargetType69 {
+
+    interface Function<X,Y> {
+        Y m(X x);
+    }
+
+    abstract class TabulationAssertion<T, U> { }
+
+    class GroupedMapAssertion<K, M1 extends Map<K, ?>> extends TabulationAssertion<Integer, M1> {
+        GroupedMapAssertion(Function<Integer, K> classifier) { }
+    }
+
+
+    <T, M2 extends Map> void exerciseMapTabulation(Function<T, ? extends M2> collector,
+                                                             TabulationAssertion<T, M2> assertion)  { }
+
+    void test(Function<Integer, Integer> classifier, Function<Integer, Map<Integer, List<Integer>>> coll) {
+        exerciseMapTabulation(coll, new GroupedMapAssertion<>(classifier));
+    }
 }

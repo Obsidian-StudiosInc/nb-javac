@@ -65,11 +65,11 @@ public class TypeMaker {
             t = env.types.erasure(t);
         }
         if (considerAnnotations
-                && t.getKind() == TypeKind.ANNOTATED) {
+                && t.isAnnotated()) {
             return new AnnotatedTypeImpl(env, (com.sun.tools.javac.code.Type.AnnotatedType) t);
         }
 
-        if (t.getKind() == TypeKind.ANNOTATED) {
+        if (t.isAnnotated()) {
             Type.AnnotatedType at = (Type.AnnotatedType) t;
             return new AnnotatedTypeImpl(env, at);
         }
@@ -147,7 +147,7 @@ public class TypeMaker {
      */
     static String getTypeString(DocEnv env, Type t, boolean full) {
         // TODO: should annotations be included here?
-        if (t.getKind() == TypeKind.ANNOTATED) {
+        if (t.isAnnotated()) {
             Type.AnnotatedType at = (Type.AnnotatedType)t;
             t = at.underlyingType;
         }
@@ -221,6 +221,10 @@ public class TypeMaker {
         }
 
         private com.sun.javadoc.Type skipArraysCache = null;
+
+        public com.sun.javadoc.Type getElementType() {
+            return TypeMaker.getType(env, env.types.elemtype(arrayType));
+        }
 
         private com.sun.javadoc.Type skipArrays() {
             if (skipArraysCache == null) {

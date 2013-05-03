@@ -143,7 +143,6 @@ public class Infer {
                                   boolean allowBoxing,
                                   boolean useVarargs,
                                   Resolve.MethodResolutionContext resolveContext,
-                                  Resolve.MethodCheck methodCheck,
                                   Warner warn) throws InferenceException {
         //-System.err.println("instantiateMethod(" + tvars + ", " + mt + ", " + argtypes + ")"); //DEBUG
         final InferenceContext inferenceContext = new InferenceContext(tvars);
@@ -152,7 +151,7 @@ public class Infer {
             DeferredAttr.DeferredAttrContext deferredAttrContext =
                     resolveContext.deferredAttrContext(msym, inferenceContext, resultInfo, warn);
 
-            methodCheck.argumentsAcceptable(env, deferredAttrContext,
+            resolveContext.methodCheck.argumentsAcceptable(env, deferredAttrContext,
                     argtypes, mt.getParameterTypes(), warn);
 
             if (allowGraphInference &&
@@ -263,7 +262,7 @@ public class Infer {
             UndetVar uv = (UndetVar)inferenceContext.asFree(t);
             List<Type> upperBounds = uv.getBounds(InferenceBound.UPPER);
             if (Type.containsAny(upperBounds, vars)) {
-                TypeSymbol fresh_tvar = new TypeSymbol(Flags.SYNTHETIC, uv.qtype.tsym.name, null, uv.qtype.tsym.owner);
+                TypeSymbol fresh_tvar = new TypeVariableSymbol(Flags.SYNTHETIC, uv.qtype.tsym.name, null, uv.qtype.tsym.owner);
                 fresh_tvar.type = new TypeVar(fresh_tvar, types.makeCompoundType(uv.getBounds(InferenceBound.UPPER)), syms.botType);
                 todo.append(uv);
                 uv.inst = fresh_tvar.type;
@@ -585,11 +584,7 @@ public class Infer {
                 Infer infer = inferenceContext.infer();
                 for (Type b1 : uv.getBounds(InferenceBound.UPPER)) {
                     for (Type b2 : uv.getBounds(InferenceBound.LOWER)) {
-                        if (!inferenceContext.inferenceVars().contains(b1) &&
-                                !inferenceContext.inferenceVars().contains(b2) &&
-                                infer.types.asSuper(b2, b1.tsym) != null) {
-                            infer.types.isSubtypeUnchecked(inferenceContext.asFree(b2), inferenceContext.asFree(b1));
-                        }
+                        infer.types.isSubtypeUnchecked(inferenceContext.asFree(b2), inferenceContext.asFree(b1));
                     }
                 }
             }
@@ -603,11 +598,7 @@ public class Infer {
                 Infer infer = inferenceContext.infer();
                 for (Type b1 : uv.getBounds(InferenceBound.UPPER)) {
                     for (Type b2 : uv.getBounds(InferenceBound.EQ)) {
-                        if (!inferenceContext.inferenceVars().contains(b1) &&
-                                !inferenceContext.inferenceVars().contains(b2) &&
-                                infer.types.asSuper(b2, b1.tsym) != null) {
-                            infer.types.isSubtypeUnchecked(inferenceContext.asFree(b2), inferenceContext.asFree(b1));
-                        }
+                        infer.types.isSubtypeUnchecked(inferenceContext.asFree(b2), inferenceContext.asFree(b1));
                     }
                 }
             }
@@ -621,10 +612,22 @@ public class Infer {
                 Infer infer = inferenceContext.infer();
                 for (Type b1 : uv.getBounds(InferenceBound.EQ)) {
                     for (Type b2 : uv.getBounds(InferenceBound.LOWER)) {
-                        if (!inferenceContext.inferenceVars().contains(b1) &&
-                                !inferenceContext.inferenceVars().contains(b2) &&
-                                infer.types.asSuper(b2, b1.tsym) != null) {
-                            infer.types.isSubtypeUnchecked(inferenceContext.asFree(b2), inferenceContext.asFree(b1));
+                        infer.types.isSubtypeUnchecked(inferenceContext.asFree(b2), inferenceContext.asFree(b1));
+                    }
+                }
+            }
+        },
+        /**
+         * Given a bound set containing {@code alpha == S} and {@code alpha == T}
+         * perform {@code S == T} (which could lead to new bounds).
+         */
+        CROSS_EQ_EQ() {
+            public void apply(UndetVar uv, InferenceContext inferenceContext, Warner warn) {
+                Infer infer = inferenceContext.infer();
+                for (Type b1 : uv.getBounds(InferenceBound.EQ)) {
+                    for (Type b2 : uv.getBounds(InferenceBound.EQ)) {
+                        if (b1 != b2) {
+                            infer.types.isSameType(inferenceContext.asFree(b2), inferenceContext.asFree(b1));
                         }
                     }
                 }

@@ -591,7 +591,7 @@ public class Types {
                             CapturedType capVar = (CapturedType)capturedTypeargs.head;
                             //use declared bound if it doesn't depend on formal type-args
                             bound = capVar.bound.containsAny(capturedSite.getTypeArguments()) ?
-                                    syms.objectType : capVar.bound;
+                                    wt.type : capVar.bound;
                             break;
                         default:
                             bound = wt.type;
@@ -612,7 +612,7 @@ public class Types {
 
    /**
     * Scope filter used to skip methods that should be ignored (such as methods
-    * overridden by j.l.Object) during function interface conversion/marker interface checks
+    * overridden by j.l.Object) during function interface conversion interface check
     */
     class DescriptorFilter implements Filter<Symbol> {
 
@@ -630,64 +630,6 @@ public class Types {
                    (interfaceCandidates(origin.type, (MethodSymbol)sym).head.flags() & DEFAULT) == 0;
        }
     };
-
-    // <editor-fold defaultstate="collapsed" desc="isMarker">
-
-    /**
-     * A cache that keeps track of marker interfaces
-     */
-    class MarkerCache {
-
-        private WeakHashMap<TypeSymbol, Entry> _map = new WeakHashMap<TypeSymbol, Entry>();
-
-        class Entry {
-            final boolean isMarkerIntf;
-            final int prevMark;
-
-            public Entry(boolean isMarkerIntf,
-                    int prevMark) {
-                this.isMarkerIntf = isMarkerIntf;
-                this.prevMark = prevMark;
-            }
-
-            boolean matches(int mark) {
-                return  this.prevMark == mark;
-            }
-        }
-
-        boolean get(TypeSymbol origin) throws FunctionDescriptorLookupError {
-            Entry e = _map.get(origin);
-            CompoundScope members = membersClosure(origin.type, false);
-            if (e == null ||
-                    !e.matches(members.getMark())) {
-                boolean isMarkerIntf = isMarkerInterfaceInternal(origin, members);
-                _map.put(origin, new Entry(isMarkerIntf, members.getMark()));
-                return isMarkerIntf;
-            }
-            else {
-                return e.isMarkerIntf;
-            }
-        }
-
-        /**
-         * Is given symbol a marker interface
-         */
-        public boolean isMarkerInterfaceInternal(TypeSymbol origin, CompoundScope membersCache) throws FunctionDescriptorLookupError {
-            return !origin.isInterface() ?
-                    false :
-                    !membersCache.getElements(new DescriptorFilter(origin)).iterator().hasNext();
-        }
-    }
-
-    private MarkerCache markerCache = new MarkerCache();
-
-    /**
-     * Is given type a marker interface?
-     */
-    public boolean isMarkerInterface(Type site) {
-        return markerCache.get(site.tsym);
-    }
-    // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="isSubtype">
     /**
@@ -1186,6 +1128,17 @@ public class Types {
             protected boolean containsTypes(List<Type> ts1, List<Type> ts2) {
                 return isSameTypes(ts1, ts2, true);
             }
+
+            @Override
+            public Boolean visitWildcardType(WildcardType t, Type s) {
+                if (!s.hasTag(WILDCARD)) {
+                    return false;
+                } else {
+                    WildcardType t2 = (WildcardType)s;
+                    return t.kind == t2.kind &&
+                            isSameType(t.type, t2.type, true);
+                }
+            }
         };
     // </editor-fold>
 
@@ -1426,23 +1379,10 @@ public class Types {
                     }
                 }
 
-                if (t.isCompound()) {
-                    Warner oldWarner = warnStack.head;
-                    warnStack.head = noWarnings;
-                    if (!visit(supertype(t), s))
-                        return false;
-                    for (Type intf : interfaces(t)) {
-                        if (!visit(intf, s))
-                            return false;
-                    }
-                    if (warnStack.head.hasLint(LintCategory.UNCHECKED))
-                        oldWarner.warn(LintCategory.UNCHECKED);
-                    return true;
-                }
-
-                if (s.isCompound()) {
-                    // call recursively to reuse the above code
-                    return visitClassType((ClassType)s, t);
+                if (t.isCompound() || s.isCompound()) {
+                    return !t.isCompound() ?
+                            visitIntersectionType((IntersectionClassType)s, t, true) :
+                            visitIntersectionType((IntersectionClassType)t, s, false);
                 }
 
                 if (s.tag == CLASS || s.tag == ARRAY) {
@@ -1518,6 +1458,18 @@ public class Types {
                     }
                 }
                 return false;
+            }
+
+            boolean visitIntersectionType(IntersectionClassType ict, Type s, boolean reverse) {
+                Warner warn = noWarnings;
+                for (Type c : ict.getComponents()) {
+                    warn.clear();
+                    if (reverse ? !isCastable(s, c, warn) : !isCastable(c, s, warn))
+                        return false;
+                }
+                if (warn.hasLint(LintCategory.UNCHECKED))
+                    warnStack.head.warn(LintCategory.UNCHECKED);
+                return true;
             }
 
             @Override
@@ -2101,7 +2053,7 @@ public class Types {
             @Override
             public Type visitAnnotatedType(AnnotatedType t, Boolean recurse) {
                 Type erased = erasure(t.underlyingType, recurse);
-                if (erased.getKind() == TypeKind.ANNOTATED) {
+                if (erased.isAnnotated()) {
                     // This can only happen when the underlying type is a
                     // type variable and the upper bound of it is annotated.
                     // The annotation on the type variable overrides the one
@@ -2625,15 +2577,15 @@ public class Types {
     public List<MethodSymbol> interfaceCandidates(Type site, MethodSymbol ms) {
         Filter<Symbol> filter = new MethodFilter(ms, site);
         List<MethodSymbol> candidates = List.nil();
-        for (Symbol s : membersClosure(site, false).getElements(filter)) {
-            if (!site.tsym.isInterface() && !s.owner.isInterface()) {
-                return List.of((MethodSymbol)s);
-            } else if (!candidates.contains(s)) {
-                candidates = candidates.prepend((MethodSymbol)s);
+            for (Symbol s : membersClosure(site, false).getElements(filter)) {
+                if (!site.tsym.isInterface() && !s.owner.isInterface()) {
+                    return List.of((MethodSymbol)s);
+                } else if (!candidates.contains(s)) {
+                    candidates = candidates.prepend((MethodSymbol)s);
+                }
             }
+            return prune(candidates);
         }
-        return prune(candidates);
-    }
 
     public List<MethodSymbol> prune(List<MethodSymbol> methods) {
         ListBuffer<MethodSymbol> methodsMin = ListBuffer.lb();
@@ -3919,11 +3871,18 @@ public class Types {
     }
 
     private boolean giveWarning(Type from, Type to) {
-        Type subFrom = asSub(from, to.tsym);
-        return to.isParameterized() &&
-                (!(isUnbounded(to) ||
-                isSubtype(from, to) ||
-                ((subFrom != null) && containsType(to.allparams(), subFrom.allparams()))));
+        List<Type> bounds = to.isCompound() ?
+                ((IntersectionClassType)to).getComponents() : List.of(to);
+        for (Type b : bounds) {
+            Type subFrom = asSub(from, b.tsym);
+            if (b.isParameterized() &&
+                    (!(isUnbounded(b) ||
+                    isSubtype(from, b) ||
+                    ((subFrom != null) && containsType(b.allparams(), subFrom.allparams()))))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<Type> superClosure(Type t, Type s) {
