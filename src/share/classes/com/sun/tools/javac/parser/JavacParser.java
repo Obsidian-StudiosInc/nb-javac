@@ -4213,7 +4213,7 @@ public class JavacParser implements Parser {
 
         private final Map<JCTree, Integer> endPosMap;
 
-        SimpleEndPosTable(JavacParser parser) {
+        protected SimpleEndPosTable(JavacParser parser) {
             super(parser);
             endPosMap = new HashMap<JCTree, Integer>();
         }
