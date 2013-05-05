@@ -350,8 +350,9 @@ public class JavacTrees extends DocTrees {
     @Override
     public Element getElement(DocTreePath path) {
         DocTree forTree = path.getLeaf();
-        if (forTree instanceof DCReference)
-            return attributeDocReference(path.getTreePath(), ((DCReference) forTree));
+        if (forTree instanceof DCReference) {
+            return ensureDocReferenceAttributed(path.getTreePath(), ((DCReference) forTree));
+        }
         if (forTree instanceof DCIdentifier) {
             if (path.getParentPath().getLeaf() instanceof DCParam) {
                 return attributeParamIdentifier(path.getTreePath(), (DCParam) path.getParentPath().getLeaf());
@@ -360,6 +361,11 @@ public class JavacTrees extends DocTrees {
         return null;
     }
 
+    public Symbol ensureDocReferenceAttributed(TreePath path, DCReference ref) {
+        ref.attributed = true;
+        return ref.sym = attributeDocReference(path, ref);
+    }
+    
     private Symbol attributeDocReference(TreePath path, DCReference ref) {
         Env<AttrContext> env = getAttrContext(path);
 
@@ -720,7 +726,7 @@ public class JavacTrees extends DocTrees {
         return null;
     }
 
-    public DocCommentTree getDocCommentTree(TreePath path) {
+    public DocCommentTree getDocCommentTree(final TreePath path) {
         CompilationUnitTree t = path.getCompilationUnit();
         Tree leaf = path.getLeaf();
         if (t instanceof JCTree.JCCompilationUnit && leaf instanceof JCTree) {

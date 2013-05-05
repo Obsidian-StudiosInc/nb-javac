@@ -28,6 +28,7 @@ package com.sun.tools.javac.parser;
 import java.util.*;
 
 import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
+import com.sun.source.util.DocTrees;
 
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.parser.Tokens.*;
@@ -163,10 +164,10 @@ public class JavacParser implements Parser {
         this.allowIntersectionTypesInCast = source.allowIntersectionTypesInCast();
         this.allowTypeAnnotations = source.allowTypeAnnotations();
         this.keepDocComments = keepDocComments;
-        docComments = newDocCommentTable(keepDocComments, fac);
         this.keepLineMap = keepLineMap;
         this.errorTree = F.Erroneous();
         endPosTable = newEndPosTable(keepEndPositions);
+        docComments = newDocCommentTable(keepDocComments, fac, endPosTable);
     }
 
     protected AbstractEndPosTable newEndPosTable(boolean keepEndPositions) {
@@ -175,8 +176,8 @@ public class JavacParser implements Parser {
                 : new EmptyEndPosTable(this);
     }
 
-    protected DocCommentTable newDocCommentTable(boolean keepDocComments, ParserFactory fac) {
-        return keepDocComments ? new LazyDocCommentTable(fac) : null;
+    protected DocCommentTable newDocCommentTable(boolean keepDocComments, ParserFactory fac, EndPosTable ept) {
+        return keepDocComments ? new LazyDocCommentTable(fac, ept) : null;
     }
 
     /** Switch: Should generics be recognized?
