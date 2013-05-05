@@ -35,6 +35,7 @@ import java.util.Set;
 
 import com.sun.source.doctree.AttributeTree.ValueKind;
 import com.sun.tools.javac.parser.DocCommentParser.TagParser.Kind;
+import com.sun.tools.javac.parser.JavacParser.AbstractEndPosTable;
 import com.sun.tools.javac.parser.Tokens.Comment;
 import com.sun.tools.javac.parser.Tokens.TokenKind;
 import com.sun.tools.javac.tree.DCTree;
@@ -48,7 +49,10 @@ import com.sun.tools.javac.tree.DCTree.DCReference;
 import com.sun.tools.javac.tree.DCTree.DCStartElement;
 import com.sun.tools.javac.tree.DCTree.DCText;
 import com.sun.tools.javac.tree.DocTreeMaker;
+import com.sun.tools.javac.tree.EndPosTable;
 import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCExpression;
+import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.DiagnosticSource;
 import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.List;
@@ -76,6 +80,7 @@ public class DocCommentParser {
     }
 
     final ParserFactory fac;
+    private final EndPosTable ept;
     final DiagnosticSource diagSource;
     final Comment comment;
     final DocTreeMaker m;
@@ -103,8 +108,9 @@ public class DocCommentParser {
     private final boolean breakOnError;
     private ListBuffer<JCDiagnostic> errors = new ListBuffer<JCDiagnostic>();
 
-    DocCommentParser(ParserFactory fac, boolean breakOnError, DiagnosticSource diagSource, Comment comment) {
+    DocCommentParser(ParserFactory fac, boolean breakOnError, EndPosTable ept, DiagnosticSource diagSource, Comment comment) {
         this.fac = fac;
+        this.ept = ept;
         this.breakOnError = breakOnError;
         this.diagSource = diagSource;
         this.comment = comment;
@@ -508,7 +514,7 @@ public class DocCommentParser {
         String sig = newString(pos, bp);
 
         // Break sig apart into qualifiedExpr member paramTypes.
-        JCTree qualExpr;
+        JCExpression qualExpr;
         Name member;
         List<JCTree> paramTypes;
 
@@ -520,14 +526,14 @@ public class DocCommentParser {
             int lparen = sig.indexOf("(", hash + 1);
             if (hash == -1) {
                 if (lparen == -1) {
-                    qualExpr = parseType(sig);
+                    qualExpr = parseType(sig, comment.getSourcePos(pos));
                     member = null;
                 } else {
                     qualExpr = null;
                     member = parseMember(sig.substring(0, lparen));
                 }
             } else {
-                qualExpr = (hash == 0) ? null : parseType(sig.substring(0, hash));
+                qualExpr = (hash == 0) ? null : parseType(sig.substring(0, hash), comment.getSourcePos(pos));
                 if (lparen == -1)
                     member = parseMember(sig.substring(hash + 1));
                 else
@@ -544,7 +550,7 @@ public class DocCommentParser {
                         rparen = sig.length();
                     }
                 }
-                paramTypes = parseParams(sig.substring(lparen + 1, rparen));
+                paramTypes = parseParams(sig.substring(lparen + 1, rparen), comment.getSourcePos(pos + lparen + 1));
             }
 
             if (!deferredDiagnosticHandler.getDiagnostics().isEmpty()) {
@@ -557,12 +563,27 @@ public class DocCommentParser {
         return m.at(pos).Reference(sig, qualExpr, member, paramTypes).setEndPos(bp);
     }
 
-    JCTree parseType(String s) throws ParseException {
-        JavacParser p = fac.newParser(s, false, false, false);
-        JCTree tree = p.parseType();
+    JCExpression parseType(String s, int startPos) throws ParseException {
+        JavacParser p = fac.newParser(s, false, true, false);
+        JCExpression tree = p.parseType();
+        moveTree(startPos, tree, p, ept);
         if (p.token().kind != TokenKind.EOF)
             throw new ParseException("dc.ref.unexpected.input");
         return tree;
+    }
+    
+    private <T extends JCTree> T moveTree(final int offset, T toMove, final JavacParser parser, final EndPosTable targetEndPos) {
+        new TreeScanner() {
+            @Override public void scan(JCTree tree) {
+                if (tree != null) {
+                    tree.pos += offset;
+                    ((AbstractEndPosTable) targetEndPos).storeEnd(tree, parser.getEndPos(tree) + offset);
+                }
+                super.scan(tree);
+            }
+        }.scan(toMove);
+        
+        return toMove;
     }
 
     Name parseMember(String s) throws ParseException {
@@ -575,20 +596,20 @@ public class DocCommentParser {
         return name;
     }
 
-    List<JCTree> parseParams(String s) throws ParseException {
+    List<JCTree> parseParams(String s, int startPos) throws ParseException {
         if (s.trim().isEmpty())
             return List.nil();
 
-        JavacParser p = fac.newParser(s.replace("...", "[]"), false, false, false);
+        JavacParser p = fac.newParser(s.replace("...", "[ ]"), false, true, false);
         ListBuffer<JCTree> paramTypes = new ListBuffer<JCTree>();
-        paramTypes.add(p.parseType());
+        paramTypes.add(moveTree(startPos, p.parseType(), p, ept));
 
         if (p.token().kind == TokenKind.IDENTIFIER)
             p.nextToken();
 
         while (p.token().kind == TokenKind.COMMA) {
             p.nextToken();
-            paramTypes.add(p.parseType());
+            paramTypes.add(moveTree(startPos, p.parseType(), p, ept));
 
             if (p.token().kind == TokenKind.IDENTIFIER)
                 p.nextToken();
