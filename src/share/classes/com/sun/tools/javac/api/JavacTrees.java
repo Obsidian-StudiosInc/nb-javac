@@ -61,7 +61,6 @@ import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.PackageSymbol;
-import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ArrayType;
@@ -80,8 +79,11 @@ import com.sun.tools.javac.model.JavacElements;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.tree.DCTree;
 import com.sun.tools.javac.tree.DCTree.DCBlockTag;
+import com.sun.tools.javac.tree.DCTree.DCComment;
 import com.sun.tools.javac.tree.DCTree.DCDocComment;
+import com.sun.tools.javac.tree.DCTree.DCEndElement;
 import com.sun.tools.javac.tree.DCTree.DCEndPosTree;
+import com.sun.tools.javac.tree.DCTree.DCEntity;
 import com.sun.tools.javac.tree.DCTree.DCErroneous;
 import com.sun.tools.javac.tree.DCTree.DCIdentifier;
 import com.sun.tools.javac.tree.DCTree.DCParam;
@@ -235,6 +237,18 @@ public class JavacTrees extends DocTrees {
                             DCBlockTag block = (DCBlockTag) tree;
 
                             return dcComment.comment.getSourcePos(block.pos + block.getTagName().length() + 1);
+                        }
+                        case END_ELEMENT: {
+                            DCEndElement endEl = (DCEndElement) tree;
+                            return dcComment.comment.getSourcePos(endEl.pos + (endEl.name != names.error ? endEl.name.length() : 0) + 3);
+                        }
+                        case ENTITY: {
+                            DCEntity endEl = (DCEntity) tree;
+                            return dcComment.comment.getSourcePos(endEl.pos + (endEl.name != names.error ? endEl.name.length() : 0) + 2);
+                        }
+                        case COMMENT: {
+                            DCComment endEl = (DCComment) tree;
+                            return dcComment.comment.getSourcePos(endEl.pos + endEl.body.length());
                         }
                         default:
                             DocTree last = getLastChild(tree);
