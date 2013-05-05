@@ -53,11 +53,13 @@ public class LazyDocCommentTable implements DocCommentTable {
     }
 
     ParserFactory fac;
+    private final boolean breakOnError;
     DiagnosticSource diagSource;
     public Map<JCTree, Entry> table;
 
     LazyDocCommentTable(ParserFactory fac) {
         this.fac = fac;
+        this.breakOnError = fac.options.getBoolean("breakDocCommentParsingOnError", true);
         diagSource = fac.log.currentSource();
         table = new HashMap<JCTree, Entry>();
     }
@@ -81,7 +83,7 @@ public class LazyDocCommentTable implements DocCommentTable {
         if (e == null)
             return null;
         if (e.tree == null)
-            e.tree = new DocCommentParser(fac, diagSource, e.comment).parse();
+            e.tree = new DocCommentParser(fac, breakOnError, diagSource, e.comment).parse();
         return e.tree;
     }
 

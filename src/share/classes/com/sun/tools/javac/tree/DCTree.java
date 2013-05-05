@@ -105,6 +105,8 @@ public abstract class DCTree implements DocTree {
         public final List<DCTree> firstSentence;
         public final List<DCTree> body;
         public final List<DCTree> tags;
+        
+        public List<JCDiagnostic> errors;
 
         public DCDocComment(Comment comment,
                 List<DCTree> firstSentence, List<DCTree> body, List<DCTree> tags) {

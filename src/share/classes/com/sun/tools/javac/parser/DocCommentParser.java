@@ -50,6 +50,7 @@ import com.sun.tools.javac.tree.DCTree.DCText;
 import com.sun.tools.javac.tree.DocTreeMaker;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.DiagnosticSource;
+import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Log;
@@ -99,8 +100,12 @@ public class DocCommentParser {
 
     Map<Name, TagParser> tagParsers;
 
-    DocCommentParser(ParserFactory fac, DiagnosticSource diagSource, Comment comment) {
+    private final boolean breakOnError;
+    private ListBuffer<JCDiagnostic> errors = new ListBuffer<JCDiagnostic>();
+
+    DocCommentParser(ParserFactory fac, boolean breakOnError, DiagnosticSource diagSource, Comment comment) {
         this.fac = fac;
+        this.breakOnError = breakOnError;
         this.diagSource = diagSource;
         this.comment = comment;
         names = fac.names;
@@ -117,6 +122,8 @@ public class DocCommentParser {
     }
 
     DCDocComment parse() {
+        errors.clear();
+        
         String c = comment.getText();
         buf = new char[c.length() + 1];
         c.getChars(0, c.length(), buf, 0);
@@ -175,6 +182,9 @@ public class DocCommentParser {
         int pos = (first == null) ? Position.NOPOS : first.pos;
 
         DCDocComment dc = m.at(pos).DocComment(comment, fs.toList(), body, tags);
+        
+        dc.errors = errors.toList();
+        
         return dc;
     }
 
@@ -184,6 +194,10 @@ public class DocCommentParser {
             case '\f': case '\n': case '\r':
                 newline = true;
         }
+    }
+    
+    char peekNextChar() {
+        return buf[bp < buflen ? bp + 1 : buflen];
     }
 
     /**
@@ -290,14 +304,20 @@ public class DocCommentParser {
                         case BLOCK:
                             return tp.parse(p);
                         case INLINE:
-                            return erroneous("dc.bad.inline.tag", p);
+                            handleError("dc.bad.inline.tag", p);
+                            return tp.parse(p);
                     }
                 }
             }
-            blockContent();
-
-            return erroneous("dc.no.tag.name", p);
+            DCErroneous err = erroneous("dc.no.tag.name", p);
+            
+            if (breakOnError) {
+                return err;
+            }
+            
+            return m.at(p).UnknownBlockTag(names.empty, blockContent());
         } catch (ParseException e) {
+            if (!breakOnError) throw new IllegalStateException(e);//should not happen
             blockContent();
             return erroneous(e.getMessage(), p);
         }
@@ -349,8 +369,14 @@ public class DocCommentParser {
                     nextChar();
                 }
             }
-            return erroneous("dc.no.tag.name", p);
+            
+            DCErroneous err = erroneous("dc.no.tag.name", p);
+            
+            if (breakOnError) return err;
+            
+            return m.at(p).UnknownInlineTag(names.empty, inlineContent());
         } catch (ParseException e) {
+            if (!breakOnError) throw new IllegalStateException(e);
             return erroneous(e.getMessage(), p);
         }
     }
@@ -403,9 +429,20 @@ public class DocCommentParser {
             }
             nextChar();
         }
-        throw new ParseException("dc.unterminated.inline.tag");
+        
+        return handleError("dc.unterminated.inline.tag", pos);
     }
 
+    protected DCTree handleError(String errorKey, int pos) throws ParseException {
+        if (breakOnError)
+            throw new ParseException(errorKey);
+        else {
+            DCErroneous err = erroneous(errorKey, pos);
+            errors.add(err.diag);
+            return err;
+        }
+    }
+    
     /**
      * Read Java class name, possibly followed by member
      * Matching pairs of < > are skipped. The text is terminated by the first
@@ -455,6 +492,8 @@ public class DocCommentParser {
                         break loop;
                     // fallthrough
 
+                case '{':
+                    break loop;
                 default:
                     newline = false;
 
@@ -462,8 +501,9 @@ public class DocCommentParser {
             nextChar();
         }
 
-        if (depth != 0)
-            throw new ParseException("dc.unterminated.signature");
+        if (depth != 0) {
+            handleError("dc.unterminated.signature", pos);
+        }
 
         String sig = newString(pos, bp);
 
@@ -498,14 +538,18 @@ public class DocCommentParser {
                 paramTypes = null;
             } else {
                 int rparen = sig.indexOf(")", lparen);
-                if (rparen != sig.length() - 1)
-                    throw new ParseException("dc.ref.bad.parens");
+                if (rparen != sig.length() - 1) {
+                    handleError("dc.ref.bad.parens", pos);
+                    if (rparen == (-1)) {
+                        rparen = sig.length();
+                    }
+                }
                 paramTypes = parseParams(sig.substring(lparen + 1, rparen));
             }
 
-            if (!deferredDiagnosticHandler.getDiagnostics().isEmpty())
-                throw new ParseException("dc.ref.syntax.error");
-
+            if (!deferredDiagnosticHandler.getDiagnostics().isEmpty()) {
+                handleError("dc.ref.syntax.error", pos);
+            }
         } finally {
             fac.log.popDiagnosticHandler(deferredDiagnosticHandler);
         }
@@ -524,8 +568,10 @@ public class DocCommentParser {
     Name parseMember(String s) throws ParseException {
         JavacParser p = fac.newParser(s, false, false, false);
         Name name = p.ident();
-        if (p.token().kind != TokenKind.EOF)
-            throw new ParseException("dc.ref.unexpected.input");
+        if (p.token().kind != TokenKind.EOF) {
+            handleError("dc.ref.unexpected.input", bp);
+            return names.error;
+        }
         return name;
     }
 
@@ -548,8 +594,9 @@ public class DocCommentParser {
                 p.nextToken();
         }
 
-        if (p.token().kind != TokenKind.EOF)
-            throw new ParseException("dc.ref.unexpected.input");
+        if (p.token().kind != TokenKind.EOF) {
+            handleError("dc.ref.unexpected.input", bp);
+        }
 
         return paramTypes.toList();
     }
@@ -569,7 +616,8 @@ public class DocCommentParser {
             return m.at(pos).Identifier(name);
         }
 
-        throw new ParseException("dc.identifier.expected");
+        handleError("dc.identifier.expected", pos);
+        return m.at(pos).Identifier(names.error);
     }
 
     /**
@@ -644,8 +692,13 @@ public class DocCommentParser {
 
                 case '{':
                     newline = false;
-                    depth++;
+                    if (peekNextChar() == '@') {
+                        addPendingText(trees, bp - 1);
+                        pos = bp;
+                        break loop;
+                    }
                     nextChar();
+                    depth++;
                     break;
 
                 case '}':
@@ -671,7 +724,13 @@ public class DocCommentParser {
             }
         }
 
-        return List.<DCTree>of(erroneous("dc.unterminated.inline.tag", pos));
+        DCErroneous err = erroneous("dc.unterminated.inline.tag", pos);
+        
+        if (!breakOnError) {
+            return trees.toList();
+        }
+        
+        return List.<DCTree>of(err);
     }
 
     protected void entity(ListBuffer<DCTree> list) {
@@ -714,14 +773,26 @@ public class DocCommentParser {
             name = readIdentifier();
         }
 
-        if (name == null)
-            return erroneous("dc.bad.entity", p);
-        else {
-            if (ch != ';')
-                return erroneous("dc.missing.semicolon", p);
-            nextChar();
-            return m.at(p).Entity(name);
+        if (name == null) {
+            DCErroneous err = erroneous("dc.bad.entity", p);
+            
+            if (breakOnError) {
+                return err;
+            } else {
+                name = names.empty;
+            }
+        } else {
+            if (ch != ';') {
+                DCErroneous err = erroneous("dc.missing.semicolon", p);
+                
+                if (breakOnError) {
+                    return err;
+                }
+            } else {
+                nextChar();
+            }
         }
+        return m.at(p).Entity(name);
     }
 
     /**
@@ -782,7 +853,7 @@ public class DocCommentParser {
 
         bp = p + 1;
         ch = buf[bp];
-        return erroneous("dc.malformed.html", p);
+        return erroneous("dc.malformed.html", p);//XXX: jlahoda: the span is incorrect
     }
 
     /**
@@ -812,7 +883,13 @@ public class DocCommentParser {
                     textStart = bp;
                     while (bp < buflen && ch != quote) {
                         if (newline && ch == '@') {
-                            attrs.add(erroneous("dc.unterminated.string", namePos));
+                            DCErroneous err = erroneous("dc.unterminated.string", namePos);
+                            if (breakOnError) {
+                                attrs.add(err);
+                            } else {
+                                attrValueChar(v);
+                                attrs.add(m.at(namePos).Attribute(name, vkind, v.toList()));
+                            }
                             // No point trying to read more.
                             // In fact, all attrs get discarded by the caller
                             // and superseded by a malformed.html node because
@@ -881,7 +958,9 @@ public class DocCommentParser {
             i--;
         }
         textStart = -1;
-        return m.at(pos).Erroneous(newString(pos, i + 1), diagSource, code);
+        DCErroneous result = m.at(pos).Erroneous(newString(pos, i + 1), diagSource, code);
+        if (!breakOnError) errors.add(result.diag);
+        return result;
     }
 
     @SuppressWarnings("unchecked")
@@ -1062,8 +1141,12 @@ public class DocCommentParser {
             // {@docRoot}
             new TagParser(Kind.INLINE, DCTree.Kind.DOC_ROOT) {
                 public DCTree parse(int pos) throws ParseException {
-                    if (ch == '}') {
-                        nextChar();
+                    if (ch == '}' || !breakOnError) {
+                        if (ch == '}') {
+                            nextChar();
+                        } else {
+                            erroneous("dc.unexpected.content", bp);//TODO: should rather be '}' expected
+                        }
                         return m.at(pos).DocRoot();
                     }
                     inlineText(); // skip unexpected content
@@ -1085,8 +1168,12 @@ public class DocCommentParser {
             // {@inheritDoc}
             new TagParser(Kind.INLINE, DCTree.Kind.INHERIT_DOC) {
                 public DCTree parse(int pos) throws ParseException {
-                    if (ch == '}') {
-                        nextChar();
+                    if (ch == '}' || !breakOnError) {
+                        if (ch == '}') {
+                            nextChar();
+                        } else {
+                            erroneous("dc.unexpected.content", bp);//TODO: should rather be '}' expected
+                        }
                         return m.at(pos).InheritDoc();
                     }
                     inlineText(); // skip unexpected content
@@ -1136,8 +1223,9 @@ public class DocCommentParser {
                     DCIdentifier id = identifier();
 
                     if (typaram) {
-                        if (ch != '>')
-                            throw new ParseException("dc.gt.expected");
+                        if (ch != '>') {
+                            handleError("dc.gt.expected", bp);
+                        }
                         nextChar();
                     }
 
@@ -1159,6 +1247,7 @@ public class DocCommentParser {
             new TagParser(Kind.BLOCK, DCTree.Kind.SEE) {
                 public DCTree parse(int pos) throws ParseException {
                     skipWhitespace();
+                    String errorKey = "dc.unexpected.content";
                     switch (ch) {
                         case '"':
                             DCText string = quotedString();
@@ -1176,13 +1265,14 @@ public class DocCommentParser {
                             break;
 
                         case '@':
-                            if (newline)
-                                throw new ParseException("dc.no.content");
+                            if (newline) {
+                                handleError("dc.no.content", bp);
+                            }
                             break;
 
                         case EOI:
                             if (bp == buf.length - 1)
-                                throw new ParseException("dc.no.content");
+                                errorKey = "dc.no.content";
                             break;
 
                         default:
@@ -1192,7 +1282,10 @@ public class DocCommentParser {
                                 return m.at(pos).See(description.prepend(ref));
                             }
                     }
-                    throw new ParseException("dc.unexpected.content");
+                    
+                    handleError(errorKey, bp);
+                    
+                    return m.at(pos).See(List.<DCTree>nil());
                 }
             },
 
@@ -1253,10 +1346,10 @@ public class DocCommentParser {
                     skipWhitespace();
                     if (ch == '}') {
                         nextChar();
-                        return m.at(pos).Value(ref);
+                    } else {
+                        handleError("dc.unexpected.content", pos);//TODO: should rather be '}' expected
                     }
-                    nextChar();
-                    throw new ParseException("dc.unexpected.content");
+                    return m.at(pos).Value(ref);
                 }
             },
 
