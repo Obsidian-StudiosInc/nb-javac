@@ -1450,6 +1450,9 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
         if (!t.hasTag(ERROR))
             return t;
 
+        while (t.isAnnotated())
+            t = ((AnnotatedType)t).unannotatedType();
+        
         return new ErrorType(((ErrorType) t).getOriginalType(), t.tsym) {
             private Type modelType;
 
