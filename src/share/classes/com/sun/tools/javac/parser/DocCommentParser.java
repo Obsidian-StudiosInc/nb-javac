@@ -362,7 +362,6 @@ public class DocCommentParser {
                 if (tp == null) {
                     DCTree text = inlineText();
                     if (text != null) {
-                        nextChar();
                         return m.at(p).UnknownInlineTag(name, List.of(text)).setEndPos(bp);
                     }
                 } else if (tp.getKind() == TagParser.Kind.INLINE) {
@@ -372,7 +371,6 @@ public class DocCommentParser {
                     }
                 } else {
                     inlineText(); // skip content
-                    nextChar();
                 }
             }
             
@@ -415,6 +413,7 @@ public class DocCommentParser {
 
                 case '}':
                     if (--depth == 0) {
+                        nextChar();
                         return m.at(pos).Text(newString(pos, bp));
                     }
                     newline = false;
@@ -436,16 +435,17 @@ public class DocCommentParser {
             nextChar();
         }
         
-        return handleError("dc.unterminated.inline.tag", pos);
+        handleError("dc.unterminated.inline.tag", pos);
+        
+        return m.at(pos).Text(newString(pos, bp));
     }
 
-    protected DCTree handleError(String errorKey, int pos) throws ParseException {
+    protected void handleError(String errorKey, int pos) throws ParseException {
         if (breakOnError)
             throw new ParseException(errorKey);
         else {
             DCErroneous err = erroneous(errorKey, pos);
             errors.add(err.diag);
-            return err;
         }
     }
     
@@ -1146,7 +1146,6 @@ public class DocCommentParser {
             new TagParser(Kind.INLINE, DCTree.Kind.CODE) {
                 public DCTree parse(int pos) throws ParseException {
                     DCTree text = inlineText();
-                    nextChar();
                     return m.at(pos).Code((DCText) text);
                 }
             },
@@ -1171,7 +1170,6 @@ public class DocCommentParser {
                         return m.at(pos).DocRoot();
                     }
                     inlineText(); // skip unexpected content
-                    nextChar();
                     throw new ParseException("dc.unexpected.content");
                 }
             },
@@ -1198,7 +1196,6 @@ public class DocCommentParser {
                         return m.at(pos).InheritDoc();
                     }
                     inlineText(); // skip unexpected content
-                    nextChar();
                     throw new ParseException("dc.unexpected.content");
                 }
             },
@@ -1225,7 +1222,6 @@ public class DocCommentParser {
             new TagParser(Kind.INLINE, DCTree.Kind.LITERAL) {
                 public DCTree parse(int pos) throws ParseException {
                     DCTree text = inlineText();
-                    nextChar();
                     return m.at(pos).Literal((DCText) text);
                 }
             },

@@ -85,6 +85,17 @@ public class DocCommentParserTest extends TestCase {
                            );
     }
     
+    public void test229748() throws IOException {
+        doTestErrorRecovery("{@literal http://wikis.sun.com/display/mlvm/ProjectCoinProposal\n" +
+                            "@see String\n",
+                            "DOC_COMMENT:{@literal http://wikis.sun.com/display/mlvm/ProjectCoinProposal\n" +
+                            "@see String",
+                            "LITERAL:{@literal http://wikis.sun.com/display/mlvm/ProjectCoinProposal\n",
+                            "TEXT:http://wikis.sun.com/display/mlvm/ProjectCoinProposal\n",
+                            "SEE:@see String",
+                            "REFERENCE:String");
+    }
+    
     private void doTestErrorRecovery(String javadocCode, String... golden) throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
