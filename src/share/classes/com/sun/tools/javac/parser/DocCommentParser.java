@@ -568,7 +568,7 @@ public class DocCommentParser {
         JCExpression tree = p.parseType();
         moveTree(startPos, tree, p, ept);
         if (p.token().kind != TokenKind.EOF) {
-            handleError("dc.ref.unexpected.input", startPos + p.token().pos);
+            handleError("dc.ref.unexpected.input", p.token().pos);
         }
         return tree;
     }
