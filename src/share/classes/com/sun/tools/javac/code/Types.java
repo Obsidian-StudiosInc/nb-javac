@@ -4481,7 +4481,7 @@ public class Types {
             ClassSymbol c = (ClassSymbol) ct.tsym;
             classReference(c);
             Type outer = ct.getEnclosingType();
-            if (outer.allparams().nonEmpty()) {
+            if (outer.allparams().nonEmpty() && c.owner.enclClass() != null) {
                 boolean rawOuter =
                         c.owner.kind == Kinds.MTH || // either a local class
                         c.name == types.names.empty; // or anonymous
