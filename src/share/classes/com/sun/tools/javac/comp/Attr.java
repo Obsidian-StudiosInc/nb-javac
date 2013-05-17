@@ -1317,7 +1317,7 @@ public class Attr extends JCTree.Visitor {
         private static void addVars(List<JCStatement> stats, Scope switchScope) {
             for (;stats.nonEmpty(); stats = stats.tail) {
                 JCTree stat = stats.head;
-                if (stat.hasTag(VARDEF))
+                if (stat.hasTag(VARDEF) && ((JCVariableDecl) stat).sym != null)
                     switchScope.enter(((JCVariableDecl) stat).sym);
             }
         }
