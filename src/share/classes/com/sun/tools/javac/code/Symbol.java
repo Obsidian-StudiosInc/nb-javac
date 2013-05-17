@@ -1429,6 +1429,7 @@ public abstract class Symbol implements Element {
         public List<VarSymbol> params() {
             owner.complete();
             if (params == null) {
+                Assert.checkNonNull(type, "Invalid element: " + this);
                 // If ClassReader.saveParameterNames has been set true, then
                 // savedParameterNames will be set to a list of names that
                 // matches the types in type.getParameterTypes().  If any names
