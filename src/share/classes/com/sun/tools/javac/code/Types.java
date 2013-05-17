@@ -3194,10 +3194,12 @@ public class Types {
             return cl1;
         if (cl1.isEmpty() || cl2.isEmpty())
             return List.nil();
-        if (cl1.head.tsym.precedes(cl2.head.tsym, this))
-            return intersect(cl1.tail, cl2);
-        if (cl2.head.tsym.precedes(cl1.head.tsym, this))
-            return intersect(cl1, cl2.tail);
+        if (cl1.head.tsym != null && cl2.head.tsym != null) {
+            if (cl1.head.tsym.precedes(cl2.head.tsym, this))
+                return intersect(cl1.tail, cl2);
+            if (cl2.head.tsym.precedes(cl1.head.tsym, this))
+                return intersect(cl1, cl2.tail);
+        }
         if (isSameType(cl1.head, cl2.head))
             return intersect(cl1.tail, cl2.tail).prepend(cl1.head);
         if (cl1.head.tsym == cl2.head.tsym &&
