@@ -481,7 +481,7 @@ public class Flow {
         }
 
         public void visitMethodDef(JCMethodDecl tree) {
-            if (tree.body == null) return;
+            if (tree.body == null || tree.sym == null) return;
             Lint lintPrev = lint;
 
             lint = lint.augment(tree.sym.annotations);
@@ -502,7 +502,7 @@ public class Flow {
         }
 
         public void visitVarDef(JCVariableDecl tree) {
-            if (tree.init != null) {
+            if (tree.init != null && tree.sym != null) {
                 Lint lintPrev = lint;
                 lint = lint.augment(tree.sym.annotations);
                 try{
