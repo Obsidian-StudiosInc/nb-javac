@@ -158,7 +158,9 @@ public abstract class AbstractDiagnosticFormatter implements DiagnosticFormatter
     protected Collection<String> formatArguments(JCDiagnostic d, Locale l) {
         ListBuffer<String> buf = new ListBuffer<String>();
         for (Object o : d.getArgs()) {
-           buf.append(formatArgument(d, o, l));
+           String arg = formatArgument(d, o, l);
+           if (arg != null)
+               buf.append(arg);
         }
         return buf.toList();
     }

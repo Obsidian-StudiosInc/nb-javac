@@ -36,6 +36,7 @@ import com.sun.tools.javac.tree.JCTree.*;
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.TypeTag.*;
+import com.sun.tools.javac.jvm.ClassReader;
 
 /** Factory class for trees.
  *
@@ -78,6 +79,8 @@ public class TreeMaker implements JCTree.Factory {
      */
     protected TreeMaker(Context context) {
         context.put(treeMakerKey, this);
+        //ClassReader needs to be instantiated before Symtab:
+        ClassReader.instance(context);
         this.pos = Position.NOPOS;
         this.toplevel = null;
         this.names = Names.instance(context);
@@ -520,7 +523,7 @@ public class TreeMaker implements JCTree.Factory {
 
     public JCModifiers Modifiers(long flags, List<JCAnnotation> annotations) {
         JCModifiers tree = new JCModifiers(flags, annotations);
-        boolean noFlags = (flags & (Flags.ModifierFlags | Flags.ANNOTATION)) == 0;
+        boolean noFlags = (flags & (Flags.ModifierFlags | Flags.ANNOTATION | Flags.DEFAULT)) == 0;
         tree.pos = (noFlags && annotations.isEmpty()) ? Position.NOPOS : pos;
         return tree;
     }
@@ -683,7 +686,9 @@ public class TreeMaker implements JCTree.Factory {
             break;
         case WILDCARD: {
             WildcardType a = ((WildcardType) t);
-            tp = Wildcard(TypeBoundKind(a.kind), Type(a.type));
+            tp = a.type != syms.objectType
+                    ? Wildcard(TypeBoundKind(a.kind), Type(a.type))
+                    : Wildcard(TypeBoundKind(BoundKind.UNBOUND), null);
             break;
         }
         case CLASS:
@@ -920,6 +925,11 @@ public class TreeMaker implements JCTree.Factory {
     /** Construct an assignment from a variable symbol and a right hand side.
      */
     public JCStatement Assignment(Symbol v, JCExpression rhs) {
+        if (rhs.hasTag(JCTree.Tag.ERRONEOUS)) {
+            JCErroneous err = (JCErroneous)rhs;
+            if (err.errs.head != null && err.errs.head.hasTag(JCTree.Tag.THROW))
+                return (JCThrow)err.errs.head;
+        }
         return Exec(Assign(Ident(v), rhs).setType(v.type));
     }
 
@@ -946,7 +956,8 @@ public class TreeMaker implements JCTree.Factory {
     boolean isUnqualifiable(Symbol sym) {
         if (sym.name == names.empty ||
             sym.owner == null ||
-            sym.owner.kind == MTH || sym.owner.kind == VAR) {
+            sym.owner.kind == MTH || sym.owner.kind == VAR
+            || (sym.owner.kind == PCK && sym.owner.name == names.empty)) {
             return true;
         } else if (sym.kind == TYP && toplevel != null) {
             Scope.Entry e;

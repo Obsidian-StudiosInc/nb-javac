@@ -619,6 +619,8 @@ public class DeferredAttr extends JCTree.Visitor {
      * (the latter step is useful in a recovery scenario).
      */
     public class RecoveryDeferredTypeMap extends DeferredTypeMap {
+        
+        private Type pt = null;
 
         public RecoveryDeferredTypeMap(AttrMode mode, Symbol msym, MethodResolutionPhase phase) {
             super(mode, msym, phase != null ? phase : MethodResolutionPhase.BOX);
@@ -636,6 +638,24 @@ public class DeferredAttr extends JCTree.Visitor {
             return true;
         }
 
+        @Override
+        public Type apply(Type t) {
+            if (t.hasTag(METHOD) && deferredAttrContext.mode == AttrMode.CHECK) {
+                Type mtype = deferredAttrContext.msym.type;
+                mtype = mtype.hasTag(ERROR) ? ((ErrorType)mtype).getOriginalType() : null;
+                if (mtype != null && mtype.hasTag(METHOD)) {
+                    List<Type> argtypes1 = map(t.getParameterTypes(), mtype.getParameterTypes());
+                    Type restype1 = this.apply(t.getReturnType());
+                    List<Type> thrown1 = Type.map(t.getThrownTypes(), this);
+                    if (argtypes1 == t.getParameterTypes() &&
+                        restype1 == t.getReturnType() &&
+                        thrown1 == t.getThrownTypes()) return t;
+                    else return new MethodType(argtypes1, restype1, thrown1, t.tsym);
+                }
+            }
+            return super.apply(t); //To change body of generated methods, choose Tools | Templates.
+        }
+        
         /**
          * Synthesize a type for a deferred type that hasn't been previously
          * reduced to an ordinary type. Functional deferred types and conditionals
@@ -644,8 +664,20 @@ public class DeferredAttr extends JCTree.Visitor {
          * a default expected type (j.l.Object).
          */
         private Type recover(DeferredType dt) {
-            dt.check(attr.new RecoveryInfo(deferredAttrContext));
+            dt.check(pt != null ? attr.new RecoveryInfo(deferredAttrContext, pt) : attr.new RecoveryInfo(deferredAttrContext));
             return super.apply(dt);
+        }
+        
+        private List<Type> map(List<Type> ts, List<Type> pts) {
+            if (ts.nonEmpty()) {
+                List<Type> tail1 = map(ts.tail, pts != null ? pts.tail : null);
+                pt = pts != null && pts.nonEmpty() ? pts.head : null;
+                Type t = this.apply(ts.head);
+                pt = null;
+                if (tail1 != ts.tail || t != ts.head)
+                    return tail1.prepend(t);
+            }
+            return ts;
         }
     }
 

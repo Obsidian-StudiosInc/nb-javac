@@ -121,6 +121,9 @@ public class TypeAnnotations {
             return inferTargetMetaInfo(a, s);
         }
         Attribute atValue = atTarget.member(names.value);
+        if (atValue == null) {
+            return inferTargetMetaInfo(a, s);
+        }
         if (!(atValue instanceof Attribute.Array)) {
             Assert.error("annotationType(): bad @Target argument " + atValue +
                     " (" + atValue.getClass() + ")");
@@ -1010,7 +1013,7 @@ public class TypeAnnotations {
                         // Use null to mark that the annotations go with the symbol.
                         separateAnnotationsKinds(tree, null, tree.sym, pos);
                     } else {
-                        pos.pos = tree.restype.pos;
+                        pos.pos = tree.restype != null ? tree.restype.pos : tree.pos;
                         separateAnnotationsKinds(tree.restype, tree.sym.type.getReturnType(),
                                 tree.sym, pos);
                     }

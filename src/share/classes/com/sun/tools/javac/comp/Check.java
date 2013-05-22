@@ -28,6 +28,7 @@ package com.sun.tools.javac.comp;
 import java.util.*;
 
 import javax.tools.JavaFileManager;
+import javax.lang.model.element.ElementKind;
 
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.jvm.*;
@@ -397,8 +398,9 @@ public class Check {
      */
     boolean checkUniqueClassName(DiagnosticPosition pos, Name name, Scope s) {
         for (Scope.Entry e = s.lookup(name); e.scope == s; e = e.next()) {
-            if (e.sym.kind == TYP && e.sym.name != names.error) {
-                duplicateError(pos, e.sym);
+            if (e.sym.kind == TYP) {
+                if (e.sym.name != names.error)
+                    duplicateError(pos, e.sym);
                 return false;
             }
         }
@@ -429,6 +431,15 @@ public class Check {
                            c.name);
             if (compiled.get(flatname) == null) return flatname;
         }
+    }
+
+
+    Name localClassName (final ClassSymbol enclClass, final Name name, final int index) {
+        Name flatname = names.
+            fromString("" + enclClass.flatname +
+                       syntheticNameChar + index +
+                       name);
+        return flatname;
     }
 
 /* *************************************************************************
@@ -523,7 +534,7 @@ public class Check {
      *  @param found      The type that was found.
      *  @param req        The type that was required.
      */
-    Type checkType(DiagnosticPosition pos, Type found, Type req) {
+    public Type checkType(DiagnosticPosition pos, Type found, Type req) {
         return checkType(pos, found, req, basicHandler);
     }
 
@@ -541,7 +552,7 @@ public class Check {
             return req;
         if (req.hasTag(NONE))
             return found;
-        if (checkContext.compatible(found, req, checkContext.checkWarner(pos, found, req))) {
+        if (found == null || checkContext.compatible(found, req, checkContext.checkWarner(pos, found, req))) {
             return found;
         } else {
             if (found.getTag().isSubRangeOf(DOUBLE) && req.getTag().isSubRangeOf(DOUBLE)) {
@@ -1046,7 +1057,7 @@ public class Check {
         long implicit = 0;
         switch (sym.kind) {
         case VAR:
-            if (sym.owner.kind != TYP)
+            if (sym.owner.kind != TYP && sym.owner.kind != ERR)
                 mask = LocalVarFlags;
             else if ((sym.owner.flags_field & INTERFACE) != 0)
                 mask = implicit = InterfaceVarFlags;
@@ -1083,6 +1094,7 @@ public class Check {
                 implicit |= sym.owner.flags_field & STRICTFP;
             break;
         case TYP:
+        case ERR:
             if (sym.isLocal()) {
                 mask = LocalClassFlags;
                 if (sym.name.isEmpty()) { // Anonymous class
@@ -1095,7 +1107,7 @@ public class Check {
                 if ((sym.owner.flags_field & STATIC) == 0 &&
                     (flags & ENUM) != 0)
                     log.error(pos, "enums.must.be.static");
-            } else if (sym.owner.kind == TYP) {
+            } else if (sym.owner.kind == TYP || sym.owner.kind == ERR) {
                 mask = MemberClassFlags;
                 if (sym.owner.owner.kind == PCK ||
                     (sym.owner.flags_field & STATIC) != 0)
@@ -1137,33 +1149,46 @@ public class Check {
                   // in the presence of inner classes. Should it be deleted here?
                   checkDisjoint(pos, flags,
                                 ABSTRACT,
-                                PRIVATE | STATIC | DEFAULT))
-                 &&
-                 checkDisjoint(pos, flags,
-                                STATIC,
-                                DEFAULT)
-                 &&
-                 checkDisjoint(pos, flags,
-                               ABSTRACT | INTERFACE,
-                               FINAL | NATIVE | SYNCHRONIZED)
-                 &&
-                 checkDisjoint(pos, flags,
-                               PUBLIC,
-                               PRIVATE | PROTECTED)
-                 &&
-                 checkDisjoint(pos, flags,
-                               PRIVATE,
-                               PUBLIC | PROTECTED)
-                 &&
-                 checkDisjoint(pos, flags,
-                               FINAL,
-                               VOLATILE)
-                 &&
-                 (sym.kind == TYP ||
-                  checkDisjoint(pos, flags,
-                                ABSTRACT | NATIVE,
-                                STRICTFP))) {
-            // skip
+                                PRIVATE | STATIC | DEFAULT))) {
+            if (checkDisjoint(pos, flags,
+                               STATIC,
+                               DEFAULT)) {
+                if (checkDisjoint(pos, flags,
+                                    ABSTRACT | INTERFACE,
+                                    FINAL | NATIVE | SYNCHRONIZED)) {
+                    if (checkDisjoint(pos, flags,
+                                        PUBLIC,
+                                        PRIVATE | PROTECTED)) {
+                        if (checkDisjoint(pos, flags,
+                                            PRIVATE,
+                                            PUBLIC | PROTECTED)) {
+                            if (checkDisjoint(pos, flags,
+                                                FINAL,
+                                                VOLATILE)) {
+                                if ((sym.kind == TYP ||
+                                        checkDisjoint(pos, flags,
+                                                    ABSTRACT | NATIVE,
+                                                    STRICTFP))) {
+                                } else {
+                                    flags &= ~STRICTFP;
+                                }
+                            } else {
+                                flags &= ~VOLATILE;
+                            }
+                        } else {
+                            flags &= ~(PUBLIC | PROTECTED);
+                        }
+                    } else {
+                        flags &= ~(PRIVATE | PROTECTED);
+                    }
+                } else {
+                    flags &= ~(FINAL | NATIVE | SYNCHRONIZED);
+                }
+            } else {
+                flags &= ~DEFAULT;
+            }
+        } else {
+            flags &= ~(PRIVATE | STATIC | DEFAULT);
         }
         return flags & (mask | ~ExtendedStandardFlags) | implicit;
     }
@@ -1259,7 +1284,7 @@ public class Check {
 
         @Override
         public void visitTypeApply(JCTypeApply tree) {
-            if (tree.type.hasTag(CLASS)) {
+            if (tree.type != null && tree.type.hasTag(CLASS)) {
                 List<JCExpression> args = tree.arguments;
                 List<Type> forms = tree.type.tsym.type.getTypeArguments();
 
@@ -1390,6 +1415,8 @@ public class Check {
     /** Is given type a subtype of some of the types in given list?
      */
     boolean subset(Type t, List<Type> ts) {
+        if (t == null)
+            return false;
         for (List<Type> l = ts; l.nonEmpty(); l = l.tail)
             if (types.isSubtype(t, l.head)) return true;
         return false;
@@ -1399,6 +1426,8 @@ public class Check {
      *  some of the types in given list?
      */
     boolean intersects(Type t, List<Type> ts) {
+        if (t == null)
+            return false;
         for (List<Type> l = ts; l.nonEmpty(); l = l.tail)
             if (types.isSubtype(t, l.head) || types.isSubtype(l.head, t)) return true;
         return false;
@@ -1408,13 +1437,13 @@ public class Check {
      *  in the list.
      */
     List<Type> incl(Type t, List<Type> ts) {
-        return subset(t, ts) ? ts : excl(t, ts).prepend(t);
+        return (t == null || subset(t, ts)) ? ts : excl(t, ts).prepend(t);
     }
 
     /** Remove type set from type set list.
      */
     List<Type> excl(Type t, List<Type> ts) {
-        if (ts.isEmpty()) {
+        if (t == null || ts.isEmpty()) {
             return ts;
         } else {
             List<Type> ts1 = excl(t, ts.tail);
@@ -1466,9 +1495,10 @@ public class Check {
      */
     boolean isUnchecked(Type exc) {
         return
+            (exc == null) ? true :
             (exc.hasTag(TYPEVAR)) ? isUnchecked(types.supertype(exc)) :
             (exc.hasTag(CLASS)) ? isUnchecked((ClassSymbol)exc.tsym) :
-            exc.hasTag(BOT);
+            exc.hasTag(BOT) || exc.hasTag(ERROR);
     }
 
     /** Same, but handling completion failures.
@@ -1660,7 +1690,7 @@ public class Check {
                 return;
             }
         } else if (overrideWarner.hasNonSilentLint(LintCategory.UNCHECKED)) {
-            warnUnchecked(TreeInfo.diagnosticPositionFor(m, tree),
+            warnDeferredUnchecked(TreeInfo.diagnosticPositionFor(m, tree),
                     "override.unchecked.ret",
                     uncheckedOverrides(m, other),
                     mtres, otres);
@@ -1680,7 +1710,7 @@ public class Check {
             return;
         }
         else if (unhandledUnerased.nonEmpty()) {
-            warnUnchecked(TreeInfo.diagnosticPositionFor(m, tree),
+            warnDeferredUnchecked(TreeInfo.diagnosticPositionFor(m, tree),
                           "override.unchecked.thrown",
                          cannotOverride(m, other),
                          unhandledUnerased.head);
@@ -1709,6 +1739,21 @@ public class Check {
         }
     }
     // where
+        private void warnDeferredUnchecked(final DiagnosticPosition pos, final String msg, final Object... args) {
+            DiagnosticPosition prevPos = deferredLintHandler.getPos();
+            deferredLintHandler.setPos(pos);
+            try {
+                deferredLintHandler.report(new DeferredLintHandler.LintLogger() {
+                    @Override
+                    public void report() {
+                        warnUnchecked(pos, msg, args);
+                    }
+                });
+            } finally {
+                deferredLintHandler.setPos(prevPos);
+            }
+        }
+
         private boolean isDeprecatedOverrideIgnorable(MethodSymbol m, ClassSymbol origin) {
             // If the method, m, is defined in an interface, then ignore the issue if the method
             // is only inherited via a supertype and also implemented in the supertype,
@@ -2006,10 +2051,12 @@ public class Check {
                     .tsym.members().lookup(names.equals).sym;
             MethodSymbol hashCodeAtObject = (MethodSymbol)syms.objectType
                     .tsym.members().lookup(names.hashCode).sym;
-            boolean overridesEquals = types.implementation(equalsAtObject,
-                someClass, false, equalsHasCodeFilter).owner == someClass;
-            boolean overridesHashCode = types.implementation(hashCodeAtObject,
-                someClass, false, equalsHasCodeFilter) != hashCodeAtObject;
+            MethodSymbol equalsImpl = types.implementation(equalsAtObject,
+                    someClass, false, equalsHasCodeFilter);
+            boolean overridesEquals = equalsImpl != null && equalsImpl.owner == someClass;
+            MethodSymbol hasCodeImpl = types.implementation(hashCodeAtObject,
+                    someClass, false, equalsHasCodeFilter);
+            boolean overridesHashCode = hasCodeImpl != null && hasCodeImpl != hashCodeAtObject;
 
             if (overridesEquals && !overridesHashCode) {
                 log.warning(LintCategory.OVERRIDES, pos,
@@ -2031,6 +2078,9 @@ public class Check {
      *  @param c            The class.
      */
     void checkAllDefined(DiagnosticPosition pos, ClassSymbol c) {
+        if (c.type == null || c.type.isErroneous()) {
+            return ;
+        }
         try {
             MethodSymbol undef = firstUndef(c, c);
             if (undef != null) {
@@ -2318,6 +2368,13 @@ public class Check {
          */
         void checkImplementations(JCTree tree, ClassSymbol origin, ClassSymbol ic) {
             for (List<Type> l = types.closure(ic.type); l.nonEmpty(); l = l.tail) {
+                ElementKind kind = l.head.tsym.getKind();
+
+                if (!kind.isClass() && !kind.isInterface()) {
+                    //not a class: an error should have already been reported, ignore.
+                    continue;
+                }
+
                 ClassSymbol lc = (ClassSymbol)l.head.tsym;
                 if ((allowGenerics || origin != lc) && (lc.flags() & ABSTRACT) != 0) {
                     for (Scope.Entry e=lc.members().elems; e != null; e=e.sibling) {
@@ -2365,7 +2422,8 @@ public class Check {
     }
 
     void checkConflicts(DiagnosticPosition pos, Symbol sym, TypeSymbol c) {
-        for (Type ct = c.type; ct != Type.noType ; ct = types.supertype(ct)) {
+        Type previous = null;
+        for (Type ct = c.type; ct != Type.noType && ct != previous; previous = ct, ct = types.supertype(ct)) {
             for (Scope.Entry e = ct.tsym.members().lookup(sym.name); e.scope == ct.tsym.members(); e = e.next()) {
                 // VM allows methods and variables with differing types
                 if (sym.kind == e.sym.kind &&
@@ -2389,6 +2447,8 @@ public class Check {
      *  @param sym  The method symbol to be checked.
      */
     void checkOverrideClashes(DiagnosticPosition pos, Type site, MethodSymbol sym) {
+        if (site == null || site.isErroneous())
+            return;
          ClashFilter cf = new ClashFilter(site);
         //for each method m1 that is overridden (directly or indirectly)
         //by method 'sym' in 'site'...
@@ -2426,6 +2486,8 @@ public class Check {
      *  @param sym  The method symbol to be checked.
      */
     void checkHideClashes(DiagnosticPosition pos, Type site, MethodSymbol sym) {
+        if (site.isErroneous())
+            return;
         ClashFilter cf = new ClashFilter(site);
         //for each method m1 that is a member of 'site'...
         for (Symbol s : types.membersClosure(site, true).getElementsByName(sym.name, cf)) {
@@ -2466,6 +2528,9 @@ public class Check {
      }
 
     void checkDefaultMethodClashes(DiagnosticPosition pos, Type site) {
+        if (site == null || site.isErroneous()) {
+            return;
+        }
         DefaultMethodClashFilter dcf = new DefaultMethodClashFilter(site);
         for (Symbol m : types.membersClosure(site, false).getElements(dcf)) {
             Assert.check(m.kind == MTH);
@@ -2590,7 +2655,7 @@ public class Check {
         class AnnotationValidator extends TreeScanner {
             @Override
             public void visitAnnotation(JCAnnotation tree) {
-                if (!tree.type.isErroneous()) {
+                if (tree.type != null && !tree.type.isErroneous()) {
                     super.visitAnnotation(tree);
                     validateAnnotation(tree);
                 }
@@ -3045,7 +3110,7 @@ public class Check {
         // all the remaining ones better have default values
         List<Name> missingDefaults = List.nil();
         for (MethodSymbol m : members) {
-            if (m.defaultValue == null && !m.type.isErroneous()) {
+            if (m.defaultValue == null && !m.type.isErroneous() && m.name != m.name.table.names.clinit) {
                 missingDefaults = missingDefaults.append(m.name);
             }
         }
@@ -3198,7 +3263,7 @@ public class Check {
             JCMethodDecl meth = (JCMethodDecl) l.head;
             if (TreeInfo.name(app.meth) == names._this) {
                 callMap.put(meth.sym, TreeInfo.symbol(app.meth));
-            } else {
+            } else if (meth.sym != null) {
                 meth.sym.flags_field |= ACYCLIC;
             }
         }
