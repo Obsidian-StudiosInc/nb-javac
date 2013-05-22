@@ -468,16 +468,9 @@ public abstract class Symbol implements Element {
      * This is the implementation for {@code
      * javax.lang.model.element.Element.getAnnotationMirrors()}.
      */
-    public final List<? extends AnnotationMirror> getAnnotationMirrors() {
+    @Override
+    public List<Attribute.Compound> getAnnotationMirrors() {
         return getRawAttributes();
-    }
-
-    /**
-     * TODO: Should there be a {@code
-     * javax.lang.model.element.Element.getTypeAnnotationMirrors()}.
-     */
-    public final List<Attribute.TypeCompound> getTypeAnnotationMirrors() {
-        return getRawTypeAttributes();
     }
 
     /**
@@ -662,6 +655,24 @@ public abstract class Symbol implements Element {
                 // In this case, supertype is Object, erasure is first interface.
                 return ct.interfaces_field;
             }
+        }
+
+        @Override
+        public List<Attribute.Compound> getAnnotationMirrors() {
+            return onlyTypeVariableAnnotations(owner.getRawTypeAttributes());
+        }
+
+        private List<Attribute.Compound> onlyTypeVariableAnnotations(
+                List<Attribute.TypeCompound> candidates) {
+            // Declaration annotations on TypeParameters are stored in type attributes
+            List<Attribute.Compound> res = List.nil();
+            for (Attribute.TypeCompound a : candidates) {
+                if (a.position.type == TargetType.CLASS_TYPE_PARAMETER ||
+                    a.position.type == TargetType.METHOD_TYPE_PARAMETER)
+                    res = res.prepend(a);
+            }
+
+            return res = res.reverse();
         }
 
         @Override
@@ -993,23 +1004,16 @@ public abstract class Symbol implements Element {
          */
         public int adr = -1;
 
-        public final VarSymbol originalVar;
-
         /** Construct a variable symbol, given its flags, name, type and owner.
          */
         public VarSymbol(long flags, Name name, Type type, Symbol owner) {
-            this(flags, name, type, owner, null);
-        }
-
-        private VarSymbol(long flags, Name name, Type type, Symbol owner, VarSymbol originalVar) {
             super(VAR, flags, name, type, owner);
-            this.originalVar = originalVar;
         }
 
         /** Clone this symbol with new owner.
          */
         public VarSymbol clone(Symbol newOwner) {
-            VarSymbol v = new VarSymbol(flags_field, name, type, newOwner, originalVar != null ? originalVar : this) {
+            VarSymbol v = new VarSymbol(flags_field, name, type, newOwner) {
                 @Override
                 public Symbol baseSymbol() {
                     return VarSymbol.this;
@@ -1193,24 +1197,17 @@ public abstract class Symbol implements Element {
          */
         public Attribute defaultValue = null;
 
-        public final MethodSymbol originalMethod;
-
         /** Construct a method symbol, given its flags, name, type and owner.
          */
         public MethodSymbol(long flags, Name name, Type type, Symbol owner) {
-            this(flags, name, type, owner, null);
-        }
-
-        private MethodSymbol(long flags, Name name, Type type, Symbol owner, MethodSymbol originalMethod) {
             super(MTH, flags, name, type, owner);
-            this.originalMethod = originalMethod;
             if (owner.type.hasTag(TYPEVAR)) Assert.error(owner + "." + name);
         }
 
         /** Clone this symbol with new owner.
          */
         public MethodSymbol clone(Symbol newOwner) {
-            MethodSymbol m = new MethodSymbol(flags_field, name, type, newOwner, originalMethod != null ? originalMethod : this) {
+            MethodSymbol m = new MethodSymbol(flags_field, name, type, newOwner) {
                 @Override
                 public Symbol baseSymbol() {
                     return MethodSymbol.this;

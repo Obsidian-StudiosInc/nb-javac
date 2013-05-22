@@ -25,7 +25,6 @@
 
 package com.sun.tools.javac.main;
 
-import com.sun.tools.javac.comp.CompileStates;
 import java.io.*;
 import java.util.Collections;
 import java.util.HashMap;
@@ -56,6 +55,7 @@ import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.comp.*;
+import com.sun.tools.javac.comp.CompileStates.CompileState;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.parser.*;
@@ -63,7 +63,6 @@ import com.sun.tools.javac.processing.*;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.util.*;
-import com.sun.tools.javac.comp.CompileStates.CompileState;
 import com.sun.tools.javac.util.Log.WriterKind;
 
 import static com.sun.tools.javac.code.TypeTag.CLASS;
@@ -499,7 +498,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      */
     protected boolean werror;
 
-    /** Switch: is annotation processing requested explitly via
+    /** Switch: is annotation processing requested explicitly via
      * CompilationTask.setProcessors?
      */
     protected boolean explicitAnnotationProcessingRequested = false;
@@ -1684,6 +1683,9 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 log.warning("proc.use.proc.or.implicit");
         }
         chk.reportDeferredDiagnostics();
+        if (log.compressedOutput) {
+            log.mandatoryNote(null, "compressed.diags");
+        }
     }
 
     /** Close the compiler, flushing the logs
@@ -1738,6 +1740,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                     throw new FatalError(msg, e);
                 }
             }
+            closeables = List.nil();
         }
     }
 

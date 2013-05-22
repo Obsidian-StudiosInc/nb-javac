@@ -38,7 +38,6 @@ import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
 import com.sun.tools.javac.code.Symbol.*;
-import com.sun.tools.javac.comp.Resolve;
 import com.sun.tools.javac.tree.JCTree.*;
 
 import static com.sun.tools.javac.code.Flags.*;
@@ -294,6 +293,15 @@ public class Flow {
         allowImprovedRethrowAnalysis = source.allowImprovedRethrowAnalysis();
         allowImprovedCatchAnalysis = source.allowImprovedCatchAnalysis();
         allowEffectivelyFinalInInnerClasses = source.allowEffectivelyFinalInInnerClasses();
+    }
+
+    /**
+     * Utility method to reset several Bits instances.
+     */
+    private void resetBits(Bits... bits) {
+        for (Bits b : bits) {
+            b.reset();
+        }
     }
 
     /**
@@ -1319,11 +1327,11 @@ public class Flow {
 
         /** The set of definitely assigned variables.
          */
-        Bits inits;
+        final Bits inits;
 
         /** The set of definitely unassigned variables.
          */
-        Bits uninits;
+        final Bits uninits;
 
         /** The set of variables that are definitely unassigned everywhere
          *  in current try block. This variable is maintained lazily; it is
@@ -1333,15 +1341,15 @@ public class Flow {
          *  anywhere in current try block, intersect uninitsTry and
          *  uninits.
          */
-        Bits uninitsTry;
+        final Bits uninitsTry;
 
         /** When analyzing a condition, inits and uninits are null.
          *  Instead we have:
          */
-        Bits initsWhenTrue;
-        Bits initsWhenFalse;
-        Bits uninitsWhenTrue;
-        Bits uninitsWhenFalse;
+        final Bits initsWhenTrue;
+        final Bits initsWhenFalse;
+        final Bits uninitsWhenTrue;
+        final Bits uninitsWhenFalse;
 
         /** A mapping from addresses to variable symbols.
          */
@@ -1373,15 +1381,25 @@ public class Flow {
         /** The starting position of the analysed tree */
         int startPos;
 
+        AssignAnalyzer() {
+            inits = new Bits();
+            uninits = new Bits();
+            uninitsTry = new Bits();
+            initsWhenTrue = new Bits(true);
+            initsWhenFalse = new Bits(true);
+            uninitsWhenTrue = new Bits(true);
+            uninitsWhenFalse = new Bits(true);
+        }
+
         class AssignPendingExit extends BaseAnalyzer.PendingExit {
 
-            Bits exit_inits;
-            Bits exit_uninits;
+            final Bits exit_inits = new Bits(true);
+            final Bits exit_uninits = new Bits(true);
 
-            AssignPendingExit(JCTree tree, Bits inits, Bits uninits) {
+            AssignPendingExit(JCTree tree, final Bits inits, final Bits uninits) {
                 super(tree);
-                this.exit_inits = inits.dup();
-                this.exit_uninits = uninits.dup();
+                this.exit_inits.assign(inits);
+                this.exit_uninits.assign(uninits);
             }
 
             void resolveJump() {
@@ -1502,19 +1520,20 @@ public class Flow {
         /** Split (duplicate) inits/uninits into WhenTrue/WhenFalse sets
          */
         void split(boolean setToNull) {
-            initsWhenFalse = inits.dup();
-            uninitsWhenFalse = uninits.dup();
-            initsWhenTrue = inits;
-            uninitsWhenTrue = uninits;
-            if (setToNull)
-                inits = uninits = null;
+            initsWhenFalse.assign(inits);
+            uninitsWhenFalse.assign(uninits);
+            initsWhenTrue.assign(inits);
+            uninitsWhenTrue.assign(uninits);
+            if (setToNull) {
+                resetBits(inits, uninits);
+            }
         }
 
         /** Merge (intersect) inits/uninits from WhenTrue/WhenFalse sets.
          */
         void merge() {
-            inits = initsWhenFalse.andSet(initsWhenTrue);
-            uninits = uninitsWhenFalse.andSet(uninitsWhenTrue);
+            inits.assign(initsWhenFalse.andSet(initsWhenTrue));
+            uninits.assign(uninitsWhenFalse.andSet(uninitsWhenTrue));
         }
 
     /* ************************************************************************
@@ -1527,7 +1546,7 @@ public class Flow {
         void scanExpr(JCTree tree) {
             if (tree != null) {
                 scan(tree);
-                if (inits == null) merge();
+                if (inits.isReset()) merge();
             }
         }
 
@@ -1544,28 +1563,29 @@ public class Flow {
          */
         void scanCond(JCTree tree) {
             if (tree.type != null && tree.type.isFalse()) {
-                if (inits == null) merge();
-                initsWhenTrue = inits.dup();
+                if (inits.isReset()) merge();
+                initsWhenTrue.assign(inits);
                 initsWhenTrue.inclRange(firstadr, nextadr);
-                uninitsWhenTrue = uninits.dup();
+                uninitsWhenTrue.assign(uninits);
                 uninitsWhenTrue.inclRange(firstadr, nextadr);
-                initsWhenFalse = inits;
-                uninitsWhenFalse = uninits;
+                initsWhenFalse.assign(inits);
+                uninitsWhenFalse.assign(uninits);
             } else if (tree.type != null && tree.type.isTrue()) {
-                if (inits == null) merge();
-                initsWhenFalse = inits.dup();
+                if (inits.isReset()) merge();
+                initsWhenFalse.assign(inits);
                 initsWhenFalse.inclRange(firstadr, nextadr);
-                uninitsWhenFalse = uninits.dup();
+                uninitsWhenFalse.assign(uninits);
                 uninitsWhenFalse.inclRange(firstadr, nextadr);
-                initsWhenTrue = inits;
-                uninitsWhenTrue = uninits;
+                initsWhenTrue.assign(inits);
+                uninitsWhenTrue.assign(uninits);
             } else {
                 scan(tree);
-                if (inits != null)
+                if (!inits.isReset())
                     split(tree.type != syms.unknownType);
             }
-            if (tree.type != syms.unknownType)
-                inits = uninits = null;
+            if (tree.type != syms.unknownType) {
+                resetBits(inits, uninits);
+            }
         }
 
         /* ------------ Visitor methods for various sorts of trees -------------*/
@@ -1647,8 +1667,8 @@ public class Flow {
         public void visitMethodDef(JCMethodDecl tree) {
             if (tree.body == null || tree.sym == null) return;
 
-            Bits initsPrev = inits.dup();
-            Bits uninitsPrev = uninits.dup();
+            final Bits initsPrev = new Bits(inits);
+            final Bits uninitsPrev = new Bits(uninits);
             int nextadrPrev = nextadr;
             int firstadrPrev = firstadr;
             int returnadrPrev = returnadr;
@@ -1685,14 +1705,14 @@ public class Flow {
                     AssignPendingExit exit = exits.head;
                     exits = exits.tail;
                     if (isInitialConstructor && exit.tree.hasTag(RETURN)) {
-                        inits = exit.exit_inits;
+                        inits.assign(exit.exit_inits);
                         for (int i = firstadr; i < nextadr; i++)
                             checkInit(exit.tree.pos(), vars[i]);
                     }
                 }
             } finally {
-                inits = initsPrev;
-                uninits = uninitsPrev;
+                inits.assign(initsPrev);
+                uninits.assign(uninitsPrev);
                 nextadr = nextadrPrev;
                 firstadr = firstadrPrev;
                 returnadr = returnadrPrev;
@@ -1726,31 +1746,31 @@ public class Flow {
             ListBuffer<AssignPendingExit> prevPendingExits = pendingExits;
             FlowKind prevFlowKind = flowKind;
             flowKind = FlowKind.NORMAL;
-            Bits initsSkip = null;
-            Bits uninitsSkip = null;
+            final Bits initsSkip = new Bits(true);
+            final Bits uninitsSkip = new Bits(true);
             pendingExits = new ListBuffer<AssignPendingExit>();
             int prevErrors = log.nerrors;
             do {
-                Bits uninitsEntry = uninits.dup();
+                final Bits uninitsEntry = new Bits(uninits);
                 uninitsEntry.excludeFrom(nextadr);
                 scan(tree.body);
                 resolveContinues(tree);
                 scanCond(tree.cond);
                 if (!flowKind.isFinal()) {
-                    initsSkip = initsWhenFalse;
-                    uninitsSkip = uninitsWhenFalse;
+                    initsSkip.assign(initsWhenFalse);
+                    uninitsSkip.assign(uninitsWhenFalse);
                 }
                 if (log.nerrors !=  prevErrors ||
                     flowKind.isFinal() ||
-                    uninitsEntry.dup().diffSet(uninitsWhenTrue).nextBit(firstadr)==-1)
+                    new Bits(uninitsEntry).diffSet(uninitsWhenTrue).nextBit(firstadr)==-1)
                     break;
-                inits = initsWhenTrue;
-                uninits = uninitsEntry.andSet(uninitsWhenTrue);
+                inits.assign(initsWhenTrue);
+                uninits.assign(uninitsEntry.andSet(uninitsWhenTrue));
                 flowKind = FlowKind.SPECULATIVE_LOOP;
             } while (true);
             flowKind = prevFlowKind;
-            inits = initsSkip;
-            uninits = uninitsSkip;
+            inits.assign(initsSkip);
+            uninits.assign(uninitsSkip);
             resolveBreaks(tree, prevPendingExits);
         }
 
@@ -1758,34 +1778,34 @@ public class Flow {
             ListBuffer<AssignPendingExit> prevPendingExits = pendingExits;
             FlowKind prevFlowKind = flowKind;
             flowKind = FlowKind.NORMAL;
-            Bits initsSkip = null;
-            Bits uninitsSkip = null;
+            final Bits initsSkip = new Bits(true);
+            final Bits uninitsSkip = new Bits(true);
             pendingExits = new ListBuffer<AssignPendingExit>();
             int prevErrors = log.nerrors;
-            Bits uninitsEntry = uninits.dup();
+            final Bits uninitsEntry = new Bits(uninits);
             uninitsEntry.excludeFrom(nextadr);
             do {
                 scanCond(tree.cond);
                 if (!flowKind.isFinal()) {
-                    initsSkip = initsWhenFalse;
-                    uninitsSkip = uninitsWhenFalse;
+                    initsSkip.assign(initsWhenFalse) ;
+                    uninitsSkip.assign(uninitsWhenFalse);
                 }
-                inits = initsWhenTrue;
-                uninits = uninitsWhenTrue;
+                inits.assign(initsWhenTrue);
+                uninits.assign(uninitsWhenTrue);
                 scan(tree.body);
                 resolveContinues(tree);
                 if (log.nerrors != prevErrors ||
                     flowKind.isFinal() ||
-                    uninitsEntry.dup().diffSet(uninits).nextBit(firstadr) == -1)
+                    new Bits(uninitsEntry).diffSet(uninits).nextBit(firstadr) == -1)
                     break;
-                uninits = uninitsEntry.andSet(uninits);
+                uninits.assign(uninitsEntry.andSet(uninits));
                 flowKind = FlowKind.SPECULATIVE_LOOP;
             } while (true);
             flowKind = prevFlowKind;
             //a variable is DA/DU after the while statement, if it's DA/DU assuming the
             //branch is not taken AND if it's DA/DU before any break statement
-            inits = initsSkip;
-            uninits = uninitsSkip;
+            inits.assign(initsSkip);
+            uninits.assign(uninitsSkip);
             resolveBreaks(tree, prevPendingExits);
         }
 
@@ -1795,25 +1815,25 @@ public class Flow {
             flowKind = FlowKind.NORMAL;
             int nextadrPrev = nextadr;
             scan(tree.init);
-            Bits initsSkip = null;
-            Bits uninitsSkip = null;
+            final Bits initsSkip = new Bits(true);
+            final Bits uninitsSkip = new Bits(true);
             pendingExits = new ListBuffer<AssignPendingExit>();
             int prevErrors = log.nerrors;
             do {
-                Bits uninitsEntry = uninits.dup();
+                final Bits uninitsEntry = new Bits(uninits);
                 uninitsEntry.excludeFrom(nextadr);
                 if (tree.cond != null) {
                     scanCond(tree.cond);
                     if (!flowKind.isFinal()) {
-                        initsSkip = initsWhenFalse;
-                        uninitsSkip = uninitsWhenFalse;
+                        initsSkip.assign(initsWhenFalse);
+                        uninitsSkip.assign(uninitsWhenFalse);
                     }
-                    inits = initsWhenTrue;
-                    uninits = uninitsWhenTrue;
+                    inits.assign(initsWhenTrue);
+                    uninits.assign(uninitsWhenTrue);
                 } else if (!flowKind.isFinal()) {
-                    initsSkip = inits.dup();
+                    initsSkip.assign(inits);
                     initsSkip.inclRange(firstadr, nextadr);
-                    uninitsSkip = uninits.dup();
+                    uninitsSkip.assign(uninits);
                     uninitsSkip.inclRange(firstadr, nextadr);
                 }
                 scan(tree.body);
@@ -1821,16 +1841,16 @@ public class Flow {
                 scan(tree.step);
                 if (log.nerrors != prevErrors ||
                     flowKind.isFinal() ||
-                    uninitsEntry.dup().diffSet(uninits).nextBit(firstadr) == -1)
+                    new Bits(uninitsEntry).diffSet(uninits).nextBit(firstadr) == -1)
                     break;
-                uninits = uninitsEntry.andSet(uninits);
+                uninits.assign(uninitsEntry.andSet(uninits));
                 flowKind = FlowKind.SPECULATIVE_LOOP;
             } while (true);
             flowKind = prevFlowKind;
             //a variable is DA/DU after a for loop, if it's DA/DU assuming the
             //branch is not taken AND if it's DA/DU before any break statement
-            inits = initsSkip;
-            uninits = uninitsSkip;
+            inits.assign(initsSkip);
+            uninits.assign(uninitsSkip);
             resolveBreaks(tree, prevPendingExits);
             nextadr = nextadrPrev;
         }
@@ -1842,35 +1862,29 @@ public class Flow {
             FlowKind prevFlowKind = flowKind;
             flowKind = FlowKind.NORMAL;
             int nextadrPrev = nextadr;
-            Bits initsExpr = inits;
-            Bits uninitsExpr = uninits;
             scan(tree.expr);
-            if (inits == null) {
-                inits = initsExpr;
-                uninits = uninitsExpr;
-            }
-            Bits initsStart = inits.dup();
-            Bits uninitsStart = uninits.dup();
+            final Bits initsStart = new Bits(inits);
+            final Bits uninitsStart = new Bits(uninits);
 
             if (tree.var.sym != null)
                 letInit(tree.pos(), tree.var.sym);
             pendingExits = new ListBuffer<AssignPendingExit>();
             int prevErrors = log.nerrors;
             do {
-                Bits uninitsEntry = uninits.dup();
+                final Bits uninitsEntry = new Bits(uninits);
                 uninitsEntry.excludeFrom(nextadr);
                 scan(tree.body);
                 resolveContinues(tree);
                 if (log.nerrors != prevErrors ||
                     flowKind.isFinal() ||
-                    uninitsEntry.dup().diffSet(uninits).nextBit(firstadr) == -1)
+                    new Bits(uninitsEntry).diffSet(uninits).nextBit(firstadr) == -1)
                     break;
-                uninits = uninitsEntry.andSet(uninits);
+                uninits.assign(uninitsEntry.andSet(uninits));
                 flowKind = FlowKind.SPECULATIVE_LOOP;
             } while (true);
             flowKind = prevFlowKind;
-            inits = initsStart;
-            uninits = uninitsStart.andSet(uninits);
+            inits.assign(initsStart);
+            uninits.assign(uninitsStart.andSet(uninits));
             resolveBreaks(tree, prevPendingExits);
             nextadr = nextadrPrev;
         }
@@ -1887,12 +1901,12 @@ public class Flow {
             pendingExits = new ListBuffer<AssignPendingExit>();
             int nextadrPrev = nextadr;
             scanExpr(tree.selector);
-            Bits initsSwitch = inits;
-            Bits uninitsSwitch = uninits.dup();
+            final Bits initsSwitch = new Bits(inits);
+            final Bits uninitsSwitch = new Bits(uninits);
             boolean hasDefault = false;
             for (List<JCCase> l = tree.cases; l.nonEmpty(); l = l.tail) {
-                inits = initsSwitch.dup();
-                uninits = uninits.andSet(uninitsSwitch);
+                inits.assign(initsSwitch);
+                uninits.assign(uninits.andSet(uninitsSwitch));
                 JCCase c = l.head;
                 if (c.pat == null)
                     hasDefault = true;
@@ -1910,8 +1924,8 @@ public class Flow {
         }
         // where
             /** Add any variables defined in stats to inits and uninits. */
-            private void addVars(List<JCStatement> stats, Bits inits,
-                                        Bits uninits) {
+            private void addVars(List<JCStatement> stats, final Bits inits,
+                                        final Bits uninits) {
                 for (;stats.nonEmpty(); stats = stats.tail) {
                     JCTree stat = stats.head;
                     if (stat.hasTag(VARDEF)) {
@@ -1924,11 +1938,11 @@ public class Flow {
 
         public void visitTry(JCTry tree) {
             ListBuffer<JCVariableDecl> resourceVarDecls = ListBuffer.lb();
-            Bits uninitsTryPrev = uninitsTry;
+            final Bits uninitsTryPrev = new Bits(uninitsTry);
             ListBuffer<AssignPendingExit> prevPendingExits = pendingExits;
             pendingExits = new ListBuffer<AssignPendingExit>();
-            Bits initsTry = inits.dup();
-            uninitsTry = uninits.dup();
+            final Bits initsTry = new Bits(inits);
+            uninitsTry.assign(uninits);
             for (JCTree resource : tree.resources) {
                 if (resource instanceof JCVariableDecl) {
                     JCVariableDecl vdecl = (JCVariableDecl) resource;
@@ -1943,8 +1957,8 @@ public class Flow {
             }
             scan(tree.body);
             uninitsTry.andSet(uninits);
-            Bits initsEnd = inits;
-            Bits uninitsEnd = uninits;
+            final Bits initsEnd = new Bits(inits);
+            final Bits uninitsEnd = new Bits(uninits);
             int nextadrCatch = nextadr;
 
             if (!resourceVarDecls.isEmpty() &&
@@ -1960,8 +1974,8 @@ public class Flow {
 
             for (List<JCCatch> l = tree.catchers; l.nonEmpty(); l = l.tail) {
                 JCVariableDecl param = l.head.param;
-                inits = initsTry.dup();
-                uninits = uninitsTry.dup();
+                inits.assign(initsTry);
+                uninits.assign(uninitsTry);
                 scan(param);
                 inits.incl(param.sym.adr);
                 uninits.excl(param.sym.adr);
@@ -1971,8 +1985,8 @@ public class Flow {
                 nextadr = nextadrCatch;
             }
             if (tree.finalizer != null) {
-                inits = initsTry.dup();
-                uninits = uninitsTry.dup();
+                inits.assign(initsTry);
+                uninits.assign(uninitsTry);
                 ListBuffer<AssignPendingExit> exits = pendingExits;
                 pendingExits = prevPendingExits;
                 scan(tree.finalizer);
@@ -1993,8 +2007,8 @@ public class Flow {
                     inits.orSet(initsEnd);
                 }
             } else {
-                inits = initsEnd;
-                uninits = uninitsEnd;
+                inits.assign(initsEnd);
+                uninits.assign(uninitsEnd);
                 ListBuffer<AssignPendingExit> exits = pendingExits;
                 pendingExits = prevPendingExits;
                 while (exits.nonEmpty()) pendingExits.append(exits.next());
@@ -2004,10 +2018,10 @@ public class Flow {
 
         public void visitConditional(JCConditional tree) {
             scanCond(tree.cond);
-            Bits initsBeforeElse = initsWhenFalse;
-            Bits uninitsBeforeElse = uninitsWhenFalse;
-            inits = initsWhenTrue;
-            uninits = uninitsWhenTrue;
+            final Bits initsBeforeElse = new Bits(initsWhenFalse);
+            final Bits uninitsBeforeElse = new Bits(uninitsWhenFalse);
+            inits.assign(initsWhenTrue);
+            uninits.assign(uninitsWhenTrue);
             if (tree.truepart.type != null && tree.truepart.type.hasTag(BOOLEAN) &&
                 tree.falsepart.type != null && tree.falsepart.type.hasTag(BOOLEAN)) {
                 // if b and c are boolean valued, then
@@ -2015,12 +2029,12 @@ public class Flow {
                 //    v is (un)assigned after b when true and
                 //    v is (un)assigned after c when true
                 scanCond(tree.truepart);
-                Bits initsAfterThenWhenTrue = initsWhenTrue.dup();
-                Bits initsAfterThenWhenFalse = initsWhenFalse.dup();
-                Bits uninitsAfterThenWhenTrue = uninitsWhenTrue.dup();
-                Bits uninitsAfterThenWhenFalse = uninitsWhenFalse.dup();
-                inits = initsBeforeElse;
-                uninits = uninitsBeforeElse;
+                final Bits initsAfterThenWhenTrue = new Bits(initsWhenTrue);
+                final Bits initsAfterThenWhenFalse = new Bits(initsWhenFalse);
+                final Bits uninitsAfterThenWhenTrue = new Bits(uninitsWhenTrue);
+                final Bits uninitsAfterThenWhenFalse = new Bits(uninitsWhenFalse);
+                inits.assign(initsBeforeElse);
+                uninits.assign(uninitsBeforeElse);
                 scanCond(tree.falsepart);
                 initsWhenTrue.andSet(initsAfterThenWhenTrue);
                 initsWhenFalse.andSet(initsAfterThenWhenFalse);
@@ -2028,10 +2042,10 @@ public class Flow {
                 uninitsWhenFalse.andSet(uninitsAfterThenWhenFalse);
             } else {
                 scanExpr(tree.truepart);
-                Bits initsAfterThen = inits.dup();
-                Bits uninitsAfterThen = uninits.dup();
-                inits = initsBeforeElse;
-                uninits = uninitsBeforeElse;
+                final Bits initsAfterThen = new Bits(inits);
+                final Bits uninitsAfterThen = new Bits(uninits);
+                inits.assign(initsBeforeElse);
+                uninits.assign(uninitsBeforeElse);
                 scanExpr(tree.falsepart);
                 inits.andSet(initsAfterThen);
                 uninits.andSet(uninitsAfterThen);
@@ -2040,16 +2054,16 @@ public class Flow {
 
         public void visitIf(JCIf tree) {
             scanCond(tree.cond);
-            Bits initsBeforeElse = initsWhenFalse;
-            Bits uninitsBeforeElse = uninitsWhenFalse;
-            inits = initsWhenTrue;
-            uninits = uninitsWhenTrue;
+            final Bits initsBeforeElse = new Bits(initsWhenFalse);
+            final Bits uninitsBeforeElse = new Bits(uninitsWhenFalse);
+            inits.assign(initsWhenTrue);
+            uninits.assign(uninitsWhenTrue);
             scan(tree.thenpart);
             if (tree.elsepart != null) {
-                Bits initsAfterThen = inits.dup();
-                Bits uninitsAfterThen = uninits.dup();
-                inits = initsBeforeElse;
-                uninits = uninitsBeforeElse;
+                final Bits initsAfterThen = new Bits(inits);
+                final Bits uninitsAfterThen = new Bits(uninits);
+                inits.assign(initsBeforeElse);
+                uninits.assign(uninitsBeforeElse);
                 scan(tree.elsepart);
                 inits.andSet(initsAfterThen);
                 uninits.andSet(uninitsAfterThen);
@@ -2090,8 +2104,8 @@ public class Flow {
 
         @Override
         public void visitLambda(JCLambda tree) {
-            Bits prevUninits = uninits;
-            Bits prevInits = inits;
+            final Bits prevUninits = new Bits(uninits);
+            final Bits prevInits = new Bits(inits);
             int returnadrPrev = returnadr;
             ListBuffer<AssignPendingExit> prevPending = pendingExits;
             try {
@@ -2111,8 +2125,8 @@ public class Flow {
             }
             finally {
                 returnadr = returnadrPrev;
-                uninits = prevUninits;
-                inits = prevInits;
+                uninits.assign(prevUninits);
+                inits.assign(prevInits);
                 pendingExits = prevPending;
             }
         }
@@ -2123,17 +2137,17 @@ public class Flow {
         }
 
         public void visitAssert(JCAssert tree) {
-            Bits initsExit = inits.dup();
-            Bits uninitsExit = uninits.dup();
+            final Bits initsExit = new Bits(inits);
+            final Bits uninitsExit = new Bits(uninits);
             scanCond(tree.cond);
             uninitsExit.andSet(uninitsWhenTrue);
             if (tree.detail != null) {
-                inits = initsWhenFalse;
-                uninits = uninitsWhenFalse;
+                inits.assign(initsWhenFalse);
+                uninits.assign(uninitsWhenFalse);
                 scanExpr(tree.detail);
             }
-            inits = initsExit;
-            uninits = uninitsExit;
+            inits.assign(initsExit);
+            uninits.assign(uninitsExit);
         }
 
         public void visitAssign(JCAssign tree) {
@@ -2155,12 +2169,12 @@ public class Flow {
             switch (tree.getTag()) {
             case NOT:
                 scanCond(tree.arg);
-                Bits t = initsWhenFalse;
-                initsWhenFalse = initsWhenTrue;
-                initsWhenTrue = t;
-                t = uninitsWhenFalse;
-                uninitsWhenFalse = uninitsWhenTrue;
-                uninitsWhenTrue = t;
+                final Bits t = new Bits(initsWhenFalse);
+                initsWhenFalse.assign(initsWhenTrue);
+                initsWhenTrue.assign(t);
+                t.assign(uninitsWhenFalse);
+                uninitsWhenFalse.assign(uninitsWhenTrue);
+                uninitsWhenTrue.assign(t);
                 break;
             case PREINC: case POSTINC:
             case PREDEC: case POSTDEC:
@@ -2176,20 +2190,20 @@ public class Flow {
             switch (tree.getTag()) {
             case AND:
                 scanCond(tree.lhs);
-                Bits initsWhenFalseLeft = initsWhenFalse;
-                Bits uninitsWhenFalseLeft = uninitsWhenFalse;
-                inits = initsWhenTrue;
-                uninits = uninitsWhenTrue;
+                final Bits initsWhenFalseLeft = new Bits(initsWhenFalse);
+                final Bits uninitsWhenFalseLeft = new Bits(uninitsWhenFalse);
+                inits.assign(initsWhenTrue);
+                uninits.assign(uninitsWhenTrue);
                 scanCond(tree.rhs);
                 initsWhenFalse.andSet(initsWhenFalseLeft);
                 uninitsWhenFalse.andSet(uninitsWhenFalseLeft);
                 break;
             case OR:
                 scanCond(tree.lhs);
-                Bits initsWhenTrueLeft = initsWhenTrue;
-                Bits uninitsWhenTrueLeft = uninitsWhenTrue;
-                inits = initsWhenFalse;
-                uninits = uninitsWhenFalse;
+                final Bits initsWhenTrueLeft = new Bits(initsWhenTrue);
+                final Bits uninitsWhenTrueLeft = new Bits(uninitsWhenTrue);
+                inits.assign(initsWhenFalse);
+                uninits.assign(uninitsWhenFalse);
                 scanCond(tree.rhs);
                 initsWhenTrue.andSet(initsWhenTrueLeft);
                 uninitsWhenTrue.andSet(uninitsWhenTrueLeft);
@@ -2242,11 +2256,7 @@ public class Flow {
                 attrEnv = env;
                 Flow.this.make = make;
                 startPos = tree.pos().getStartPosition();
-                inits = new Bits();
-                uninits = new Bits();
-                uninitsTry = new Bits();
-                initsWhenTrue = initsWhenFalse =
-                    uninitsWhenTrue = uninitsWhenFalse = null;
+
                 if (vars == null)
                     vars = new VarSymbol[32];
                 else
@@ -2261,9 +2271,8 @@ public class Flow {
             } finally {
                 // note that recursive invocations of this method fail hard
                 startPos = -1;
-                inits = uninits = uninitsTry = null;
-                initsWhenTrue = initsWhenFalse =
-                    uninitsWhenTrue = uninitsWhenFalse = null;
+                resetBits(inits, uninits, uninitsTry, initsWhenTrue,
+                        initsWhenFalse, uninitsWhenTrue, uninitsWhenFalse);
                 if (vars != null) for (int i=0; i<vars.length; i++)
                     vars[i] = null;
                 firstadr = 0;

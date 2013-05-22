@@ -29,8 +29,6 @@ package com.sun.tools.javac.tree;
 
 import com.sun.source.tree.Tree;
 import com.sun.tools.javac.code.*;
-import com.sun.tools.javac.code.Symbol.MethodSymbol;
-import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.tree.JCTree.*;
@@ -783,26 +781,9 @@ public class TreeInfo {
     }
 
     public static Symbol symbolFor(JCTree node) {
-        Symbol s = symbolForImpl(node);
+        Symbol sym = symbolForImpl(node);
 
-        //see MethodInvocationAttributionTest and IZ#121163
-        if (s instanceof MethodSymbol) {
-            MethodSymbol ms = (MethodSymbol) s;
-
-            if (ms.originalMethod != null) {
-                return ms.originalMethod;
-            }
-        }
-
-        if (s instanceof VarSymbol) {
-            VarSymbol vs = (VarSymbol) s;
-
-            if (vs.originalVar != null) {
-                return vs.originalVar;
-            }
-        }
-
-        return s;
+        return sym != null ? sym.baseSymbol() : null;
     }
 
     private static Symbol symbolForImpl(JCTree node) {
@@ -829,9 +810,11 @@ public class TreeInfo {
         case TYPEAPPLY:
             return symbolFor(((JCTypeApply) node).clazz);
         case ANNOTATION:
+        case TYPE_ANNOTATION:
         case TYPEPARAMETER:
             if (node.type != null)
                 return node.type.tsym;
+            return null;
         default:
             return null;
         }

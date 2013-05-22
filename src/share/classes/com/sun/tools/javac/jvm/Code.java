@@ -1013,7 +1013,16 @@ public class Code {
             state.pop(((Symbol)(pool.pool[od])).erasure(types));
             break;
         case new_:
-            state.push(uninitializedObject(((Symbol)(pool.pool[od])).erasure(types), cp-3));
+            Symbol sym;
+            if (pool.pool[od] instanceof UniqueType) {
+                // Required by change in Gen.makeRef to allow
+                // annotated types.
+                // TODO: is this needed anywhere else?
+                sym = ((UniqueType)(pool.pool[od])).type.tsym;
+            } else {
+                sym = (Symbol)(pool.pool[od]);
+            }
+            state.push(uninitializedObject(sym.erasure(types), cp-3));
             break;
         case sipush:
             state.push(syms.intType);
@@ -1650,7 +1659,7 @@ public class Code {
         State dup() {
             try {
                 State state = (State)super.clone();
-                state.defined = defined.dup();
+                state.defined = new Bits(defined);
                 state.stack = stack.clone();
                 if (locks != null) state.locks = locks.clone();
                 if (debugCode) {
@@ -1778,7 +1787,7 @@ public class Code {
         }
 
         State join(State other) {
-            defined = defined.andSet(other.defined);
+            defined.andSet(other.defined);
             Assert.check(stacksize == other.stacksize
                     && nlocks == other.nlocks);
             for (int i=0; i<stacksize; ) {
@@ -1890,7 +1899,7 @@ public class Code {
     /** Set the current variable defined state. */
     public void setDefined(Bits newDefined) {
         if (alive && newDefined != state.defined) {
-            Bits diff = state.defined.dup().xorSet(newDefined);
+            Bits diff = new Bits(state.defined).xorSet(newDefined);
             for (int adr = diff.nextBit(0);
                  adr >= 0;
                  adr = diff.nextBit(adr+1)) {
@@ -1975,25 +1984,38 @@ public class Code {
             if (lv == null || lv.sym == null
                     || lv.sym.annotations.isTypesEmpty()
                     || !lv.sym.isExceptionParameter())
-                return;
-
-            int exidx = findExceptionIndex(lv);
+                continue;
 
             for (Attribute.TypeCompound ta : lv.sym.getRawTypeAttributes()) {
                 TypeAnnotationPosition p = ta.position;
-                p.exception_index = exidx;
+                // At this point p.type_index contains the catch type index.
+                // Use that index to determine the exception table index.
+                // We can afterwards discard the type_index.
+                // A TA position is shared for all type annotations in the
+                // same location; updating one is enough.
+                // Use -666 as a marker that the exception_index was already updated.
+                if (p.type_index != -666) {
+                    p.exception_index = findExceptionIndex(p.type_index);
+                    p.type_index = -666;
+                }
             }
         }
     }
 
-    private int findExceptionIndex(LocalVar lv) {
+    private int findExceptionIndex(int catchType) {
+        if (catchType == Integer.MIN_VALUE) {
+            // We didn't set the catch type index correctly.
+            // This shouldn't happen.
+            // TODO: issue error?
+            return -1;
+        }
         List<char[]> iter = catchInfo.toList();
         int len = catchInfo.length();
         for (int i = 0; i < len; ++i) {
             char[] catchEntry = iter.head;
             iter = iter.tail;
-            char handlerpc = catchEntry[2];
-            if (lv.start_pc == handlerpc + 1) {
+            char ct = catchEntry[3];
+            if (catchType == ct) {
                 return i;
             }
         }

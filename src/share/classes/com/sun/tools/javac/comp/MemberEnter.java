@@ -807,7 +807,26 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             if (TreeInfo.isEnumInit(tree)) {
                 attr.attribIdentAsEnumType(localEnv, (JCIdent)tree.vartype);
             } else {
+                // Make sure type annotations are processed.
+                // But we don't have a symbol to attach them to yet - use null.
+                typeAnnotate(tree.vartype, env, null);
                 attr.attribType(tree.vartype, localEnv);
+                if (tree.nameexpr != null) {
+                    attr.attribExpr(tree.nameexpr, localEnv);
+                    MethodSymbol m = localEnv.enclMethod.sym;
+                    if (m.isConstructor()) {
+                        Type outertype = m.owner.owner.type;
+                        if (outertype.hasTag(TypeTag.CLASS)) {
+                            checkType(tree.vartype, outertype, "incorrect.constructor.receiver.type");
+                            checkType(tree.nameexpr, outertype, "incorrect.constructor.receiver.name");
+                        } else {
+                            log.error(tree, "receiver.parameter.not.applicable.constructor.toplevel.class");
+                        }
+                    } else {
+                        checkType(tree.vartype, m.owner.type, "incorrect.receiver.type");
+                        checkType(tree.nameexpr, m.owner.type, "incorrect.receiver.name");
+                    }
+                }
             }
         } finally {
             chk.setDeferredLintHandler(prevLintHandler);
@@ -868,9 +887,15 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             }
         }
         annotateLater(tree.mods.annotations, localEnv, v);
-        typeAnnotate(tree.vartype, env, tree.sym);
+        typeAnnotate(tree.vartype, env, v);
         annotate.flush();
         v.pos = tree.pos;
+    }
+    // where
+    void checkType(JCTree tree, Type type, String diag) {
+        if (!tree.type.isErroneous() && !types.isSameType(tree.type, type)) {
+            log.error(tree, diag, type, tree.type);
+        }
     }
 
     /** Create a fresh environment for a variable's initializer.
@@ -1287,9 +1312,12 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                 isFirst = true;
             }
         }
-        annotate.afterRepeated(TypeAnnotations.organizeTypeAnnotationsSignatures(syms, names, log, tree));
+        TypeAnnotations.organizeTypeAnnotationsSignatures(syms, names, log, tree, annotate);
     }
 
+    /*
+     * If the symbol is non-null, attach the type annotation to it.
+     */
     private void actualEnterTypeAnnotations(final List<JCAnnotation> annotations,
             final Env<AttrContext> env,
             final Symbol s) {
@@ -1322,8 +1350,10 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             }
         }
 
-        s.annotations.appendTypeAttributesWithCompletion(
-                annotate.new AnnotateRepeatedContext<Attribute.TypeCompound>(env, annotated, pos, log, true));
+        if (s != null) {
+            s.annotations.appendTypeAttributesWithCompletion(
+                    annotate.new AnnotateRepeatedContext<Attribute.TypeCompound>(env, annotated, pos, log, true));
+        }
     }
 
     public void typeAnnotate(final JCTree tree, final Env<AttrContext> env, final Symbol sym) {
@@ -1396,6 +1426,33 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             scan(tree.defaultValue);
             // Do not annotate the body, just the signature.
             // scan(tree.body);
+        }
+
+        @Override
+        public void visitVarDef(final JCVariableDecl tree) {
+            if (sym != null && sym.kind == Kinds.VAR) {
+                // Don't visit a parameter once when the sym is the method
+                // and once when the sym is the parameter.
+                scan(tree.mods);
+                scan(tree.vartype);
+            }
+            scan(tree.init);
+        }
+
+        @Override
+        public void visitClassDef(JCClassDecl tree) {
+            // We can only hit a classdef if it is declared within
+            // a method. Ignore it - the class will be visited
+            // separately later.
+        }
+
+        @Override
+        public void visitNewClass(JCNewClass tree) {
+            if (tree.def == null) {
+                // For an anonymous class instantiation the class
+                // will be visited separately.
+                super.visitNewClass(tree);
+            }
         }
     }
 

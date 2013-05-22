@@ -80,6 +80,7 @@ import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Options;
+import com.sun.tools.javac.util.ServiceLoader;
 import static com.sun.tools.javac.code.Lint.LintCategory.PROCESSING;
 import static com.sun.tools.javac.main.Option.*;
 import static com.sun.tools.javac.comp.CompileStates.CompileState;
@@ -177,6 +178,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
     protected JavacProcessingEnvironment(Context context) {
         this.context = context;
+        context.put(JavacProcessingEnvironment.class, this);
         log = Log.instance(context);
         source = Source.instance(context);
         diags = JCDiagnostic.Factory.instance(context);

@@ -75,6 +75,7 @@ import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.comp.MemberEnter;
 import com.sun.tools.javac.comp.Resolve;
+import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.model.JavacElements;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.tree.DCTree;
@@ -107,7 +108,6 @@ import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Pair;
 import com.sun.tools.javac.util.Position;
 import static com.sun.tools.javac.code.TypeTag.*;
-import com.sun.tools.javac.jvm.ClassReader;
 
 /**
  * Provides an implementation of Trees.
@@ -337,11 +337,6 @@ public class JavacTrees extends DocTrees {
                         }
                     }
                 }
-            } else if (tree.hasTag(Tag.TOPLEVEL)) {
-                JCCompilationUnit cu = (JCCompilationUnit) tree;
-                if (cu.sourcefile.isNameCompatible("package-info", JavaFileObject.Kind.SOURCE)) {
-                    sym = cu.packge;
-                }
             }
         }
         return sym;
@@ -362,8 +357,11 @@ public class JavacTrees extends DocTrees {
     }
 
     public Symbol ensureDocReferenceAttributed(TreePath path, DCReference ref) {
-        ref.attributed = true;
-        return ref.sym = attributeDocReference(path, ref);
+        if (!ref.attributed) {
+            ref.attributed = true;
+            ref.sym = attributeDocReference(path, ref);
+        }
+        return ref.sym;
     }
     
     private Symbol attributeDocReference(TreePath path, DCReference ref) {
