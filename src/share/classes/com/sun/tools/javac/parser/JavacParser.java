@@ -2308,6 +2308,14 @@ public class JavacParser implements Parser {
                 if (token.pos <= endPosTable.errorEndPos) {
                     skip(false, true, true, true);
                     lastErrPos = token.pos;
+                    JCStatement last = stat.last();
+                    if (last.hasTag(EXEC)) {
+                        JCExpression lastExpr = ((JCExpressionStatement)last).expr;
+                        if (lastExpr.hasTag(ERRONEOUS) && (((JCErroneous)lastExpr).errs == null || ((JCErroneous)lastExpr).errs.isEmpty())) {
+                            storeEnd(last, S.prevToken().endPos);
+                            storeEnd(lastExpr, S.prevToken().endPos);
+                        }
+                    }
                 }
                 stats.addAll(stat);
             }
