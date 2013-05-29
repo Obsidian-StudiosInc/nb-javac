@@ -3213,22 +3213,22 @@ public class Types {
             return cl1;
         if (cl1.isEmpty() || cl2.isEmpty())
             return List.nil();
-        if (cl1.head.tsym != null && cl2.head.tsym != null) {
+        if (cl1.head != null && cl1.head.tsym != null && cl2.head != null && cl2.head.tsym != null) {
             if (cl1.head.tsym.precedes(cl2.head.tsym, this))
                 return intersect(cl1.tail, cl2);
             if (cl2.head.tsym.precedes(cl1.head.tsym, this))
                 return intersect(cl1, cl2.tail);
-        }
-        if (isSameType(cl1.head, cl2.head))
-            return intersect(cl1.tail, cl2.tail).prepend(cl1.head);
-        if (cl1.head.tsym == cl2.head.tsym &&
-            cl1.head.tag == CLASS && cl2.head.tag == CLASS) {
-            if (cl1.head.isParameterized() && cl2.head.isParameterized()) {
-                Type merge = merge(cl1.head,cl2.head);
-                return intersect(cl1.tail, cl2.tail).prepend(merge);
+            if (isSameType(cl1.head, cl2.head))
+                return intersect(cl1.tail, cl2.tail).prepend(cl1.head);
+            if (cl1.head.tsym == cl2.head.tsym &&
+                cl1.head.tag == CLASS && cl2.head.tag == CLASS) {
+                if (cl1.head.isParameterized() && cl2.head.isParameterized()) {
+                    Type merge = merge(cl1.head,cl2.head);
+                    return intersect(cl1.tail, cl2.tail).prepend(merge);
+                }
+                if (cl1.head.isRaw() || cl2.head.isRaw())
+                    return intersect(cl1.tail, cl2.tail).prepend(erasure(cl1.head));
             }
-            if (cl1.head.isRaw() || cl2.head.isRaw())
-                return intersect(cl1.tail, cl2.tail).prepend(erasure(cl1.head));
         }
         return intersect(cl1.tail, cl2.tail);
     }
