@@ -2217,7 +2217,7 @@ public class Check {
         }
 
         void checkClass(DiagnosticPosition pos, Symbol c, List<JCTree> supertypes) {
-            if ((c.flags_field & ACYCLIC) != 0)
+            if (c == null || (c.flags_field & ACYCLIC) != 0)
                 return;
             if (seenClasses.contains(c)) {
                 errorFound = true;
