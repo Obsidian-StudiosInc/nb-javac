@@ -1239,8 +1239,8 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                 List<Type> thrown = List.nil();
                 long ctorFlags = 0;
                 boolean based = false;
-                boolean addConstructor = true;
-                if (c.name.isEmpty()) {
+                boolean addConstructor = !c.type.isErroneous();
+                if (addConstructor && c.name.isEmpty()) {
                     JCNewClass nc = (JCNewClass)env.next.tree;
                     if (nc.constructor != null) {
                         addConstructor = nc.constructor.kind != ERR;
@@ -1657,7 +1657,7 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
                             boolean based) {
         List<JCVariableDecl> params = make.Params(argtypes, syms.noSymbol);
         List<JCStatement> stats = List.nil();
-        if (!c.type.isErroneous() && c.type != syms.objectType)
+        if (c.type != syms.objectType)
             stats = stats.prepend(SuperCall(make, typarams, params, based));
         if ((c.flags() & ENUM) != 0 &&
             (types.supertype(c.type).tsym == syms.enumSym)) {

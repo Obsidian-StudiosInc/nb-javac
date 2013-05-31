@@ -50,6 +50,7 @@ import javax.tools.StandardLocation;
 import static javax.tools.StandardLocation.CLASS_OUTPUT;
 
 import com.sun.source.util.TaskEvent;
+import com.sun.tools.javac.api.DuplicateClassChecker;
 import com.sun.tools.javac.api.MultiTaskListener;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Lint.LintCategory;
@@ -339,6 +340,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
     public boolean skipAnnotationProcessing = false;
 
     private MemberEnter memberEnter;
+    private final DuplicateClassChecker duplicateClassChecker;
     public List<JCCompilationUnit> toProcessAnnotations = List.nil();
 
     /** Construct a new compiler using a shared context.
@@ -386,6 +388,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         annotate = Annotate.instance(context);
         types = Types.instance(context);
         taskListener = MultiTaskListener.instance(context);
+        duplicateClassChecker = context.get(DuplicateClassChecker.class);
 
         reader.sourceCompleter = this;
 
@@ -1577,10 +1580,12 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                                       env.enclClass.sym.sourcefile :
                                       env.toplevel.sourcefile);
             try {
-                JavaFileObject file;
+                JavaFileObject file = null;
                 if (usePrintSource)
                     file = printSource(env, cdef);
-                else {
+                else if (duplicateClassChecker == null || !duplicateClassChecker.check(cdef.sym.fullname, env.enclClass.sym.sourcefile != null ?
+                                      env.enclClass.sym.sourcefile :
+                                      env.toplevel.sourcefile)) {
                     if (fileManager.hasLocation(StandardLocation.NATIVE_HEADER_OUTPUT)
                             && jniWriter.needsHeader(cdef.sym)) {
                         jniWriter.write(cdef.sym);

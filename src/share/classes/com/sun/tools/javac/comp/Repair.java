@@ -540,6 +540,10 @@ public class Repair extends TreeTranslator {
                             if ((l.head.hasTag(JCTree.Tag.METHODDEF) && ((JCMethodDecl)l.head).sym == null)
                                     || (l.head.hasTag(JCTree.Tag.VARDEF) && ((JCVariableDecl)l.head).sym == null)) {
                                 hasError = true;
+                            } else if (l.head.hasTag(JCTree.Tag.METHODDEF) && ((JCMethodDecl)l.head).name == ((JCMethodDecl)l.head).name.table.names.init
+                                    && TreeInfo.firstConstructorCall(l.head) == null) {
+                                tree.sym.members_field.remove(((JCMethodDecl)l.head).sym);
+                                hasError = true;
                             }
                             if (hasError) {
                                 if (l.head.hasTag(JCTree.Tag.CLASSDEF) && tree.sym.members_field.includes(((JCClassDecl)l.head).sym)) {
