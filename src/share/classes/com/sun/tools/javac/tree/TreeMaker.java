@@ -704,7 +704,7 @@ public class TreeMaker implements JCTree.Factory {
             tp = TypeArray(Type(types.elemtype(t)));
             break;
         case ERROR:
-            tp = TypeIdent(ERROR);
+            tp = QualIdent(t.tsym);
             break;
         default:
             throw new AssertionError("unexpected type: " + t);
