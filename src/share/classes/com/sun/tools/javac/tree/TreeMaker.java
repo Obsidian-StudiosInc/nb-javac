@@ -957,7 +957,8 @@ public class TreeMaker implements JCTree.Factory {
         if (sym.name == names.empty ||
             sym.owner == null ||
             sym.owner.kind == MTH || sym.owner.kind == VAR
-            || (sym.owner.kind == PCK && sym.owner.name == names.empty)) {
+            || (sym.owner.kind == PCK && sym.owner.name == names.empty)
+            || (sym.owner.kind == NIL && sym.owner.name == names.empty)) {
             return true;
         } else if (sym.kind == TYP && toplevel != null) {
             Scope.Entry e;
