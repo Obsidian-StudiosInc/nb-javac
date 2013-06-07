@@ -2031,7 +2031,8 @@ public class Check {
          * equivalent with Object.equals(Object) but in any case the condition is
          * fine for completeness.
          */
-        if (someClass == (ClassSymbol)syms.objectType.tsym ||
+        if (syms.objectType.isErroneous() ||
+            someClass == (ClassSymbol)syms.objectType.tsym ||
             someClass.isInterface() || someClass.isEnum() ||
             (someClass.flags() & ANNOTATION) != 0 ||
             (someClass.flags() & ABSTRACT) != 0) return;
