@@ -997,7 +997,7 @@ public class TypeAnnotations {
          */
         @Override
         public void visitMethodDef(final JCMethodDecl tree) {
-            if (tree.sym == null) {
+            if (tree.sym == null || tree.sym.type == null) {
                 // Something most be wrong, e.g. a class not found.
                 // Quietly ignore. (See test FailOver15.java)
                 return;
