@@ -87,6 +87,7 @@ import com.sun.tools.javac.tree.DCTree.DCEndPosTree;
 import com.sun.tools.javac.tree.DCTree.DCEntity;
 import com.sun.tools.javac.tree.DCTree.DCErroneous;
 import com.sun.tools.javac.tree.DCTree.DCIdentifier;
+import com.sun.tools.javac.tree.DCTree.DCInlineTag;
 import com.sun.tools.javac.tree.DCTree.DCParam;
 import com.sun.tools.javac.tree.DCTree.DCReference;
 import com.sun.tools.javac.tree.DCTree.DCText;
@@ -238,6 +239,17 @@ public class JavacTrees extends DocTrees {
 
                             return dcComment.comment.getSourcePos(block.pos + block.getTagName().length() + 1);
                         }
+                        case UNKNOWN_INLINE_TAG: {
+                            DocTree last = getLastChild(tree);
+
+                            if (last != null) {
+                                return getEndPosition(file, comment, last) + correction;
+                            }
+
+                            DCInlineTag inline = (DCInlineTag) tree;
+
+                            return dcComment.comment.getSourcePos(inline.pos + inline.getTagName().length() + 1);
+                        }                            
                         case END_ELEMENT: {
                             DCEndElement endEl = (DCEndElement) tree;
                             return dcComment.comment.getSourcePos(endEl.pos + (endEl.name != names.error ? endEl.name.length() : 0) + 3);

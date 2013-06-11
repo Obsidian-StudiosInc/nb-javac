@@ -321,7 +321,8 @@ public class DocCommentParser {
                 return err;
             }
             
-            return m.at(p).UnknownBlockTag(names.empty, blockContent());
+            List<DCTree> content = blockContent();            
+            return m.at(p).UnknownBlockTag(names.empty, content);
         } catch (ParseException e) {
             if (!breakOnError) throw new IllegalStateException(e);//should not happen
             blockContent();
@@ -377,8 +378,9 @@ public class DocCommentParser {
             DCErroneous err = erroneous("dc.no.tag.name", p);
             
             if (breakOnError) return err;
-            
-            return m.at(p).UnknownInlineTag(names.empty, inlineContent());
+
+            List<DCTree> content = inlineContent();            
+            return m.at(p).UnknownInlineTag(names.empty, content);
         } catch (ParseException e) {
             if (!breakOnError) throw new IllegalStateException(e);
             return erroneous(e.getMessage(), p);
