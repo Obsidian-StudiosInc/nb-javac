@@ -2691,7 +2691,7 @@ public class Resolve {
         @Override
         Symbol access(Env<AttrContext> env, DiagnosticPosition pos, Symbol location, Symbol sym) {
             if (sym.kind == AMBIGUOUS) {
-                AmbiguityError a_err = (AmbiguityError)sym;
+                AmbiguityError a_err = (AmbiguityError)sym.baseSymbol();
                 sym = a_err.mergeAbstracts(site);
             }
             if (sym.kind >= AMBIGUOUS) {
