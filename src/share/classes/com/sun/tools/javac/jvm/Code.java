@@ -2049,7 +2049,7 @@ public class Code {
     private int newLocal(int typecode) {
         int reg = nextreg;
         int w = width(typecode);
-        nextreg = reg + w;
+        nextreg = w > 0 ? reg + w : reg + 1;
         if (nextreg > max_locals) max_locals = nextreg;
         return reg;
     }

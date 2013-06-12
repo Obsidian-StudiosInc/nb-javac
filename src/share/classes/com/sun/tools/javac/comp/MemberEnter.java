@@ -51,6 +51,7 @@ import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.code.TypeTag.ERROR;
 import static com.sun.tools.javac.code.TypeTag.FORALL;
 import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
+import static com.sun.tools.javac.code.TypeTag.VOID;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 import com.sun.tools.javac.model.LazyTreeLoader;
 import com.sun.tools.javac.parser.Tokens.Comment;
@@ -830,6 +831,11 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             }
         } finally {
             chk.setDeferredLintHandler(prevLintHandler);
+        }
+
+        if (tree.vartype.type != null && tree.vartype.type.hasTag(VOID)) {
+            log.error(tree.vartype, "illegal.start.of.type");
+            tree.vartype.type = syms.errType;
         }
 
         if ((tree.mods.flags & VARARGS) != 0) {
