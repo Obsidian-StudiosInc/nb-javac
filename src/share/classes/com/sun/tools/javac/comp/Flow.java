@@ -1249,7 +1249,7 @@ public class Flow {
                 // each of the constructor's formal thrown types in the set of
                 // 'caught/declared to be thrown' types, for the duration of
                 // the class def analysis.
-                if (tree.def != null && tree.constructor.type != null)
+                if (tree.def != null && tree.constructor != null && tree.constructor.type != null)
                     for (List<Type> l = tree.constructor.type.getThrownTypes();
                          l.nonEmpty();
                          l = l.tail) {
