@@ -375,7 +375,7 @@ public class ClassWriter extends ClassFile {
         } else if (t.hasTag(ARRAY)) {
             return typeSig(types.erasure(t));
         } else {
-            throw new AssertionError("xClassName");
+            throw new AssertionError("xClassName: " + t + ", tag: " + t.getTag());
         }
     }
 
