@@ -184,7 +184,7 @@ public class Repair extends TreeTranslator {
     public void visitTypeParameter(JCTypeParameter tree) {
         super.visitTypeParameter(tree);
         if (tree.type != null && tree.type.hasTag(TypeTag.TYPEVAR)) {
-            Type.TypeVar tv = (Type.TypeVar)tree.type;
+            Type.TypeVar tv = (Type.TypeVar)tree.type.unannotatedType();
             if (tv.bound != null && tv.bound.isErroneous() || tv.bound == syms.unknownType) {
                 if (err == null && errMessage == null)
                     errMessage = "Erroneous type var bound: " + tv.bound;
