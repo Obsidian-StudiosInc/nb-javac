@@ -1413,6 +1413,13 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             return;
         }
 
+        if (duplicateClassChecker != null && env.tree.hasTag(Tag.CLASSDEF) && duplicateClassChecker.check(((JCClassDecl)env.tree).sym.fullname,
+                env.enclClass.sym.sourcefile != null
+                ? env.enclClass.sym.sourcefile
+                : env.toplevel.sourcefile)) {
+            return;
+        }
+
         if (compileStates.isDone(env, CompileState.LOWER)) {
             results.addAll(desugaredEnvs.get(env));
             return;
@@ -1583,9 +1590,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 JavaFileObject file = null;
                 if (usePrintSource)
                     file = printSource(env, cdef);
-                else if (duplicateClassChecker == null || !duplicateClassChecker.check(cdef.sym.fullname, env.enclClass.sym.sourcefile != null ?
-                                      env.enclClass.sym.sourcefile :
-                                      env.toplevel.sourcefile)) {
+                else {
                     if (fileManager.hasLocation(StandardLocation.NATIVE_HEADER_OUTPUT)
                             && jniWriter.needsHeader(cdef.sym)) {
                         jniWriter.write(cdef.sym);
