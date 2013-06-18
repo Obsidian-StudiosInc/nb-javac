@@ -69,5 +69,19 @@ public class TreeTest extends TestCase {
 
         assertEquals("večerníček", cut.getPackageName().toString());
     }
+    
+    public void testArrayWithInitializerToString() throws IOException {
+        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        String code = "package večerníček; class A { private String[] arr = new String[] { };}";
+
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath), null, Arrays.asList(new MyFileObject(code)));
+
+        CompilationUnitTree cut = ct.parse().iterator().next();
+
+        assertEquals("package večerníček;\n\nclass A {\n    private String[] arr = new String[]{};\n}", cut.toString());
+    }
 
 }
