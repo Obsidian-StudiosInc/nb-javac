@@ -91,7 +91,7 @@ public class JavaTokenizer {
 
     protected ScannerFactory fac;
     
-    protected int seek;
+    int seek;
 
     private static final boolean hexFloatsWork = hexFloatsWork();
     private static boolean hexFloatsWork() {

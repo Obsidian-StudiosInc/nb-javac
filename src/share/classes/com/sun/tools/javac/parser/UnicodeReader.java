@@ -30,6 +30,7 @@ import java.util.Arrays;
 
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.util.ArrayUtils;
+import com.sun.tools.javac.util.JCDiagnostic.SimpleDiagnosticPosition;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
@@ -73,6 +74,8 @@ public class UnicodeReader {
     protected int realLength;
     protected int sp;
 
+    int seek;
+    
     /**
      * Create a scanner from the input array.  This method might
      * modify the array.  To avoid copying the input array, ensure
@@ -158,6 +161,7 @@ public class UnicodeReader {
      *  (Spec 3.3).
      */
     protected void convertUnicode() {
+        int startPos = bp;
         if (ch == '\\' && unicodeConversionBp != bp) {
             bp++; ch = buf[bp];
             if (ch == 'u') {
@@ -179,7 +183,7 @@ public class UnicodeReader {
                         return;
                     }
                 }
-                log.error(bp, "illegal.unicode.esc");
+                log.error(new SimpleDiagnosticPosition(startPos + seek, bp + seek), "illegal.unicode.esc");
             } else {
                 bp--;
                 ch = '\\';
