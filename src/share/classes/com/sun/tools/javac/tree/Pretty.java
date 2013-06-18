@@ -974,7 +974,6 @@ public class Pretty extends JCTree.Visitor {
                     printBrackets((JCArrayTypeTree) elem);
             }
             if (tree.elems != null) {
-                if (tree.elemtype != null) print("[]");
                 print("{");
                 printExprs(tree.elems);
                 print("}");
