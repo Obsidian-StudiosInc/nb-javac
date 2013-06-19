@@ -510,21 +510,28 @@ public class Enter extends JCTree.Visitor {
         } else if (reattr && c.completer == null) {
             new ElementScanner6<Void, Void>() {
                 @Override
-                public Void visitType(TypeElement e, Void p) {
-                    if (e instanceof ClassSymbol)
-                        ((ClassSymbol) e).flags_field |= FROMCLASS;
-                    return super.visitType(e, p);
-                }
-                @Override
-                public Void visitExecutable(ExecutableElement e, Void p) {
-                    if (e instanceof MethodSymbol)
-                        ((MethodSymbol) e).flags_field |= FROMCLASS;
+                public Void visitType(TypeElement te, Void p) {
+                    if (te instanceof ClassSymbol && ((ClassSymbol) te).completer == null) {
+                        ((ClassSymbol) te).flags_field |= FROMCLASS;
+                        for (Scope.Entry e = ((ClassSymbol) te).members().elems; e != null; e = e.sibling) {
+                            try {
+                                if (e.sym != null && e.sym.owner == te)
+                                    scan(e.sym);
+                            } catch (CompletionFailure cf) {}
+                        }
+                    }
                     return null;
                 }
                 @Override
-                public Void visitVariable(VariableElement e, Void p) {
-                    if (e instanceof VarSymbol)
-                        ((VarSymbol) e).flags_field |= FROMCLASS;
+                public Void visitExecutable(ExecutableElement ee, Void p) {
+                    if (ee instanceof MethodSymbol)
+                        ((MethodSymbol) ee).flags_field |= FROMCLASS;
+                    return null;
+                }
+                @Override
+                public Void visitVariable(VariableElement ve, Void p) {
+                    if (ve instanceof VarSymbol)
+                        ((VarSymbol) ve).flags_field |= FROMCLASS;
                     return null;
                 }
             }.scan(c);
