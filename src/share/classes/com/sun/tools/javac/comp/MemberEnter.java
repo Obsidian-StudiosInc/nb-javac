@@ -1472,11 +1472,14 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             }
         }
         //import current type-parameters into base scope
-        if (tree.typarams != null)
+        if (tree.typarams != null) {
             for (List<JCTypeParameter> typarams = tree.typarams;
                  typarams.nonEmpty();
-                 typarams = typarams.tail)
-                baseScope.enter(typarams.head.type.tsym);
+                 typarams = typarams.tail) {
+                if (typarams.head != null && typarams.head.type != null)
+                    baseScope.enter(typarams.head.type.tsym);
+            }
+        }
         Env<AttrContext> outer = env.outer; // the base clause can't see members of this class
         Env<AttrContext> localEnv = outer.dup(tree, outer.info.dup(baseScope));
         localEnv.baseClause = true;
