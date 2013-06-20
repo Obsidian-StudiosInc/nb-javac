@@ -346,11 +346,13 @@ public class Lower extends TreeTranslator {
         public void visitApply(JCMethodInvocation tree) {
             if (TreeInfo.name(tree.meth) == names._super) {
                 Symbol constructor = TreeInfo.symbol(tree.meth);
-                ClassSymbol c = (ClassSymbol)constructor.owner;
-                if (c.hasOuterInstance() &&
-                    !tree.meth.hasTag(SELECT) &&
-                    outerThisStack.head != null)
-                    visitSymbol(outerThisStack.head);
+                if (constructor.owner.kind == TYP) {
+                    ClassSymbol c = (ClassSymbol)constructor.owner;
+                    if (c.hasOuterInstance() &&
+                        !tree.meth.hasTag(SELECT) &&
+                        outerThisStack.head != null)
+                        visitSymbol(outerThisStack.head);
+                }
             }
             super.visitApply(tree);
         }
