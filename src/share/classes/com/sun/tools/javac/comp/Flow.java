@@ -1423,7 +1423,8 @@ public class Flow {
             return sym != null && sym.owner != null &&
                 sym.pos >= startPos &&
                 (sym.owner.kind == MTH ||
-                 ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL &&
+                 sym.owner.kind == TYP &&
+                  ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL &&                  
                   classDef.sym.isEnclosedBy((ClassSymbol)sym.owner)) &&
                   (reanalyzedClass == null || ((ClassSymbol)sym.owner).isEnclosedBy(reanalyzedClass.sym)));
         }
