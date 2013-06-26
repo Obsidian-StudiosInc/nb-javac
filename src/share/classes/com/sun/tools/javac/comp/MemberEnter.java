@@ -1591,16 +1591,19 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             if (!tree.type.hasTag(ERROR)) {
                 result = tree.type;
             } else {
-                ClassType clazzType = (ClassType) visit(tree.clazz);
-                if (synthesizedSymbols.contains(clazzType.tsym))
-                    synthesizeTyparams((ClassSymbol) clazzType.tsym, tree.arguments.size());
-                final List<Type> actuals = visit(tree.arguments);
-                result = new ErrorType(tree.type, clazzType.tsym) {
-                    @Override
-                    public List<Type> getTypeArguments() {
-                        return actuals;
-                    }
-                };
+                result = visit(tree.clazz);
+                if (result.hasTag(CLASS) || result.hasTag(ERROR)) {
+                    ClassType clazzType = (ClassType) result;
+                    if (synthesizedSymbols.contains(clazzType.tsym))
+                        synthesizeTyparams((ClassSymbol) clazzType.tsym, tree.arguments.size());
+                    final List<Type> actuals = visit(tree.arguments);
+                    result = new ErrorType(tree.type, clazzType.tsym) {
+                        @Override
+                        public List<Type> getTypeArguments() {
+                            return actuals;
+                        }
+                    };
+                }
             }
         }
 
