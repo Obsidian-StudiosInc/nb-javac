@@ -2020,7 +2020,7 @@ public class Types {
      * type parameters in t are deleted.
      */
     public Type erasure(Type t) {
-        return eraseNotNeeded(t)? t : erasure(t, false);
+        return (t == null || eraseNotNeeded(t)) ? t : erasure(t, false);
     }
     //where
     private boolean eraseNotNeeded(Type t) {
