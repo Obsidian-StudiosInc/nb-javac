@@ -108,6 +108,14 @@ public class DocCommentParserTest extends TestCase {
                            );
     }
     
+    public void testInlineSpan() throws IOException {
+        doTestErrorRecovery("{@literal code}\n",
+                            "DOC_COMMENT:{@literal code}",
+                            "LITERAL:{@literal code}",
+                            "TEXT:code"
+                           );
+    }
+    
     private void doTestErrorRecovery(String javadocCode, String... golden) throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();

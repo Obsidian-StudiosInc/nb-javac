@@ -415,8 +415,9 @@ public class DocCommentParser {
 
                 case '}':
                     if (--depth == 0) {
+                        DCText result = m.at(pos).Text(newString(pos, bp));
                         nextChar();
-                        return m.at(pos).Text(newString(pos, bp));
+                        return result;
                     }
                     newline = false;
                     lastNonWhite = bp;
