@@ -475,7 +475,7 @@ public class JavacFiler implements Filer, Closeable {
         final Set<String> result = new HashSet<String>(originatingElements.length);
         for (final Element oe : originatingElements) {
             final ClassSymbol te  = findTopLevel(oe);
-            if (te != null) {
+            if (te != null && te.classfile != null) {
                 result.add(te.classfile.toUri().toString());
             }
         }
