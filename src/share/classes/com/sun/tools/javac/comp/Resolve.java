@@ -1433,7 +1433,7 @@ public class Resolve {
             return ambiguityError(m1, m2);
         case AMBIGUOUS:
             //check if m1 is more specific than all ambiguous methods in m2
-            AmbiguityError e = (AmbiguityError)m2;
+            AmbiguityError e = (AmbiguityError)m2.baseSymbol();
             for (Symbol s : e.ambiguousSyms) {
                 if (mostSpecific(argtypes, m1, s, env, site, allowBoxing, useVarargs) != m1) {
                     return e.addAmbiguousSymbol(m1);
