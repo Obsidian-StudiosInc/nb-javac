@@ -952,8 +952,8 @@ public class Infer {
             Type solve(UndetVar uv, InferenceContext inferenceContext) {
                 Infer infer = inferenceContext.infer();
                 List<Type> lobounds = filterBounds(uv, inferenceContext);
-                Type owntype = infer.types.lub(lobounds);
-                if (owntype.hasTag(ERROR)) {
+                Type owntype = lobounds.nonEmpty() ? infer.types.lub(lobounds) : null;
+                if (owntype == null || owntype.hasTag(ERROR)) {
                     throw infer.inferenceException
                         .setMessage("no.unique.minimal.instance.exists",
                                     uv.qtype, lobounds);
@@ -971,8 +971,8 @@ public class Infer {
             Type solve(UndetVar uv, InferenceContext inferenceContext) {
                 Infer infer = inferenceContext.infer();
                 List<Type> hibounds = filterBounds(uv, inferenceContext);
-                Type owntype = infer.types.glb(hibounds);
-                if (owntype.isErroneous()) {
+                Type owntype = hibounds.nonEmpty() ? infer.types.glb(hibounds) : null;
+                if (owntype == null || owntype.isErroneous()) {
                     throw infer.inferenceException
                         .setMessage("no.unique.maximal.instance.exists",
                                     uv.qtype, hibounds);
