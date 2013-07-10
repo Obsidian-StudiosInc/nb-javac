@@ -3145,7 +3145,7 @@ public class Attr extends JCTree.Visitor {
                     return left.appendList(right);
                 }
             }
-        } else if (tree instanceof JCExpression) {
+        } else if (tree instanceof JCExpression && tree.type != null) {
             return List.of((JCExpression)tree);
         }
         return null;
