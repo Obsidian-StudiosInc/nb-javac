@@ -1978,8 +1978,10 @@ public class Flow {
                 inits.assign(initsTry);
                 uninits.assign(uninitsTry);
                 scan(param);
-                inits.incl(param.sym.adr);
-                uninits.excl(param.sym.adr);
+                if (param.sym != null) {
+                    inits.incl(param.sym.adr);
+                    uninits.excl(param.sym.adr);
+                }
                 scan(l.head.body);
                 initsEnd.andSet(inits);
                 uninitsEnd.andSet(uninits);
