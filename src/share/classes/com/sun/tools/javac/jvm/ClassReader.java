@@ -2115,7 +2115,7 @@ public class ClassReader implements Completer {
         List<Name> paramNames = List.nil();
         int index = firstParam;
         for (Type t: sym.type.getParameterTypes()) {
-            int nameIdx = (index < parameterNameIndices.length
+            int nameIdx = (index >= 0 && index < parameterNameIndices.length
                     ? parameterNameIndices[index] : 0);
             Name name = nameIdx == 0 ? names.empty : readName(nameIdx);
             paramNames = paramNames.prepend(name);
