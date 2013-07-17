@@ -335,7 +335,7 @@ public class TreeMaker implements JCTree.Factory {
         return tree;
     }
 
-    public JCThrow Throw(JCTree expr) {
+    public JCThrow Throw(JCExpression expr) {
         JCThrow tree = new JCThrow(expr);
         tree.pos = pos;
         return tree;

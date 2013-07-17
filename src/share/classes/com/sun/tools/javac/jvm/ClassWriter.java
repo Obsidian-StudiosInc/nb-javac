@@ -698,12 +698,14 @@ public class ClassWriter extends ClassFile {
     int writeParameterAttrs(MethodSymbol m) {
         boolean hasVisible = false;
         boolean hasInvisible = false;
-        if (m.params != null) for (VarSymbol s : m.params) {
-            for (Attribute.Compound a : s.getRawAttributes()) {
-                switch (types.getRetention(a)) {
-                case CLASS: hasInvisible = true; break;
-                case RUNTIME: hasVisible = true; break;
-                default: ;// /* fail soft */ throw new AssertionError(vis);
+        if (m.params != null) {
+            for (VarSymbol s : m.params) {
+                for (Attribute.Compound a : s.getRawAttributes()) {
+                    switch (types.getRetention(a)) {
+                    case CLASS: hasInvisible = true; break;
+                    case RUNTIME: hasVisible = true; break;
+                    default: ;// /* fail soft */ throw new AssertionError(vis);
+                    }
                 }
             }
         }
@@ -1076,6 +1078,7 @@ public class ClassWriter extends ClassFile {
             char flags = (char) adjustFlags(inner.flags_field);
             if ((flags & INTERFACE) != 0) flags |= ABSTRACT; // Interfaces are always ABSTRACT
             if (inner.name.isEmpty()) flags &= ~FINAL; // Anonymous class: unset FINAL flag
+            flags &= ~STRICTFP; //inner classes should not have the strictfp flag set.
             if (dumpInnerClassModifiers) {
                 PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
                 pw.println("INNERCLASS  " + inner.name);

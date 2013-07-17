@@ -39,14 +39,7 @@ import java.util.regex.*;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.AnnotationValue;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.PackageElement;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
+import javax.lang.model.element.*;
 import javax.lang.model.util.*;
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
@@ -780,7 +773,20 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
 
         @Override
-        public Set<TypeElement> scan(Element e, Set<TypeElement> p) {
+        public Set<TypeElement> visitType(TypeElement e, Set<TypeElement> p) {
+            // Type parameters are not considered to be enclosed by a type
+            scan(e.getTypeParameters(), p);
+            return scan(e.getEnclosedElements(), p);
+        }
+
+        @Override
+        public Set<TypeElement> visitExecutable(ExecutableElement e, Set<TypeElement> p) {
+            // Type parameters are not considered to be enclosed by an executable
+            scan(e.getTypeParameters(), p);
+            return scan(e.getEnclosedElements(), p);
+        }
+
+        void addAnnotations(Element e, Set<TypeElement> p) {
             for (AnnotationMirror annotationMirror :
                      elements.getAllAnnotationMirrors(e) ) {
                 if (isComplete(annotationMirror)) {
@@ -788,6 +794,11 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     p.add((TypeElement) e2);
                 }
             }
+        }
+
+        @Override
+        public Set<TypeElement> scan(Element e, Set<TypeElement> p) {
+            addAnnotations(e, p);
             return super.scan(e, p);
         }
 

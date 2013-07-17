@@ -219,6 +219,14 @@ public class Check {
         return prev;
     }
 
+    /*  This idiom should be used only in cases when it is needed to set the lint
+     *  of an environment that has been created in a phase previous to annotations
+     *  processing.
+     */
+    Lint getLint() {
+        return lint;
+    }
+
     DeferredLintHandler setDeferredLintHandler(DeferredLintHandler newDeferredLintHandler) {
         DeferredLintHandler prev = deferredLintHandler;
         deferredLintHandler = newDeferredLintHandler;
@@ -555,7 +563,7 @@ public class Check {
         if (found == null || checkContext.compatible(found, req, checkContext.checkWarner(pos, found, req))) {
             return found;
         } else {
-            if (found.getTag().isSubRangeOf(DOUBLE) && req.getTag().isSubRangeOf(DOUBLE)) {
+            if (found.isNumeric() && req.isNumeric()) {
                 checkContext.report(pos, diags.fragment("possible.loss.of.precision", found, req));
                 return types.createErrorType(found);
             }
@@ -765,7 +773,7 @@ public class Check {
      *  @param t             The type to be checked.
      */
     Type checkNullOrRefType(DiagnosticPosition pos, Type t) {
-        if (t.isNullOrReference())
+        if (t.isReference() || t.hasTag(BOT))
             return t;
         else
             return typeTagError(pos,
@@ -858,24 +866,31 @@ public class Check {
                     (s.flags() & (STATIC | FINAL)) != 0);
         }
 
-    Type checkMethod(Type owntype,
-                            Symbol sym,
-                            Env<AttrContext> env,
-                            final List<JCExpression> argtrees,
-                            List<Type> argtypes,
-                            boolean useVarargs,
-                            boolean unchecked) {
+    Type checkMethod(final Type mtype,
+            final Symbol sym,
+            final Env<AttrContext> env,
+            final List<JCExpression> argtrees,
+            final List<Type> argtypes,
+            final boolean useVarargs,
+            InferenceContext inferenceContext) {
         // System.out.println("call   : " + env.tree);
         // System.out.println("method : " + owntype);
         // System.out.println("actuals: " + argtypes);
+        if (inferenceContext.free(mtype)) {
+            inferenceContext.addFreeTypeListener(List.of(mtype), new FreeTypeListener() {
+                public void typesInferred(InferenceContext inferenceContext) {
+                    checkMethod(inferenceContext.asInstType(mtype), sym, env, argtrees, argtypes, useVarargs, inferenceContext);
+                }
+            });
+            return mtype;
+        }
+        Type owntype = mtype;
         List<Type> formals = owntype.getParameterTypes();
         Type last = useVarargs ? formals.last() : null;
         if (sym.name == names.init &&
                 sym.owner == syms.enumSym)
                 formals = formals.tail.tail;
         List<JCExpression> args = argtrees;
-        DeferredAttr.DeferredTypeMap checkDeferredMap =
-                deferredAttr.new DeferredTypeMap(DeferredAttr.AttrMode.CHECK, sym, env.info.pendingResolutionPhase);
         if (args != null) {
             //this is null when type-checking a method reference
             while (formals.head != last) {
@@ -896,26 +911,12 @@ public class Check {
             } else if ((sym.flags() & VARARGS) != 0 && allowVarargs) {
                 // non-varargs call to varargs method
                 Type varParam = owntype.getParameterTypes().last();
-                Type lastArg = checkDeferredMap.apply(argtypes.last());
+                Type lastArg = argtypes.last();
                 if (types.isSubtypeUnchecked(lastArg, types.elemtype(varParam)) &&
                         !types.isSameType(types.erasure(varParam), types.erasure(lastArg)))
                     log.warning(argtrees.last().pos(), "inexact.non-varargs.call",
                             types.elemtype(varParam), varParam);
             }
-        }
-        if (unchecked) {
-            warnUnchecked(env.tree.pos(),
-                    "unchecked.meth.invocation.applied",
-                    kindName(sym),
-                    sym.name,
-                    rs.methodArguments(sym.type.getParameterTypes()),
-                    rs.methodArguments(Type.map(argtypes, checkDeferredMap)),
-                    kindName(sym.location()),
-                    sym.location());
-           owntype = new MethodType(owntype.getParameterTypes(),
-                   types.erasure(owntype.getReturnType()),
-                   types.erasure(owntype.getThrownTypes()),
-                   syms.methodClass);
         }
         if (useVarargs) {
             Type argtype = owntype.getParameterTypes().last();
@@ -927,7 +928,7 @@ public class Check {
                                   "unchecked.generic.array.creation",
                                   argtype);
             }
-            if (!((MethodSymbol)sym.baseSymbol()).isSignaturePolymorphic(types)) {
+            if ((sym.baseSymbol().flags() & SIGNATURE_POLYMORPHIC) == 0) {
                 TreeInfo.setVarargsElement(env.tree, types.elemtype(argtype));
             }
          }
@@ -1656,7 +1657,7 @@ public class Check {
             log.error(TreeInfo.diagnosticPositionFor(m, tree), "override.weaker.access",
                       cannotOverride(m, other),
                       other.flags() == 0 ?
-                          Flag.PACKAGE :
+                          "package" :
                           asFlagSet(other.flags() & AccessFlags));
             m.flags_field |= BAD_OVERRIDE;
             return;
@@ -1957,24 +1958,11 @@ public class Check {
                 Symbol s3 = e.sym;
                 if (s3 == s1 || s3 == s2 || s3.kind != MTH || (s3.flags() & (BRIDGE|SYNTHETIC)) != 0) continue;
                 Type st3 = types.memberType(site,s3);
-                if (types.overrideEquivalent(st3, st1) && types.overrideEquivalent(st3, st2)) {
-                    if (s3.owner == site.tsym) {
-                        return true;
-                    }
-                    List<Type> tvars1 = st1.getTypeArguments();
-                    List<Type> tvars2 = st2.getTypeArguments();
-                    List<Type> tvars3 = st3.getTypeArguments();
-                    Type rt1 = st1.getReturnType();
-                    Type rt2 = st2.getReturnType();
-                    Type rt13 = types.subst(st3.getReturnType(), tvars3, tvars1);
-                    Type rt23 = types.subst(st3.getReturnType(), tvars3, tvars2);
-                    boolean compat =
-                        !rt13.isPrimitiveOrVoid() &&
-                        !rt23.isPrimitiveOrVoid() &&
-                        (types.covariantReturnType(rt13, rt1, types.noWarnings) &&
-                         types.covariantReturnType(rt23, rt2, types.noWarnings));
-                    if (compat)
-                        return true;
+                if (types.overrideEquivalent(st3, st1) &&
+                        types.overrideEquivalent(st3, st2) &&
+                        types.returnTypeSubstitutable(st3, st1) &&
+                        types.returnTypeSubstitutable(st3, st2)) {
+                    return true;
                 }
             }
         }
@@ -3332,7 +3320,7 @@ public class Check {
     void checkDivZero(DiagnosticPosition pos, Symbol operator, Type operand) {
         if (operand.constValue() != null
             && lint.isEnabled(LintCategory.DIVZERO)
-            && (operand.getTag().isSubRangeOf(LONG))
+            && operand.getTag().isSubRangeOf(LONG)
             && ((Number) (operand.constValue())).longValue() == 0) {
             int opc = ((OperatorSymbol)operator).opcode;
             if (opc == ByteCodes.idiv || opc == ByteCodes.imod
