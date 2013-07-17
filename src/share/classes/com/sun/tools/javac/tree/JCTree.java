@@ -705,7 +705,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public List<JCTypeParameter> getTypeParameters() {
             return typarams;
         }
-        public JCTree getExtendsClause() { return extending; }
+        public JCExpression getExtendsClause() { return extending; }
         public List<JCExpression> getImplementsClause() {
             return implementing;
         }
@@ -1181,7 +1181,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             return v.visitTry(this, d);
         }
         @Override
-        public List<? extends JCTree> getResources() {
+        public List<JCTree> getResources() {
             return resources;
         }
         @Override
@@ -1398,8 +1398,8 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
      */
     public static class JCThrow extends JCStatement implements ThrowTree {
         public JCExpression expr;
-        protected JCThrow(JCTree expr) {
-            this.expr = (JCExpression)expr;
+        protected JCThrow(JCExpression expr) {
+            this.expr = expr;
         }
         @Override
         public void accept(Visitor v) { v.visitThrow(this); }
@@ -2472,7 +2472,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         JCBreak Break(Name label);
         JCContinue Continue(Name label);
         JCReturn Return(JCExpression expr);
-        JCThrow Throw(JCTree expr);
+        JCThrow Throw(JCExpression expr);
         JCAssert Assert(JCExpression cond, JCExpression detail);
         JCMethodInvocation Apply(List<JCExpression> typeargs,
                     JCExpression fn,

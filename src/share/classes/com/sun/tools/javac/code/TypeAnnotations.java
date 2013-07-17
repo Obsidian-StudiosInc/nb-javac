@@ -274,8 +274,8 @@ public class TypeAnnotations {
                 }
             }
 
-            sym.annotations.reset();
-            sym.annotations.setDeclarationAttributes(declAnnos.toList());
+            sym.resetAnnotations();
+            sym.setDeclarationAttributes(declAnnos.toList());
 
             if (typeAnnos.isEmpty()) {
                 return;
@@ -287,7 +287,7 @@ public class TypeAnnotations {
                 // When type is null, put the type annotations to the symbol.
                 // This is used for constructor return annotations, for which
                 // no appropriate type exists.
-                sym.annotations.appendUniqueTypes(typeAnnotations);
+                sym.appendUniqueTypeAttributes(typeAnnotations);
                 return;
             }
 
@@ -321,7 +321,7 @@ public class TypeAnnotations {
                 sym.type = type;
             }
 
-            sym.annotations.appendUniqueTypes(typeAnnotations);
+            sym.appendUniqueTypeAttributes(typeAnnotations);
 
             if (sym.getKind() == ElementKind.PARAMETER ||
                     sym.getKind() == ElementKind.LOCAL_VARIABLE ||
@@ -329,7 +329,7 @@ public class TypeAnnotations {
                     sym.getKind() == ElementKind.EXCEPTION_PARAMETER) {
                 // Make sure all type annotations from the symbol are also
                 // on the owner.
-                sym.owner.annotations.appendUniqueTypes(sym.getRawTypeAttributes());
+                sym.owner.appendUniqueTypeAttributes(sym.getRawTypeAttributes());
             }
         }
 
@@ -858,7 +858,7 @@ public class TypeAnnotations {
                             Assert.error("Found unexpected type annotation for variable: " + v + " with kind: " + v.getKind());
                     }
                     if (v.getKind() != ElementKind.FIELD) {
-                        v.owner.annotations.appendUniqueTypes(v.getRawTypeAttributes());
+                        v.owner.appendUniqueTypeAttributes(v.getRawTypeAttributes());
                     }
                     return;
 

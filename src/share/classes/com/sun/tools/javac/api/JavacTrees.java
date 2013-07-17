@@ -68,6 +68,7 @@ import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.Type.ErrorType;
 import com.sun.tools.javac.code.Type.UnionClassType;
 import com.sun.tools.javac.code.Types;
+import com.sun.tools.javac.code.TypeTag;
 import com.sun.tools.javac.code.Types.TypeRelation;
 import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.comp.AttrContext;
@@ -678,8 +679,7 @@ public class JavacTrees extends DocTrees {
             switch (t.getTag()) {
             case BYTE: case CHAR: case SHORT: case INT: case LONG: case FLOAT:
             case DOUBLE: case BOOLEAN: case VOID: case BOT: case NONE:
-                return t.getTag() == s.getTag();
-
+                return t.hasTag(s.getTag());
             default:
                 throw new AssertionError("fuzzyMatcher " + t.getTag());
             }
@@ -693,7 +693,7 @@ public class JavacTrees extends DocTrees {
             if (s.isPartial())
                 return visit(s, t);
 
-            return s.getTag() == ARRAY
+            return s.hasTag(ARRAY)
                 && visit(t.elemtype, types.elemtype(s));
         }
 
@@ -710,7 +710,7 @@ public class JavacTrees extends DocTrees {
 
         @Override
         public Boolean visitErrorType(ErrorType t, Type s) {
-            return s.getTag() == CLASS
+            return s.hasTag(CLASS)
                     && t.tsym.name == ((ClassType) s).tsym.name;
         }
     };
