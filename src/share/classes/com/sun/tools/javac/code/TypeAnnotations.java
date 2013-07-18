@@ -115,6 +115,7 @@ public class TypeAnnotations {
      */
     public static AnnotationType annotationType(Symtab syms, Names names,
             Attribute.Compound a, Symbol s) {
+        if (a == null) return AnnotationType.BOTH;
         Attribute.Compound atTarget =
             a.type.tsym.attribute(syms.annotationTargetType.tsym);
         if (atTarget == null) {
