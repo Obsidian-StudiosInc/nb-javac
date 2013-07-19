@@ -242,8 +242,7 @@ public class Repair extends TreeTranslator {
             JCMethodInvocation app = TreeInfo.firstConstructorCall(tree);
             Name meth = app != null ? TreeInfo.name(app.meth) : null;
             Symbol sym = app != null ? TreeInfo.symbol(app.meth) : null;
-            if (meth != null && (meth == meth.table.names._this || meth == meth.table.names._super)
-                    && sym != null && sym.owner.getQualifiedName() != meth.table.names.java_lang_Enum)
+            if (meth != null && (meth == meth.table.names._this || meth == meth.table.names._super))
                 tree.body.stats.tail = List.<JCStatement>nil();
             else
                 tree.body.stats = List.<JCStatement>nil();
