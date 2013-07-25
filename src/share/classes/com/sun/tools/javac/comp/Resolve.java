@@ -3809,6 +3809,9 @@ public class Resolve {
              */
             boolean matches(Object o) {
                 JCDiagnostic d = (JCDiagnostic)o;
+                if (d == null) {
+                    return false;
+                }
                 Object[] args = d.getArgs();
                 if (!d.getCode().matches(regex) ||
                         subTemplates.length != d.getArgs().length) {
