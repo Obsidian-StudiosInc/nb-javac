@@ -113,7 +113,9 @@ public class Infer {
 
         @Override
         InapplicableMethodException setMessage(JCDiagnostic diag) {
-            messages = messages.append(diag);
+            if (diag != null) {
+                messages = messages.append(diag);
+            }
             return this;
         }
 
