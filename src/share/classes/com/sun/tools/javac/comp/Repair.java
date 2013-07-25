@@ -46,6 +46,7 @@ import com.sun.tools.javac.tree.JCTree.JCCase;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCErroneous;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
+import com.sun.tools.javac.tree.JCTree.JCExpressionStatement;
 import com.sun.tools.javac.tree.JCTree.JCImport;
 import com.sun.tools.javac.tree.JCTree.JCLiteral;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
@@ -241,7 +242,6 @@ public class Repair extends TreeTranslator {
         if (isErrClass && tree.body != null) {
             JCMethodInvocation app = TreeInfo.firstConstructorCall(tree);
             Name meth = app != null ? TreeInfo.name(app.meth) : null;
-            Symbol sym = app != null ? TreeInfo.symbol(app.meth) : null;
             if (meth != null && (meth == meth.table.names._this || meth == meth.table.names._super))
                 tree.body.stats.tail = List.<JCStatement>nil();
             else
@@ -413,6 +413,20 @@ public class Repair extends TreeTranslator {
         make.at(null);
         return make.MethodDef(sym, make.Block(0, List.<JCStatement>of(generateErrStat(null, null))));
     }
+    
+    private JCExpressionStatement generateFakeConstructorCall(MethodSymbol ctor) {
+        make.at(null);
+        JCTree.JCIdent ident = make.Ident(syms.objectType.tsym.name.table.names._this);
+        ident.sym = ctor;
+        ident.type = ctor.type;
+        List<JCExpression> args = List.nil();
+        for (Symbol.VarSymbol param : ((MethodSymbol)ctor).params().reverse()) {
+            args = args.prepend(make.Ident(param));
+        }
+        JCMethodInvocation meth = make.Apply(List.<JCExpression>nil(), ident, args);
+        meth.type = ctor.type.getReturnType();
+        return make.Exec(meth);
+    }
 
     private void translateClass(ClassSymbol c) {
         if (c == null)
@@ -543,8 +557,7 @@ public class Repair extends TreeTranslator {
                                     && ((JCMethodDecl)l.head).body != null
                                     && ((JCMethodDecl)l.head).name == ((JCMethodDecl)l.head).name.table.names.init
                                     && TreeInfo.firstConstructorCall(l.head) == null) {
-                                tree.sym.members_field.remove(((JCMethodDecl)l.head).sym);
-                                hasError = true;
+                                ((JCMethodDecl)l.head).body.stats = ((JCMethodDecl)l.head).body.stats.append(generateFakeConstructorCall(((JCMethodDecl)l.head).sym));
                             }
                             if (hasError) {
                                 if (l.head.hasTag(JCTree.Tag.CLASSDEF) && tree.sym.members_field.includes(((JCClassDecl)l.head).sym)) {
