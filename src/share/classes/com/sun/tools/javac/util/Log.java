@@ -464,7 +464,7 @@ public class Log extends AbstractLog {
      * it must be specified explicitly for clarity and consistency checking.
      */
     public void popDiagnosticHandler(DiagnosticHandler h) {
-        Assert.check(diagnosticHandler == h);
+        Assert.check(diagnosticHandler == h, "Wrong diagnostic handler: " + diagnosticHandler);
         diagnosticHandler = h.prev;
     }
 
