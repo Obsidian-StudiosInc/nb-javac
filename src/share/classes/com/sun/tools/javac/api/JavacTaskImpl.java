@@ -754,11 +754,14 @@ public class JavacTaskImpl extends BasicJavacTask {
         Attr attr = Attr.instance(context);
         JavaFileObject prev = log.useSource(null);
         Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
+        Enter enter = Enter.instance(context);
+        enter.shadowTypeEnvs(true);
         try {
             if (tree instanceof JCExpression)
                 return attr.attribExpr(tree, env, Type.noType);
             return attr.attribStat(tree, env);
         } finally {
+            enter.shadowTypeEnvs(false);
             log.popDiagnosticHandler(discardHandler);
             log.useSource(prev);
         }
@@ -769,10 +772,13 @@ public class JavacTaskImpl extends BasicJavacTask {
         Attr attr = Attr.instance(context);
         JavaFileObject prev = log.useSource(null);
         Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
+        Enter enter = Enter.instance(context);
+        enter.shadowTypeEnvs(true);
         try {
             Env<AttrContext> ret = tree instanceof JCExpression ? attr.attribExprToTree(tree, env, to) : attr.attribStatToTree(tree, env, to);
             return new JavacScope(ret);
         } finally {
+            enter.shadowTypeEnvs(false);
             log.popDiagnosticHandler(discardHandler);
             log.useSource(prev);
         }
