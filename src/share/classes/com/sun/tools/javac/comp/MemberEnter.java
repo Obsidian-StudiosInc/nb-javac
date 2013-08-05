@@ -603,7 +603,7 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
     }
     
     private boolean isSameAPType(Type t, Type s) {
-        return    types.isSameType(t, s)
+        return    t != null && !t.hasTag(TypeTag.UNKNOWN) && types.isSameType(t, s)
                || t.tsym != null && s.tsym != null && s.isErroneous() && t.tsym.name == s.tsym.name;
     }
     
