@@ -101,6 +101,7 @@ public class Repair extends TreeTranslator {
     private TreeMaker make;
     private JCDiagnostic.Factory diags;
     private boolean allowEnums;
+    private boolean allowLambda;
     
     private Env<AttrContext> attrEnv;
     private boolean hasError;
@@ -125,6 +126,7 @@ public class Repair extends TreeTranslator {
         diags = JCDiagnostic.Factory.instance(context);
         Source source = Source.instance(context);
         allowEnums = source.allowEnums();
+        allowLambda = source.allowLambda();
     }
 
     @Override
@@ -368,6 +370,14 @@ public class Repair extends TreeTranslator {
         if (last != null)
             last.tail = List.nil();
         result = tree;
+    }
+
+    @Override
+    public void visitLambda(JCTree.JCLambda tree) {        
+        if (!allowLambda) {
+            hasError = true;
+        }
+        super.visitLambda(tree);
     }
 
     @Override
