@@ -2403,7 +2403,10 @@ public class Attr extends JCTree.Visitor {
             }
 
             Type lambdaType;
-            if (pt() != Type.recoveryType && pt() != Type.noType && pt() != Infer.anyPoly) {
+            if (pt().hasTag(NONE) && pt() != Type.recoveryType) {
+                resultInfo = recoveryInfo;
+            }
+            if (pt() != Type.recoveryType && pt() != Infer.anyPoly) {
                 target = targetChecker.visit(target, that);
                 lambdaType = types.findDescriptorType(target);
             } else {
@@ -2478,7 +2481,7 @@ public class Attr extends JCTree.Visitor {
                     JCBlock body = (JCBlock)that.body;
                     if (body == breakTree &&
                             resultInfo.checkContext.deferredAttrContext().mode == AttrMode.CHECK) {
-                        throw new BreakAttr(localEnv);
+                        throw new BreakAttr(copyEnv(localEnv));
                     }
                     attribStats(body.stats, localEnv);
                 }

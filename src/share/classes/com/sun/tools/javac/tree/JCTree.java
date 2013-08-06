@@ -646,8 +646,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public List<Type> targets;
 
         public Type getDescriptorType(Types types) {
-            return targets.nonEmpty() ? types.findDescriptorType(targets.head)
-                    : types.createErrorType(null);
+            return types.findDescriptorType(targets.head);
         }
     }
 
