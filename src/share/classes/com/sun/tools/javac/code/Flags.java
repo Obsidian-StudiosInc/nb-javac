@@ -261,6 +261,11 @@ public class Flags {
      */
     public static final long SIGNATURE_POLYMORPHIC = 1L<<46;
 
+    /**
+     * Flag that marks inference variables used in a 'throws' clause
+     */
+    public static final long THROWS = 1L<<47;
+
     public static final long FROMCLASS = 1L<<61;
     public static final long APT_CLEANED = 1L<<62;
 
@@ -368,7 +373,9 @@ public class Flags {
         CLASH(Flags.CLASH),
         AUXILIARY(Flags.AUXILIARY),
         NOT_IN_PROFILE(Flags.NOT_IN_PROFILE),
-        BAD_OVERRIDE(Flags.BAD_OVERRIDE);
+        BAD_OVERRIDE(Flags.BAD_OVERRIDE),
+        SIGNATURE_POLYMORPHIC(Flags.SIGNATURE_POLYMORPHIC),
+        THROWS(Flags.THROWS);
 
         Flag(long flag) {
             this.value = flag;

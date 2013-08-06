@@ -642,10 +642,13 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             polyKind = PolyKind.POLY;
         }
 
-        /** target descriptor inferred for this functional expression. */
-        public Type descriptorType;
         /** list of target types inferred for this functional expression. */
-        public List<TypeSymbol> targets;
+        public List<Type> targets;
+
+        public Type getDescriptorType(Types types) {
+            return targets.nonEmpty() ? types.findDescriptorType(targets.head)
+                    : types.createErrorType(null);
+        }
     }
 
     /**
