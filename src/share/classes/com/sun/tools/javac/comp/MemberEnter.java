@@ -467,10 +467,13 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
     /** Enter members for a class.
      */
     void finishClass(JCClassDecl tree, Env<AttrContext> env) {
-        if ((tree.mods.flags & Flags.ENUM) != 0 &&
-            (types.supertype(tree.sym.type).tsym.flags() & Flags.ENUM) == 0) {
-            if (tree.sym == null || (tree.sym.flags_field & Flags.FROMCLASS) == 0)
-                addEnumMembers(tree, env);
+        if ((tree.mods.flags & Flags.ENUM) != 0) {
+            Type supertype = types.supertype(tree.sym.type);
+            if (supertype != null && !supertype.hasTag(TypeTag.NONE)
+                    && (supertype.tsym.flags() & Flags.ENUM) == 0
+                    && (tree.sym.flags_field & Flags.FROMCLASS) == 0) {
+                    addEnumMembers(tree, env);
+            }
         }
         memberEnter(tree.defs, env);
     }
