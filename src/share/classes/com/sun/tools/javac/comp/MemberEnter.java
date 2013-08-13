@@ -958,11 +958,15 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
     }
 
     public Env<AttrContext> getBaseEnv(JCClassDecl tree, Env<AttrContext> env) {
+        if (tree.sym == null)
+            return null;
         Env<AttrContext> bEnv = baseEnv(tree, env);
         return bEnv;
     }
 
     public Env<AttrContext> getMethodEnv(JCMethodDecl tree, Env<AttrContext> env) {
+        if (tree.sym == null)
+            return null;
         Env<AttrContext> mEnv = methodEnv(tree, env);
         mEnv.info.lint = mEnv.info.lint.augment(tree.sym);
         for (List<JCTypeParameter> l = tree.typarams; l.nonEmpty(); l = l.tail)
@@ -973,6 +977,8 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
     }
 
     public Env<AttrContext> getInitEnv(JCVariableDecl tree, Env<AttrContext> env) {
+        if (tree.sym == null)
+            return null;
         Env<AttrContext> iEnv = initEnv(tree, env);
         return iEnv;
     }

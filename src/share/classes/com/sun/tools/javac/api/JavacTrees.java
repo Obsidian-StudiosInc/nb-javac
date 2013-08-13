@@ -838,7 +838,10 @@ public class JavacTrees extends DocTrees {
                         try {
                             Assert.check(method.body == tree);
                             method.body = copier.copy((JCBlock)tree, (JCTree) path.getLeaf());
-                            env = memberEnter.getMethodEnv(method, env);
+                            e = memberEnter.getMethodEnv(method, env);
+                            if (e == null)
+                                return env;
+                            env = e;
                             env = attribStatToTree(method.body, env, copier.leafCopy);
                         } finally {
                             method.body = (JCBlock) tree;
@@ -852,11 +855,17 @@ public class JavacTrees extends DocTrees {
                 default:
 //                    System.err.println("DEFAULT: " + tree.getKind());
                     if (clazz != null) {
-                        env = memberEnter.getBaseEnv(clazz, env);
+                        e = memberEnter.getBaseEnv(clazz, env);
+                        if (e == null)
+                            return env;
+                        env = e;
                         clazz = null;
                     }
                     if (field != null && field.getInitializer() == tree) {
-                        env = memberEnter.getInitEnv(field, env);
+                        e = memberEnter.getInitEnv(field, env);
+                        if (e == null)
+                            return env;
+                        env = e;
                         JCExpression expr = copier.copy((JCExpression)tree, (JCTree) path.getLeaf());
                         env = attribExprToTree(expr, env, copier.leafCopy);
                     }
