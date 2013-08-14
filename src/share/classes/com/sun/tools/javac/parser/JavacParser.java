@@ -1933,9 +1933,13 @@ public class JavacParser implements Parser {
         List<JCAnnotation> nextLevelAnnotations = typeAnnotationsOpt();
 
         if (token.kind == LBRACKET) {
-            int pos = token.pos;
-            nextToken();
-            t = bracketsOptCont(t, pos, nextLevelAnnotations);
+            if (t == null) {
+                return illegal();
+            } else {
+                int pos = token.pos;
+                nextToken();
+                t = bracketsOptCont(t, pos, nextLevelAnnotations);
+            }
         } else if (!nextLevelAnnotations.isEmpty()) {
             if (permitTypeAnnotationsPushBack) {
                 this.typeAnnotationsPushedBack = nextLevelAnnotations;
