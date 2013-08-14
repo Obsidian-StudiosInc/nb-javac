@@ -2389,7 +2389,7 @@ public class Attr extends JCTree.Visitor {
         }
         //create an environment for attribution of the lambda expression
         final Env<AttrContext> localEnv = lambdaEnv(that, env);
-        boolean needsRecovery =
+        boolean needsRecovery = resultInfo != recoveryInfo &&
                 resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.CHECK;
         Type target = null;
         try {
