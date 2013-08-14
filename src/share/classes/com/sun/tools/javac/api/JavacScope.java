@@ -50,7 +50,7 @@ public class JavacScope implements com.sun.source.tree.Scope {
     protected final Env<AttrContext> env;
 
     /** Creates a new instance of JavacScope */
-    JavacScope(Env<AttrContext> env) {
+    protected JavacScope(Env<AttrContext> env) {
         env.getClass(); // null-check
         this.env = env;
     }
