@@ -996,17 +996,19 @@ public abstract class Symbol implements Element {
         }
 
         public boolean isSubClass(Symbol base, Types types) {
-            if (this == base) {
-                return true;
-            } else if ((base.flags() & INTERFACE) != 0) {
-                for (Type t = type; t.hasTag(CLASS); t = types.supertype(t))
-                    for (List<Type> is = types.interfaces(t);
-                         is.nonEmpty();
-                         is = is.tail)
-                        if (is.head.tsym.isSubClass(base, types)) return true;
-            } else {
-                for (Type t = type; t.hasTag(CLASS); t = types.supertype(t))
-                    if (t.tsym == base) return true;
+            if (base != null) {
+                if (this == base) {
+                    return true;
+                } else if ((base.flags() & INTERFACE) != 0) {
+                    for (Type t = type; t.hasTag(CLASS); t = types.supertype(t))
+                        for (List<Type> is = types.interfaces(t);
+                             is.nonEmpty();
+                             is = is.tail)
+                            if (is.head.tsym.isSubClass(base, types)) return true;
+                } else {
+                    for (Type t = type; t.hasTag(CLASS); t = types.supertype(t))
+                        if (t.tsym == base) return true;
+                }
             }
             return false;
         }
