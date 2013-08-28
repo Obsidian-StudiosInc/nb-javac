@@ -583,6 +583,12 @@ public class TreeInfo {
                 if (node.errs != null && node.errs.nonEmpty())
                     return getEndPos(node.errs.last(), endPosTable);
             }
+            case IDENT:
+                JCIdent i = (JCIdent) tree;
+                return i.pos + i.name.length();
+            case SELECT:
+                JCFieldAccess s = (JCFieldAccess) tree;
+                return s.pos + s.name.length() + 1;
         }
         return Position.NOPOS;
     }
