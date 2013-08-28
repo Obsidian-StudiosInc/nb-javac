@@ -4272,6 +4272,15 @@ public class JavacParser implements Parser {
         }
 
         protected void storeEnd(JCTree tree, int endpos) {
+            if (tree instanceof JCIdent) {
+                JCIdent i = (JCIdent) tree;
+
+                if (i.pos + i.name.length() == endpos) return ;
+            } else if (tree instanceof JCFieldAccess) {
+                JCFieldAccess f = (JCFieldAccess) tree;
+
+                if (f.pos + f.name.length() + 1 == endpos) return ;
+            }
             endPosMap.put(tree, errorEndPos > endpos ? errorEndPos : endpos);
         }
 
