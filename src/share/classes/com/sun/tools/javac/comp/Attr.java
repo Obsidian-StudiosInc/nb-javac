@@ -2331,7 +2331,7 @@ public class Attr extends JCTree.Visitor {
         if (name == names._this || name == names._super) return arg;
 
         JCTree.Tag optag = NULLCHK;
-        JCUnary tree = make.at(arg.pos).Unary(optag, arg);
+        JCUnary tree = make.at(Position.NOPOS).Unary(optag, arg);
         tree.operator = syms.nullcheck;
         tree.type = arg.type;
         return tree;
