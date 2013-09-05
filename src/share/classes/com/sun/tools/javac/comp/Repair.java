@@ -381,11 +381,19 @@ public class Repair extends TreeTranslator {
     }
 
     @Override
+    public void visitReference(JCTree.JCMemberReference tree) {
+        if (!allowLambda) {
+            hasError = true;
+        }
+        super.visitReference(tree);
+    }
+
+    @Override
     public void visitErroneous(JCErroneous tree) {
         hasError = true;
         result = tree;
     }
-    
+
     private JCStatement generateErrStat(DiagnosticPosition pos, String msg) {
         make.at(pos);
         ClassType ctype = (ClassType)syms.runtimeExceptionType;
