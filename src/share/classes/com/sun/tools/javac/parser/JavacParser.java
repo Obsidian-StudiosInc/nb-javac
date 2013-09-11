@@ -1353,7 +1353,10 @@ public class JavacParser implements Parser {
                     }
                 }
             }
-            if (typeArgs != null) illegal();
+            if (typeArgs != null) {
+                illegal();
+                t = arguments(typeArgs, t); //error recovery
+            }
             t = typeArgumentsOpt(t);
             break;
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
