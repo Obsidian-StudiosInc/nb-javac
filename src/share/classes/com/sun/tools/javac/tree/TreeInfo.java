@@ -582,6 +582,7 @@ public class TreeInfo {
                 JCErroneous node = (JCErroneous)tree;
                 if (node.errs != null && node.errs.nonEmpty())
                     return getEndPos(node.errs.last(), endPosTable);
+                break;
             }
             case IDENT:
                 JCIdent i = (JCIdent) tree;
