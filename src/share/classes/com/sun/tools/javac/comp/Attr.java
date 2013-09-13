@@ -2109,6 +2109,31 @@ public class Attr extends JCTree.Visitor {
                 if (!constructorType.isErroneous()) {
                     tree.clazz.type = clazztype = constructorType.getReturnType();
                     tree.constructorType = types.createMethodTypeWithReturn(constructorType, syms.voidType);
+                } else if (errArgs(tree.args)) {
+                    Symbol s = null;
+                    for (Scope.Entry e = site.tsym.members().lookup(names.init); e.scope != null; e = e.next()) {
+                        if (s == null || e.sym.asType().getParameterTypes().isEmpty())
+                            s = e.sym;
+                    }
+                    if (s != null) {
+                        List<Type> atypes = s.asType().getParameterTypes();
+                        constructor = rs.resolveDiamond(tree.pos(),
+                            diamondEnv,
+                            site,
+                            atypes,
+                            typeargtypes);
+                        diamondResult = new ResultInfo(MTH, newMethodTemplate(resultInfo.pt, atypes, typeargtypes), new Check.NestedCheckContext(resultInfo.checkContext) {
+                            @Override
+                            public void report(DiagnosticPosition _unused, JCDiagnostic details) {
+                            }
+                        });
+                        constructorType = checkId(tree, site,
+                                constructor,
+                                diamondEnv,
+                                diamondResult);
+                        if (!constructorType.isErroneous())
+                            tree.clazz.type = constructorType.getReturnType();
+                    }
                 }
                 clazztype = chk.checkClassType(tree.clazz, tree.clazz.type, true);
             }
@@ -2257,6 +2282,14 @@ public class Attr extends JCTree.Visitor {
         chk.validate(tree.typeargs, localEnv);
     }
     //where
+        private boolean errArgs(List<JCExpression> args) {
+            for (JCExpression arg : args) {
+                if (arg.hasTag(Tag.ERRONEOUS))
+                    return true;
+            }
+            return false;
+        }
+        
         void findDiamond(Env<AttrContext> env, JCNewClass tree, Type clazztype) {
             JCTypeApply ta = (JCTypeApply)tree.clazz;
             List<JCExpression> prevTypeargs = ta.arguments;
