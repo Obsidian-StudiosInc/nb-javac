@@ -452,15 +452,12 @@ public class TreeInfo {
                 return getStartPos(((JCUnary) tree).arg);
             case ANNOTATED_TYPE: {
                 JCAnnotatedType node = (JCAnnotatedType) tree;
+                int typePos = getStartPos(node.underlyingType);
                 if (node.annotations.nonEmpty()) {
-                    if (node.underlyingType.hasTag(TYPEARRAY) ||
-                            node.underlyingType.hasTag(SELECT)) {
-                        return getStartPos(node.underlyingType);
-                    } else {
-                        return getStartPos(node.annotations.head);
-                    }
+                    int annPos = getStartPos(node.annotations.head);
+                    return Math.min(typePos, annPos);
                 } else {
-                    return getStartPos(node.underlyingType);
+                    return typePos;
                 }
             }
             case NEWCLASS: {
