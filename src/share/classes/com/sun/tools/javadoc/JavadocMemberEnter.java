@@ -85,17 +85,6 @@ public class JavadocMemberEnter extends MemberEnter {
 
     @Override
     public void visitVarDef(JCVariableDecl tree) {
-        if (tree.init != null) {
-            boolean isFinal = (tree.mods.flags & FINAL) != 0
-                    || (env.enclClass.mods.flags & INTERFACE) != 0;
-            if (!isFinal || containsNonConstantExpression(tree.init)) {
-                // Avoid unnecessary analysis and release resources.
-                // In particular, remove non-constant expressions
-                // which may trigger Attr.attribClass, since
-                // method bodies are also removed, in visitMethodDef.
-                tree.init = null;
-            }
-        }
         super.visitVarDef(tree);
         if (tree.sym != null &&
                 tree.sym.getKind().isField()) {
@@ -107,94 +96,4 @@ public class JavadocMemberEnter extends MemberEnter {
         return ClassDocImpl.isAnnotationType(meth.enclClass());
     }
 
-    /**
-     * Simple analysis of an expression tree to see if it contains tree nodes
-     * for any non-constant expression. This does not include checking references
-     * to other fields which may or may not be constant.
-     */
-    private static boolean containsNonConstantExpression(JCExpression tree) {
-        return new MaybeConstantExpressionScanner().containsNonConstantExpression(tree);
-    }
-
-    /**
-     * See JLS 15.18, Constant Expression
-     */
-    private static class MaybeConstantExpressionScanner extends JCTree.Visitor {
-        boolean maybeConstantExpr = true;
-
-        public boolean containsNonConstantExpression(JCExpression tree) {
-            scan(tree);
-            return !maybeConstantExpr;
-        }
-
-        public void scan(JCTree tree) {
-            // short circuit scan when end result is definitely false
-            if (maybeConstantExpr && tree != null)
-                tree.accept(this);
-        }
-
-        @Override
-        /** default for any non-overridden visit method. */
-        public void visitTree(JCTree tree) {
-            maybeConstantExpr = false;
-        }
-
-        @Override
-        public void visitBinary(JCBinary tree) {
-            switch (tree.getTag()) {
-                case MUL: case DIV: case MOD:
-                case PLUS: case MINUS:
-                case SL: case SR: case USR:
-                case LT: case LE: case GT: case GE:
-                case EQ: case NE:
-                case BITAND: case BITXOR: case BITOR:
-                case AND: case OR:
-                    break;
-                default:
-                    maybeConstantExpr = false;
-            }
-        }
-
-        @Override
-        public void visitConditional(JCConditional tree) {
-            scan(tree.cond);
-            scan(tree.truepart);
-            scan(tree.falsepart);
-        }
-
-        @Override
-        public void visitIdent(JCIdent tree) { }
-
-        @Override
-        public void visitLiteral(JCLiteral tree) { }
-
-        @Override
-        public void visitParens(JCParens tree) {
-            scan(tree.expr);
-        }
-
-        @Override
-        public void visitSelect(JCTree.JCFieldAccess tree) {
-            scan(tree.selected);
-        }
-
-        @Override
-        public void visitTypeCast(JCTypeCast tree) {
-            scan(tree.clazz);
-            scan(tree.expr);
-        }
-
-        @Override
-        public void visitTypeIdent(JCPrimitiveTypeTree tree) { }
-
-        @Override
-        public void visitUnary(JCUnary tree) {
-            switch (tree.getTag()) {
-                case POS: case NEG: case COMPL: case NOT:
-                    break;
-                default:
-                    maybeConstantExpr = false;
-            }
-        }
-    }
 }
