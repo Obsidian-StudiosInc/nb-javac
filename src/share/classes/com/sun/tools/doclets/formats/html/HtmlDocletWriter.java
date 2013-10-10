@@ -85,6 +85,11 @@ public class HtmlDocletWriter extends HtmlDocWriter {
     protected boolean printedAnnotationHeading = false;
 
     /**
+     * To check whether annotation field heading is printed or not.
+     */
+    protected boolean printedAnnotationFieldHeading = false;
+
+    /**
      * To check whether the repeated annotations is documented or not.
      */
     private boolean isAnnotationDocumented = false;
@@ -406,12 +411,9 @@ public class HtmlDocletWriter extends HtmlDocWriter {
         Content htmlDocType = DocType.TRANSITIONAL;
         Content htmlComment = new Comment(configuration.getText("doclet.New_Page"));
         Content head = new HtmlTree(HtmlTag.HEAD);
-        if (!configuration.notimestamp) {
-            Content headComment = new Comment(getGeneratedByString());
-            head.addContent(headComment);
-        }
+        head.addContent(getGeneratedBy(!configuration.notimestamp));
         if (configuration.charset.length() > 0) {
-            Content meta = HtmlTree.META("Content-Type", "text/html",
+            Content meta = HtmlTree.META("Content-Type", CONTENT_TYPE,
                     configuration.charset);
             head.addContent(meta);
         }
@@ -467,8 +469,7 @@ public class HtmlDocletWriter extends HtmlDocWriter {
             }
         }
         Content rawContent = new RawHtml(content);
-        Content em = HtmlTree.EM(rawContent);
-        return em;
+        return rawContent;
     }
 
     /**
@@ -503,16 +504,17 @@ public class HtmlDocletWriter extends HtmlDocWriter {
         if (!configuration.nonavbar) {
             String allClassesId = "allclasses_";
             HtmlTree navDiv = new HtmlTree(HtmlTag.DIV);
+            Content skipNavLinks = configuration.getResource("doclet.Skip_navigation_links");
             if (header) {
                 body.addContent(HtmlConstants.START_OF_TOP_NAVBAR);
                 navDiv.addStyle(HtmlStyle.topNav);
                 allClassesId += "navbar_top";
                 Content a = getMarkerAnchor("navbar_top");
+                //WCAG - Hyperlinks should contain text or an image with alt text - for AT tools
                 navDiv.addContent(a);
-                Content skipLinkContent = getHyperLink(DocLink.fragment("skip-navbar_top"),
-                        HtmlTree.EMPTY,
-                        configuration.getText("doclet.Skip_navigation_links"),
-                        "");
+                Content skipLinkContent = HtmlTree.DIV(HtmlStyle.skipNav, getHyperLink(
+                    DocLink.fragment("skip-navbar_top"), skipNavLinks,
+                    skipNavLinks.toString(), ""));
                 navDiv.addContent(skipLinkContent);
             } else {
                 body.addContent(HtmlConstants.START_OF_BOTTOM_NAVBAR);
@@ -520,10 +522,9 @@ public class HtmlDocletWriter extends HtmlDocWriter {
                 allClassesId += "navbar_bottom";
                 Content a = getMarkerAnchor("navbar_bottom");
                 navDiv.addContent(a);
-                Content skipLinkContent = getHyperLink(DocLink.fragment("skip-navbar_bottom"),
-                        HtmlTree.EMPTY,
-                        configuration.getText("doclet.Skip_navigation_links"),
-                        "");
+                Content skipLinkContent = HtmlTree.DIV(HtmlStyle.skipNav, getHyperLink(
+                    DocLink.fragment("skip-navbar_bottom"), skipNavLinks,
+                    skipNavLinks.toString(), ""));
                 navDiv.addContent(skipLinkContent);
             }
             if (header) {
@@ -1029,7 +1030,7 @@ public class HtmlDocletWriter extends HtmlDocWriter {
 
     public Content italicsClassName(ClassDoc cd, boolean qual) {
         Content name = new StringContent((qual)? cd.qualifiedName(): cd.name());
-        return (cd.isInterface())?  HtmlTree.I(name): name;
+        return (cd.isInterface())?  HtmlTree.SPAN(HtmlStyle.italic, name): name;
     }
 
     /**
@@ -1545,7 +1546,7 @@ public class HtmlDocletWriter extends HtmlDocWriter {
         Content div;
         Content result = commentTagsToContent(null, doc, tags, first);
         if (depr) {
-            Content italic = HtmlTree.I(result);
+            Content italic = HtmlTree.SPAN(HtmlStyle.italic, result);
             div = HtmlTree.DIV(HtmlStyle.block, italic);
             htmltree.addContent(div);
         }
@@ -1621,6 +1622,7 @@ public class HtmlDocletWriter extends HtmlDocWriter {
                     text = removeNonInlineHtmlTags(text);
                 }
                 text = Util.replaceTabs(configuration, text);
+                text = Util.normalizeNewlines(text);
                 result.addContent(new RawHtml(text));
             }
         }

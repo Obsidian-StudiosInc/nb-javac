@@ -31,9 +31,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Deque;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -42,9 +44,11 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic.Kind;
+import javax.tools.JavaFileObject;
 
 import com.sun.source.doctree.AttributeTree;
 import com.sun.source.doctree.AuthorTree;
@@ -88,9 +92,9 @@ import static com.sun.tools.doclint.Messages.Group.*;
 public class Checker extends DocTreePathScanner<Void, Void> {
     final Env env;
 
-    Set<Element> foundParams = new HashSet<Element>();
-    Set<TypeMirror> foundThrows = new HashSet<TypeMirror>();
-    Set<String> foundAnchors = new HashSet<String>();
+    Set<Element> foundParams = new HashSet<>();
+    Set<TypeMirror> foundThrows = new HashSet<>();
+    Map<Element, Set<String>> foundAnchors = new HashMap<>();
     boolean foundInheritDoc = false;
     boolean foundReturn = false;
 
@@ -129,7 +133,7 @@ public class Checker extends DocTreePathScanner<Void, Void> {
     Checker(Env env) {
         env.getClass();
         this.env = env;
-        tagStack = new LinkedList<TagStackItem>();
+        tagStack = new LinkedList<>();
         implicitHeaderLevel = env.implicitHeaderLevel;
     }
 
@@ -138,10 +142,27 @@ public class Checker extends DocTreePathScanner<Void, Void> {
 
         boolean isOverridingMethod = !env.currOverriddenMethods.isEmpty();
 
-        if (tree == null) {
-            if (!isSynthetic() && !isOverridingMethod)
-                reportMissing("dc.missing.comment");
-            return null;
+        if (p.getLeaf() == p.getCompilationUnit()) {
+            // If p points to a compilation unit, the implied declaration is the
+            // package declaration (if any) for the compilation unit.
+            // Handle this case specially, because doc comments are only
+            // expected in package-info files.
+            JavaFileObject fo = p.getCompilationUnit().getSourceFile();
+            boolean isPkgInfo = fo.isNameCompatible("package-info", JavaFileObject.Kind.SOURCE);
+            if (tree == null) {
+                if (isPkgInfo)
+                    reportMissing("dc.missing.comment");
+                return null;
+            } else {
+                if (!isPkgInfo)
+                    reportReference("dc.unexpected.comment");
+            }
+        } else {
+            if (tree == null) {
+                if (!isSynthetic() && !isOverridingMethod)
+                    reportMissing("dc.missing.comment");
+                return null;
+            }
         }
 
         tagStack.clear();
@@ -182,6 +203,10 @@ public class Checker extends DocTreePathScanner<Void, Void> {
 
     private void reportMissing(String code, Object... args) {
         env.messages.report(MISSING, Kind.WARNING, env.currPath.getLeaf(), code, args);
+    }
+
+    private void reportReference(String code, Object... args) {
+        env.messages.report(REFERENCE, Kind.WARNING, env.currPath.getLeaf(), code, args);
     }
 
     @Override
@@ -508,7 +533,7 @@ public class Checker extends DocTreePathScanner<Void, Void> {
                             if (!validName.matcher(value).matches()) {
                                 env.messages.error(HTML, tree, "dc.invalid.anchor", value);
                             }
-                            if (!foundAnchors.add(value)) {
+                            if (!checkAnchor(value)) {
                                 env.messages.error(HTML, tree, "dc.anchor.already.defined", value);
                             }
                         }
@@ -549,6 +574,31 @@ public class Checker extends DocTreePathScanner<Void, Void> {
         // TODO: basic check on value
 
         return super.visitAttribute(tree, ignore);
+    }
+
+    private boolean checkAnchor(String name) {
+        Element e = getEnclosingPackageOrClass(env.currElement);
+        if (e == null)
+            return true;
+        Set<String> set = foundAnchors.get(e);
+        if (set == null)
+            foundAnchors.put(e, set = new HashSet<>());
+        return set.add(name);
+    }
+
+    private Element getEnclosingPackageOrClass(Element e) {
+        while (e != null) {
+            switch (e.getKind()) {
+                case CLASS:
+                case ENUM:
+                case INTERFACE:
+                case PACKAGE:
+                    return e;
+                default:
+                    e = e.getEnclosingElement();
+            }
+        }
+        return e;
     }
 
     // http://www.w3.org/TR/html401/types.html#type-name
@@ -680,6 +730,10 @@ public class Checker extends DocTreePathScanner<Void, Void> {
 
     @Override
     public Void visitReference(ReferenceTree tree, Void ignore) {
+        String sig = tree.getSignature();
+        if (sig.contains("<") || sig.contains(">"))
+            env.messages.error(REFERENCE, tree, "dc.type.arg.not.allowed");
+
         Element e = env.trees.getElement(getCurrentPath());
         if (e == null)
             env.messages.error(REFERENCE, tree, "dc.ref.not.found");
@@ -721,8 +775,7 @@ public class Checker extends DocTreePathScanner<Void, Void> {
         Element ex = env.trees.getElement(new DocTreePath(getCurrentPath(), exName));
         if (ex == null) {
             env.messages.error(REFERENCE, tree, "dc.ref.not.found");
-        } else if (ex.asType().getKind() == TypeKind.DECLARED
-                && env.types.isAssignable(ex.asType(), env.java_lang_Throwable)) {
+        } else if (isThrowable(ex.asType())) {
             switch (env.currElement.getKind()) {
                 case CONSTRUCTOR:
                 case METHOD:
@@ -739,6 +792,15 @@ public class Checker extends DocTreePathScanner<Void, Void> {
         }
         warnIfEmpty(tree, tree.getDescription());
         return scan(tree.getDescription(), ignore);
+    }
+
+    private boolean isThrowable(TypeMirror tm) {
+        switch (tm.getKind()) {
+            case DECLARED:
+            case TYPEVAR:
+                return env.types.isAssignable(tm, env.java_lang_Throwable);
+        }
+        return false;
     }
 
     private void checkThrowsDeclared(ReferenceTree tree, TypeMirror t, List<? extends TypeMirror> list) {
@@ -765,8 +827,31 @@ public class Checker extends DocTreePathScanner<Void, Void> {
 
     @Override
     public Void visitValue(ValueTree tree, Void ignore) {
+        ReferenceTree ref = tree.getReference();
+        if (ref == null || ref.getSignature().isEmpty()) {
+            if (!isConstant(env.currElement))
+                env.messages.error(REFERENCE, tree, "dc.value.not.allowed.here");
+        } else {
+            Element e = env.trees.getElement(new DocTreePath(getCurrentPath(), ref));
+            if (!isConstant(e))
+                env.messages.error(REFERENCE, tree, "dc.value.not.a.constant");
+        }
+
         markEnclosingTag(Flag.HAS_INLINE_TAG);
         return super.visitValue(tree, ignore);
+    }
+
+    private boolean isConstant(Element e) {
+        if (e == null)
+            return false;
+
+        switch (e.getKind()) {
+            case FIELD:
+                Object value = ((VariableElement) e).getConstantValue();
+                return (value != null); // can't distinguish "not a constant" from "constant is null"
+            default:
+                return false;
+        }
     }
 
     @Override

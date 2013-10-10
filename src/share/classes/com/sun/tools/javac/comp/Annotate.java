@@ -265,7 +265,7 @@ public class Annotate {
                 continue;
             }
             JCIdent left = (JCIdent)assign.lhs;
-            Symbol method = rs.resolveQualifiedMethod(left.pos(),
+            Symbol method = rs.resolveQualifiedMethod(assign.rhs.pos(),
                                                           env,
                                                           a.type,
                                                           left.name,
@@ -349,8 +349,20 @@ public class Annotate {
         }
         if (expected.tsym == syms.classType.tsym) {
             Type result = attr.attribExpr(tree, env, expected);
-            if (result.isErroneous())
-                return new Attribute.Error(expected);
+            if (result.isErroneous()) {
+                // Does it look like a class literal?
+                if (TreeInfo.name(tree) == names._class) {
+                    Name n = (((JCFieldAccess) tree).selected).type.tsym.flatName();
+                    return new Attribute.UnresolvedClass(expected,
+                            types.createErrorType(n,
+                                    syms.unknownSymbol, syms.classType));
+                } else {
+                    return new Attribute.Error(expected);
+                }
+            }
+
+            // Class literals look like field accesses of a field named class
+            // at the tree level
             if (TreeInfo.name(tree) != names._class) {
                 log.error(tree.pos(), "annotation.value.must.be.class.literal");
                 return new Attribute.Error(expected);

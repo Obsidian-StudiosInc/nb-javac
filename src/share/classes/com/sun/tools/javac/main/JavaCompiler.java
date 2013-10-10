@@ -69,7 +69,6 @@ import com.sun.tools.javac.util.Log.WriterKind;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.main.Option.*;
 import static com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag.*;
-import static com.sun.tools.javac.util.ListBuffer.lb;
 
 
 /** This class could be the main entry point for GJC when GJC is used as a
@@ -82,7 +81,7 @@ import static com.sun.tools.javac.util.ListBuffer.lb;
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
-public class JavaCompiler implements ClassReader.SourceCompleter {
+public class JavaCompiler {
     /** The context key for the compiler. */
     protected static final Context.Key<JavaCompiler> compilerKey =
         new Context.Key<JavaCompiler>();
@@ -317,6 +316,17 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
     protected JavaCompiler delegateCompiler;
 
     /**
+     * SourceCompleter that delegates to the complete-method of this class.
+     */
+    protected final ClassReader.SourceCompleter thisCompleter =
+            new ClassReader.SourceCompleter() {
+                @Override
+                public void complete(ClassSymbol sym) throws CompletionFailure {
+                    JavaCompiler.this.complete(sym);
+                }
+            };
+
+    /**
      * Command line options.
      */
     protected Options options;
@@ -378,6 +388,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 throw new Abort();
         }
         source = Source.instance(context);
+        Target target = Target.instance(context);
         attr = Attr.instance(context);
         chk = Check.instance(context);
         gen = Gen.instance(context);
@@ -390,7 +401,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         taskListener = MultiTaskListener.instance(context);
         duplicateClassChecker = context.get(DuplicateClassChecker.class);
 
-        reader.sourceCompleter = this;
+        reader.sourceCompleter = thisCompleter;
 
         options = Options.instance(context);
 
@@ -421,6 +432,8 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
             }
         }
 
+        checkForObsoleteOptions(target);
+
         verboseCompilePolicy = options.isSet("verboseCompilePolicy");
 
         if (attrParseOnly)
@@ -448,6 +461,26 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
 
         if (options.isUnset("oldDiags"))
             log.setDiagnosticFormatter(RichDiagnosticFormatter.instance(context));
+    }
+
+    private void checkForObsoleteOptions(Target target) {
+        // Unless lint checking on options is disabled, check for
+        // obsolete source and target options.
+        boolean obsoleteOptionFound = false;
+        if (options.isUnset(XLINT_CUSTOM, "-" + LintCategory.OPTIONS.option)) {
+            if (source.compareTo(Source.JDK1_5) <= 0) {
+                log.warning(LintCategory.OPTIONS, "option.obsolete.source", source.name);
+                obsoleteOptionFound = true;
+            }
+
+            if (target.compareTo(Target.JDK1_5) <= 0) {
+                log.warning(LintCategory.OPTIONS, "option.obsolete.target", target.name);
+                obsoleteOptionFound = true;
+            }
+
+            if (obsoleteOptionFound)
+                log.warning(LintCategory.OPTIONS, "option.obsolete.suppression");
+        }
     }
 
     /* Switches:
@@ -570,7 +603,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
     }
 
     protected final <T> Queue<T> stopIfError(CompileState cs, Queue<T> queue) {
-        return shouldStop(cs) ? ListBuffer.<T>lb() : queue;
+        return shouldStop(cs) ? new ListBuffer<T>() : queue;
     }
 
     protected final <T> List<T> stopIfError(CompileState cs, List<T> list) {
@@ -958,7 +991,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
            return List.nil();
 
         //parse all files
-        ListBuffer<JCCompilationUnit> trees = lb();
+        ListBuffer<JCCompilationUnit> trees = new ListBuffer<>();
         Set<JavaFileObject> filesSoFar = new HashSet<JavaFileObject>();
         for (JavaFileObject fileObject : fileObjects) {
             if (!filesSoFar.contains(fileObject)) {
@@ -1008,7 +1041,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
         // then remember the classes declared in
         // the original compilation units listed on the command line.
         if (needRootClasses || sourceOutput || stubOutput) {
-            ListBuffer<JCClassDecl> cdefs = lb();
+            ListBuffer<JCClassDecl> cdefs = new ListBuffer<>();
             for (JCCompilationUnit unit : roots) {
                 for (List<JCTree> defs = unit.defs;
                         defs.nonEmpty();
@@ -1255,10 +1288,9 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      * @returns a list of environments for attributd classes.
      */
     public Queue<Env<AttrContext>> attribute(Queue<Env<AttrContext>> envs) {
-        ListBuffer<Env<AttrContext>> results = lb();
-        while (!envs.isEmpty()) {
+        ListBuffer<Env<AttrContext>> results = new ListBuffer<>();
+        while (!envs.isEmpty())
             results.append(attribute(envs.remove()));
-        }
         return stopIfError(CompileState.ATTR, results);
     }
 
@@ -1321,7 +1353,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      * @returns the list of attributed parse trees
      */
     public Queue<Env<AttrContext>> flow(Queue<Env<AttrContext>> envs) {
-        ListBuffer<Env<AttrContext>> results = lb();
+        ListBuffer<Env<AttrContext>> results = new ListBuffer<>();
         for (Env<AttrContext> env: envs) {
             flow(env, results);
         }
@@ -1332,7 +1364,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      * Perform dataflow checks on an attributed parse tree.
      */
     public Queue<Env<AttrContext>> flow(Env<AttrContext> env) {
-        ListBuffer<Env<AttrContext>> results = lb();
+        ListBuffer<Env<AttrContext>> results = new ListBuffer<>();
         flow(env, results);
         return stopIfError(CompileState.FLOW, results);
     }
@@ -1388,10 +1420,9 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
      * @returns a list containing the classes to be generated
      */
     public Queue<Pair<Env<AttrContext>, JCClassDecl>> desugar(Queue<Env<AttrContext>> envs) {
-        ListBuffer<Pair<Env<AttrContext>, JCClassDecl>> results = lb();
-        for (Env<AttrContext> env: envs) {
+        ListBuffer<Pair<Env<AttrContext>, JCClassDecl>> results = new ListBuffer<>();
+        for (Env<AttrContext> env: envs)
             desugar(env, results);
-        }
         return stopIfError(CompileState.FLOW, results);
     }
 
@@ -1650,7 +1681,7 @@ public class JavaCompiler implements ClassReader.SourceCompleter {
                 }
                 @Override
                 public void visitClassDef(JCClassDecl tree) {
-                    ListBuffer<JCTree> newdefs = lb();
+                    ListBuffer<JCTree> newdefs = new ListBuffer<>();
                     for (List<JCTree> it = tree.defs; it.tail != null; it = it.tail) {
                         JCTree t = it.head;
                         switch (t.getTag()) {
