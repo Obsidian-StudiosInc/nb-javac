@@ -93,7 +93,7 @@ public abstract class AbstractLog {
     public void error(DiagnosticPosition pos, String key, Object ... args) {
         report(diags.error(source, pos, key, args));
     }
-
+    
     /** Report an error, unless another error was already reported at same
      *  source position.
      *  @param flag   A flag to set on the diagnostic

@@ -28,6 +28,7 @@ package com.sun.tools.javac.util;
 import java.io.*;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
@@ -38,6 +39,7 @@ import com.sun.tools.javac.api.DiagnosticFormatter;
 import com.sun.tools.javac.main.Main;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.tree.EndPosTable;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
 
@@ -124,6 +126,7 @@ public class Log extends AbstractLog {
      */
     public static class DeferredDiagnosticHandler extends DiagnosticHandler {
         private Queue<JCDiagnostic> deferred = new ListBuffer<>();
+        private final Log log;
         private final Filter<JCDiagnostic> filter;
 
         public DeferredDiagnosticHandler(Log log) {
@@ -131,6 +134,7 @@ public class Log extends AbstractLog {
         }
 
         public DeferredDiagnosticHandler(Log log, Filter<JCDiagnostic> filter) {
+            this.log = log;
             this.filter = filter;
             install(log);
         }
@@ -138,6 +142,9 @@ public class Log extends AbstractLog {
         public void report(JCDiagnostic diag) {
             if (!diag.isFlagSet(JCDiagnostic.DiagnosticFlag.NON_DEFERRABLE) &&
                 (filter == null || filter.accepts(diag))) {
+                if (log.multipleErrors) {
+                    diag = new DeferredMultiDiagnostic(diag);
+                }
                 deferred.add(diag);
             } else {
                 prev.report(diag);
@@ -157,10 +164,30 @@ public class Log extends AbstractLog {
         public void reportDeferredDiagnostics(Set<JCDiagnostic.Kind> kinds) {
             JCDiagnostic d;
             while ((d = deferred.poll()) != null) {
-                if (kinds.contains(d.getKind()))
-                    prev.report(d);
+                if (kinds.contains(d.getKind())) {
+                    boolean orig = log.multipleErrors;
+                    try {
+                        if (d instanceof DeferredMultiDiagnostic) {
+                            log.multipleErrors = true;
+                            d = ((DeferredMultiDiagnostic)d).original;
+                        }
+                        prev.report(d);
+                    } finally {
+                        log.multipleErrors = orig;
+                    }
+                }
             }
             deferred = null; // prevent accidental ongoing use
+        }
+
+        private static class DeferredMultiDiagnostic extends JCDiagnostic {
+
+            final JCDiagnostic original;
+
+            private DeferredMultiDiagnostic(JCDiagnostic original) {
+                super(original);
+                this.original = original;
+            }
         }
     }
 
@@ -227,6 +254,11 @@ public class Log extends AbstractLog {
      * Handler for initial dispatch of diagnostics.
      */
     private DiagnosticHandler diagnosticHandler;
+
+    private boolean partialReparse;
+
+    private final Set<Pair<JavaFileObject, Integer>> partialReparseRecorded = new HashSet<Pair<JavaFileObject,Integer>>();
+    private final HashMap<JCTree, JCDiagnostic> errTrees = new HashMap<JCTree, JCDiagnostic>();
 
     /** Construct a log with given I/O redirections.
      */
@@ -350,10 +382,30 @@ public class Log extends AbstractLog {
         getSource(name).setEndPosTable(endPosTable);
     }
 
+    public void startPartialReparse () {
+        assert partialReparseRecorded.isEmpty();
+        this.nerrors = 0;
+        this.nwarnings = 0;
+        this.partialReparse = true;
+    }
+
+    public void endPartialReparse () {
+        this.partialReparseRecorded.clear();
+        this.partialReparse = false;
+    }
+
     /** Return current sourcefile.
      */
     public JavaFileObject currentSourceFile() {
         return source == null ? null : source.getFile();
+    }
+
+    public DiagnosticListener<? super JavaFileObject> getDiagnosticListener() {
+        return diagListener;
+    }
+
+    public void setDiagnosticListener(DiagnosticListener<? super JavaFileObject> diagListener) {
+        this.diagListener = diagListener;
     }
 
     /** Get the current diagnostic formatter.
@@ -412,7 +464,7 @@ public class Log extends AbstractLog {
      * it must be specified explicitly for clarity and consistency checking.
      */
     public void popDiagnosticHandler(DiagnosticHandler h) {
-        Assert.check(diagnosticHandler == h);
+        Assert.check(diagnosticHandler == h, "Wrong diagnostic handler: " + diagnosticHandler);
         diagnosticHandler = h.prev;
     }
 
@@ -436,10 +488,20 @@ public class Log extends AbstractLog {
             return true;
 
         Pair<JavaFileObject,Integer> coords = new Pair<JavaFileObject,Integer>(file, pos);
-        boolean shouldReport = !recorded.contains(coords);
-        if (shouldReport)
-            recorded.add(coords);
-        return shouldReport;
+        if (partialReparse) {
+            boolean shouldReport = !partialReparseRecorded.contains(coords);
+            if (shouldReport) {
+                partialReparseRecorded.add(coords);
+            }
+            return shouldReport;
+        }
+        else {
+            boolean shouldReport = !recorded.contains(coords);
+            if (shouldReport) {
+                recorded.add(coords);
+            }
+            return shouldReport;
+        }
     }
 
     /** Prompt user after an error.
@@ -595,6 +657,9 @@ public class Log extends AbstractLog {
                 break;
 
             case ERROR:
+                if (diagnostic.getTree() != null && !errTrees.containsKey(diagnostic.getTree())) {
+                    errTrees.put(diagnostic.getTree(), diagnostic);
+                }
                 if (nerrors < MaxErrors
                     && shouldReport(diagnostic.getSource(), diagnostic.getIntPosition())) {
                     writeDiagnostic(diagnostic);
@@ -734,5 +799,8 @@ public class Log extends AbstractLog {
     public static String format(String fmt, Object... args) {
         return String.format((java.util.Locale)null, fmt, args);
     }
-
+    
+    public JCDiagnostic getErrDiag(JCTree tree) {
+        return errTrees.get(tree);
+    }
 }

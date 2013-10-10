@@ -46,14 +46,18 @@ public class JavadocClassReader extends ClassReader {
     public static JavadocClassReader instance0(Context context) {
         ClassReader instance = context.get(classReaderKey);
         if (instance == null)
-            instance = new JavadocClassReader(context);
+            instance = new JavadocClassReader(context, true);
         return (JavadocClassReader)instance;
     }
 
     public static void preRegister(Context context) {
+        preRegister(context, true);
+    }
+    
+    public static void preRegister(Context context, final boolean loadDocEnv) {
         context.put(classReaderKey, new Context.Factory<ClassReader>() {
             public ClassReader make(Context c) {
-                return new JavadocClassReader(c);
+                return new JavadocClassReader(c, loadDocEnv);
             }
         });
     }
@@ -65,9 +69,11 @@ public class JavadocClassReader extends ClassReader {
     private EnumSet<JavaFileObject.Kind> noSource = EnumSet.of(JavaFileObject.Kind.CLASS,
                                                                JavaFileObject.Kind.HTML);
 
-    public JavadocClassReader(Context context) {
+    public JavadocClassReader(Context context, boolean loadDocEnv) {
         super(context, true);
-        docenv = DocEnv.instance(context);
+
+        if (loadDocEnv)
+            docenv = DocEnv.instance(context);
         preferSource = true;
     }
 
@@ -76,6 +82,9 @@ public class JavadocClassReader extends ClassReader {
      */
     @Override
     protected EnumSet<JavaFileObject.Kind> getPackageFileKinds() {
+        if (docenv == null)
+            return super.getPackageFileKinds();
+        else
         return docenv.docClasses ? noSource : all;
     }
 

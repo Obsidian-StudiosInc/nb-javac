@@ -26,7 +26,6 @@
 package com.sun.tools.javadoc;
 
 import com.sun.source.util.TreePath;
-import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Kinds;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.comp.MemberEnter;
@@ -82,9 +81,6 @@ public class JavadocMemberEnter extends MemberEnter {
             docenv.makeAnnotationTypeElementDoc(meth, treePath);
         else
             docenv.makeMethodDoc(meth, treePath);
-
-        // release resources
-        tree.body = null;
     }
 
     @Override
@@ -102,18 +98,13 @@ public class JavadocMemberEnter extends MemberEnter {
         }
         super.visitVarDef(tree);
         if (tree.sym != null &&
-                tree.sym.kind == Kinds.VAR &&
-                !isParameter(tree.sym)) {
+                tree.sym.getKind().isField()) {
             docenv.makeFieldDoc(tree.sym, docenv.getTreePath(env.toplevel, env.enclClass, tree));
         }
     }
 
     private static boolean isAnnotationTypeElement(MethodSymbol meth) {
         return ClassDocImpl.isAnnotationType(meth.enclClass());
-    }
-
-    private static boolean isParameter(VarSymbol var) {
-        return (var.flags() & Flags.PARAMETER) != 0;
     }
 
     /**

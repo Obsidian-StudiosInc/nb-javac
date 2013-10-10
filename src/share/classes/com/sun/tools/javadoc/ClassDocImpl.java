@@ -60,6 +60,7 @@ import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Position;
 import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
+import static com.sun.tools.javac.code.TypeTag.ERROR;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 
 /**
