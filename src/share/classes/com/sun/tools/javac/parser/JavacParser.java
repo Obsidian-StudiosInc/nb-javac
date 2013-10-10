@@ -49,7 +49,6 @@ import static com.sun.tools.javac.parser.Tokens.TokenKind.GT;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.IMPORT;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.LT;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
-import static com.sun.tools.javac.util.ListBuffer.lb;
 
 /** The parser maps a token sequence into an abstract syntax
  *  tree. It operates by recursive descent, with code derived
@@ -1782,7 +1781,7 @@ public class JavacParser implements Parser {
     /** Arguments = "(" [Expression { COMMA Expression }] ")"
      */
     List<JCExpression> arguments() {
-        ListBuffer<JCExpression> args = lb();
+        ListBuffer<JCExpression> args = new ListBuffer<>();
         if (token.kind == LPAREN) {
             nextToken();
             if (token.kind != RPAREN) {
@@ -1849,7 +1848,7 @@ public class JavacParser implements Parser {
                 nextToken();
                 return List.nil();
             } else {
-                ListBuffer<JCExpression> args = ListBuffer.lb();
+                ListBuffer<JCExpression> args = new ListBuffer<>();
                 args.append(((mode & EXPR) == 0) ? typeArgument() : parseType());
                 while (token.kind == COMMA) {
                     nextToken();
@@ -2194,7 +2193,7 @@ public class JavacParser implements Parser {
             ListBuffer<JCExpression> dims = new ListBuffer<JCExpression>();
 
             // maintain array dimension type annotations
-            ListBuffer<List<JCAnnotation>> dimAnnotations = ListBuffer.lb();
+            ListBuffer<List<JCAnnotation>> dimAnnotations = new ListBuffer<>();
             dimAnnotations.append(annos);
 
             dims.append(parseExpression());
@@ -2669,7 +2668,7 @@ public class JavacParser implements Parser {
     }
 
     List<JCExpression> catchTypes() {
-        ListBuffer<JCExpression> catchTypes = ListBuffer.lb();
+        ListBuffer<JCExpression> catchTypes = new ListBuffer<>();
         catchTypes.add(parseType());
         while (token.kind == BAR) {
             checkMulticatch();
@@ -2751,7 +2750,7 @@ public class JavacParser implements Parser {
      *           |  { FINAL | '@' Annotation } Type VariableDeclarators
      */
     List<JCStatement> forInit() {
-        ListBuffer<JCStatement> stats = lb();
+        ListBuffer<JCStatement> stats = new ListBuffer<>();
         int pos = token.pos;
         if (token.kind == FINAL || token.kind == MONKEYS_AT) {
             return variableDeclarators(optFinal(0), parseType(), stats).toList();
@@ -4274,7 +4273,7 @@ public class JavacParser implements Parser {
             endPosMap = new HashMap<JCTree, Integer>();
         }
 
-        protected void storeEnd(JCTree tree, int endpos) {
+        public void storeEnd(JCTree tree, int endpos) {
             if (tree instanceof JCIdent) {
                 JCIdent i = (JCIdent) tree;
 
@@ -4321,7 +4320,7 @@ public class JavacParser implements Parser {
             super(parser);
         }
 
-        protected void storeEnd(JCTree tree, int endpos) { /* empty */ }
+        public void storeEnd(JCTree tree, int endpos) { /* empty */ }
 
         protected <T extends JCTree> T to(T t) {
             return t;
@@ -4355,14 +4354,6 @@ public class JavacParser implements Parser {
         public AbstractEndPosTable(JavacParser parser) {
             this.parser = parser;
         }
-
-        /**
-         * Store ending position for a tree, the value of which is the greater
-         * of last error position and the given ending position.
-         * @param tree   The tree.
-         * @param endpos The ending position to associate with the tree.
-         */
-        protected abstract void storeEnd(JCTree tree, int endpos);
 
         /**
          * Store current token's ending position for a tree, the value of which

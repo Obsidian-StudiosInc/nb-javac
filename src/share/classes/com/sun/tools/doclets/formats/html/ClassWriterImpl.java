@@ -126,7 +126,7 @@ public class ClassWriterImpl extends SubWriterHolderWriter
         if (prev != null) {
             Content prevLink = getLink(new LinkInfoImpl(configuration,
                     LinkInfoImpl.Kind.CLASS, prev)
-                    .label(configuration.getText("doclet.Prev_Class")).strong(true));
+                    .label(prevclassLabel).strong(true));
             li = HtmlTree.LI(prevLink);
         }
         else
@@ -144,7 +144,7 @@ public class ClassWriterImpl extends SubWriterHolderWriter
         if (next != null) {
             Content nextLink = getLink(new LinkInfoImpl(configuration,
                     LinkInfoImpl.Kind.CLASS, next)
-                    .label(configuration.getText("doclet.Next_Class")).strong(true));
+                    .label(nextclassLabel).strong(true));
             li = HtmlTree.LI(nextLink);
         }
         else
@@ -547,7 +547,7 @@ public class ClassWriterImpl extends SubWriterHolderWriter
         classInfoTree.addContent(hr);
         Tag[] deprs = classDoc.tags("deprecated");
         if (Util.isDeprecated(classDoc)) {
-            Content strong = HtmlTree.STRONG(deprecatedPhrase);
+            Content strong = HtmlTree.SPAN(HtmlStyle.strong, deprecatedPhrase);
             Content div = HtmlTree.DIV(HtmlStyle.block, strong);
             if (deprs.length > 0) {
                 Tag[] commentTags = deprs[0].inlineTags();
@@ -610,7 +610,7 @@ public class ClassWriterImpl extends SubWriterHolderWriter
             subDiv.addContent(div);
         } catch (Exception e) {
             e.printStackTrace();
-            throw new DocletAbortException();
+            throw new DocletAbortException(e);
         }
     }
 
