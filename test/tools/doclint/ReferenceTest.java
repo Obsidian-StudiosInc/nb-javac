@@ -1,6 +1,6 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8004832
+ * @bug 8004832 8020556 8002154
  * @summary Add new doclint package
  * @build DocLintTester
  * @run main DocLintTester -Xmsgs:-reference ReferenceTest.java
@@ -48,5 +48,19 @@ public class ReferenceTest {
      * @throws Exception description
      */
     public void exception_not_thrown() { }
+
+    /**
+     * @param <T> throwable
+     * @throws T description
+     */
+    public <T extends Throwable> void valid_throws_generic() throws T { }
+
+    /**
+     * {@link java.util.List<String>}
+     * {@link java.util.List<String>#equals}
+     * @see java.util.List<String>
+     * @see java.util.List<String>#equals
+     */
+    public void invalid_type_args() { }
 }
 

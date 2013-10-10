@@ -29,10 +29,14 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.regex.Pattern;
+import java.util.Queue;
+import java.util.Set;
 
 import javax.lang.model.element.Name;
+import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 
 import com.sun.source.doctree.DocCommentTree;
@@ -166,8 +170,8 @@ public class DocLint implements Plugin {
     }
 
     void processArgs(String... args) throws BadArgs {
-        javacOpts = new ArrayList<String>();
-        javacFiles = new ArrayList<File>();
+        javacOpts = new ArrayList<>();
+        javacFiles = new ArrayList<>();
 
         if (args.length == 0)
             needHelp = true;
@@ -214,7 +218,7 @@ public class DocLint implements Plugin {
     }
 
     List<File> splitPath(String path) {
-        List<File> files = new ArrayList<File>();
+        List<File> files = new ArrayList<>();
         for (String f: path.split(File.pathSeparator)) {
             if (f.length() > 0)
                 files.add(new File(f));
@@ -279,16 +283,25 @@ public class DocLint implements Plugin {
             TaskListener tl = new TaskListener() {
                 @Override
                 public void started(TaskEvent e) {
-                    return;
+                    switch (e.getKind()) {
+                        case ANALYZE:
+                            CompilationUnitTree tree;
+                            while ((tree = todo.poll()) != null)
+                                ds.scan(tree, null);
+                            break;
+                    }
                 }
 
                 @Override
                 public void finished(TaskEvent e) {
                     switch (e.getKind()) {
-                        case ENTER:
-                            ds.scan(e.getCompilationUnit(), null);
+                        case PARSE:
+                            todo.add(e.getCompilationUnit());
+                            break;
                     }
                 }
+
+                Queue<CompilationUnitTree> todo = new LinkedList<CompilationUnitTree>();
             };
 
             task.addTaskListener(tl);

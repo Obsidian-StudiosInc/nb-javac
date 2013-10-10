@@ -28,6 +28,7 @@ package com.sun.tools.javac.tree;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
+import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
@@ -36,7 +37,6 @@ import com.sun.tools.javac.tree.JCTree.*;
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.TypeTag.*;
-import com.sun.tools.javac.jvm.ClassReader;
 
 /** Factory class for trees.
  *
@@ -786,7 +786,7 @@ public class TreeMaker implements JCTree.Factory {
     class AnnotationBuilder implements Attribute.Visitor {
         JCExpression result = null;
         public void visitConstant(Attribute.Constant v) {
-            result = Literal(v.value);
+            result = Literal(v.type.getTag(), v.value);
         }
         public void visitClass(Attribute.Class clazz) {
             result = ClassLiteral(clazz.classType).setType(syms.classType);
@@ -895,7 +895,7 @@ public class TreeMaker implements JCTree.Factory {
     /** Create a value parameter tree from its name, type, and owner.
      */
     public JCVariableDecl Param(Name name, Type argtype, Symbol owner) {
-        return VarDef(new VarSymbol(0, name, argtype, owner), null);
+        return VarDef(new VarSymbol(PARAMETER, name, argtype, owner), null);
     }
 
     /** Create a a list of value parameter trees x0, ..., xn from a list of
@@ -956,6 +956,7 @@ public class TreeMaker implements JCTree.Factory {
     boolean isUnqualifiable(Symbol sym) {
         if (sym.name == names.empty ||
             sym.owner == null ||
+            sym.owner == syms.rootPackage ||
             sym.owner.kind == MTH || sym.owner.kind == VAR
             || (sym.owner.kind == PCK && sym.owner.name == names.empty)
             || (sym.owner.kind == NIL && sym.owner.name == names.empty)) {

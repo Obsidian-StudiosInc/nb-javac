@@ -115,7 +115,7 @@ public class ProfilePackageFrameWriter extends HtmlDocletWriter {
             configuration.standardmessage.error(
                     "doclet.exception_encountered",
                     exc.toString(), DocPaths.PACKAGE_FRAME.getPath());
-            throw new DocletAbortException();
+            throw new DocletAbortException(exc);
         }
     }
 
@@ -174,7 +174,7 @@ public class ProfilePackageFrameWriter extends HtmlDocletWriter {
                     printedHeader = true;
                 }
                 Content arr_i_name = new StringContent(arr[i].name());
-                if (arr[i].isInterface()) arr_i_name = HtmlTree.I(arr_i_name);
+                if (arr[i].isInterface()) arr_i_name = HtmlTree.SPAN(HtmlStyle.italic, arr_i_name);
                 Content link = getLink(new LinkInfoImpl(configuration,
                         LinkInfoImpl.Kind.PACKAGE_FRAME, arr[i]).label(arr_i_name).target("classFrame"));
                 Content li = HtmlTree.LI(link);
