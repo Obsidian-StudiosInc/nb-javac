@@ -1624,9 +1624,11 @@ public class JavaCompiler {
                 if (usePrintSource)
                     file = printSource(env, cdef);
                 else {
-                    if (fileManager.hasLocation(StandardLocation.NATIVE_HEADER_OUTPUT)
-                            && jniWriter.needsHeader(cdef.sym)) {
-                        jniWriter.write(cdef.sym);
+                    try {
+                        writeHeader(cdef);
+                    } catch (LinkageError ex) {
+                        log.error(cdef.pos(), "class.cant.write",
+                                  cdef.sym, ex.getMessage());
                     }
                     file = genCode(env, cdef);
                 }
@@ -1644,6 +1646,13 @@ public class JavaCompiler {
                 TaskEvent e = new TaskEvent(TaskEvent.Kind.GENERATE, env.toplevel, cdef.sym);
                 taskListener.finished(e);
             }
+        }
+    }
+    
+    private void writeHeader(JCClassDecl cdef) throws IOException {
+        if (fileManager.hasLocation(StandardLocation.NATIVE_HEADER_OUTPUT)
+                && jniWriter.needsHeader(cdef.sym)) {
+            jniWriter.write(cdef.sym);
         }
     }
 
