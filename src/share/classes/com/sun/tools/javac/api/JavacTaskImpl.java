@@ -644,7 +644,7 @@ public class JavacTaskImpl extends BasicJavacTask {
         Attr attr = Attr.instance(context);
         Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(compiler.log);
         try {
-            CharBuffer buf = CharBuffer.wrap((expr+"\u0000").toCharArray(), 0, expr.length());
+            CharSequence buf = '\u0000' == expr.charAt(expr.length() - 1) ? expr : CharBuffer.wrap((expr+"\u0000").toCharArray(), 0, expr.length());
             Parser parser = parserFactory.newParser(buf, false, false, false);
             JCTree tree = parser.parseType();
             return attr.attribType(tree, (Symbol.TypeSymbol)scope);
@@ -662,7 +662,7 @@ public class JavacTaskImpl extends BasicJavacTask {
         ParserFactory parserFactory = ParserFactory.instance(context);
         Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(compiler.log);
         try {
-            CharBuffer buf = CharBuffer.wrap((expr+"\u0000").toCharArray(), 0, expr.length());
+            CharSequence buf = '\u0000' == expr.charAt(expr.length() - 1) ? expr : CharBuffer.wrap((expr+"\u0000").toCharArray(), 0, expr.length());
             Parser parser = parserFactory.newParser(buf, false, false, false);
             return parser.parseType();
         } finally {
@@ -688,7 +688,7 @@ public class JavacTaskImpl extends BasicJavacTask {
         };
         ParserFactory parserFactory = ParserFactory.instance(context);
         try {
-            CharBuffer buf = CharBuffer.wrap((source+"\u0000").toCharArray(), 0, source.length());
+            CharSequence buf = '\u0000' == source.charAt(source.length() - 1) ? source : CharBuffer.wrap((source+"\u0000").toCharArray(), 0, source.length());
             Parser parser = parserFactory.newParser(buf, false, true, false);
             if (parser instanceof JavacParser) {
                 if (pos != null)
