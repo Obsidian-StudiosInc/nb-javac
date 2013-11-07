@@ -676,7 +676,7 @@ public class JavacTaskImpl extends BasicJavacTask {
     }
 
     private JCTree doParse(ParseKind kind, CharSequence source, SourcePositions[] pos, final DiagnosticListener<? super JavaFileObject> errors) {
-        if (source == null || (pos != null && pos.length != 1))
+        if (source == null || source.equals("") || (pos != null && pos.length != 1))
             throw new IllegalArgumentException();
         compiler = JavaCompiler.instance(context);
         JavaFileObject prev = compiler.log.useSource(null);
