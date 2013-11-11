@@ -1747,9 +1747,9 @@ public class Flow {
             if (tree.body == null || tree.sym == null) {
                 return;
             }
-            /*  MemberEnter can generate synthetic methods, ignore them
+            /*  Ignore synthetic methods, except for translated lambda methods.
              */
-            if ((tree.sym.flags() & SYNTHETIC) != 0) {
+            if ((tree.sym.flags() & (SYNTHETIC | LAMBDA_METHOD)) == SYNTHETIC) {
                 return;
             }
 
@@ -1823,7 +1823,7 @@ public class Flow {
         protected void initParam(JCVariableDecl def) {
             inits.incl(def.sym.adr);
             uninits.excl(def.sym.adr);
-        }
+            }
 
         public void visitVarDef(JCVariableDecl tree) {
             if (tree.sym == null) return;

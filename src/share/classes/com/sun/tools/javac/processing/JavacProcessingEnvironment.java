@@ -1047,6 +1047,13 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 } else {
                     discoverAndRunProcs(context, annotationsPresent, topLevelClasses, packageInfoFiles);
                 }
+            } catch (Throwable t) {
+                // we're specifically expecting Abort here, but if any Throwable
+                // comes by, we should flush all deferred diagnostics, rather than
+                // drop them on the ground.
+                compiler.deferredDiagnosticHandler.reportDeferredDiagnostics();
+                log.popDiagnosticHandler(compiler.deferredDiagnosticHandler);
+                throw t;
             } finally {
                 if (!taskListener.isEmpty())
                     taskListener.finished(new TaskEvent(TaskEvent.Kind.ANNOTATION_PROCESSING_ROUND));

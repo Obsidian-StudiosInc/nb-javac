@@ -1896,7 +1896,7 @@ public class ClassReader {
         }
     }
 
-    protected class AnnotationDefaultCompleter extends AnnotationDeproxy implements Annotate.Annotator {
+    protected class AnnotationDefaultCompleter extends AnnotationDeproxy implements Annotate.Worker {
         final MethodSymbol sym;
         final Attribute value;
         final JavaFileObject classFile = currentClassFile;
@@ -1908,8 +1908,8 @@ public class ClassReader {
             this.sym = sym;
             this.value = value;
         }
-        // implement Annotate.Annotator.enterAnnotation()
-        public void enterAnnotation() {
+        // implement Annotate.Worker.run()
+        public void run() {
             JavaFileObject previousClassFile = currentClassFile;
             try {
                 // Reset the interim value set earlier in
@@ -1923,7 +1923,7 @@ public class ClassReader {
         }
     }
 
-    protected class AnnotationCompleter extends AnnotationDeproxy implements Annotate.Annotator {
+    protected class AnnotationCompleter extends AnnotationDeproxy implements Annotate.Worker {
         final Symbol sym;
         final List<CompoundAnnotationProxy> l;
         final JavaFileObject classFile;
@@ -1936,8 +1936,8 @@ public class ClassReader {
             this.l = l;
             this.classFile = currentClassFile;
         }
-        // implement Annotate.Annotator.enterAnnotation()
-        public void enterAnnotation() {
+        // implement Annotate.Worker.run()
+        public void run() {
             if ((sym.flags_field & FROMCLASS) == 0 && ((sym.flags_field & PARAMETER) == 0 || (sym.owner.flags_field & FROMCLASS) == 0))
                 return;
             JavaFileObject previousClassFile = currentClassFile;
@@ -1976,7 +1976,7 @@ public class ClassReader {
         }
 
         @Override
-        public void enterAnnotation() {
+        public void run() {
             JavaFileObject previousClassFile = currentClassFile;
             try {
                 currentClassFile = classFile;
@@ -2014,11 +2014,15 @@ public class ClassReader {
                 (flags & ABSTRACT) == 0 && !name.equals(names.clinit)) {
             if (majorVersion > Target.JDK1_8.majorVersion ||
                     (majorVersion == Target.JDK1_8.majorVersion && minorVersion >= Target.JDK1_8.minorVersion)) {
-                currentOwner.flags_field |= DEFAULT;
-                flags |= DEFAULT | ABSTRACT;
+                if ((flags & STATIC) == 0) {
+                    currentOwner.flags_field |= DEFAULT;
+                    flags |= DEFAULT | ABSTRACT;
+                }
             } else {
                 //protect against ill-formed classfiles
-                throw new CompletionFailure(currentOwner, "default method found in pre JDK 8 classfile");
+                throw badClassFile((flags & STATIC) == 0 ? "invalid.default.interface" : "invalid.static.interface",
+                                   Integer.toString(majorVersion),
+                                   Integer.toString(minorVersion));
             }
         }
         if (name == names.init && currentOwner.hasOuterInstance()) {
@@ -2443,8 +2447,6 @@ public class ClassReader {
             return c;
     }
 
-    private boolean suppressFlush = false;
-
     /** Completion for classes to be loaded. Before a class is loaded
      *  we make sure its enclosing class (if any) is loaded.
      */
@@ -2452,13 +2454,14 @@ public class ClassReader {
         if (sym.kind == TYP) {
             ClassSymbol c = (ClassSymbol)sym;
             Scope tempScope = c.members_field = new Scope.ErrorScope(c); // make sure it's always defined
-            boolean saveSuppressFlush = suppressFlush;
-            suppressFlush = true;
+            annotate.enterStart();
             try {
                 completeOwners(c.owner);
                 completeEnclosing(c);
             } finally {
-                suppressFlush = saveSuppressFlush;
+                // The flush needs to happen only after annotations
+                // are filled in.
+                annotate.enterDoneWithoutFlush();
             }
             if (c.members_field == tempScope) { // do not fill in when already completed as a result of completing owners
                 try {
@@ -2475,7 +2478,7 @@ public class ClassReader {
                 throw new CompletionFailure(sym, ex.getLocalizedMessage()).initCause(ex);
             }
         }
-        if (!filling && !suppressFlush)
+        if (!filling)
             annotate.flush(); // finish attaching annotations
     }
 

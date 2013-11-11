@@ -277,10 +277,6 @@ public class JavaCompiler {
      */
     protected TransTypes transTypes;
 
-    /** The lambda translator.
-     */
-    protected LambdaToMethod lambdaToMethod;
-
     /** The syntactic sugar desweetener.
      */
     protected Lower lower;
@@ -404,8 +400,6 @@ public class JavaCompiler {
         reader.sourceCompleter = thisCompleter;
 
         options = Options.instance(context);
-
-        lambdaToMethod = LambdaToMethod.instance(context);
 
         verbose       = options.isSet(VERBOSE);
         sourceOutput  = options.isSet(PRINTSOURCE); // used to be -s
@@ -1465,6 +1459,7 @@ public class JavaCompiler {
          */
         class ScanNested extends TreeScanner {
             Set<Env<AttrContext>> dependencies = new LinkedHashSet<Env<AttrContext>>();
+            protected boolean hasLambdas;
             @Override
             public void visitClassDef(JCClassDecl node) {
                 if (node.sym != null) {
@@ -1475,7 +1470,18 @@ public class JavaCompiler {
                         Env<AttrContext> stEnv = enter.getEnv(c);
                         if (stEnv != null && env != stEnv) {
                             if (dependencies.add(stEnv)) {
-                                scan(stEnv.tree);
+                                boolean prevHasLambdas = hasLambdas;
+                                try {
+                                    scan(stEnv.tree);
+                                } finally {
+                                    /*
+                                     * ignore any updates to hasLambdas made during
+                                     * the nested scan, this ensures an initalized
+                                     * LambdaToMethod is available only to those
+                                     * classes that contain lambdas
+                                     */
+                                    hasLambdas = prevHasLambdas;
+                                }
                             }
                             envForSuperTypeFound = true;
                         }
@@ -1483,6 +1489,16 @@ public class JavaCompiler {
                     }
                 }
                 super.visitClassDef(node);
+            }
+            @Override
+            public void visitLambda(JCLambda tree) {
+                hasLambdas = true;
+                super.visitLambda(tree);
+            }
+            @Override
+            public void visitReference(JCMemberReference tree) {
+                hasLambdas = true;
+                super.visitReference(tree);
             }
         }
         ScanNested scanner = new ScanNested();
@@ -1545,11 +1561,11 @@ public class JavaCompiler {
             env.tree = transTypes.translateTopLevelClass(env.tree, localMake);
             compileStates.put(env, CompileState.TRANSTYPES);
 
-            if (source.allowLambda()) {
+            if (source.allowLambda() && scanner.hasLambdas) {
                 if (shouldStop(CompileState.UNLAMBDA))
                     return;
 
-                env.tree = lambdaToMethod.translateTopLevelClass(env, env.tree, localMake);
+                env.tree = LambdaToMethod.instance(context).translateTopLevelClass(env, env.tree, localMake);
                 compileStates.put(env, CompileState.UNLAMBDA);
             }
 
@@ -1832,14 +1848,5 @@ public class JavaCompiler {
         prev.closeables = List.nil();
         shouldStopPolicyIfError = prev.shouldStopPolicyIfError;
         shouldStopPolicyIfNoError = prev.shouldStopPolicyIfNoError;
-    }
-
-    public static void enableLogging() {
-        Logger logger = Logger.getLogger(com.sun.tools.javac.Main.class.getPackage().getName());
-        logger.setLevel(Level.ALL);
-        for (Handler h : logger.getParent().getHandlers()) {
-            h.setLevel(Level.ALL);
-       }
-
     }
 }

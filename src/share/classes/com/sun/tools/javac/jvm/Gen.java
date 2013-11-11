@@ -104,6 +104,8 @@ public class Gen extends JCTree.Visitor {
      */
     private LVTRanges lvtRanges;
 
+    private final boolean typeAnnoAsserts;
+
     protected Gen(Context context) {
         context.put(genKey, this);
 
@@ -140,6 +142,7 @@ public class Gen extends JCTree.Visitor {
         debugCode = options.isSet("debugcode");
         allowInvokedynamic = target.hasInvokedynamic() || options.isSet("invokedynamic");
         pool = new Pool(types);
+        typeAnnoAsserts = options.isSet("TypeAnnotationAsserts");
 
         generateIproxies =
             target.requiresIproxy() ||
@@ -565,9 +568,13 @@ public class Gen extends JCTree.Visitor {
         ListBuffer<Attribute.TypeCompound> fieldTAs = new ListBuffer<Attribute.TypeCompound>();
         ListBuffer<Attribute.TypeCompound> nonfieldTAs = new ListBuffer<Attribute.TypeCompound>();
         for (TypeCompound ta : tas) {
-            if (ta.position.type == TargetType.FIELD) {
+            if (ta.getPosition().type == TargetType.FIELD) {
                 fieldTAs.add(ta);
             } else {
+                if (typeAnnoAsserts) {
+                    Assert.error("Type annotation does not have a valid positior");
+                }
+
                 nonfieldTAs.add(ta);
             }
         }
@@ -1648,9 +1655,10 @@ public class Gen extends JCTree.Visitor {
                                       startpc,  end, code.curCP(),
                                       catchType);
                         if (subCatch.type.isAnnotated()) {
-                            // All compounds share the same position, simply update the
-                            // first one.
-                            subCatch.type.getAnnotationMirrors().head.position.type_index = catchType;
+                            for (Attribute.TypeCompound tc :
+                                     subCatch.type.getAnnotationMirrors()) {
+                                tc.position.type_index = catchType;
+                            }
                         }
                     }
                     gaps = gaps.tail;
@@ -1664,9 +1672,10 @@ public class Gen extends JCTree.Visitor {
                                       startpc, endpc, code.curCP(),
                                       catchType);
                         if (subCatch.type.isAnnotated()) {
-                            // All compounds share the same position, simply update the
-                            // first one.
-                            subCatch.type.getAnnotationMirrors().head.position.type_index = catchType;
+                            for (Attribute.TypeCompound tc :
+                                     subCatch.type.getAnnotationMirrors()) {
+                                tc.position.type_index = catchType;
+                            }
                         }
                     }
                 }
@@ -2888,7 +2897,8 @@ public class Gen extends JCTree.Visitor {
 
         @Override
         public void visitMethodDef(JCMethodDecl tree) {
-            if ((tree.sym.flags() & (SYNTHETIC | GENERATEDCONSTR)) != 0) {
+            if ((tree.sym.flags() & (SYNTHETIC | GENERATEDCONSTR)) != 0
+                    && (tree.sym.flags() & LAMBDA_METHOD) == 0) {
                 return;
             }
             if (tree.name.equals(names.clinit)) {
@@ -2902,6 +2912,7 @@ public class Gen extends JCTree.Visitor {
                 return;
             }
             currentMethod = tree.sym;
+
             super.visitMethodDef(tree);
         }
 
