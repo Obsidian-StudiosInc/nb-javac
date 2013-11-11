@@ -29,6 +29,7 @@ package com.sun.tools.javac.tree;
 import javax.tools.Diagnostic;
 
 import com.sun.source.doctree.*;
+import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.parser.Tokens.Comment;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.DiagnosticSource;
@@ -105,6 +106,8 @@ public abstract class DCTree implements DocTree {
         public final List<DCTree> firstSentence;
         public final List<DCTree> body;
         public final List<DCTree> tags;
+        
+        public List<JCDiagnostic> errors;
 
         public DCDocComment(Comment comment,
                 List<DCTree> firstSentence, List<DCTree> body, List<DCTree> tags) {
@@ -504,6 +507,8 @@ public abstract class DCTree implements DocTree {
         public final JCTree qualifierExpression;
         public final Name memberName;
         public final List<JCTree> paramTypes;
+        public       boolean attributed;
+        public       Symbol sym;
 
 
         DCReference(String signature, JCTree qualExpr, Name member, List<JCTree> paramTypes) {

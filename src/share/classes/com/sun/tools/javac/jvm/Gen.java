@@ -538,18 +538,21 @@ public class Gen extends JCTree.Visitor {
         // If there are class initializers, create a <clinit> method
         // that contains them as its body.
         if (clinitCode.length() != 0) {
-            MethodSymbol clinit = new MethodSymbol(
-                STATIC | (c.flags() & STRICTFP),
-                names.clinit,
-                new MethodType(
-                    List.<Type>nil(), syms.voidType,
-                    List.<Type>nil(), syms.methodClass),
-                c);
-            c.members().enter(clinit);
+            Symbol clinit = c.members().lookup(names.clinit).sym;
+            if (!(clinit instanceof MethodSymbol)) {
+                clinit = new MethodSymbol(
+                    STATIC | (c.flags() & STRICTFP),
+                    names.clinit,
+                    new MethodType(
+                        List.<Type>nil(), syms.voidType,
+                        List.<Type>nil(), syms.methodClass),
+                    c);
+                c.members().enter(clinit);
+            }
             List<JCStatement> clinitStats = clinitCode.toList();
             JCBlock block = make.at(clinitStats.head.pos()).Block(0, clinitStats);
             block.endpos = TreeInfo.endPos(clinitStats.last());
-            methodDefs.append(make.MethodDef(clinit, block));
+            methodDefs.append(make.MethodDef((MethodSymbol)clinit, block));
 
             if (!clinitTAs.isEmpty())
                 clinit.appendUniqueTypeAttributes(clinitTAs.toList());
@@ -937,7 +940,7 @@ public class Gen extends JCTree.Visitor {
     public Item genExpr(JCTree tree, Type pt) {
         Type prevPt = this.pt;
         try {
-            if (tree.type.constValue() != null) {
+            if (tree.type != null && tree.type.constValue() != null) {
                 // Short circuit any expressions which are constants
                 tree.accept(classReferenceVisitor);
                 checkStringConstant(tree.pos(), tree.type.constValue());
