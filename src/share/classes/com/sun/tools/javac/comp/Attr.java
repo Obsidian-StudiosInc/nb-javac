@@ -4803,6 +4803,8 @@ public class Attr extends JCTree.Visitor {
                     // This happens in test TargetTypeTest52.java
                     // Is there anything to do?
                     repeat = false;
+                } else if (enclTr.getKind() == JCTree.Kind.ERRONEOUS) {
+                    repeat = false;
                 } else {
                     Assert.error("Unexpected tree: " + enclTr + " with kind: " + enclTr.getKind() +
                             " within: "+ errtree + " with kind: " + errtree.getKind());
