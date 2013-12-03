@@ -3050,6 +3050,7 @@ public class Check {
     boolean annotationApplicable(JCAnnotation a, Symbol s) {
         Attribute.Array arr = getAttributeTargetAttribute(a.annotationType.type.tsym);
         Name[] targets;
+
         if (arr == null) {
             targets = defaultTargetMetaInfo(a, s);
         } else {
@@ -3066,7 +3067,7 @@ public class Check {
         }
         for (Name target : targets) {
             if (target == names.TYPE)
-                { if (s.kind == TYP && !s.isAnonymous()) return true; }
+                { if (s.kind == TYP) return true; }
             else if (target == names.FIELD)
                 { if (s.kind == VAR && s.owner.kind != MTH) return true; }
             else if (target == names.METHOD)
