@@ -21,19 +21,25 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 8021339
- * @summary Allow arrays in intersection types
- * @compile ArraysInIntersections.java
- */
+package base;
 
-import java.io.Serializable;
+public class Base extends PackagePrivate { }
 
-public class ArraysInIntersections<T extends Serializable & Integer[]> {
-
-    public <S extends Serializable & Integer[]> Object m() {
-        return (Serializable & Integer[]) new Integer[1];
+class PackagePrivate {
+    protected int refTobaseBase() {
+        return 0;
     }
-
+    protected int refTotestOtherPackageTest() {
+        return 0;
+    }
+    protected int refTotestTarget11() {
+        return 0;
+    }
+    protected int refTotestCurPackagePrivateExt11() {
+        return 0;
+    }
+    protected int refTobaseBase;
+    protected int refTotestOtherPackageTest;
+    protected int refTotestTarget11;
+    protected int refTotestCurPackagePrivateExt11;
 }

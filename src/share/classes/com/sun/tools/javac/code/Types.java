@@ -246,7 +246,7 @@ public class Types {
             public Type visitClassType(ClassType t, Symbol sym) {
                 if (t.tsym == sym)
                     return t;
-                Type base = asSuper(sym.type, t);
+                Type base = asSuper(sym.type, t.tsym);
                 if (base == null)
                     return null;
                 ListBuffer<Type> from = new ListBuffer<Type>();
@@ -689,7 +689,7 @@ public class Types {
                         (t.flags() & SYNTHETIC) == 0;
             }
         };
-        private boolean pendingBridges(ClassSymbol origin, TypeSymbol sym) {
+        private boolean pendingBridges(ClassSymbol origin, TypeSymbol s) {
             //a symbol will be completed from a classfile if (a) symbol has
             //an associated file object with CLASS kind and (b) the symbol has
             //not been entered
@@ -698,11 +698,11 @@ public class Types {
                     enter.getEnv(origin) == null) {
                 return false;
             }
-            if (origin == sym) {
+            if (origin == s) {
                 return true;
             }
             for (Type t : interfaces(origin.type)) {
-                if (pendingBridges((ClassSymbol)t.tsym, sym)) {
+                if (pendingBridges((ClassSymbol)t.tsym, s)) {
                     return true;
                 }
             }
@@ -763,7 +763,7 @@ public class Types {
             } else if (t.hasTag(TYPEVAR)) {
                 return isSubtypeUnchecked(t.getUpperBound(), s, warn);
             } else if (!s.isRaw()) {
-                Type t2 = asSuper(t, s);
+                Type t2 = asSuper(t, s.tsym);
                 if (t2 != null && t2.isRaw()) {
                     if (isReifiable(s)) {
                         warn.silentWarn(LintCategory.UNCHECKED);
@@ -917,7 +917,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                Type sup = asSuper(t, s);
+                Type sup = asSuper(t, s.tsym);
                 return sup != null
                     && sup.tsym == s.tsym
                     // You're not allowed to write
@@ -1939,46 +1939,35 @@ public class Types {
      * @param t a type
      * @param sym a symbol
      */
-    public Type asSuper(Type t, Symbol s) {
-        return asSuper(t, s.type);
-    }
-
-    public Type asSuper(Type t, Type s) {
-        return asSuper.visit(t, s);
+    public Type asSuper(Type t, Symbol sym) {
+        return asSuper.visit(t, sym);
     }
     // where
-        private SimpleVisitor<Type,Type> asSuper = new SimpleVisitor<Type,Type>() {
+        private SimpleVisitor<Type,Symbol> asSuper = new SimpleVisitor<Type,Symbol>() {
 
-            public Type visitType(Type t, Type s) {
+            public Type visitType(Type t, Symbol sym) {
                 return null;
             }
 
             @Override
-            public Type visitClassType(ClassType t, Type s) {
-                if (t.tsym == s.tsym)
+            public Type visitClassType(ClassType t, Symbol sym) {
+                if (t.tsym == sym)
                     return t;
 
                 Type st = supertype(t);
-
-                switch(st.getTag()) {
-                default: break;
-                case CLASS:
-                case ARRAY:
-                case TYPEVAR:
-                case ERROR: {
-                    Type x = asSuper(st, s);
+                if (st.hasTag(CLASS) || st.hasTag(TYPEVAR) || st.hasTag(ERROR)) {
+                    Type x = asSuper(st, sym);
                     if (x != null)
                         return x;
-                } break;
-                case NONE:
+                }
+                if (st.hasTag(NONE)) {
                     if (t.tsym.type.isErroneous() && t.tsym.flatName() != names.java_lang_Object) {
                         return t.tsym.type;
-                    } break;
+                    }
                 }
-
-                if (s.tsym != null && (s.tsym.flags() & INTERFACE) != 0) {
+                if (sym != null && (sym.flags() & INTERFACE) != 0) {
                     for (List<Type> l = interfaces(t); l.nonEmpty(); l = l.tail) {
-                        Type x = asSuper(l.head, s);
+                        Type x = asSuper(l.head, sym);
                         if (x != null)
                             return x;
                     }
@@ -1987,20 +1976,22 @@ public class Types {
             }
 
             @Override
-            public Type visitArrayType(ArrayType t, Type s) {
-                return isSubtype(t, s) ? s : null;
+            public Type visitArrayType(ArrayType t, Symbol sym) {
+                return isSubtype(t, sym.type) ? sym.type : null;
             }
 
             @Override
-            public Type visitTypeVar(TypeVar t, Type s) {
-                if (t.tsym == s.tsym)
+            public Type visitTypeVar(TypeVar t, Symbol sym) {
+                if (t.tsym == sym)
                     return t;
                 else
-                    return asSuper(t.bound, s);
+                    return asSuper(t.bound, sym);
             }
 
             @Override
-            public Type visitErrorType(ErrorType t, Type s) { return t; }
+            public Type visitErrorType(ErrorType t, Symbol sym) {
+                return t;
+            }
         };
 
     /**
@@ -3601,9 +3592,9 @@ public class Types {
             //step 3 - for each element G in MEC, compute lci(Inv(G))
             List<Type> candidates = List.nil();
             for (Type erasedSupertype : mec) {
-                List<Type> lci = List.of(asSuper(ts.head, erasedSupertype));
+                List<Type> lci = List.of(asSuper(ts.head, erasedSupertype.tsym));
                 for (Type t : ts) {
-                    lci = intersect(lci, List.of(asSuper(t, erasedSupertype)));
+                    lci = intersect(lci, List.of(asSuper(t, erasedSupertype.tsym)));
                 }
                 candidates = candidates.appendList(lci);
             }
@@ -4025,7 +4016,7 @@ public class Types {
         // The arguments to the supers could be unified here to
         // get a more accurate analysis
         while (commonSupers.nonEmpty()) {
-            Type t1 = asSuper(from, commonSupers.head);
+            Type t1 = asSuper(from, commonSupers.head.tsym);
             Type t2 = commonSupers.head; // same as asSuper(to, commonSupers.head.tsym);
             if (t1 == null || disjointTypes(t1.getTypeArguments(), t2.getTypeArguments()))
                 return false;
@@ -4056,7 +4047,7 @@ public class Types {
             from = target;
         }
         Assert.check((from.tsym.flags() & FINAL) != 0);
-        Type t1 = asSuper(from, to);
+        Type t1 = asSuper(from, to.tsym);
         if (t1 == null) return false;
         Type t2 = to;
         if (disjointTypes(t1.getTypeArguments(), t2.getTypeArguments()))

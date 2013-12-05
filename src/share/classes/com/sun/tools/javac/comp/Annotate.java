@@ -267,7 +267,7 @@ public class Annotate {
                 Assign(make.Ident(names.value), args.head);
         }
         ListBuffer<Pair<MethodSymbol,Attribute>> buf =
-            new ListBuffer<Pair<MethodSymbol,Attribute>>();
+            new ListBuffer<>();
         for (List<JCExpression> tl = args; tl.nonEmpty(); tl = tl.tail) {
             JCExpression t = tl.head;
             if (!t.hasTag(ASSIGN)) {
@@ -295,10 +295,13 @@ public class Annotate {
             Type result = method.type.getReturnType();
             Attribute value = enterAttributeValue(result, assign.rhs, env);
             if (!method.type.isErroneous())
-                buf.append(new Pair<MethodSymbol,Attribute>
-                           ((MethodSymbol)method, value));
+                buf.append(new Pair<>((MethodSymbol)method, value));
             t.type = result;
         }
+
+        // Need to make sure nested (anno)trees does not have null as .type
+        attr.postAttr(a);
+
         if (typeAnnotation) {
             if (a.attribute == null || !(a.attribute instanceof Attribute.TypeCompound)) {
                 // Create a new TypeCompound

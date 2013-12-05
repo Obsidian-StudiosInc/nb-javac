@@ -21,18 +21,8 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 8021339
- * @summary Allow arrays in intersection types
- * @compile -doe -XDrawDiagnostics InferArraysInIntersections.java
- */
-import java.util.*;
+package pkg1;
 
-class InferArraysInIntersections {
-   <T> T m(List<? super T> t) { return null; }
+import java.text.NumberFormat;
 
-   void test(List<char[]> lc) {
-      Runnable r = m(lc); //inference fails here
-   }
-}
+public abstract class NumberFormatTest extends NumberFormat { }
