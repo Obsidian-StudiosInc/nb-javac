@@ -3136,7 +3136,7 @@ public class Resolve {
 
         Symbol access(Env<AttrContext> env, DiagnosticPosition pos, Symbol location, Symbol sym) {
             if (sym.kind == AMBIGUOUS) {
-                AmbiguityError a_err = (AmbiguityError)sym;
+                AmbiguityError a_err = (AmbiguityError)sym.baseSymbol();
                 sym = a_err.mergeAbstracts(site);
             }
             //skip error reporting
@@ -4029,7 +4029,7 @@ public class Resolve {
 
         private List<Symbol> flatten(Symbol sym) {
             if (sym.kind == AMBIGUOUS) {
-                return ((AmbiguityError)sym).ambiguousSyms;
+                return ((AmbiguityError)sym.baseSymbol()).ambiguousSyms;
             } else {
                 return List.of(sym);
             }
