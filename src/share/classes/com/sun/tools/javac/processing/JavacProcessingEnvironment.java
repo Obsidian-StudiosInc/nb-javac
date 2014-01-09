@@ -1053,6 +1053,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 // drop them on the ground.
                 compiler.deferredDiagnosticHandler.reportDeferredDiagnostics();
                 log.popDiagnosticHandler(compiler.deferredDiagnosticHandler);
+                compiler.deferredDiagnosticHandler = null;                    
                 throw t;
             } finally {
                 if (!taskListener.isEmpty())
