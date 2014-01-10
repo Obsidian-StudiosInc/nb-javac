@@ -580,8 +580,9 @@ public class DocCommentParser {
         new TreeScanner() {
             @Override public void scan(JCTree tree) {
                 if (tree != null) {
+                    int endPos = parser.getEndPos(tree) + offset;
                     tree.pos += offset;
-                    ((AbstractEndPosTable) targetEndPos).storeEnd(tree, parser.getEndPos(tree) + offset);
+                    ((AbstractEndPosTable) targetEndPos).storeEnd(tree, endPos);
                 }
                 super.scan(tree);
             }
