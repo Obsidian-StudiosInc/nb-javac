@@ -967,20 +967,21 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             if (messager.errorRaised())
                 return true;
 
-            for (JCDiagnostic d: compiler.deferredDiagnosticHandler.getDiagnostics()) {
-                switch (d.getKind()) {
-                    case WARNING:
-                        if (werror)
-                            return true;
-                        break;
+            if (compiler.deferredDiagnosticHandler != null) {
+                for (JCDiagnostic d: compiler.deferredDiagnosticHandler.getDiagnostics()) {
+                    switch (d.getKind()) {
+                        case WARNING:
+                            if (werror)
+                                return true;
+                            break;
 
-                    case ERROR:
-                        if (fatalErrors || !d.isFlagSet(RECOVERABLE))
-                            return true;
-                        break;
+                        case ERROR:
+                            if (fatalErrors || !d.isFlagSet(RECOVERABLE))
+                                return true;
+                            break;
+                    }
                 }
             }
-
             return false;
         }
 
@@ -1051,9 +1052,11 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 // we're specifically expecting Abort here, but if any Throwable
                 // comes by, we should flush all deferred diagnostics, rather than
                 // drop them on the ground.
-                compiler.deferredDiagnosticHandler.reportDeferredDiagnostics();
-                log.popDiagnosticHandler(compiler.deferredDiagnosticHandler);
-                compiler.deferredDiagnosticHandler = null;                    
+                if (compiler.deferredDiagnosticHandler == null) {
+                    compiler.deferredDiagnosticHandler.reportDeferredDiagnostics();
+                    log.popDiagnosticHandler(compiler.deferredDiagnosticHandler);
+                    compiler.deferredDiagnosticHandler = null;
+                }
                 throw t;
             } finally {
                 if (!taskListener.isEmpty())
@@ -1067,9 +1070,11 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 // suppress errors, which are all presumed to be transient resolve errors
                 kinds.remove(JCDiagnostic.Kind.ERROR);
             }
-            compiler.deferredDiagnosticHandler.reportDeferredDiagnostics(kinds);
-            log.popDiagnosticHandler(compiler.deferredDiagnosticHandler);
-            compiler.deferredDiagnosticHandler = null;                    
+            if (compiler.deferredDiagnosticHandler == null) {
+                compiler.deferredDiagnosticHandler.reportDeferredDiagnostics(kinds);
+                log.popDiagnosticHandler(compiler.deferredDiagnosticHandler);
+                compiler.deferredDiagnosticHandler = null;
+            }
         }
 
         /** Update the processing state for the current context. */
