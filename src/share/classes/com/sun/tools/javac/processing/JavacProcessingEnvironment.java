@@ -1052,7 +1052,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 // we're specifically expecting Abort here, but if any Throwable
                 // comes by, we should flush all deferred diagnostics, rather than
                 // drop them on the ground.
-                if (compiler.deferredDiagnosticHandler == null) {
+                if (compiler.deferredDiagnosticHandler != null) {
                     compiler.deferredDiagnosticHandler.reportDeferredDiagnostics();
                     log.popDiagnosticHandler(compiler.deferredDiagnosticHandler);
                     compiler.deferredDiagnosticHandler = null;
@@ -1070,7 +1070,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 // suppress errors, which are all presumed to be transient resolve errors
                 kinds.remove(JCDiagnostic.Kind.ERROR);
             }
-            if (compiler.deferredDiagnosticHandler == null) {
+            if (compiler.deferredDiagnosticHandler != null) {
                 compiler.deferredDiagnosticHandler.reportDeferredDiagnostics(kinds);
                 log.popDiagnosticHandler(compiler.deferredDiagnosticHandler);
                 compiler.deferredDiagnosticHandler = null;
