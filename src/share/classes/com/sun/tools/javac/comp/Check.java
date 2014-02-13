@@ -874,7 +874,7 @@ public class Check {
         List<JCExpression> args = argtrees;
         if (args != null) {
             //this is null when type-checking a method reference
-            while (formals.head != last) {
+            while (formals.head != last && args.head != null) {
                 JCTree arg = args.head;
                 Warner warn = convertWarner(arg.pos(), arg.type, nonInferred.head);
                 assertConvertible(arg, arg.type, formals.head, warn);
