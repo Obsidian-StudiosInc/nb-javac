@@ -173,7 +173,7 @@ public class TransTypes extends TreeTranslator {
      */
     JCExpression retype(JCExpression tree, Type erasedType, Type target) {
 //      System.err.println("retype " + tree + " to " + erasedType);//DEBUG
-        if (!erasedType.isPrimitive()) {
+        if (erasedType != null && !erasedType.isPrimitive()) {
             if (target != null && target.isPrimitive()) {
                 target = erasure(tree.type);
             }
