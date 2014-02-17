@@ -1300,9 +1300,7 @@ public class Flow {
                 while (exits.nonEmpty()) {
                     FlowPendingExit exit = exits.head;
                     exits = exits.tail;
-                    if (exit.thrown == null) {
-                        Assert.check(exit.tree.hasTag(RETURN));
-                    } else {
+                    if (exit.thrown != null) {
                         // uncaught throws will be reported later
                         pendingExits.append(exit);
                     }
