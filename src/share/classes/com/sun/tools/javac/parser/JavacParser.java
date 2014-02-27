@@ -3471,7 +3471,7 @@ public class JavacParser implements Parser {
         List<JCExpression> typeArgs = typeArgumentsOpt();
         int identPos = token.pos;
         Name name = ident();
-        if (name != names.error) {
+        if (name != names.error || token.kind == COMMA) {
             int createPos = token.pos;
             List<JCExpression> args = (token.kind == LPAREN)
                 ? arguments() : List.<JCExpression>nil();
