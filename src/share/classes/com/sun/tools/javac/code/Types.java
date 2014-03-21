@@ -391,6 +391,7 @@ public class Types {
         FunctionDescriptor get(TypeSymbol origin) throws FunctionDescriptorLookupError {
             Entry e = _map.get(origin);
             CompoundScope members = membersClosure(origin.type, false);
+            Assert.checkNonNull(members, "Null members closure returned for: " + origin.type);
             if (e == null ||
                     !e.matches(members.getMark())) {
                 FunctionDescriptor descRes = findDescriptorInternal(origin, members);
