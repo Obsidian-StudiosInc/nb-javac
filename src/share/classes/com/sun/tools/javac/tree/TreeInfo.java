@@ -396,8 +396,12 @@ public class TreeInfo {
         switch(tree.getTag()) {
             case APPLY:
                 return getStartPos(((JCMethodInvocation) tree).meth);
-            case ASSIGN:
-                return getStartPos(((JCAssign) tree).lhs);
+            case ASSIGN: {
+                int pos = getStartPos(((JCAssign) tree).lhs);
+                if (pos != Position.NOPOS)
+                    return pos;
+                return getStartPos(((JCAssign) tree).rhs);
+            }
             case BITOR_ASG: case BITXOR_ASG: case BITAND_ASG:
             case SL_ASG: case SR_ASG: case USR_ASG:
             case PLUS_ASG: case MINUS_ASG: case MUL_ASG:
