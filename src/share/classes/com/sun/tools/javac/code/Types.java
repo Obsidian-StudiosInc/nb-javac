@@ -391,7 +391,6 @@ public class Types {
         FunctionDescriptor get(TypeSymbol origin) throws FunctionDescriptorLookupError {
             Entry e = _map.get(origin);
             CompoundScope members = membersClosure(origin.type, false);
-            Assert.checkNonNull(members, "Null members closure returned for: " + origin.type);
             if (e == null ||
                     !e.matches(members.getMark())) {
                 FunctionDescriptor descRes = findDescriptorInternal(origin, members);
@@ -413,6 +412,7 @@ public class Types {
                 throw failure("not.a.functional.intf", origin);
             }
 
+            Assert.checkNonNull(membersCache, "Null members closure returned for symbol: " + origin + " of type: " + origin.type);
             final ListBuffer<Symbol> abstracts = new ListBuffer<>();
             for (Symbol sym : membersCache.getElements(new DescriptorFilter(origin))) {
                 Type mtype = memberType(origin.type, sym);
