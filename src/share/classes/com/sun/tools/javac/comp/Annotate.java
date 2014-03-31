@@ -263,8 +263,9 @@ public class Annotate {
         List<JCExpression> args = a.args;
         if (args.length() == 1 && !args.head.hasTag(ASSIGN)) {
             // special case: elided "value=" assumed
-            args.head = make.at(Position.NOPOS).
-                Assign(make.Ident(names.value), args.head);
+            JCIdent ident = make.at(Position.NOPOS).Ident(names.value);
+            args.head = make.at(TreeInfo.getStartPos(args.head)).
+                Assign(ident, args.head);
         }
         ListBuffer<Pair<MethodSymbol,Attribute>> buf =
             new ListBuffer<>();
