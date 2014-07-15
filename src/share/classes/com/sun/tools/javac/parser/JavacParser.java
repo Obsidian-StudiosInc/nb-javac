@@ -3925,11 +3925,12 @@ public class JavacParser implements Parser {
     private JCExpression insertAnnotationsToMostInner(
             JCExpression type, List<JCAnnotation> annos,
             boolean createNewLevel) {
-        int origEndPos = getEndPos(type);
+        int origEndPos = createNewLevel ? token.endPos : getEndPos(type);
         JCExpression mostInnerType = type;
         JCArrayTypeTree mostInnerArrayType = null;
         while (TreeInfo.typeIn(mostInnerType).hasTag(TYPEARRAY)) {
             mostInnerArrayType = (JCArrayTypeTree) TreeInfo.typeIn(mostInnerType);
+            storeEnd(mostInnerType, origEndPos);
             mostInnerType = mostInnerArrayType.elemtype;
         }
 
