@@ -42,14 +42,12 @@ import com.sun.tools.javac.tree.JCTree.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-import com.sun.source.tree.MethodInvocationTree;
 import static com.sun.tools.javac.code.TypeTag.*;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 
@@ -347,11 +345,7 @@ public class DeferredAttr extends JCTree.Visitor {
      * disabled during speculative type-checking.
      */
     JCTree attribSpeculative(JCTree tree, Env<AttrContext> env, ResultInfo resultInfo) {
-        return attribSpeculative(new TreeCopier<JCTree>(make), tree, env, resultInfo);
-    }
-
-    JCTree attribSpeculative(TreeCopier<JCTree> copier, JCTree tree, Env<AttrContext> env, ResultInfo resultInfo) {
-        final JCTree newTree = copier.copy(tree);
+        final JCTree newTree = new TreeCopier<Object>(make).copy(tree);
         Env<AttrContext> speculativeEnv = env.dup(newTree, env.info.dup(env.info.scope.dupUnshared()));
         speculativeEnv.info.scope.owner = env.info.scope.owner;
         Log.DeferredDiagnosticHandler deferredDiagnosticHandler =
@@ -994,36 +988,12 @@ public class DeferredAttr extends JCTree.Visitor {
         }
     }
 
-    private final Map<JCTree, JCTree> copy2Original = new HashMap<>();
-    private final Map<JCTree, ArgumentExpressionKind> originalTree2Decision = new HashMap<>();
-    private int depth = 0;
-
     /**
      * Does the argument expression {@code expr} need speculative type-checking?
      */
     boolean isDeferred(Env<AttrContext> env, JCExpression expr) {
-        depth++;
-        JCTree original = expr;
-
-        while (copy2Original.containsKey(original)) {
-            original = copy2Original.get(original);
-        }
-
-        ArgumentExpressionKind res = originalTree2Decision.get(original);
-
-        if (res != null) {
-            return res.isPoly();
-        }
-
         DeferredChecker dc = new DeferredChecker(env);
         dc.scan(expr);
-
-        originalTree2Decision.put(original, dc.result);
-
-        if (--depth == 0) {
-            originalTree2Decision.clear();
-            copy2Original.clear();
-        }
         return dc.result.isPoly();
     }
 
@@ -1168,20 +1138,8 @@ public class DeferredAttr extends JCTree.Visitor {
                 return;
             }
 
-            TreeCopier<JCTree> recordingCopier = new TreeCopier<JCTree>(make) {
-                @Override public <T extends JCTree> T copy(T tree, JCTree p) {
-                    T result = super.copy(tree, p);
-
-                    if (tree != result) {
-                        copy2Original.put(result, tree);
-                    }
-
-                    return result;
-                }
-            };
-
             Type site = rec != null ?
-                    attribSpeculative(recordingCopier, rec, env, attr.unknownTypeExprInfo).type :
+                    attribSpeculative(rec, env, attr.unknownTypeExprInfo).type :
                     env.enclClass.sym.type;
 
             while (site.hasTag(TYPEVAR)) {
@@ -1232,8 +1190,6 @@ public class DeferredAttr extends JCTree.Visitor {
                         return true;
                     case ANNOTATED_TYPE:
                         return isSimpleReceiver(((JCAnnotatedType)rec).underlyingType);
-                    case APPLY:
-                        return true;
                     default:
                         return false;
                 }
