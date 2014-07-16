@@ -112,6 +112,7 @@ public class Enter extends JCTree.Visitor {
     Names names;
     JavaFileManager fileManager;
     PkgInfo pkginfoOpt;
+    TypeEnvs typeEnvs;
     
     private final LazyTreeLoader treeLoader;
     private final DuplicateClassChecker duplicateClassChecker;
@@ -155,14 +156,9 @@ public class Enter extends JCTree.Visitor {
 
         Options options = Options.instance(context);
         pkginfoOpt = PkgInfo.get(options);
+        typeEnvs = TypeEnvs.instance(context);
         source = Source.instance(context);
     }
-
-    /** A hashtable mapping classes and packages to the environments current
-     *  at the points of their definitions.
-     */
-    Map<TypeSymbol,Env<AttrContext>> typeEnvs =
-            new HashMap<TypeSymbol,Env<AttrContext>>();
 
     Map<TypeSymbol,Env<AttrContext>> typeEnvsShadow = null;
 
