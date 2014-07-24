@@ -272,6 +272,10 @@ public class Enter extends JCTree.Visitor {
             typeEnvsShadow = null;
         }
     }
+    
+    public boolean isShadowed() {
+        return typeEnvsShadow != null;
+    }
 
 /* ************************************************************************
  * Visitor methods for phase 1: class enter
