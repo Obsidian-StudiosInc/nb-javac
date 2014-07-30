@@ -3177,8 +3177,8 @@ public class Attr extends JCTree.Visitor {
         boolean baCatched = false;
         try {
             // Attribute arguments.
-            Type left = chk.checkNonVoid(tree.lhs.pos(), attribTree(tree.lhs, env, new ResultInfo(VAL | TYP , Type.noType)));
-            Type right = chk.checkNonVoid(tree.lhs.pos(), attribTree(tree.rhs, env, new ResultInfo(VAL | TYP , Type.noType)));
+            Type left = chk.checkNonVoid(tree.lhs.pos(), attribExpr(tree.lhs, env));
+            Type right = chk.checkNonVoid(tree.lhs.pos(), attribExpr(tree.rhs, env));
 
             // Find operator.
             Symbol operator = tree.operator =
@@ -3224,6 +3224,57 @@ public class Attr extends JCTree.Visitor {
         } finally {
             if ((baCatched || result.isErroneous()) && tree.hasTag(BITAND)) {
                 //error recovery
+                TreeScanner treeCleaner = new TreeScanner() {
+                    public void scan(JCTree node) {
+                        super.scan(node);
+                        if (node != null)
+                            node.type = null;
+                    }
+                    public void visitClassDef(JCClassDecl node) {
+                        node.sym = null;
+                        super.visitClassDef(node);
+                    }
+                    public void visitMethodDef(JCMethodDecl node) {
+                        node.sym = null;
+                        super.visitMethodDef(node);
+                    }
+                    public void visitVarDef(JCVariableDecl node) {
+                        node.sym = null;
+                        super.visitVarDef(node);
+                    }
+                    public void visitNewClass(JCNewClass node) {
+                        node.constructor = null;
+                        super.visitNewClass(node);
+                    }
+                    public void visitAssignop(JCAssignOp node) {
+                        node.operator = null;
+                        super.visitAssignop(node);
+                    }
+                    public void visitUnary(JCUnary node) {
+                        node.operator = null;
+                        super.visitUnary(node);
+                    }
+                    public void visitBinary(JCBinary node) {
+                        node.operator = null;
+                        super.visitBinary(node);
+                    }
+                    public void visitSelect(JCFieldAccess node) {
+                        node.sym = null;
+                        super.visitSelect(node);
+                    }
+                    public void visitIdent(JCIdent node) {
+                        node.sym = null;
+                        super.visitIdent(node);
+                    }
+                    public void visitAnnotation(JCAnnotation node) {
+                        node.attribute = null;
+                        super.visitAnnotation(node);
+                    }
+                };
+                treeCleaner.scan(tree.lhs);
+                attribTree(tree.lhs, env, new ResultInfo(VAL | TYP , Type.noType));
+                treeCleaner.scan(tree.rhs);
+                attribTree(tree.rhs, env, new ResultInfo(VAL | TYP , Type.noType));                
                 List<JCExpression> bounds = collectIntersectionBounds(tree);
                 if (bounds != null) {
                     Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
