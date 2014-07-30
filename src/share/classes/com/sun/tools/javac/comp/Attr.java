@@ -4891,7 +4891,7 @@ public class Attr extends JCTree.Visitor {
          */
         private Type dummyMethodType(JCMethodDecl md) {
             Type restype = syms.unknownType;
-            if (md != null && md.restype.hasTag(TYPEIDENT)) {
+            if (md != null && md.restype != null && md.restype.hasTag(TYPEIDENT)) {
                 JCPrimitiveTypeTree prim = (JCPrimitiveTypeTree)md.restype;
                 if (prim.typetag == VOID)
                     restype = syms.voidType;
@@ -4935,6 +4935,8 @@ public class Attr extends JCTree.Visitor {
             }
             super.visitClassDef(that);
         }
+        
+        private boolean inMethodParams = false;
 
         @Override
         public void visitMethodDef(JCMethodDecl that) {
@@ -4942,14 +4944,26 @@ public class Attr extends JCTree.Visitor {
             if (that.sym == null) {
                 that.sym = new MethodSymbol(0, that.name, that.type, syms.noSymbol);
             }
-            super.visitMethodDef(that);
+            scan(that.mods);
+            scan(that.restype);
+            scan(that.typarams);
+            try {
+                inMethodParams = true;
+                scan(that.recvparam);
+                scan(that.params);
+            } finally {
+                inMethodParams = false;
+            }
+            scan(that.thrown);
+            scan(that.defaultValue);
+            scan(that.body);
         }
 
         @Override
         public void visitVarDef(JCVariableDecl that) {
             initTypeIfNeeded(that);
             if (that.sym == null) {
-                that.sym = new VarSymbol(0, that.name, that.type, syms.noSymbol);
+                that.sym = new VarSymbol(inMethodParams ? Flags.PARAMETER : 0, that.name, that.type, syms.noSymbol);
                 that.sym.adr = 0;
             }
             super.visitVarDef(that);
