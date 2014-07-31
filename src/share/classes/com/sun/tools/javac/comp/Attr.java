@@ -3271,10 +3271,13 @@ public class Attr extends JCTree.Visitor {
                         super.visitAnnotation(node);
                     }
                 };
+                // attribTree will change the 'result', save it:
+                Type saveResult = this.result;
                 treeCleaner.scan(tree.lhs);
                 attribTree(tree.lhs, env, new ResultInfo(VAL | TYP , Type.noType));
                 treeCleaner.scan(tree.rhs);
                 attribTree(tree.rhs, env, new ResultInfo(VAL | TYP , Type.noType));                
+                this.result = saveResult;
                 List<JCExpression> bounds = collectIntersectionBounds(tree);
                 if (bounds != null) {
                     Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
