@@ -24,6 +24,8 @@
  */
 package com.sun.tools.javac.comp;
 
+import com.sun.source.tree.CaseTree;
+import com.sun.source.tree.TreeVisitor;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Kinds;
 import com.sun.tools.javac.code.Scope;
@@ -53,11 +55,13 @@ import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.tree.JCTree.JCStatement;
+import com.sun.tools.javac.tree.JCTree.JCSwitch;
 import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
 import com.sun.tools.javac.tree.JCTree.JCUnary;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
+import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.tree.TreeTranslator;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic;
@@ -158,10 +162,31 @@ public class Repair extends TreeTranslator {
             return tree;
         if (tree.hasTag(JCTree.Tag.CASE))
             return tree;
-        if (tree.hasTag(JCTree.Tag.CLASSDEF) || tree.hasTag(JCTree.Tag.VARDEF)) {
+        if (tree.hasTag(JCTree.Tag.CLASSDEF)) {
             JCTree parent = parents.head;
-            if (parent == null || (!parent.hasTag(JCTree.Tag.BLOCK) && !parent.hasTag(JCTree.Tag.CASE)))
+            if (parent == null || (!parent.hasTag(JCTree.Tag.BLOCK) && !parent.hasTag(JCTree.Tag.CASE))) {
                 return tree;
+            }
+        }
+        if (tree.hasTag(JCTree.Tag.VARDEF)) {
+            JCTree parent = parents.head;
+            if (parent == null) {
+                return tree;
+            }
+            // special case: in switch-case, generate throw and terminate the case only if the variable is not used
+            // in subsequent switch cases. Otherwise return the tree unchanged with error flags, the whole switch
+            // statement will be aborted and replaced by throw.
+            if (parent.hasTag(JCTree.Tag.CASE)) {
+                if (!parents.tail.isEmpty()) {
+                    JCTree t = parents.tail.head;
+                    if (t.hasTag(JCTree.Tag.SWITCH) && varUsedInOtherCaseBranch((JCVariableDecl)tree, (JCSwitch)t, (JCCase)parent)) {
+                        // assume the whole switch will be replaced by throw statement.
+                        return tree;
+                    }
+                }
+            } else if (!parent.hasTag(JCTree.Tag.BLOCK)) {
+                return tree;
+            }
         }
         String msg = err != null ? err.getMessage(null) : errMessage;
         hasError = false;
@@ -173,7 +198,34 @@ public class Repair extends TreeTranslator {
         }
         return (T)generateErrStat(tree.pos(), msg);
     }
+    
+    private boolean varUsedInOtherCaseBranch(final JCTree.JCVariableDecl varDecl, JCSwitch sw, JCCase defCase) {
+        List<JCCase> cases = sw.getCases();
+        int index = cases.indexOf(defCase);
+        if (index == -1) {
+            // not sure, eliminate whole switch
+            return true;
+        }
+        class SwitchVariableFinder extends TreeScanner {
+            private boolean used;
 
+            @Override
+            public void visitIdent(JCTree.JCIdent tree) {
+                used |= tree.sym == varDecl.sym;
+                super.visitIdent(tree);
+            }
+        }
+        SwitchVariableFinder finder = new SwitchVariableFinder();
+        for (int i = index + 1; i < cases.size(); i++) {
+            JCTree testCase = cases.get(i);
+            finder.scan(testCase);
+            if (finder.used) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
     @Override
     public void visitImport(JCImport tree) {
         super.visitImport(tree);
