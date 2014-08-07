@@ -44,6 +44,7 @@ import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
 
 import static com.sun.tools.javac.main.Option.*;
+import java.util.Map;
 
 /** A class for error logs. Reports errors and warnings, and
  *  keeps track of error numbers and positions.
@@ -464,7 +465,21 @@ public class Log extends AbstractLog {
      * it must be specified explicitly for clarity and consistency checking.
      */
     public void popDiagnosticHandler(DiagnosticHandler h) {
-        Assert.check(diagnosticHandler == h, "Wrong diagnostic handler: " + diagnosticHandler);
+        if (diagnosticHandler != h) {
+            final Map<Thread, StackTraceElement[]> allStackTraces = Thread.getAllStackTraces();
+            final StringBuilder message = new StringBuilder("Wrong diagnostic handler: ").  //NOI18N
+                append(diagnosticHandler).
+                append("\nThread dump:\n"); //NOI18N
+            for (Map.Entry<Thread,StackTraceElement[]> e : allStackTraces.entrySet()) {
+                message.append(e.getKey().getName()).append('\n');  //NOI18N
+                for (StackTraceElement ste : e.getValue()) {
+                    message.append('\t').   //NOI18N
+                        append(ste.toString()).
+                        append('\n');   //NOI18N
+                }
+            }
+            Assert.check(diagnosticHandler == h, message);
+        }
         diagnosticHandler = h.prev;
     }
 
