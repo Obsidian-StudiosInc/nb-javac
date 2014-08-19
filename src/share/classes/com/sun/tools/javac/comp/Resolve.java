@@ -1824,7 +1824,7 @@ public class Resolve {
         while (env1.outer != null) {
             if (isStatic(env1)) staticOnly = true;
             sym = findMethod(
-                env1, env1.enclClass.sym.type, name, argtypes, typeargtypes,
+                env, env1.enclClass.sym.type, name, argtypes, typeargtypes,
                 allowBoxing, useVarargs, false);
             if (sym.exists()) {
                 if (staticOnly &&
