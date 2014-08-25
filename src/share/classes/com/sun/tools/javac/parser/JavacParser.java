@@ -1612,6 +1612,8 @@ public class JavacParser implements Parser {
                     } else if (peekToken(lookahead, RPAREN, ARROW)) {
                         // Identifier, ')' '->' -> implicit lambda
                         return ParensResult.IMPLICIT_LAMBDA;
+                    } else if (peekToken(lookahead, COMMA)) {
+                        return ParensResult.IMPLICIT_LAMBDA;
                     }
                     type = false;
                     break;
@@ -1697,7 +1699,7 @@ public class JavacParser implements Parser {
                     break;
                 default:
                     //this includes EOF
-                    return type ? ParensResult.IMPLICIT_LAMBDA : ParensResult.PARENS;
+                    return ParensResult.PARENS;
             }
         }
     }
