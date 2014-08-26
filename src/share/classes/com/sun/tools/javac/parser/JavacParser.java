@@ -1612,7 +1612,7 @@ public class JavacParser implements Parser {
                     } else if (peekToken(lookahead, RPAREN, ARROW)) {
                         // Identifier, ')' '->' -> implicit lambda
                         return ParensResult.IMPLICIT_LAMBDA;
-                    } else if (peekToken(lookahead, COMMA)) {
+                    } else if (depth == 0 && peekToken(lookahead, COMMA)) {
                         return ParensResult.IMPLICIT_LAMBDA;
                     }
                     type = false;
