@@ -394,7 +394,7 @@ public class JavacTrees extends DocTrees {
                 // we first check if qualifierExpression identifies a type,
                 // and if not, then we check to see if it identifies a package.
                 Type t = attr.attribType(ref.qualifierExpression, env);
-                if (t.isErroneous()) {
+                if (t.isErroneous() || t.hasTag(TYPEVAR)) {
                     if (ref.memberName == null) {
                         // Attr/Resolve assume packages exist and create symbols as needed
                         // so use getPackageElement to restrict search to existing packages
