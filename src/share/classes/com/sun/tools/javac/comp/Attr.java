@@ -3992,7 +3992,7 @@ public class Attr extends JCTree.Visitor {
         }
 
         if (env.info.defaultSuperCallSite != null) {
-            for (Type sup : types.interfaces(env.enclClass.type).prepend(types.supertype((env.enclClass.type)))) {
+            for (Type sup : types.interfaces(env.enclClass.sym.type).prepend(types.supertype((env.enclClass.sym.type)))) {
                 if (!sup.tsym.isSubClass(sym.enclClass(), types) ||
                         types.isSameType(sup, env.info.defaultSuperCallSite)) continue;
                 List<MethodSymbol> icand_sup =
