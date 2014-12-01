@@ -720,7 +720,7 @@ public class Types {
 
        @Override
        public boolean accepts(Symbol sym) {
-           return sym.kind == Kinds.MTH &&
+           return sym != null && sym.kind == Kinds.MTH &&
                    (sym.flags() & (ABSTRACT | DEFAULT)) == ABSTRACT &&
                    !overridesObjectMethod(origin, sym) &&
                    (interfaceCandidates(origin.type, (MethodSymbol)sym).head.flags() & DEFAULT) == 0;
