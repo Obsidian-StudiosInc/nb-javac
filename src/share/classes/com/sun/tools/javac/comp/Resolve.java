@@ -3387,15 +3387,15 @@ public class Resolve {
             name == names._super && !isStatic(env) &&
             types.isDirectSuperInterface(c, env.enclClass.sym)) {
             //this might be a default super call if one of the superinterfaces is 'c'
-            for (Type t : pruneInterfaces(env.enclClass.type)) {
+            for (Type t : pruneInterfaces(env.enclClass.sym.type)) {
                 if (t.tsym == c) {
                     env.info.defaultSuperCallSite = t;
                     return new VarSymbol(0, names._super,
-                            types.asSuper(env.enclClass.type, c), env.enclClass.sym);
+                            types.asSuper(env.enclClass.sym.type, c), env.enclClass.sym);
                 }
             }
             //find a direct superinterface that is a subtype of 'c'
-            for (Type i : types.interfaces(env.enclClass.type)) {
+            for (Type i : types.interfaces(env.enclClass.sym.type)) {
                 if (i.tsym.isSubClass(c, types) && i.tsym != c) {
                     log.error(pos, "illegal.default.super.call", c,
                             diags.fragment("redundant.supertype", c, i));
