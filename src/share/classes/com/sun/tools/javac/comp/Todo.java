@@ -25,8 +25,10 @@
 
 package com.sun.tools.javac.comp;
 
-import java.util.AbstractQueue;
+import com.sun.tools.javac.code.Symbol.TypeSymbol;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.Context;
+import java.util.AbstractQueue;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -104,6 +106,18 @@ public class Todo extends AbstractQueue<Env<AttrContext>> {
             }
         }
         return contentsByFile;
+    }
+
+    void remove(TypeSymbol sym) {
+        for (Iterator<Env<AttrContext>> it = contents.listIterator(); it.hasNext();) {
+            Env<AttrContext> env = it.next();
+            if (env.tree != null && (env.tree.hasTag(JCTree.Tag.CLASSDEF) && ((JCTree.JCClassDecl)env.tree).sym == sym
+                    || env.tree.hasTag(JCTree.Tag.TOPLEVEL) && ((JCTree.JCCompilationUnit)env.tree).packge == sym)) {
+                it.remove();
+                if (contentsByFile != null)
+                    removeByFile(env);
+            }
+        }
     }
 
     private void addByFile(Env<AttrContext> env) {

@@ -66,7 +66,7 @@ import java.lang.annotation.*;
   * @since 1.8
   */
 @Documented
-@Retention(RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.SOURCE)
 @Target({ElementType.TYPE, ElementType.PACKAGE})
 @Exported
 public @interface Exported {

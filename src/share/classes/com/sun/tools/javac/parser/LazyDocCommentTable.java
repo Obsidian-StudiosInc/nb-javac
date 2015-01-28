@@ -25,12 +25,14 @@
 
 package com.sun.tools.javac.parser;
 
+import com.sun.source.util.DocTrees;
 import java.util.HashMap;
 import java.util.Map;
 
 import com.sun.tools.javac.parser.Tokens.Comment;
 import com.sun.tools.javac.tree.DCTree.DCDocComment;
 import com.sun.tools.javac.tree.DocCommentTable;
+import com.sun.tools.javac.tree.EndPosTable;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.DiagnosticSource;
 
@@ -43,7 +45,7 @@ import com.sun.tools.javac.util.DiagnosticSource;
  *  deletion without notice.</b>
  */
 public class LazyDocCommentTable implements DocCommentTable {
-    private static class Entry {
+    public static class Entry {
         final Comment comment;
         DCDocComment tree;
 
@@ -53,11 +55,15 @@ public class LazyDocCommentTable implements DocCommentTable {
     }
 
     ParserFactory fac;
+    private final boolean breakOnError;
+    private final EndPosTable ept;
     DiagnosticSource diagSource;
-    Map<JCTree, Entry> table;
+    public Map<JCTree, Entry> table;
 
-    LazyDocCommentTable(ParserFactory fac) {
+    LazyDocCommentTable(ParserFactory fac, EndPosTable ept) {
         this.fac = fac;
+        this.breakOnError = fac.options.getBoolean("breakDocCommentParsingOnError", true);
+        this.ept = ept;
         diagSource = fac.log.currentSource();
         table = new HashMap<JCTree, Entry>();
     }
@@ -81,7 +87,7 @@ public class LazyDocCommentTable implements DocCommentTable {
         if (e == null)
             return null;
         if (e.tree == null)
-            e.tree = new DocCommentParser(fac, diagSource, e.comment).parse();
+            e.tree = new DocCommentParser(fac, breakOnError, ept, diagSource, e.comment).parse();
         return e.tree;
     }
 

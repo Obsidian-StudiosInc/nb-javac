@@ -39,6 +39,8 @@ import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Scope.*;
 import com.sun.tools.javac.code.Symbol.*;
+import com.sun.tools.javac.comp.AttrContext;
+import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
@@ -526,8 +528,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             for (JCTree tree : defs) {
                 if (tree.hasTag(IMPORT))
                     imports.append((JCImport)tree);
-                else if (!tree.hasTag(SKIP))
-                    break;
             }
             return imports.toList();
         }
@@ -539,11 +539,12 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             return lineMap;
         }
         public List<JCTree> getTypeDecls() {
-            List<JCTree> typeDefs;
-            for (typeDefs = defs; !typeDefs.isEmpty(); typeDefs = typeDefs.tail)
-                if (!typeDefs.head.hasTag(IMPORT))
-                    break;
-            return typeDefs;
+            ListBuffer<JCTree> typeDefs = new ListBuffer<JCTree>();
+            for (JCTree tree : defs) {
+                if (!tree.hasTag(IMPORT))
+                    typeDefs.append(tree);
+            }
+            return typeDefs.toList();
         }
         @Override
         public <R,D> R accept(TreeVisitor<R,D> v, D d) {
@@ -673,6 +674,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public List<JCTree> defs;
         /** the symbol */
         public ClassSymbol sym;
+
         protected JCClassDecl(JCModifiers mods,
                            Name name,
                            List<JCTypeParameter> typarams,
@@ -689,6 +691,9 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             this.defs = defs;
             this.sym = sym;
         }
+
+
+
         @Override
         public void accept(Visitor v) { v.visitClassDef(this); }
 
@@ -750,6 +755,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public JCExpression defaultValue;
         /** method symbol */
         public MethodSymbol sym;
+        public Env<AttrContext> localEnv = null;
         protected JCMethodDecl(JCModifiers mods,
                             Name name,
                             JCExpression restype,
@@ -1524,7 +1530,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         }
         public JCExpression getIdentifier() { return clazz; }
         public List<JCExpression> getArguments() {
-            return args;
+            return encl != null && def != null ? args.tail : args;
         }
         public JCClassDecl getClassBody() { return def; }
         @Override

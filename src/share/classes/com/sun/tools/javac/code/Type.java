@@ -796,7 +796,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
          */
         public String toString() {
             StringBuilder buf = new StringBuilder();
-            if (getEnclosingType().hasTag(CLASS) && tsym.owner.kind == TYP) {
+            if (getEnclosingType() != null && getEnclosingType().hasTag(CLASS) && tsym.owner.kind == TYP) {
                 buf.append(getEnclosingType().toString());
                 buf.append(".");
                 buf.append(className(tsym, false));
@@ -843,7 +843,9 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
 
         public List<Type> getTypeArguments() {
             if (typarams_field == null) {
-                complete();
+                try {
+                    complete();
+                } catch (CompletionFailure e) {}
                 if (typarams_field == null)
                     typarams_field = List.nil();
             }
@@ -864,7 +866,11 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
 
         public List<Type> allparams() {
             if (allparams_field == null) {
-                allparams_field = getTypeArguments().prependList(getEnclosingType().allparams());
+                final Type enclosingType = getEnclosingType();
+                if (enclosingType == null)
+                    allparams_field = getTypeArguments();
+                else
+                    allparams_field = getTypeArguments().prependList(enclosingType.allparams());
             }
             return allparams_field;
         }
@@ -1262,11 +1268,13 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
         public TypeVar(Name name, Symbol owner, Type lower) {
             super(null);
             tsym = new TypeVariableSymbol(0, name, this, owner);
+            assert lower != null;
             this.lower = lower;
         }
 
         public TypeVar(TypeSymbol tsym, Type bound, Type lower) {
             super(tsym);
+            assert lower != null;
             this.bound = bound;
             this.lower = lower;
         }
@@ -1690,7 +1698,10 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
 
         @Override
         public boolean isCompound() { return false; }
-    }
+        
+        @Override
+        public boolean isInterface() { return false; }
+   }
 
     /** Represents VOID.
      */
@@ -1770,16 +1781,22 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
         private Type originalType = null;
 
         public ErrorType(Type originalType, TypeSymbol tsym) {
-            super(noType, List.<Type>nil(), null);
-            this.tsym = tsym;
-            this.originalType = (originalType == null ? noType : originalType);
+            this(originalType, tsym, false);
         }
 
         public ErrorType(ClassSymbol c, Type originalType) {
-            this(originalType, c);
-            c.type = this;
-            c.kind = ERR;
-            c.members_field = new Scope.ErrorScope(c);
+            this(originalType, c, true);
+        }
+
+        public ErrorType(Type originalType, TypeSymbol tsym, boolean modifyClassSym) {
+            super(noType, List.<Type>nil(), tsym);
+            this.originalType = (originalType == null ? noType : originalType);
+            if (modifyClassSym && tsym instanceof ClassSymbol) {
+                ClassSymbol c = (ClassSymbol)tsym;
+                c.type = this;
+                c.kind = ERR;
+                c.members_field = new Scope.ErrorScope(c);
+            }
         }
 
         @Override
@@ -1802,7 +1819,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
             return true;
         }
 
-        public ErrorType(Name name, TypeSymbol container, Type originalType) {
+        public ErrorType(Name name, Symbol container, Type originalType) {
             this(new ClassSymbol(PUBLIC|STATIC|ACYCLIC, name, null, container), originalType);
         }
 
@@ -1835,6 +1852,15 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
 
         public <R, P> R accept(TypeVisitor<R, P> v, P p) {
             return v.visitError(this, p);
+        }
+
+        @Override
+        public String toString() {
+            if (tsym == null)
+                return "<error>";
+            if (tsym.type != this)
+                return tsym.name.table.names.any.toString();
+            return super.toString();
         }
     }
 

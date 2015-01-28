@@ -95,6 +95,15 @@ public class Lint
                 values.add(e.getValue());
         }
 
+        if (!Source.instance(context).allowGenerics()) {
+            //when the compiler is used in the ide mode&source level<1.5, the type parameters of
+            //classes are not erased when the class is load from the classfile
+            //as a consequence, all uses of such classes are raw type uses
+            //the raw type use warning would therefore be reported (see Check.checkRaw)
+            //and needs to be disabled (see #169970)
+            values.remove(LintCategory.RAW);
+        }
+
         suppressedValues = EnumSet.noneOf(LintCategory.class);
 
         context.put(lintKey, this);
@@ -287,8 +296,10 @@ public class Lint
             initSyms();
             this.parent = parent;
             lint = null;
-            for (Attribute.Compound a: attrs) {
-                a.accept(this);
+            if (attrs != null) {
+                for (Attribute.Compound a: attrs) {
+                    a.accept(this);
+                }
             }
             return (lint == null ? parent : lint);
         }

@@ -316,7 +316,7 @@ class SeeTagImpl extends TagImpl implements SeeTag, LayoutCharacters {
      * the tag. May be null, if, for example, it is a package comment.
      */
     private void findReferenced(ClassDocImpl containingClass) {
-        if (where.length() > 0) {
+        if (where.length() > 0 && !".".equals(where)) {
             if (containingClass != null) {
                 referencedClass = containingClass.findClass(where);
             } else {
