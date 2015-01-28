@@ -320,8 +320,12 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
      * tree node, as the location for a diagnostic. Used for scanner and parser
      * diagnostics. */
     public static class SimpleDiagnosticPosition implements DiagnosticPosition {
+        public SimpleDiagnosticPosition(int startPos, int endPos) {
+            this.startPos = startPos;
+            this.endPos = endPos;
+        }
         public SimpleDiagnosticPosition(int pos) {
-            this.pos = pos;
+            this(pos, pos);
         }
 
         public JCTree getTree() {
@@ -329,18 +333,19 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
         }
 
         public int getStartPosition() {
-            return pos;
+            return startPos;
         }
 
         public int getPreferredPosition() {
-            return pos;
+            return startPos;
         }
 
         public int getEndPosition(EndPosTable endPosTable) {
-            return pos;
+            return endPos;
         }
 
-        private final int pos;
+        private final int startPos;
+        private final int endPos;
     }
 
     public enum DiagnosticFlag {
@@ -419,6 +424,10 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
         this.position = pos;
         this.key = key;
         this.args = args;
+    }
+    
+    protected JCDiagnostic(JCDiagnostic original) {
+        this(original.defaultFormatter, original.type, original.lintCategory, original.flags, original.source, original.position, original.key, original.args);
     }
 
     /**
@@ -504,6 +513,10 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
 
     public long getEndPosition() {
         return getIntEndPosition();
+    }
+    
+    public JCTree getTree() {
+        return position == null ? null : position.getTree();
     }
 
     public DiagnosticPosition getDiagnosticPosition() {
@@ -612,6 +625,10 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
         return flags.contains(flag);
     }
 
+    public boolean hasFixedPositions () {
+        return this.position.getTree() == null;
+    }
+    
     public static class MultilineDiagnostic extends JCDiagnostic {
 
         private final List<JCDiagnostic> subdiagnostics;

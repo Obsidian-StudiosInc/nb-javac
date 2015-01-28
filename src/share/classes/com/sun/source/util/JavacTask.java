@@ -37,9 +37,8 @@ import javax.tools.JavaFileObject;
 
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
-import com.sun.tools.javac.api.BasicJavacTask;
-import com.sun.tools.javac.processing.JavacProcessingEnvironment;
-import com.sun.tools.javac.util.Context;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 /**
  * Provides access to functionality specific to the JDK Java Compiler, javac.
@@ -64,9 +63,22 @@ public abstract class JavacTask implements CompilationTask {
         if (!processingEnvironment.getClass().getName().equals(
                 "com.sun.tools.javac.processing.JavacProcessingEnvironment"))
             throw new IllegalArgumentException();
-        Context c = ((JavacProcessingEnvironment) processingEnvironment).getContext();
-        JavacTask t = c.get(JavacTask.class);
-        return (t != null) ? t : new BasicJavacTask(c, true);
+        try {
+            //Cannot refer to the implementation directly, needs to use reflection:
+            Method m = processingEnvironment.getClass().getMethod("getJavacTask");
+            
+            return (JavacTask) m.invoke(processingEnvironment);
+        } catch (NoSuchMethodException ex) {
+            throw new UnsupportedOperationException(ex);
+        } catch (SecurityException ex) {
+            throw new UnsupportedOperationException(ex);
+        } catch (IllegalAccessException ex) {
+            throw new UnsupportedOperationException(ex);
+        } catch (IllegalArgumentException ex) {
+            throw new UnsupportedOperationException(ex);
+        } catch (InvocationTargetException ex) {
+            throw new UnsupportedOperationException(ex);
+        }
     }
 
     /**

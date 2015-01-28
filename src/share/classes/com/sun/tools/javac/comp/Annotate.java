@@ -86,7 +86,7 @@ public class Annotate {
  * Queue maintenance
  *********************************************************************/
 
-    private int enterCount = 0;
+    public int enterCount = 0;
 
     ListBuffer<Worker> q = new ListBuffer<Worker>();
     ListBuffer<Worker> typesQ = new ListBuffer<Worker>();
@@ -254,35 +254,18 @@ public class Annotate {
         Type at = (a.annotationType.type != null ? a.annotationType.type
                   : attr.attribType(a.annotationType, env));
         a.type = chk.checkType(a.annotationType.pos(), at, expected);
-        if (a.type.isErroneous()) {
-            // Need to make sure nested (anno)trees does not have null as .type
-            attr.postAttr(a);
-
-            if (typeAnnotation) {
-                return new Attribute.TypeCompound(a.type, List.<Pair<MethodSymbol,Attribute>>nil(),
-                        new TypeAnnotationPosition());
-            } else {
-                return new Attribute.Compound(a.type, List.<Pair<MethodSymbol,Attribute>>nil());
-            }
-        }
+        boolean isError = a.type.isErroneous();
         if ((a.type.tsym.flags() & Flags.ANNOTATION) == 0) {
             log.error(a.annotationType.pos(),
                       "not.annotation.type", a.type.toString());
-
-            // Need to make sure nested (anno)trees does not have null as .type
-            attr.postAttr(a);
-
-            if (typeAnnotation) {
-                return new Attribute.TypeCompound(a.type, List.<Pair<MethodSymbol,Attribute>>nil(), null);
-            } else {
-                return new Attribute.Compound(a.type, List.<Pair<MethodSymbol,Attribute>>nil());
-            }
+            isError = true;
         }
         List<JCExpression> args = a.args;
         if (args.length() == 1 && !args.head.hasTag(ASSIGN)) {
             // special case: elided "value=" assumed
-            args.head = make.at(args.head.pos).
-                Assign(make.Ident(names.value), args.head);
+            JCIdent ident = make.at(Position.NOPOS).Ident(names.value);
+            args.head = make.at(TreeInfo.getStartPos(args.head)).
+                Assign(ident, args.head);
         }
         ListBuffer<Pair<MethodSymbol,Attribute>> buf =
             new ListBuffer<>();
@@ -290,11 +273,13 @@ public class Annotate {
             JCExpression t = tl.head;
             if (!t.hasTag(ASSIGN)) {
                 log.error(t.pos(), "annotation.value.must.be.name.value");
+                enterAttributeValue(t.type = syms.errType, t, env);
                 continue;
             }
             JCAssign assign = (JCAssign)t;
             if (!assign.lhs.hasTag(IDENT)) {
                 log.error(t.pos(), "annotation.value.must.be.name.value");
+                enterAttributeValue(t.type = syms.errType, t, env);
                 continue;
             }
             JCIdent left = (JCIdent)assign.lhs;
@@ -306,7 +291,7 @@ public class Annotate {
                                                           null);
             left.sym = method;
             left.type = method.type;
-            if (method.owner != a.type.tsym)
+            if (method.owner != a.type.tsym && !isError)
                 log.error(left.pos(), "no.annotation.member", left.name, a.type);
             Type result = method.type.getReturnType();
             Attribute value = enterAttributeValue(result, assign.rhs, env);
@@ -314,6 +299,10 @@ public class Annotate {
                 buf.append(new Pair<>((MethodSymbol)method, value));
             t.type = result;
         }
+
+        // Need to make sure nested (anno)trees does not have null as .type
+        attr.postAttr(a);
+
         if (typeAnnotation) {
             if (a.attribute == null || !(a.attribute instanceof Attribute.TypeCompound)) {
                 // Create a new TypeCompound
@@ -354,9 +343,10 @@ public class Annotate {
             }
             ListBuffer<Attribute> buf = new ListBuffer<Attribute>();
             for (List<JCExpression> l = na.elems; l.nonEmpty(); l=l.tail) {
-                buf.append(enterAttributeValue(types.elemtype(expected),
-                                               l.head,
-                                               env));
+                Attribute value = enterAttributeValue(types.elemtype(expected),
+                        l.head, env);
+                if (!(value instanceof Attribute.Error))
+                    buf.append(value);
             }
             na.type = expected;
             return new Attribute.

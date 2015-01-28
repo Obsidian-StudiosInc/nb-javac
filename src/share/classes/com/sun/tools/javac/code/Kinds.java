@@ -113,7 +113,8 @@ public class Kinds {
         CLASS("kindname.class"),
         STATIC_INIT("kindname.static.init"),
         INSTANCE_INIT("kindname.instance.init"),
-        PACKAGE("kindname.package");
+        PACKAGE("kindname.package"),
+        ERROR("kindname.error");
 
         private final String name;
 
@@ -144,6 +145,7 @@ public class Kinds {
         case VAR: return KindName.VAR;
         case VAL: return KindName.VAL;
         case MTH: return KindName.METHOD;
+        case ERR: return KindName.ERROR;
             default : throw new AssertionError("Unexpected kind: "+kind);
         }
     }

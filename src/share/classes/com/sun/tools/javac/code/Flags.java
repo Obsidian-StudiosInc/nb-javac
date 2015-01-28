@@ -281,6 +281,9 @@ public class Flags {
      */
     public static final long TYPE_TRANSLATED = 1L<<50;
 
+    public static final long FROMCLASS = 1L<<61;
+    public static final long APT_CLEANED = 1L<<62;
+
     /** Modifier masks.
      */
     public static final int

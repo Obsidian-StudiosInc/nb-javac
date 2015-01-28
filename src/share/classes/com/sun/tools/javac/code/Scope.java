@@ -754,7 +754,7 @@ public class Scope {
         public Entry lookup(Name name) {
             Entry e = super.lookup(name);
             if (e.scope == null)
-                return new Entry(owner, null, null, null);
+                return new Entry(owner, sentinel, null, null);
             else
                 return e;
         }

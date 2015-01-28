@@ -404,8 +404,12 @@ public class TreeInfo {
         switch(tree.getTag()) {
             case APPLY:
                 return getStartPos(((JCMethodInvocation) tree).meth);
-            case ASSIGN:
-                return getStartPos(((JCAssign) tree).lhs);
+            case ASSIGN: {
+                int pos = getStartPos(((JCAssign) tree).lhs);
+                if (pos != Position.NOPOS)
+                    return pos;
+                return getStartPos(((JCAssign) tree).rhs);
+            }
             case BITOR_ASG: case BITXOR_ASG: case BITAND_ASG:
             case SL_ASG: case SR_ASG: case USR_ASG:
             case PLUS_ASG: case MINUS_ASG: case MUL_ASG:
@@ -419,10 +423,17 @@ public class TreeInfo {
             case MINUS: case MUL: case DIV:
             case MOD:
                 return getStartPos(((JCBinary) tree).lhs);
+            case MODIFIERS: {
+                JCModifiers node = (JCModifiers)tree;
+                if (node.annotations.nonEmpty())
+                    return Math.min(node.pos, getStartPos(node.annotations.head));
+                return node.pos;
+            }
             case CLASSDEF: {
                 JCClassDecl node = (JCClassDecl)tree;
-                if (node.mods.pos != Position.NOPOS)
-                    return node.mods.pos;
+                int pos = getStartPos(node.mods);
+                if (pos != Position.NOPOS)
+                    return pos;
                 break;
             }
             case CONDEXPR:
@@ -433,9 +444,10 @@ public class TreeInfo {
                 return getStartPos(((JCArrayAccess) tree).indexed);
             case METHODDEF: {
                 JCMethodDecl node = (JCMethodDecl)tree;
-                if (node.mods.pos != Position.NOPOS)
-                    return node.mods.pos;
-                if (node.typarams.nonEmpty()) // List.nil() used for no typarams
+                int pos = getStartPos(node.mods);
+                if (pos != Position.NOPOS)
+                    return pos;
+                if (node.typarams != null && node.typarams.nonEmpty())
                     return getStartPos(node.typarams.head);
                 return node.restype == null ? node.pos : getStartPos(node.restype);
             }
@@ -452,15 +464,12 @@ public class TreeInfo {
                 return getStartPos(((JCUnary) tree).arg);
             case ANNOTATED_TYPE: {
                 JCAnnotatedType node = (JCAnnotatedType) tree;
+                int typePos = getStartPos(node.underlyingType);
                 if (node.annotations.nonEmpty()) {
-                    if (node.underlyingType.hasTag(TYPEARRAY) ||
-                            node.underlyingType.hasTag(SELECT)) {
-                        return getStartPos(node.underlyingType);
-                    } else {
-                        return getStartPos(node.annotations.head);
-                    }
+                    int annPos = getStartPos(node.annotations.head);
+                    return Math.min(typePos, annPos);
                 } else {
-                    return getStartPos(node.underlyingType);
+                    return typePos;
                 }
             }
             case NEWCLASS: {
@@ -471,9 +480,10 @@ public class TreeInfo {
             }
             case VARDEF: {
                 JCVariableDecl node = (JCVariableDecl)tree;
-                if (node.mods.pos != Position.NOPOS) {
-                    return node.mods.pos;
-                } else if (node.vartype == null) {
+                int pos = getStartPos(node.mods);
+                if (pos != Position.NOPOS) {
+                    return pos;
+                } else if (node.vartype == null || node.vartype.pos == Position.NOPOS) {
                     //if there's no type (partially typed lambda parameter)
                     //simply return node position
                     return node.pos;
@@ -483,8 +493,11 @@ public class TreeInfo {
             }
             case ERRONEOUS: {
                 JCErroneous node = (JCErroneous)tree;
-                if (node.errs != null && node.errs.nonEmpty())
-                    return getStartPos(node.errs.head);
+                if (node.errs != null && node.errs.nonEmpty()) {
+                    int pos = getStartPos(node.errs.head);
+                    if (pos != Position.NOPOS)
+                        return pos;
+                }
             }
         }
         return tree.pos;
@@ -506,6 +519,8 @@ public class TreeInfo {
             return mapPos;
 
         switch(tree.getTag()) {
+            case ASSIGN:
+                return getEndPos(((JCAssign) tree).rhs, endPosTable);
             case BITOR_ASG: case BITXOR_ASG: case BITAND_ASG:
             case SL_ASG: case SR_ASG: case USR_ASG:
             case PLUS_ASG: case MINUS_ASG: case MUL_ASG:
@@ -576,7 +591,14 @@ public class TreeInfo {
                 JCErroneous node = (JCErroneous)tree;
                 if (node.errs != null && node.errs.nonEmpty())
                     return getEndPos(node.errs.last(), endPosTable);
+                break;
             }
+            case IDENT:
+                JCIdent i = (JCIdent) tree;
+                return i.pos + i.name.length();
+            case SELECT:
+                JCFieldAccess s = (JCFieldAccess) tree;
+                return s.pos + s.name.length() + 1;
         }
         return Position.NOPOS;
     }
@@ -654,6 +676,10 @@ public class TreeInfo {
             public void visitTypeParameter(JCTypeParameter that) {
                 if (that.type != null && that.type.tsym == sym) result = that;
                 else super.visitTypeParameter(that);
+            }
+            @Override
+            public void visitErroneous(JCErroneous tree) {
+                scan(tree.getErrorTrees());
             }
         }
         DeclScanner s = new DeclScanner();

@@ -116,6 +116,6 @@ public class AttrContext {
 
     @Override
     public String toString() {
-        return "AttrContext[" + scope.toString() + "]";
+        return scope != null ? "AttrContext[" + scope.toString() + "]" : "AttrContext[]";
     }
 }
