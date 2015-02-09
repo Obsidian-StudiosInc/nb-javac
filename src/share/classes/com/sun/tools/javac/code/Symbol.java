@@ -863,18 +863,24 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         }
 
         public Scope members() {
-            if (completer != null) complete();
+            try {
+                if (completer != null) complete();
+            } catch (CompletionFailure cf) {}
             return members_field;
         }
 
         public long flags() {
-            if (completer != null) complete();
+            try {
+                if (completer != null) complete();
+            } catch (CompletionFailure cf) {}
             return flags_field;
         }
 
         @Override
         public List<Attribute.Compound> getRawAttributes() {
-            if (completer != null) complete();
+            try {
+                if (completer != null) complete();
+            } catch (CompletionFailure cf) {}
             if (package_info != null && package_info.completer != null) {
                 package_info.complete();
                 mergeAttributes();
@@ -1001,7 +1007,9 @@ public abstract class Symbol extends AnnoConstruct implements Element {
 
         @Override
         public List<Attribute.TypeCompound> getRawTypeAttributes() {
-            if (completer != null) complete();
+            try {
+                if (completer != null) complete();
+            } catch (CompletionFailure cf) {}               
             return super.getRawTypeAttributes();
         }
 
