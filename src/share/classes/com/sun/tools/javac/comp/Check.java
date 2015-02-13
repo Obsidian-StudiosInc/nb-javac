@@ -3478,7 +3478,7 @@ public class Check {
      *  @param s             The scope.
      */
     boolean checkUnique(DiagnosticPosition pos, Symbol sym, Scope s) {
-        if (sym.type.isErroneous())
+        if (sym.type != null && sym.type.isErroneous())
             return true;
         if (sym.owner.name == names.any) return false;
         for (Scope.Entry e = s.lookup(sym.name); e.scope == s; e = e.next()) {
