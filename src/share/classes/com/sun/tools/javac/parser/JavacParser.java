@@ -2281,6 +2281,10 @@ public class JavacParser implements Parser {
         int pos = token.pos;
         accept(LPAREN);
         JCExpression t = parseExpression();
+        if (token.kind != RPAREN) {
+            setErrorEndPos(token.pos);
+            return syntaxError(S.prevToken().endPos, List.<JCTree>of(toP(F.at(pos).Parens(t))), "expected", RPAREN);
+        }
         accept(RPAREN);
         return toP(F.at(pos).Parens(t));
     }
