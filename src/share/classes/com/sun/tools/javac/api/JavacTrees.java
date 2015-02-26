@@ -134,6 +134,7 @@ public class JavacTrees extends DocTrees {
     private JavacTaskImpl javacTaskImpl;
     private Names names;
     private Types types;
+    private com.sun.tools.javac.main.JavaCompiler compiler;
 
     // called reflectively from Trees.instance(CompilationTask task)
     public static JavacTrees instance(JavaCompiler.CompilationTask task) {
@@ -181,6 +182,7 @@ public class JavacTrees extends DocTrees {
         JavacTask t = context.get(JavacTask.class);
         if (t instanceof JavacTaskImpl)
             javacTaskImpl = (JavacTaskImpl) t;
+        compiler = com.sun.tools.javac.main.JavaCompiler.instance(context);
     }
 
     public DocSourcePositions getSourcePositions() {
@@ -882,7 +884,10 @@ public class JavacTrees extends DocTrees {
         Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
         enter.shadowTypeEnvs(true);
         try {
-            return attr.attribStatToTree(stat, env, tree);
+            Env<AttrContext> ret = attr.attribStatToTree(stat, env, tree);
+            if (!compiler.skipAnnotationProcessing && compiler.toProcessAnnotations.nonEmpty())
+                compiler = compiler.processAnnotations(List.<JCCompilationUnit>nil());
+            return ret;
         } finally {
             enter.shadowTypeEnvs(false);
             log.popDiagnosticHandler(discardHandler);
@@ -895,7 +900,10 @@ public class JavacTrees extends DocTrees {
         Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
         enter.shadowTypeEnvs(true);
         try {
-            return attr.attribExprToTree(expr, env, tree);
+            Env<AttrContext> ret = attr.attribExprToTree(expr, env, tree);
+            if (!compiler.skipAnnotationProcessing && compiler.toProcessAnnotations.nonEmpty())
+                compiler = compiler.processAnnotations(List.<JCCompilationUnit>nil());
+            return ret;
         } finally {
             enter.shadowTypeEnvs(false);
             log.popDiagnosticHandler(discardHandler);

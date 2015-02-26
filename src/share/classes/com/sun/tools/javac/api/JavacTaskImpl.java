@@ -757,9 +757,12 @@ public class JavacTaskImpl extends BasicJavacTask {
         Enter enter = Enter.instance(context);
         enter.shadowTypeEnvs(true);
         try {
-            if (tree instanceof JCExpression)
-                return attr.attribExpr(tree, env, Type.noType);
-            return attr.attribStat(tree, env);
+            Type type = tree instanceof JCExpression
+                    ? attr.attribExpr(tree, env, Type.noType)
+                    : attr.attribStat(tree, env);
+            if (!compiler.skipAnnotationProcessing && compiler.toProcessAnnotations.nonEmpty())
+                compiler = compiler.processAnnotations(List.<JCCompilationUnit>nil());
+            return type;
         } finally {
             enter.shadowTypeEnvs(false);
             log.popDiagnosticHandler(discardHandler);
@@ -776,6 +779,8 @@ public class JavacTaskImpl extends BasicJavacTask {
         enter.shadowTypeEnvs(true);
         try {
             Env<AttrContext> ret = tree instanceof JCExpression ? attr.attribExprToTree(tree, env, to) : attr.attribStatToTree(tree, env, to);
+            if (!compiler.skipAnnotationProcessing && compiler.toProcessAnnotations.nonEmpty())
+                compiler = compiler.processAnnotations(List.<JCCompilationUnit>nil());
             return new JavacScope(ret);
         } finally {
             enter.shadowTypeEnvs(false);
