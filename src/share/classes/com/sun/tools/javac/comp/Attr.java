@@ -4801,6 +4801,9 @@ public class Attr extends JCTree.Visitor {
 
             boolean repeat = true;
             while (repeat) {
+                if (enclTr == null) {
+                    Assert.error("Unexpected null tree within: "+ errtree + " with kind: " + errtree.getKind());
+                }
                 if (enclTr.hasTag(TYPEAPPLY)) {
                     List<Type> tyargs = enclTy.getTypeArguments();
                     List<JCExpression> trargs = ((JCTypeApply)enclTr).getTypeArguments();
