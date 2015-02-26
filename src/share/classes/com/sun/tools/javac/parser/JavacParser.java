@@ -3590,6 +3590,9 @@ public class JavacParser implements Parser {
      *  InterfaceBody = "{" {InterfaceBodyDeclaration} "}"
      */
     List<JCTree> classOrInterfaceBody(Name className, boolean isInterface) {
+        if (token.kind != LBRACE) {
+            return List.<JCTree>of(syntaxError(token.pos, "expected", LBRACE));
+        }
         accept(LBRACE);
         if (token.pos <= endPosTable.errorEndPos) {
             // error recovery
@@ -3652,9 +3655,12 @@ public class JavacParser implements Parser {
                 token.kind == INTERFACE ||
                 allowEnums && token.kind == ENUM) {
                 return List.<JCTree>of(classOrInterfaceOrEnumDeclaration(mods, dc));
-            } else if (token.kind == LBRACE && !isInterface &&
+            } else if (token.kind == LBRACE &&
                        (mods.flags & Flags.StandardFlags & ~Flags.STATIC) == 0 &&
                        mods.annotations.isEmpty()) {
+                if (isInterface) {
+                    syntaxError(token.pos, "illegal.start.of.type");
+                }
                 return List.<JCTree>of(block(pos, mods.flags));
             } else {
                 pos = token.pos;
@@ -3686,7 +3692,7 @@ public class JavacParser implements Parser {
                     // method returns types are un-annotated types
                     type = unannotatedType();
                 }
-                if (token.kind == LPAREN && !isInterface && type.hasTag(IDENT)) {
+                if (token.kind == LPAREN && type.hasTag(IDENT)) {
                     if (isInterface || name != className) {
                         error(pos, "invalid.meth.decl.ret.type.req");
                         return List.of(methodDeclaratorRest(
