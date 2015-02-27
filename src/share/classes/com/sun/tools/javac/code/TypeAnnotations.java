@@ -1251,13 +1251,22 @@ public class TypeAnnotations {
                 TypeAnnotationPosition pos = new TypeAnnotationPosition();
                 pos.type = TargetType.CLASS_EXTENDS;
                 pos.pos = tree.pos;
-                if (classdecl.extending == tree.clazz) {
+                if (classdecl.extending != null && TreeInfo.fullName(classdecl.extending).contentEquals(TreeInfo.fullName(tree.clazz))) {
                     pos.type_index = -1;
-                } else if (classdecl.implementing.contains(tree.clazz)) {
-                    pos.type_index = classdecl.implementing.indexOf(tree.clazz);
                 } else {
-                    // In contrast to CLASS elsewhere, typarams cannot occur here.
-                    Assert.error("Could not determine position of tree " + tree);
+                    boolean found = false;
+                    for (int i = 0; i < classdecl.implementing.size(); i++) {
+                        JCExpression impl = classdecl.implementing.get(i);
+                        if (TreeInfo.fullName(impl).contentEquals(TreeInfo.fullName(tree.clazz))) {
+                            pos.type_index = i;
+                            found = true;
+                            break;
+                        }
+                        if (!found) {
+                            // In contrast to CLASS elsewhere, typarams cannot occur here.
+                            Assert.error("Could not determine position of tree " + tree);
+                        }
+                    }
                 }
                 Type before = classdecl.sym.type;
                 separateAnnotationsKinds(classdecl, tree.clazz.type, classdecl.sym, pos);
