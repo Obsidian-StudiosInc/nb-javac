@@ -880,11 +880,11 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         public List<Attribute.Compound> getRawAttributes() {
             try {
                 if (completer != null) complete();
+                if (package_info != null && package_info.completer != null) {
+                    package_info.complete();
+                    mergeAttributes();
+                }
             } catch (CompletionFailure cf) {}
-            if (package_info != null && package_info.completer != null) {
-                package_info.complete();
-                mergeAttributes();
-            }
             return super.getRawAttributes();
         }
 
