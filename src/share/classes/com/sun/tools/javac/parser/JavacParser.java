@@ -1832,12 +1832,17 @@ public class JavacParser implements Parser {
     List<JCExpression> typeArgumentsOpt(int useMode) {
         if (token.kind == LT) {
             checkGenerics();
+            JCExpression iExpr = null;
             if ((mode & useMode) == 0 ||
                 (mode & NOPARAMS) != 0) {
-                illegal();
+                iExpr = illegal();
             }
             mode = useMode;
-            return typeArguments(false);
+            List<JCExpression> targs = typeArguments(false);
+            if (iExpr != null) {
+                setErrorEndPos(token.pos);
+            }
+            return targs;
         }
         return null;
     }
