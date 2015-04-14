@@ -1093,7 +1093,7 @@ public class Attr extends JCTree.Visitor {
     }
 
     public void visitBlock(JCBlock tree) {
-        if (env.info.scope.owner != null && (env.info.scope.owner.kind == TYP || env.info.scope.owner.kind == ERR)) {
+        if (env.info.scope != null && env.info.scope.owner != null && (env.info.scope.owner.kind == TYP || env.info.scope.owner.kind == ERR)) {
             // Block is a static or instance initializer;
             // let the owner of the environment be a freshly
             // created BLOCK-method.
@@ -1125,7 +1125,7 @@ public class Attr extends JCTree.Visitor {
         } else {
             // Create a new local environment with a local scope.
             Env<AttrContext> localEnv =
-                env.dup(tree, env.info.dup(env.info.scope.dup()));
+                env.dup(tree, env.info.dup(env.info.scope != null ? env.info.scope.dup() : new Scope(syms.noSymbol)));
             try {
                 attribStats(tree.stats, localEnv);
             } finally {
