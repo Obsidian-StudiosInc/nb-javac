@@ -1956,9 +1956,8 @@ public class JavacParser implements Parser {
                 t = bracketsOptCont(t, pos, nextLevelAnnotations);
             }
         } else if (!nextLevelAnnotations.isEmpty()) {
-            if (permitTypeAnnotationsPushBack) {
-                this.typeAnnotationsPushedBack = nextLevelAnnotations;
-            } else {
+            this.typeAnnotationsPushedBack = nextLevelAnnotations;
+            if (!permitTypeAnnotationsPushBack) {
                 return illegal(nextLevelAnnotations.head.pos);
             }
         }
@@ -2828,6 +2827,10 @@ public class JavacParser implements Parser {
     protected JCModifiers modifiersOpt(JCModifiers partial) {
         long flags;
         ListBuffer<JCAnnotation> annotations = new ListBuffer<JCAnnotation>();
+        if (typeAnnotationsPushedBack.nonEmpty()) {
+            annotations.appendList(typeAnnotationsPushedBack);
+            typeAnnotationsPushedBack = List.nil();
+        }
         int pos;
         if (partial == null) {
             flags = 0;
@@ -3044,7 +3047,7 @@ public class JavacParser implements Parser {
      */
     JCVariableDecl variableDeclaratorRest(int pos, JCModifiers mods, JCExpression type, Name name,
                                   boolean reqInit, Comment dc) {
-        type = bracketsOpt(type);
+        JCExpression newType = bracketsOpt(type);
         JCExpression init = null;
         if (token.kind == EQ) {
             nextToken();
@@ -3053,8 +3056,12 @@ public class JavacParser implements Parser {
                 init.pos = S.prevToken().endPos;
         }
         else if (reqInit) syntaxError(token.pos, "expected", EQ);
-        JCVariableDecl result =
-            toP(F.at(pos).VarDef(mods, name, type, init));
+        JCVariableDecl result;
+        if (newType.hasTag(ERRONEOUS)) {
+            result = F.at(pos).VarDef(mods, name, type, init);
+        } else {
+            result = toP(F.at(pos).VarDef(mods, name, newType, init));
+        }
         attach(result, dc);
         return result;
     }
@@ -3727,8 +3734,21 @@ public class JavacParser implements Parser {
                         List<JCTree> defs =
                             variableDeclaratorsRest(pos, mods, type, name, isInterface, dc,
                                                     new ListBuffer<JCTree>()).toList();
-                        accept(SEMI);
-                        storeEnd(defs.last(), S.prevToken().endPos);
+                        if (token.kind == SEMI) {
+                            nextToken();
+                            storeEnd(defs.last(), S.prevToken().endPos);
+                            if (typeAnnotationsPushedBack.nonEmpty()) {
+                                typeAnnotationsPushedBack = List.nil();
+                            }
+                        } else {
+                            if (typeAnnotationsPushedBack.nonEmpty()) {
+                                storeEnd(defs.last(), typeAnnotationsPushedBack.head.pos);
+                            } else {
+                                setErrorEndPos(token.pos);
+                                reportSyntaxError(S.prevToken().endPos, "expected", SEMI);
+                                storeEnd(defs.last(), S.prevToken().endPos);
+                            }
+                        }
                         return defs;
                     } else {
                         pos = token.pos;
