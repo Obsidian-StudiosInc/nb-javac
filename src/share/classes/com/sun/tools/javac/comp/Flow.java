@@ -2409,13 +2409,6 @@ public class Flow {
             }
         }
 
-        public void visitErroneous(JCErroneous tree) {
-            for (JCTree err : tree.errs) {
-                //scanExpr ensures that (un)inits is non-null, which happens after scanCond (invoked e.g. by visitBinary):
-                scanExpr(err);
-            }
-        }
-
         void referenced(Symbol sym) {
             unrefdResources.remove(sym);
         }
