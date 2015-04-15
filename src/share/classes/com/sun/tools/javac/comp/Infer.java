@@ -2069,7 +2069,8 @@ public class Infer {
         final List<Type> asUndetVars(List<Type> ts) {
             ListBuffer<Type> buf = new ListBuffer<>();
             for (Type t : ts) {
-                buf.append(asUndetVar(t));
+                Type uVar = asUndetVar(t);
+                buf.append(uVar != null ? uVar : syms.unknownType);
             }
             return buf.toList();
         }
