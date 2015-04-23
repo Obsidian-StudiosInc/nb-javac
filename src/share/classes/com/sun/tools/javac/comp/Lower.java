@@ -3030,7 +3030,7 @@ public class Lower extends TreeTranslator {
                 List<JCVariableDecl> params = currentMethodDef.params;
                 if (currentMethodSym.owner.hasOuterInstance())
                     params = params.tail; // drop this$n
-                if (params.isEmpty()) {
+                if (params.isEmpty() || params.tail.isEmpty()) {
                     tree.args = tree.args.prepend(makeNull()).prepend(makeNull());
                 } else {
                     tree.args = tree.args
