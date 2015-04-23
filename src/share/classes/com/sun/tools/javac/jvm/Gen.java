@@ -1993,8 +1993,11 @@ public class Gen extends JCTree.Visitor {
         // Generate code for all arguments, where the expected types are
         // the parameters of the constructor's external type (that is,
         // any implicit outer instance appears as first parameter).
-        genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
-
+        try {
+            genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
+        } catch (NullPointerException npe) {
+            throw (NullPointerException)new NullPointerException("Issue #246934 - method tree: " + env.enclMethod).initCause(npe);
+        }
         items.makeMemberItem(tree.constructor, true).invoke();
         result = items.makeStackItem(tree.type);
     }
