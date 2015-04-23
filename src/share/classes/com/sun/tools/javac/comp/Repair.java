@@ -412,6 +412,14 @@ public class Repair extends TreeTranslator {
 
     @Override
     public void visitCase(JCCase tree) {
+        if (tree.pat != null && (tree.pat.type == null
+                || (tree.pat.type.tsym.flags() & Flags.ENUM) == 0
+                && tree.pat.type.constValue() == null)) {
+            LOGGER.warning("Repair.visitCase tree [" + tree + "] has wrong expression type [" + tree.pat.type + "]."); //NOI18N
+            hasError = true;
+            if (err == null && errMessage == null)
+                errMessage = "Wrong expression type: " + tree;
+        }
         tree.pat = translate(tree.pat);
         List<JCStatement> last = null;
         for (List<JCStatement> l = tree.stats; l.nonEmpty(); l = l.tail) {
