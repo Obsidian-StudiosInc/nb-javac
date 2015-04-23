@@ -4719,7 +4719,7 @@ public class Attr extends JCTree.Visitor {
             }
         }
         public void visitVarDef(final JCVariableDecl tree) {
-            if (tree.sym != null && tree.sym.type != null)
+            if (tree.sym != null && tree.sym.type != null && !tree.sym.type.isErroneous())
                 validateAnnotatedType(tree.vartype, tree.sym.type);
             scan(tree.mods);
             scan(tree.vartype);
