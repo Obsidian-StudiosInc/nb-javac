@@ -245,7 +245,7 @@ public class JavacTaskImpl extends BasicJavacTask {
             else {
                 this.fileObjects = this.fileObjects.append(file);
                 if (notYetEntered != null) {
-                    assert !notYetEntered.containsKey(file);
+                    assert !notYetEntered.containsKey(file) || notYetEntered.get(file) == null;
                     notYetEntered.put(file, null);
                 }
             }
