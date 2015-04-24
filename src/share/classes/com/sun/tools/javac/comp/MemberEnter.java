@@ -1725,7 +1725,7 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
 
         @Override
         public void visitIdent(JCIdent tree) {
-            if (!tree.type.hasTag(ERROR)) {
+            if (tree.type != null && !tree.type.hasTag(ERROR)) {
                 result = tree.type;
             } else {
                 result = synthesizeClass(tree.name, syms.unnamedPackage).type;
