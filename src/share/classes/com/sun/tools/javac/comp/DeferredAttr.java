@@ -48,6 +48,7 @@ import java.util.WeakHashMap;
 
 import static com.sun.tools.javac.code.Kinds.VAL;
 import static com.sun.tools.javac.code.TypeTag.*;
+import com.sun.tools.javac.main.JavaCompiler;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 
 /**
@@ -78,6 +79,7 @@ public class DeferredAttr extends JCTree.Visitor {
     final Flow flow;
     final Names names;
     final TypeEnvs typeEnvs;
+    final JavaCompiler compiler;
 
     public static DeferredAttr instance(Context context) {
         DeferredAttr instance = context.get(deferredAttrKey);
@@ -102,6 +104,7 @@ public class DeferredAttr extends JCTree.Visitor {
         names = Names.instance(context);
         stuckTree = make.Ident(names.empty).setType(Type.stuckType);
         typeEnvs = TypeEnvs.instance(context);
+        compiler = JavaCompiler.instance(context);
         emptyDeferredAttrContext =
             new DeferredAttrContext(AttrMode.CHECK, null, MethodResolutionPhase.BOX, infer.emptyContext, null, null) {
                 @Override
@@ -382,11 +385,14 @@ public class DeferredAttr extends JCTree.Visitor {
                 return posScanner.found;
             }
         });
+        boolean oldSkipAP = compiler.skipAnnotationProcessing;
         try {
+            compiler.skipAnnotationProcessing = true;
             attr.attribTree(newTree, speculativeEnv, resultInfo);
             unenterScanner.scan(newTree);
             return newTree;
         } finally {
+            compiler.skipAnnotationProcessing = oldSkipAP;
             unenterScanner.scan(newTree);
             log.popDiagnosticHandler(deferredDiagnosticHandler);
         }
