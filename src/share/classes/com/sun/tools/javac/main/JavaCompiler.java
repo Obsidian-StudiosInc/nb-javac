@@ -710,6 +710,8 @@ public class JavaCompiler {
             return syms.errSymbol;
         JavaFileObject prev = log.useSource(null);
         Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DeferredDiagnosticHandler deferredHandler = deferredDiagnosticHandler;
+        deferredDiagnosticHandler = null;
         try {
             JCExpression tree = null;
             for (String s : name.split("\\.", -1)) {
@@ -721,8 +723,12 @@ public class JavaCompiler {
             JCCompilationUnit toplevel =
                 make.TopLevel(List.<JCTree.JCAnnotation>nil(), null, List.<JCTree>nil());
             toplevel.packge = syms.unnamedPackage;
-            return attr.attribIdent(tree, toplevel);
+            Symbol ret = attr.attribIdent(tree, toplevel);
+            if (!skipAnnotationProcessing && toProcessAnnotations.nonEmpty())
+                processAnnotations(List.<JCCompilationUnit>nil());
+            return ret;
         } finally {
+            deferredDiagnosticHandler = deferredHandler;
             log.popDiagnosticHandler(discardHandler);
             log.useSource(prev);
         }
