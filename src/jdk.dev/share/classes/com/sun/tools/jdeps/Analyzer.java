@@ -36,6 +36,9 @@ import java.util.stream.Collectors;
 
 import com.sun.tools.classfile.Dependency.Location;
 
+import com.sun.tools.classfile.Dependency.Location;
+import com.sun.tools.jdeps.PlatformClassPath.JDKArchive;
+
 /**
  * Dependency Analyzer.
  */
@@ -94,6 +97,18 @@ public class Analyzer {
     }
 
     protected void buildLocationArchiveMap(List<Archive> archives) {
+        // build a map from Location to Archive
+        buildLocationArchiveMap(archives);
+
+        // traverse and analyze all dependencies
+        for (Archive archive : archives) {
+            ArchiveDeps deps = new ArchiveDeps(archive, type);
+            archive.visitDependences(deps);
+            results.put(archive, deps);
+        }
+    }
+
+    private void buildLocationArchiveMap(List<Archive> archives) {
         // build a map from Location to Archive
         for (Archive archive: archives) {
             for (Location l: archive.getClasses()) {

@@ -868,6 +868,6 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
      */
     @Override
     public R visitErroneous(ErroneousTree node, P p) {
-        return null;
+        return scan(node.getErrorTrees(), p);
     }
 }

@@ -162,7 +162,7 @@ public class ToolProvider {
         Class<?> c = (refClass == null ? null : refClass.get());
         if (c == null) {
             try {
-                c = Class.forName(name, false, ClassLoader.getSystemClassLoader());
+                c = Class.forName(name, false, Thread.currentThread().getContextClassLoader());
             } catch (ClassNotFoundException | RuntimeException | Error e) {
                 return trace(WARNING, e);
             }

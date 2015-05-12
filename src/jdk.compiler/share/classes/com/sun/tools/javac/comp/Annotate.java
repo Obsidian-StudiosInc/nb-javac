@@ -101,7 +101,7 @@ public class Annotate {
  * Queue maintenance
  *********************************************************************/
 
-    private int enterCount = 0;
+    public int enterCount = 0;
 
     ListBuffer<Worker> q = new ListBuffer<>();
     ListBuffer<Worker> typesQ = new ListBuffer<>();
@@ -319,8 +319,9 @@ public class Annotate {
         if (args.length() == 1 && !args.head.hasTag(ASSIGN)) {
             // special case: elided "value=" assumed
             elidedValue = true;
-            args.head = make.at(args.head.pos).
-                Assign(make.Ident(names.value), args.head);
+            JCIdent ident = make.at(Position.NOPOS).Ident(names.value);
+            args.head = make.at(TreeInfo.getStartPos(args.head)).
+                Assign(ident, args.head);
         }
         ListBuffer<Pair<MethodSymbol,Attribute>> buf =
             new ListBuffer<>();
@@ -380,9 +381,10 @@ public class Annotate {
             }
             ListBuffer<Attribute> buf = new ListBuffer<>();
             for (List<JCExpression> l = na.elems; l.nonEmpty(); l=l.tail) {
-                buf.append(enterAttributeValue(types.elemtype(expected),
-                                               l.head,
-                                               env));
+                Attribute value = enterAttributeValue(types.elemtype(expected),
+                        l.head, env);
+                if (!(value instanceof Attribute.Error))
+                    buf.append(value);
             }
             na.type = expected;
             return new Attribute.

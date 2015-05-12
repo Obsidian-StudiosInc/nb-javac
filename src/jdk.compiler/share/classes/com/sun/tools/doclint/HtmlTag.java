@@ -35,6 +35,7 @@ import java.util.Map;
 import javax.lang.model.element.Name;
 
 import static com.sun.tools.doclint.HtmlTag.Attr.*;
+import com.sun.tools.javac.util.StringUtils;
 
 import com.sun.tools.javac.util.StringUtils;
 

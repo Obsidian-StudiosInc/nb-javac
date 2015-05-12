@@ -897,7 +897,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
         public String toString() {
             StringBuilder buf = new StringBuilder();
             appendAnnotationsString(buf);
-            if (getEnclosingType().hasTag(CLASS) && tsym.owner.kind == TYP) {
+            if (getEnclosingType() != null && getEnclosingType().hasTag(CLASS) && tsym.owner.kind == TYP) {
                 buf.append(getEnclosingType().toString());
                 buf.append(".");
                 buf.append(className(tsym, false));
@@ -945,7 +945,9 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
         @DefinedBy(Api.LANGUAGE_MODEL)
         public List<Type> getTypeArguments() {
             if (typarams_field == null) {
-                complete();
+                try {
+                    complete();
+                } catch (CompletionFailure e) {}
                 if (typarams_field == null)
                     typarams_field = List.nil();
             }
@@ -967,7 +969,11 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
 
         public List<Type> allparams() {
             if (allparams_field == null) {
-                allparams_field = getTypeArguments().prependList(getEnclosingType().allparams());
+                final Type enclosingType = getEnclosingType();
+                if (enclosingType == null)
+                    allparams_field = getTypeArguments();
+                else
+                    allparams_field = getTypeArguments().prependList(enclosingType.allparams());
             }
             return allparams_field;
         }
@@ -1960,7 +1966,10 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
 
         @Override
         public boolean isCompound() { return false; }
-    }
+        
+        @Override
+        public boolean isInterface() { return false; }
+   }
 
     /** Represents VOID.
      */
@@ -2096,7 +2105,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
             return true;
         }
 
-        public ErrorType(Name name, TypeSymbol container, Type originalType) {
+        public ErrorType(Name name, Symbol container, Type originalType) {
             this(new ClassSymbol(PUBLIC|STATIC|ACYCLIC, name, null, container), originalType);
         }
 
@@ -2133,6 +2142,15 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
         @DefinedBy(Api.LANGUAGE_MODEL)
         public <R, P> R accept(TypeVisitor<R, P> v, P p) {
             return v.visitError(this, p);
+        }
+
+        @Override
+        public String toString() {
+            if (tsym == null)
+                return "<error>";
+            if (tsym.type != this)
+                return tsym.name.table.names.any.toString();
+            return super.toString();
         }
     }
 

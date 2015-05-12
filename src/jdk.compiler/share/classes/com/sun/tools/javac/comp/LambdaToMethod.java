@@ -2010,6 +2010,13 @@ public class LambdaToMethod extends TreeTranslator {
                     params.append(make.VarDef((VarSymbol) thisSym, null));
                     parameterSymbols.append((VarSymbol) thisSym);
                 }
+                if (methodReferenceReceiver != null) {
+                    params.append(make.VarDef(
+                            make.Modifiers(PARAMETER|FINAL),
+                            names.fromString("$rcvr$"),
+                            make.Type(methodReferenceReceiver.type),
+                            null));
+                }
                 for (Symbol thisSym : getSymbolMap(PARAM).values()) {
                     params.append(make.VarDef((VarSymbol) thisSym, null));
                     parameterSymbols.append((VarSymbol) thisSym);
