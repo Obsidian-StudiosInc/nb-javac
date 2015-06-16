@@ -1767,15 +1767,16 @@ public class Code {
 
         /** Force the top of the stack to be treated as this supertype
          *  of its current type. */
-        void forceStackTop(Type t) {
+        void forceStackTop(JCTree tree) {
             if (!alive) return;
+            Type t = tree.type;
             switch (t.getTag()) {
             case CLASS:
             case ARRAY:
                 int width = width(t);
                 Type old = stack[stacksize-width];
                 Assert.check(types.isSubtype(types.erasure(old),
-                                       types.erasure(t)));
+                                       types.erasure(t)), "Type: " + types.erasure(old) + " is not subtype of: " + types.erasure(t) + " in tree: " + tree);
                 stack[stacksize-width] = t;
                 break;
             default:

@@ -414,6 +414,13 @@ public class JavacElements implements Elements {
         private void addMembers(WriteableScope scope, Type type) {
             members:
             for (Symbol e : type.asElement().members().getSymbols(NON_RECURSIVE)) {
+                ElementKind kind = e.getKind();
+                boolean isAbstract = (e.flags() & Flags.ABSTRACT) != 0;
+                if (kind == ElementKind.METHOD && isAbstract) {
+                    MethodSymbol impl = ((MethodSymbol)e).implementation((TypeSymbol)scope.owner, types, false);
+                    if (impl != null && impl != e)
+                        continue members;
+                }
                 for (Symbol overrider : scope.getSymbolsByName(e.getSimpleName())) {
                     if (overrider.kind == e.kind && (overrider.flags() & Flags.SYNTHETIC) == 0) {
                         if (overrider.getKind() == ElementKind.METHOD &&
@@ -423,7 +430,6 @@ public class JavacElements implements Elements {
                     }
                 }
                 boolean derived = e.getEnclosingElement() != scope.owner;
-                ElementKind kind = e.getKind();
                 boolean initializer = kind == ElementKind.CONSTRUCTOR
                     || kind == ElementKind.INSTANCE_INIT
                     || kind == ElementKind.STATIC_INIT;

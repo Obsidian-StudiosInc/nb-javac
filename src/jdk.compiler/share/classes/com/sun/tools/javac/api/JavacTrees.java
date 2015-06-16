@@ -902,14 +902,17 @@ public class JavacTrees extends DocTrees {
     private Env<AttrContext> attribStatToTree(JCTree stat, Env<AttrContext>env, JCTree tree) {
         JavaFileObject prev = log.useSource(null);
         Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DeferredDiagnosticHandler deferredHandler = compiler.deferredDiagnosticHandler;
+        compiler.deferredDiagnosticHandler = null;
         enter.shadowTypeEnvs(true);
         try {
             Env<AttrContext> ret = attr.attribStatToTree(stat, env, tree);
-            if (!compiler.skipAnnotationProcessing && compiler.toProcessAnnotations.nonEmpty())
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
                 compiler.processAnnotations(List.<JCCompilationUnit>nil());
             return ret;
         } finally {
             enter.shadowTypeEnvs(false);
+            compiler.deferredDiagnosticHandler = deferredHandler;
             log.popDiagnosticHandler(discardHandler);
             log.useSource(prev);
         }
@@ -918,14 +921,17 @@ public class JavacTrees extends DocTrees {
     private Env<AttrContext> attribExprToTree(JCExpression expr, Env<AttrContext>env, JCTree tree) {
         JavaFileObject prev = log.useSource(null);
         Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DeferredDiagnosticHandler deferredHandler = compiler.deferredDiagnosticHandler;
+        compiler.deferredDiagnosticHandler = null;
         enter.shadowTypeEnvs(true);
         try {
             Env<AttrContext> ret = attr.attribExprToTree(expr, env, tree);
-            if (!compiler.skipAnnotationProcessing && compiler.toProcessAnnotations.nonEmpty())
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
                 compiler.processAnnotations(List.<JCCompilationUnit>nil());
             return ret;
         } finally {
             enter.shadowTypeEnvs(false);
+            compiler.deferredDiagnosticHandler = deferredHandler;
             log.popDiagnosticHandler(discardHandler);
             log.useSource(prev);
         }

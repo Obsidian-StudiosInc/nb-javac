@@ -675,6 +675,8 @@ public class JavaCompiler {
             return syms.errSymbol;
         JavaFileObject prev = log.useSource(null);
         Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DeferredDiagnosticHandler deferredHandler = deferredDiagnosticHandler;
+        deferredDiagnosticHandler = null;
         try {
             JCExpression tree = null;
             for (String s : name.split("\\.", -1)) {
@@ -687,10 +689,11 @@ public class JavaCompiler {
                 make.TopLevel(List.<JCTree>nil());
             toplevel.packge = syms.unnamedPackage;
             Symbol ret = attr.attribIdent(tree, toplevel);
-            if (!skipAnnotationProcessing && toProcessAnnotations.nonEmpty())
+            if (!skipAnnotationProcessing && deferredDiagnosticHandler != null && toProcessAnnotations.nonEmpty())
                 processAnnotations(List.<JCCompilationUnit>nil());
             return ret;
         } finally {
+            deferredDiagnosticHandler = deferredHandler;
             log.popDiagnosticHandler(discardHandler);
             log.useSource(prev);
         }
@@ -779,6 +782,9 @@ public class JavaCompiler {
             TaskEvent e = new TaskEvent(TaskEvent.Kind.ENTER, tree);
             taskListener.started(e);
         }
+
+        if (!skipAnnotationProcessing && processAnnotations && deferredDiagnosticHandler == null)
+            deferredDiagnosticHandler = new Log.DeferredDiagnosticHandler(log);
 
         enter.complete(List.of(tree), c);
 
@@ -1093,6 +1099,7 @@ public class JavaCompiler {
             if (unrecoverableError()) {
                 deferredDiagnosticHandler.reportDeferredDiagnostics();
                 log.popDiagnosticHandler(deferredDiagnosticHandler);
+                deferredDiagnosticHandler = null;
                 return ;
             }
         }
@@ -1132,6 +1139,7 @@ public class JavaCompiler {
                               classnames);
                     deferredDiagnosticHandler.reportDeferredDiagnostics();
                     log.popDiagnosticHandler(deferredDiagnosticHandler);
+                    deferredDiagnosticHandler = null;
                     return ; // TODO: Will this halt compilation?
                 } else {
                     boolean errors = false;
@@ -1166,6 +1174,7 @@ public class JavaCompiler {
                     if (errors) {
                         deferredDiagnosticHandler.reportDeferredDiagnostics();
                         log.popDiagnosticHandler(deferredDiagnosticHandler);
+                        deferredDiagnosticHandler = null;
                         return ;
                     }
                 }
@@ -1191,6 +1200,7 @@ public class JavaCompiler {
             if (deferredDiagnosticHandler != null) {
                 deferredDiagnosticHandler.reportDeferredDiagnostics();
                 log.popDiagnosticHandler(deferredDiagnosticHandler);
+                deferredDiagnosticHandler = null;
             }
         }
     }

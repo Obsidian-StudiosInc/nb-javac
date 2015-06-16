@@ -170,7 +170,13 @@ public class TypeEnter implements Completer {
         for (JCCompilationUnit tree : trees) {
             if (!tree.starImportScope.isFilled()) {
                 Env<AttrContext> topEnv = enter.topLevelEnv(tree);
-                finishImports(tree, () -> { completeClass.resolveImports(tree, topEnv); });
+                finishImports(tree, () -> {
+                    try {
+                        completeClass.resolveImports(tree, topEnv);
+                    } catch (CompletionFailure ex) {
+                        chk.completionError(tree.pos(), ex);
+                    }
+                });
             }
        }
     }
@@ -559,7 +565,7 @@ public class TypeEnter implements Completer {
 
                 @Override
                 public void visitIdent(JCIdent tree) {
-                    if (!tree.type.hasTag(ERROR)) {
+                    if (tree.type != null && !tree.type.hasTag(ERROR)) {
                         result = tree.type;
                     } else {
                         result = synthesizeClass(tree.name, syms.unnamedPackage).type;

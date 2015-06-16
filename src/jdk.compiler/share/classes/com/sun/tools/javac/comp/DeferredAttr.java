@@ -54,6 +54,7 @@ import java.util.WeakHashMap;
 import java.util.function.Function;
 
 import static com.sun.tools.javac.code.TypeTag.*;
+import com.sun.tools.javac.main.JavaCompiler;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
@@ -85,6 +86,7 @@ public class DeferredAttr extends JCTree.Visitor {
     final Flow flow;
     final Names names;
     final TypeEnvs typeEnvs;
+    final JavaCompiler compiler;
 
     public static DeferredAttr instance(Context context) {
         DeferredAttr instance = context.get(deferredAttrKey);
@@ -109,6 +111,7 @@ public class DeferredAttr extends JCTree.Visitor {
         names = Names.instance(context);
         stuckTree = make.Ident(names.empty).setType(Type.stuckType);
         typeEnvs = TypeEnvs.instance(context);
+        compiler = JavaCompiler.instance(context);
         emptyDeferredAttrContext =
             new DeferredAttrContext(AttrMode.CHECK, null, MethodResolutionPhase.BOX, infer.emptyContext, null, null) {
                 @Override
@@ -381,11 +384,14 @@ public class DeferredAttr extends JCTree.Visitor {
         Env<AttrContext> speculativeEnv = env.dup(newTree, env.info.dup(env.info.scope.dupUnshared(env.info.scope.owner)));
         speculativeEnv.info.isSpeculative = true;
         Log.DeferredDiagnosticHandler deferredDiagnosticHandler = diagHandlerCreator.apply(newTree);
+        boolean oldSkipAP = compiler.skipAnnotationProcessing;
         try {
+            compiler.skipAnnotationProcessing = true;
             attr.attribTree(newTree, speculativeEnv, resultInfo);
             unenterScanner.scan(newTree);
             return newTree;
         } finally {
+            compiler.skipAnnotationProcessing = oldSkipAP;
             unenterScanner.scan(newTree);
             log.popDiagnosticHandler(deferredDiagnosticHandler);
         }
