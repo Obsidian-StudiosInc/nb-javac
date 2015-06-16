@@ -1095,5 +1095,10 @@ public class Annotate {
                 super.visitNewClass(tree);
             }
         }
+
+        @Override
+        public void visitErroneous(JCErroneous tree) {
+            scan(tree.errs);
+        }
     }
 }

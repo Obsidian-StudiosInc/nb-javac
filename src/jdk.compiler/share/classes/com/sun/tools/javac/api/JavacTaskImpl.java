@@ -241,7 +241,7 @@ public class JavacTaskImpl extends BasicJavacTask {
             else {
                 fos.add(ccw.wrap(file));
                 if (notYetEntered != null) {
-                    assert !notYetEntered.containsKey(file);
+                    assert !notYetEntered.containsKey(file) || notYetEntered.get(file) == null;
                     notYetEntered.put(file, null);
                 }
             }
@@ -476,7 +476,7 @@ public class JavacTaskImpl extends BasicJavacTask {
                 };
                 f.run(compiler.todo, classes);
             }
-            if (!compiler.skipAnnotationProcessing && compiler.toProcessAnnotations.nonEmpty())
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
                 compiler.processAnnotations(List.<JCCompilationUnit>nil());
         } finally {
             compiler.log.flush();
@@ -741,17 +741,20 @@ public class JavacTaskImpl extends BasicJavacTask {
         Attr attr = Attr.instance(context);
         JavaFileObject prev = log.useSource(null);
         Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DeferredDiagnosticHandler deferredHandler = compiler.deferredDiagnosticHandler;
+        compiler.deferredDiagnosticHandler = null;
         Enter enter = Enter.instance(context);
         enter.shadowTypeEnvs(true);
         try {
             Type type = tree instanceof JCExpression
                     ? attr.attribExpr(tree, env, Type.noType)
                     : attr.attribStat(tree, env);
-            if (!compiler.skipAnnotationProcessing && compiler.toProcessAnnotations.nonEmpty())
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
                 compiler.processAnnotations(List.<JCCompilationUnit>nil());
             return type;
         } finally {
             enter.shadowTypeEnvs(false);
+            compiler.deferredDiagnosticHandler = deferredHandler;
             log.popDiagnosticHandler(discardHandler);
             log.useSource(prev);
         }
@@ -762,15 +765,18 @@ public class JavacTaskImpl extends BasicJavacTask {
         Attr attr = Attr.instance(context);
         JavaFileObject prev = log.useSource(null);
         Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DeferredDiagnosticHandler deferredHandler = compiler.deferredDiagnosticHandler;
+        compiler.deferredDiagnosticHandler = null;
         Enter enter = Enter.instance(context);
         enter.shadowTypeEnvs(true);
         try {
             Env<AttrContext> ret = tree instanceof JCExpression ? attr.attribExprToTree(tree, env, to) : attr.attribStatToTree(tree, env, to);
-            if (!compiler.skipAnnotationProcessing && compiler.toProcessAnnotations.nonEmpty())
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
                 compiler.processAnnotations(List.<JCCompilationUnit>nil());
             return new JavacScope(ret);
         } finally {
             enter.shadowTypeEnvs(false);
+            compiler.deferredDiagnosticHandler = deferredHandler;
             log.popDiagnosticHandler(discardHandler);
             log.useSource(prev);
         }

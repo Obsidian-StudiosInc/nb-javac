@@ -339,7 +339,7 @@ public class Attr extends JCTree.Visitor {
             @Override @DefinedBy(Api.COMPILER_TREE)
             public Symbol visitMemberSelect(MemberSelectTree node, Env<AttrContext> env) {
                 Symbol site = visit(node.getExpression(), env);
-                if (site.kind == ERR || site.kind == ABSENT_TYP)
+                if (!site.kind.isValid())
                     return site;
                 Name name = (Name)node.getIdentifier();
                 if (site.kind == PCK) {
@@ -1070,7 +1070,7 @@ public class Attr extends JCTree.Visitor {
     }
 
     public void visitBlock(JCBlock tree) {
-        if (env.info.scope.owner != null && (env.info.scope.owner.kind == TYP || env.info.scope.owner.kind == ERR)) {
+        if (env.info.scope != null && env.info.scope.owner != null && (env.info.scope.owner.kind == TYP || env.info.scope.owner.kind == ERR)) {
             // Block is a static or instance initializer;
             // let the owner of the environment be a freshly
             // created BLOCK-method.
@@ -1101,7 +1101,7 @@ public class Attr extends JCTree.Visitor {
         } else {
             // Create a new local environment with a local scope.
             Env<AttrContext> localEnv =
-                env.dup(tree, env.info.dup(env.info.scope.dup()));
+                env.dup(tree, env.info.dup(env.info.scope != null ? env.info.scope.dup() : WriteableScope.create(syms.noSymbol)));
             try {
                 attribStats(tree.stats, localEnv);
             } finally {
@@ -4631,7 +4631,7 @@ public class Attr extends JCTree.Visitor {
         }
         public void visitVarDef(final JCVariableDecl tree) {
             //System.err.println("validateTypeAnnotations.visitVarDef " + tree);
-            if (tree.sym != null && tree.sym.type != null)
+            if (tree.sym != null && tree.sym.type != null && !tree.sym.type.isErroneous())
                 validateAnnotatedType(tree.vartype, tree.sym.type);
             scan(tree.mods);
             scan(tree.vartype);

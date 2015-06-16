@@ -130,7 +130,7 @@ public class Todo extends AbstractQueue<Env<AttrContext>> {
         for (Iterator<Env<AttrContext>> it = contents.listIterator(); it.hasNext();) {
             Env<AttrContext> env = it.next();
             if (env.tree != null && (env.tree.hasTag(JCTree.Tag.CLASSDEF) && ((JCTree.JCClassDecl)env.tree).sym == sym
-                    || env.tree.hasTag(JCTree.Tag.TOPLEVEL) && ((JCTree.JCCompilationUnit)env.tree).packge == sym)) {
+                    || env.tree.hasTag(JCTree.Tag.PACKAGEDEF) && ((JCTree.JCPackageDecl)env.tree).packge == sym)) {
                 it.remove();
                 if (contentsByFile != null)
                     removeByFile(env);

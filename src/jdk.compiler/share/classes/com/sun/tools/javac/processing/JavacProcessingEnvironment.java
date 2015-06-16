@@ -1205,7 +1205,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
         Set<JavaFileObject> newSourceFiles =
                 new LinkedHashSet<>(filer.getGeneratedSourceFileObjects());
-        roots = round.roots;
+        roots = cleanTrees(round.roots);
 
         errorStatus = errorStatus || (compiler.errorCount() > 0);
 
@@ -1388,6 +1388,12 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
     }
 
+    private <T extends JCTree> List<T> cleanTrees(List<T> nodes) {
+        for (T node : nodes)
+            treeCleaner.scan(node);
+        return nodes;
+    }
+
     private final TreeScanner treeCleaner = new TreeScanner() {
             public void scan(JCTree node) {
                 super.scan(node);
@@ -1397,6 +1403,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             JCCompilationUnit topLevel;
             public void visitTopLevel(JCCompilationUnit node) {
                 if (node.packge != null) {
+                    if (node.getPackage().annotations.nonEmpty())
+                        node.packge.flags_field |= Flags.APT_CLEANED;
                     if (node.packge.package_info != null) {
                         node.packge.package_info.reset();
                     }
@@ -1412,8 +1420,29 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             }
             public void visitClassDef(JCClassDecl node) {
                 if (node.sym != null) {
-                    node.sym.reset();
-                    node.sym.completer = new ImplicitCompleter(topLevel);
+                    new ElementScanner6<Void, Void>() {
+                        @Override
+                        public Void visitType(TypeElement e, Void p) {
+                            if (e instanceof ClassSymbol)
+                                ((ClassSymbol) e).flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);                                
+                                return ((Symbol)e).completer == null ? super.visitType(e, p) : null;
+                            }
+                        @Override
+                        public Void visitExecutable(ExecutableElement e, Void p) {
+                            if (e instanceof MethodSymbol)
+                                ((MethodSymbol) e).flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
+                            return null;
+                        }
+                        @Override
+                        public Void visitVariable(VariableElement e, Void p) {
+                            if (e.getKind().isField() && e instanceof VarSymbol)
+                                ((VarSymbol) e).flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
+                            return null;
+                        }
+                    }.scan(node.sym);
+                    if (chk.compiled.get(node.sym.flatname) == node.sym)
+                        chk.compiled.remove(node.sym.flatname);
+//                    node.sym.completer = new ImplicitCompleter(topLevel);
                 }
                 node.sym = null;
                 super.visitClassDef(node);

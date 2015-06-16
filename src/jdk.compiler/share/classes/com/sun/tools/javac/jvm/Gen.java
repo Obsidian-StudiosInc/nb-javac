@@ -1737,7 +1737,7 @@ public class Gen extends JCTree.Visitor {
             int startpc = genCrt ? code.curCP() : 0;
             code.statBegin(tree.truepart.pos);
             genExpr(tree.truepart, pt).load();
-            code.state.forceStackTop(tree.type);
+            code.state.forceStackTop(tree);
             if (genCrt) code.crt.put(tree.truepart, CRT_FLOW_TARGET,
                                      startpc, code.curCP());
             thenExit = code.branch(goto_);
@@ -1747,7 +1747,7 @@ public class Gen extends JCTree.Visitor {
             int startpc = genCrt ? code.curCP() : 0;
             code.statBegin(tree.falsepart.pos);
             genExpr(tree.falsepart, pt).load();
-            code.state.forceStackTop(tree.type);
+            code.state.forceStackTop(tree);
             if (genCrt) code.crt.put(tree.falsepart, CRT_FLOW_TARGET,
                                      startpc, code.curCP());
         }
@@ -1806,8 +1806,11 @@ public class Gen extends JCTree.Visitor {
         // Generate code for all arguments, where the expected types are
         // the parameters of the constructor's external type (that is,
         // any implicit outer instance appears as first parameter).
-        genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
-
+        try {
+            genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
+        } catch (NullPointerException npe) {
+            throw (NullPointerException)new NullPointerException("Issue #246934 - method tree: " + env.enclMethod).initCause(npe);
+        }
         items.makeMemberItem(tree.constructor, true).invoke();
         result = items.makeStackItem(tree.type);
     }

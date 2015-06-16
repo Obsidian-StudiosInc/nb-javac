@@ -757,15 +757,7 @@ public class Pretty extends JCTree.Visitor {
             print("try ");
             if (tree.resources.nonEmpty()) {
                 print("(");
-                boolean first = true;
-                for (JCTree var : tree.resources) {
-                    if (!first) {
-                        println();
-                        indent();
-                    }
-                    printStat(var);
-                    first = false;
-                }
+                printExprs(tree.resources, "; ");
                 print(") ");
             }
             printStat(tree.body);

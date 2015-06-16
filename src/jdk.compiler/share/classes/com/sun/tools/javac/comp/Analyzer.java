@@ -26,10 +26,13 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.source.tree.LambdaExpressionTree;
+import com.sun.source.tree.ModifiersTree;
+import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCAnnotation;
 import com.sun.tools.javac.tree.JCTree.JCBlock;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCDoWhileLoop;
@@ -40,10 +43,12 @@ import com.sun.tools.javac.tree.JCTree.JCLambda;
 import com.sun.tools.javac.tree.JCTree.JCLambda.ParameterKind;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
+import com.sun.tools.javac.tree.JCTree.JCModifiers;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.tree.JCTree.JCStatement;
 import com.sun.tools.javac.tree.JCTree.JCSwitch;
 import com.sun.tools.javac.tree.JCTree.JCTypeApply;
+import com.sun.tools.javac.tree.JCTree.JCTypeCast;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.JCTree.JCWhileLoop;
 import com.sun.tools.javac.tree.JCTree.Tag;
@@ -243,7 +248,7 @@ public class Analyzer {
     /**
      * This analyzer checks if anonymous instance creation expression can replaced by lambda.
      */
-    class LambdaAnalyzer extends StatementAnalyzer<JCNewClass, JCLambda> {
+    class LambdaAnalyzer extends StatementAnalyzer<JCNewClass, JCTypeCast> {
 
         LambdaAnalyzer() {
             super(AnalyzerMode.LAMBDA, NEWCLASS);
@@ -274,14 +279,15 @@ public class Analyzer {
             }
 
         @Override
-        JCLambda map (JCNewClass oldTree, JCNewClass newTree){
+        JCTypeCast map (JCNewClass oldTree, JCNewClass newTree){
             JCMethodDecl md = (JCMethodDecl)decls(newTree.def).head;
             List<JCVariableDecl> params = md.params;
             JCBlock body = md.body;
-            return make.Lambda(params, body);
+            return make.TypeCast(newTree.clazz, make.Lambda(params, body));
         }
+
         @Override
-        void process (JCNewClass oldTree, JCLambda newTree, boolean hasErrors){
+        void process (JCNewClass oldTree, JCTypeCast newTree, boolean hasErrors){
             if (!hasErrors) {
                 log.warning(oldTree.def, "potential.lambda.found");
             }
@@ -504,6 +510,13 @@ public class Analyzer {
                 newLambda.params.forEach(p -> p.vartype = null);
             }
             return newLambda;
+        }
+
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public JCTree visitModifiers(ModifiersTree node, Void _unused) {
+            JCModifiers t = (JCModifiers) node;
+            List<JCAnnotation> annotations = copy(t.annotations, _unused);
+            return make.at(t.pos).Modifiers(t.flags & ~Flags.AccessFlags, annotations);
         }
     }
 }
