@@ -69,6 +69,7 @@ import static com.sun.tools.javac.code.Kinds.ERRONEOUS;
 import static com.sun.tools.javac.code.TypeTag.*;
 import static com.sun.tools.javac.comp.Resolve.MethodResolutionPhase.*;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
+import javax.lang.model.type.TypeKind;
 
 /** Helper class for name resolution, used mostly by the attribution phase.
  *
@@ -1678,7 +1679,7 @@ public class Resolve {
                           name,
                           argtypes,
                           typeargtypes,
-                          site.tsym.type,
+                          site.tsym != null ? site.tsym.type : site,
                           bestSoFar,
                           allowBoxing,
                           useVarargs,
@@ -2731,7 +2732,7 @@ public class Resolve {
             Name name) {
 
         site = types.capture(site);
-
+        
         ReferenceLookupHelper lookupHelper = makeReferenceLookupHelper(
                 referenceTree, site, name, List.<Type>nil(), null, VARARITY);
 
@@ -3687,7 +3688,7 @@ public class Resolve {
             if (location == null) {
                 location = site.tsym;
             }
-            if (!location.name.isEmpty()) {
+            if (location != null && !location.name.isEmpty()) {
                 if (location.kind == PCK && !site.tsym.exists()) {
                     return diags.create(dkind, log.currentSource(), pos,
                         "doesnt.exist", location);
