@@ -607,7 +607,7 @@ public class Resolve {
             }
             MethodResolutionPhase step = currentResolutionContext.step = env.info.pendingResolutionPhase;
             return rawInstantiate(env, site, m, resultInfo, argtypes, typeargtypes,
-                    step.isBoxingRequired(), step.isVarargsRequired(), warn);
+                    step != null ? step.isBoxingRequired() : false, step != null ? step.isVarargsRequired() : false, warn);
         }
         finally {
             currentResolutionContext = prevContext;
