@@ -541,7 +541,7 @@ public class Enter extends JCTree.Visitor {
 
         // Enter class into `compiled' table and enclosing scope.
         if (!reattr && !noctx && (chk.compiled.get(c.flatname) != null
-                || (!c.fullname.isEmpty() && duplicateClassChecker != null && duplicateClassChecker.check(c.fullname, env.toplevel.getSourceFile())))) {
+                || (!c.isLocal() && duplicateClassChecker != null && duplicateClassChecker.check(c.fullname, env.toplevel.getSourceFile())))) {
             duplicateClass(tree.pos(), c);
             result = types.createErrorType(tree.name, owner, Type.noType);
             tree.sym = c = (ClassSymbol)result.tsym;
