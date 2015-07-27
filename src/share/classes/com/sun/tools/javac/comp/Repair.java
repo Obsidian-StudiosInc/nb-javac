@@ -361,7 +361,7 @@ public class Repair extends TreeTranslator {
             LOGGER.warning("Repair.visitNewClass tree [" + tree + "] has null constructor symbol."); //NOI18N
             hasError = true;
             if (err == null && errMessage == null)
-                errMessage = "Null tree ctor sym: " + tree.constructor;
+                errMessage = "Null tree ctor";
         } else if (tree.constructorType == null) {
             hasError = true;
             if (err == null && errMessage == null)
@@ -370,6 +370,12 @@ public class Repair extends TreeTranslator {
             hasError = true;
             if (err == null && errMessage == null)
                 errMessage = "Erroneous ctor sym type: " + tree.constructorType;
+        }
+        if (tree.constructor.owner.hasOuterInstance() && tree.def != null && (tree.def.mods.flags & Flags.STATIC) != 0) {
+            LOGGER.warning("Repair.visitNewClass - static class with an outer instance detected"); //NOI18N
+            hasError = true;
+            if (err == null && errMessage == null)
+                errMessage = "Static class with an outer instance: " + tree;
         }
         super.visitNewClass(tree);
     }
