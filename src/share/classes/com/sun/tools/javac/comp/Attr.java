@@ -1125,7 +1125,7 @@ public class Attr extends JCTree.Visitor {
         } else {
             // Create a new local environment with a local scope.
             Env<AttrContext> localEnv =
-                env.dup(tree, env.info.dup(env.info.scope != null ? env.info.scope.dup() : new Scope(syms.noSymbol)));
+                env.dup(tree, env.info.dup((env.info.scope != null ? env.info.scope : new Scope(syms.noSymbol)).dup()));
             try {
                 attribStats(tree.stats, localEnv);
             } finally {
