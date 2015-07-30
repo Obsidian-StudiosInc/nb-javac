@@ -84,8 +84,8 @@ public class LambdaMetafactory {
                         invokedName,
                         translate(invokedType),
                         samMethodType,
-                        implMethod,
-                        instantiatedMethodType);
+                        translate(implMethod),
+                        translate(instantiatedMethodType));
             } catch (InvocationTargetException e) {
                 return LambdaMetafactory.<CallSite, RuntimeException>sthrow(e.getCause());
             } catch (ReflectiveOperationException e) {
@@ -149,6 +149,29 @@ public class LambdaMetafactory {
         return j == pattern.length ?
             i - j :
             -1;
+    }
+
+    private static MethodHandle translate(MethodHandle handle) {
+        try {
+            final Field typeFld = MethodHandle.class.getDeclaredField("type");  //NOI18N
+            typeFld.setAccessible(true);
+            translate((MethodType)typeFld.get(handle));
+            final Method internalMemberName = MethodHandle.class.getDeclaredMethod("internalMemberName");   //NOI18N
+            internalMemberName.setAccessible(true);
+            final Object member = internalMemberName.invoke(handle);
+            if (member != null) {
+                final Class<?> memberNameClz = member.getClass();
+                final Method getMethodType = memberNameClz.getDeclaredMethod("getMethodType");  //NOI18N
+                getMethodType.setAccessible(true);
+                final MethodType type = (MethodType) getMethodType.invoke(member);
+                if (type != null) {
+                    translate(type);
+                }
+            }
+        } catch (ReflectiveOperationException e) {
+            LOG.warning(e.getMessage());
+        }
+        return handle;
     }
 
     private static MethodType translate(MethodType mt) {
