@@ -930,6 +930,9 @@ public class Check {
     }
     //where
     private void assertConvertible(JCTree tree, Type actual, Type formal, Warner warn) {
+        if (actual == null || formal == null)
+            return;
+        
         if (types.isConvertible(actual, formal, warn))
             return;
 
