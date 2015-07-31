@@ -83,7 +83,7 @@ public class LambdaMetafactory {
                         caller,
                         invokedName,
                         translate(invokedType),
-                        samMethodType,
+                        translate(samMethodType),
                         translate(implMethod),
                         translate(instantiatedMethodType));
             } catch (InvocationTargetException e) {
