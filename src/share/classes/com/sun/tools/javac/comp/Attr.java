@@ -1442,8 +1442,7 @@ public class Attr extends JCTree.Visitor {
         if (tree.polyKind == PolyKind.POLY && resultInfo.pt.hasTag(VOID)) {
             //cannot get here (i.e. it means we are returning from void method - which is already an error)
             resultInfo.checkContext.report(tree, diags.fragment("conditional.target.cant.be.void"));
-            result = tree.type = types.createErrorType(resultInfo.pt);
-            return;
+            tree.polyKind = PolyKind.STANDALONE;
         }
 
         ResultInfo condInfo = tree.polyKind == PolyKind.STANDALONE ?
