@@ -632,7 +632,7 @@ public class Types {
      * (ii) perform functional interface bridge calculation.
      */
     public ClassSymbol makeFunctionalInterfaceClass(Env<AttrContext> env, Name name, List<Type> targets, long cflags) {
-        if (targets.isEmpty()) {
+        if (targets.isEmpty() || targets.head == null) {
             return null;
         }
         Symbol descSym = findDescriptorSymbol(targets.head.tsym);
