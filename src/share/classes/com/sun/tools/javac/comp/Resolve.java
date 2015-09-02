@@ -721,7 +721,7 @@ public class Resolve {
                                     List<Type> formals,
                                     Warner warn) {
             //should we expand formals?
-            boolean useVarargs = deferredAttrContext.phase.isVarargsRequired();
+            boolean useVarargs = deferredAttrContext.phase != null && deferredAttrContext.phase.isVarargsRequired();
             List<JCExpression> trees = TreeInfo.args(env.tree);
 
             //inference context used during this method check
@@ -842,7 +842,7 @@ public class Resolve {
                                     Warner warn) {
             super.argumentsAcceptable(env, deferredAttrContext, argtypes, formals, warn);
             //should we expand formals?
-            if (deferredAttrContext.phase.isVarargsRequired()) {
+            if (deferredAttrContext.phase != null && deferredAttrContext.phase.isVarargsRequired()) {
                 Type typeToCheck = null;
                 if (!checkVarargsAccessAfterResolution) {
                     typeToCheck = types.elemtype(formals.last());
