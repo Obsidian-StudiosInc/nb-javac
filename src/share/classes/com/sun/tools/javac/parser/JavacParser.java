@@ -4339,11 +4339,11 @@ public class JavacParser implements Parser {
             if (tree instanceof JCIdent) {
                 JCIdent i = (JCIdent) tree;
 
-                if (i.pos + i.name.length() == endpos) return ;
+                if (i.pos + (i.name != null ? i.name.length() : 0) == endpos) return ;
             } else if (tree instanceof JCFieldAccess) {
                 JCFieldAccess f = (JCFieldAccess) tree;
 
-                if (f.pos + f.name.length() + 1 == endpos) return ;
+                if (f.pos + (f.name != null ? f.name.length() : 0) + 1 == endpos) return ;
             }
             endPosMap.putAtIndex(tree, errorEndPos > endpos ? errorEndPos : endpos,
                                  endPosMap.lookup(tree));
