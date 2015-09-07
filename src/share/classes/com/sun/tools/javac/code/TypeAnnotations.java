@@ -700,16 +700,25 @@ public class TypeAnnotations {
                     if (frameNewClass.def != null) {
                         // Special handling for anonymous class instantiations
                         JCClassDecl frameClassDecl = frameNewClass.def;
-                        if (frameClassDecl.extending == tree) {
+                        if (frameClassDecl.extending != null && TreeInfo.symbolFor(frameClassDecl.extending) == TreeInfo.symbolFor(tree)) {
                             p.type = TargetType.CLASS_EXTENDS;
                             p.type_index = -1;
-                        } else if (frameClassDecl.implementing.contains(tree)) {
-                            p.type = TargetType.CLASS_EXTENDS;
-                            p.type_index = frameClassDecl.implementing.indexOf(tree);
                         } else {
-                            // In contrast to CLASS below, typarams cannot occur here.
-                            Assert.error("Could not determine position of tree " + tree +
-                                    " within frame " + frame);
+                            boolean found = false;
+                            for (int i = 0; i < frameClassDecl.implementing.size(); i++) {
+                                JCExpression impl = frameClassDecl.implementing.get(i);
+                                if (TreeInfo.symbolFor(impl) == TreeInfo.symbolFor(tree)) {
+                                    p.type = TargetType.CLASS_EXTENDS;
+                                    p.type_index = i;
+                                    found = true;
+                                    break;
+                                }
+                                if (!found) {
+                                    // In contrast to CLASS below, typarams cannot occur here.
+                                    Assert.error("Could not determine position of tree " + tree +
+                                            " within frame " + frame);
+                                }
+                            }
                         }
                     } else if (frameNewClass.typeargs.contains(tree)) {
                         p.type = TargetType.CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT;
@@ -1251,13 +1260,13 @@ public class TypeAnnotations {
                 TypeAnnotationPosition pos = new TypeAnnotationPosition();
                 pos.type = TargetType.CLASS_EXTENDS;
                 pos.pos = tree.pos;
-                if (classdecl.extending != null && TreeInfo.fullName(classdecl.extending).contentEquals(TreeInfo.fullName(tree.clazz))) {
+                if (classdecl.extending != null && TreeInfo.symbolFor(classdecl.extending) == TreeInfo.symbolFor(tree.clazz)) {
                     pos.type_index = -1;
                 } else {
                     boolean found = false;
                     for (int i = 0; i < classdecl.implementing.size(); i++) {
                         JCExpression impl = classdecl.implementing.get(i);
-                        if (TreeInfo.fullName(impl).contentEquals(TreeInfo.fullName(tree.clazz))) {
+                        if (TreeInfo.symbolFor(impl) == TreeInfo.symbolFor(tree.clazz)) {
                             pos.type_index = i;
                             found = true;
                             break;
