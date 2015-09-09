@@ -887,7 +887,7 @@ public class JavacTrees extends DocTrees {
         enter.shadowTypeEnvs(true);
         try {
             Env<AttrContext> ret = attr.attribStatToTree(stat, env, tree);
-            if (!compiler.skipAnnotationProcessing && compiler.toProcessAnnotations.nonEmpty())
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
                 compiler = compiler.processAnnotations(List.<JCCompilationUnit>nil());
             return ret;
         } finally {
@@ -906,7 +906,7 @@ public class JavacTrees extends DocTrees {
         enter.shadowTypeEnvs(true);
         try {
             Env<AttrContext> ret = attr.attribExprToTree(expr, env, tree);
-            if (!compiler.skipAnnotationProcessing && compiler.toProcessAnnotations.nonEmpty())
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
                 compiler = compiler.processAnnotations(List.<JCCompilationUnit>nil());
             return ret;
         } finally {

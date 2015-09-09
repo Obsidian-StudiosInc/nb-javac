@@ -724,7 +724,7 @@ public class JavaCompiler {
                 make.TopLevel(List.<JCTree.JCAnnotation>nil(), null, List.<JCTree>nil());
             toplevel.packge = syms.unnamedPackage;
             Symbol ret = attr.attribIdent(tree, toplevel);
-            if (!skipAnnotationProcessing && toProcessAnnotations.nonEmpty())
+            if (!skipAnnotationProcessing && deferredDiagnosticHandler != null && toProcessAnnotations.nonEmpty())
                 processAnnotations(List.<JCCompilationUnit>nil());
             return ret;
         } finally {
