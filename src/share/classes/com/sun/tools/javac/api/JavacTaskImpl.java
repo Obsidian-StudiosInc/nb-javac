@@ -475,7 +475,7 @@ public class JavacTaskImpl extends BasicJavacTask {
                 };
                 f.run(compiler.todo, classes);
             }
-            if (!compiler.skipAnnotationProcessing && compiler.toProcessAnnotations.nonEmpty())
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
                 compiler = compiler.processAnnotations(List.<JCCompilationUnit>nil());
         } finally {
             compiler.log.flush();
@@ -762,7 +762,7 @@ public class JavacTaskImpl extends BasicJavacTask {
             Type type = tree instanceof JCExpression
                     ? attr.attribExpr(tree, env, Type.noType)
                     : attr.attribStat(tree, env);
-            if (!compiler.skipAnnotationProcessing && compiler.toProcessAnnotations.nonEmpty())
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
                 compiler = compiler.processAnnotations(List.<JCCompilationUnit>nil());
             return type;
         } finally {
@@ -784,7 +784,7 @@ public class JavacTaskImpl extends BasicJavacTask {
         enter.shadowTypeEnvs(true);
         try {
             Env<AttrContext> ret = tree instanceof JCExpression ? attr.attribExprToTree(tree, env, to) : attr.attribStatToTree(tree, env, to);
-            if (!compiler.skipAnnotationProcessing && compiler.toProcessAnnotations.nonEmpty())
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
                 compiler = compiler.processAnnotations(List.<JCCompilationUnit>nil());
             return new JavacScope(ret);
         } finally {
