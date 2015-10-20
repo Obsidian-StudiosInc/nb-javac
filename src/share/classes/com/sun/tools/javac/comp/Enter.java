@@ -563,7 +563,7 @@ public class Enter extends JCTree.Visitor {
 
         // Fill out class fields.
         boolean notYetCompleted = c.completer != null;
-        c.completer = memberEnter;
+        c.completer = null; // do not allow the initial completer linger on.
         c.sourcefile = env.toplevel.sourcefile;
         if (notYetCompleted || (c.flags_field & FROMCLASS) == 0 && (enclScope.owner.flags_field & FROMCLASS) == 0) {
             c.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, c, tree);
@@ -633,6 +633,9 @@ public class Enter extends JCTree.Visitor {
                 c.flags_field &= ~FROMCLASS;
             }
         }
+
+        // install further completer for this type.
+        c.completer = memberEnter;
 
         // Add non-local class to uncompleted, to make sure it will be
         // completed later.
