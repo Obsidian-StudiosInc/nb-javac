@@ -646,7 +646,7 @@ public class DeferredAttr extends JCTree.Visitor {
                     boolean returnTypeIsVoid = currentReturnType.hasTag(VOID);
                     if (tree.getBodyKind() == BodyKind.EXPRESSION) {
                         boolean isExpressionCompatible = !returnTypeIsVoid ||
-                            TreeInfo.isExpressionStatement((JCExpression)tree.getBody());
+                            TreeInfo.isExpressionStatement((JCExpression)tree.getBody(), names);
                         if (!isExpressionCompatible) {
                             resultInfo.checkContext.report(tree.pos(),
                                 diags.fragment("incompatible.ret.type.in.lambda",

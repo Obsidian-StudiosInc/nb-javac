@@ -4083,7 +4083,7 @@ public class JavacParser implements Parser {
     /** Check that given tree is a legal expression statement.
      */
     protected JCExpression checkExprStat(JCExpression t) {
-        if (!TreeInfo.isExpressionStatement(t)) {
+        if (!TreeInfo.isExpressionStatement(t, names)) {
             JCExpression ret = F.at(t.pos).Erroneous(List.<JCTree>of(t));
             error(ret, "not.stmt");
             return ret;
