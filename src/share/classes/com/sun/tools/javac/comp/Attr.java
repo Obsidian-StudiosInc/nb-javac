@@ -2664,7 +2664,7 @@ public class Attr extends JCTree.Visitor {
             @Override
             public boolean compatible(Type found, Type req, Warner warn) {
                 //a void return is compatible with an expression statement lambda
-                return TreeInfo.isExpressionStatement(expr) && req.hasTag(VOID) ||
+                return TreeInfo.isExpressionStatement(expr, names) && req.hasTag(VOID) ||
                         super.compatible(found, req, warn);
             }
         }

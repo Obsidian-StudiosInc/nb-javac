@@ -295,7 +295,7 @@ public class TreeInfo {
     }
 
     /** Return true if the tree corresponds to an expression statement */
-    public static boolean isExpressionStatement(JCExpression tree) {
+    public static boolean isExpressionStatement(JCExpression tree, Names names) {
         switch(tree.getTag()) {
             case PREINC: case PREDEC:
             case POSTINC: case POSTDEC:
@@ -307,6 +307,8 @@ public class TreeInfo {
             case APPLY: case NEWCLASS:
             case ERRONEOUS:
                 return true;
+            case SELECT:
+                return names.error == ((JCFieldAccess)tree).name;
             default:
                 return false;
         }
