@@ -28,6 +28,7 @@ package com.sun.tools.javac.comp;
 import java.util.*;
 
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Attribute.TypeCompound;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
@@ -68,6 +69,7 @@ public class TransTypes extends TreeTranslator {
     private TreeMaker make;
     private Enter enter;
     private Types types;
+    private Annotate annotate;
     private final Resolve resolve;
     private final CompileStates compileStates;
 
@@ -84,19 +86,22 @@ public class TransTypes extends TreeTranslator {
         log = Log.instance(context);
         syms = Symtab.instance(context);
         enter = Enter.instance(context);
-        overridden = new HashMap<>();
+        bridgeSpans = new HashMap<>();
         types = Types.instance(context);
         make = TreeMaker.instance(context);
         resolve = Resolve.instance(context);
         Source source = Source.instance(context);
         allowInterfaceBridges = source.allowDefaultMethods();
         allowGraphInference = source.allowGraphInference();
+        annotate = Annotate.instance(context);
     }
 
-    /** A hashtable mapping bridge methods to the methods they override after
-     *  type erasure.
+    /** A hashtable mapping bridge methods to the pair of methods they bridge.
+     *  The bridge overrides the first of the pair after type erasure and deflects
+     *  to the second of the pair (which differs in type erasure from the one
+     *  it overrides thereby necessitating the bridge)
      */
-    Map<MethodSymbol,MethodSymbol> overridden;
+    Map<MethodSymbol, Pair<MethodSymbol, MethodSymbol>> bridgeSpans;
 
     /** Construct an attributed tree for a cast of expression to target type,
      *  unless it already has precisely that type.
@@ -291,9 +296,9 @@ public class TransTypes extends TreeTranslator {
             bridges.append(md);
         }
 
-        // Add bridge to scope of enclosing class and `overridden' table.
+        // Add bridge to scope of enclosing class and keep track of the bridge span.
         origin.members().enter(bridge);
-        overridden.put(bridge, meth);
+        bridgeSpans.put(bridge, new Pair<>(meth, impl));
     }
 
     private List<VarSymbol> createBridgeParams(MethodSymbol impl, MethodSymbol bridge,
@@ -341,12 +346,12 @@ public class TransTypes extends TreeTranslator {
         if (sym.kind == MTH &&
             sym.name != names.init &&
             (sym.flags() & (PRIVATE | STATIC)) == 0 &&
-            (sym.flags() & (SYNTHETIC | OVERRIDE_BRIDGE)) != SYNTHETIC &&
+            (sym.flags() & SYNTHETIC) != SYNTHETIC &&
             sym.isMemberOf(origin, types))
         {
             MethodSymbol meth = (MethodSymbol)sym;
             MethodSymbol bridge = meth.binaryImplementation(origin, types);
-            MethodSymbol impl = meth.implementation(origin, types, true, overrideBridgeFilter);
+            MethodSymbol impl = meth.implementation(origin, types, true);
             if (bridge == null ||
                 bridge == meth ||
                 (impl != null && !bridge.owner.isSubClass(impl.owner, types))) {
@@ -362,14 +367,19 @@ public class TransTypes extends TreeTranslator {
                     // reflection design error.
                     addBridge(pos, meth, impl, origin, false, bridges);
                 }
-            } else if ((bridge.flags() & (SYNTHETIC | OVERRIDE_BRIDGE)) == SYNTHETIC) {
-                MethodSymbol other = overridden.get(bridge);
+            } else if ((bridge.flags() & SYNTHETIC) == SYNTHETIC) {
+                final Pair<MethodSymbol, MethodSymbol> bridgeSpan = bridgeSpans.get(bridge);
+                MethodSymbol other = bridgeSpan == null ? null : bridgeSpan.fst;
                 if (other != null && other != meth) {
                     if (impl == null || !impl.overrides(other, origin, types, true)) {
-                        // Bridge for other symbol pair was added
-                        log.error(pos, "name.clash.same.erasure.no.override",
-                                  other, other.location(origin.type, types),
-                                  meth,  meth.location(origin.type, types));
+                        // Is bridge effectively also the bridge for `meth', if so no clash.
+                        MethodSymbol target = bridgeSpan == null ? null : bridgeSpan.snd;
+                        if (target == null || !target.overrides(meth, origin, types, true, false)) {
+                            // Bridge for other symbol pair was added
+                            log.error(pos, "name.clash.same.erasure.no.override",
+                                    other, other.location(origin.type, types),
+                                    meth, meth.location(origin.type, types));
+                        }
                     }
                 }
             } else if (!bridge.overrides(meth, origin, types, true)) {
@@ -385,11 +395,6 @@ public class TransTypes extends TreeTranslator {
         }
     }
     // where
-        private Filter<Symbol> overrideBridgeFilter = new Filter<Symbol>() {
-            public boolean accepts(Symbol s) {
-                return (s.flags() & (SYNTHETIC | OVERRIDE_BRIDGE)) != SYNTHETIC;
-            }
-        };
 
         /**
          * @param method The symbol for which a bridge might have to be added
@@ -756,6 +761,15 @@ public class TransTypes extends TreeTranslator {
     public void visitBinary(JCBinary tree) {
         tree.lhs = translate(tree.lhs, tree.operator.type.getParameterTypes().head);
         tree.rhs = translate(tree.rhs, tree.operator.type.getParameterTypes().tail.head);
+        result = tree;
+    }
+
+    public void visitAnnotatedType(JCAnnotatedType tree) {
+        // For now, we need to keep the annotations in the tree because of the current
+        // MultiCatch implementation wrt type annotations
+        List<TypeCompound> mirrors = annotate.fromAnnotations(tree.annotations);
+        tree.underlyingType = translate(tree.underlyingType);
+        tree.type = tree.underlyingType.type.annotatedType(mirrors);
         result = tree;
     }
 

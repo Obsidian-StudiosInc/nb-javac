@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,10 @@
 
 /*
  * @test
+ * @bug 8031744
  * @summary Checks the annotation types targeting array types
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
  */
 
 import com.sun.tools.javac.api.JavacTool;
@@ -34,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.lang.annotation.*;
-import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import com.sun.source.tree.*;
 import com.sun.source.util.JavacTask;

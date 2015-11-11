@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,10 +24,8 @@
  */
 package com.sun.tools.sjavac.server;
 
-import java.io.File;
-import java.net.URI;
-import java.util.List;
-import java.util.Set;
+import java.io.Writer;
+
 
 /**
  * Interface of the SjavacImpl, the sjavac client and all wrappers such as
@@ -40,15 +38,9 @@ import java.util.Set;
  */
 public interface Sjavac {
 
-    SysInfo getSysInfo();
+    final static int RC_FATAL = -1;
+    final static int RC_OK = 0;
 
-    CompilationResult compile(String protocolId,
-                              String invocationId,
-                              String[] args,
-                              List<File> explicitSources,
-                              Set<URI> sourcesToCompile,
-                              Set<URI> visibleSources);
-
+    int compile(String[] args, Writer stdout, Writer stderr);
     void shutdown();
-    String serverSettings();
 }

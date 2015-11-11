@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,22 +24,14 @@
  */
 package com.sun.tools.sjavac.comp;
 
-import java.io.File;
-import java.net.URI;
-import java.util.List;
+import java.io.Writer;
 import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import com.sun.tools.sjavac.Log;
-import com.sun.tools.sjavac.server.CompilationResult;
 import com.sun.tools.sjavac.server.Sjavac;
-import com.sun.tools.sjavac.server.SysInfo;
 
 /**
  * An sjavac implementation that limits the number of concurrent calls by
@@ -58,52 +50,14 @@ public class PooledSjavac implements Sjavac {
     public PooledSjavac(Sjavac delegate, int poolsize) {
         Objects.requireNonNull(delegate);
         this.delegate = delegate;
-        pool = Executors.newFixedThreadPool(poolsize, new ThreadFactory() {
-            AtomicInteger count = new AtomicInteger();
-            @Override
-            public Thread newThread(Runnable runnable) {
-                String cls = PooledSjavac.class.getSimpleName();
-                int num = count.incrementAndGet();
-                Thread t = new Thread(runnable, cls + "-" + num);
-                t.setDaemon(true);
-                return t;
-            }
-        });
+        pool = Executors.newFixedThreadPool(poolsize);
     }
 
     @Override
-    public SysInfo getSysInfo() {
+    public int compile(String[] args, Writer out, Writer err) {
         try {
-            return pool.submit(new Callable<SysInfo>() {
-                @Override
-                public SysInfo call() throws Exception {
-                    return delegate.getSysInfo();
-                }
-            }).get();
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Error during getSysInfo", e);
-        }
-    }
-
-    @Override
-    public CompilationResult compile(final String protocolId,
-                                     final String invocationId,
-                                     final String[] args,
-                                     final List<File> explicitSources,
-                                     final Set<URI> sourcesToCompile,
-                                     final Set<URI> visibleSources) {
-        try {
-            return pool.submit(new Callable<CompilationResult>() {
-                @Override
-                public CompilationResult call() throws Exception {
-                    return delegate.compile(protocolId,
-                                            invocationId,
-                                            args,
-                                            explicitSources,
-                                            sourcesToCompile,
-                                            visibleSources);
-                }
+            return pool.submit(() -> {
+                return delegate.compile(args, out, err);
             }).get();
         } catch (Exception e) {
             e.printStackTrace();
@@ -113,6 +67,7 @@ public class PooledSjavac implements Sjavac {
 
     @Override
     public void shutdown() {
+        Log.debug("Shutting down PooledSjavac");
         pool.shutdown(); // Disable new tasks from being submitted
         try {
             // Wait a while for existing tasks to terminate
@@ -122,8 +77,6 @@ public class PooledSjavac implements Sjavac {
                 if (!pool.awaitTermination(60, TimeUnit.SECONDS))
                     Log.error("ThreadPool did not terminate");
             }
-            // Grace period for thread termination
-            Thread.sleep(1000);
         } catch (InterruptedException ie) {
           // (Re-)Cancel if current thread also interrupted
           pool.shutdownNow();
@@ -134,8 +87,4 @@ public class PooledSjavac implements Sjavac {
         delegate.shutdown();
     }
 
-    @Override
-    public String serverSettings() {
-        return delegate.serverSettings();
-    }
 }

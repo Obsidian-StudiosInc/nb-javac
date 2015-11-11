@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -118,14 +118,10 @@ public class TypeAnnotationPosition {
 
     public static final List<TypePathEntry> emptyPath = List.nil();
 
-    // NOTE: All of these will be converted to final fields eventually.
-
     public final TargetType type;
 
     // For generic/array types.
 
-    // This field is in the process of being made final.  Do not
-    // introduce new mutations.
     public List<TypePathEntry> location;
 
     // Tree position.
@@ -465,7 +461,7 @@ public class TypeAnnotationPosition {
      *
      * @param location The type path.
      * @param onLambda The lambda for this parameter.
-     * @param index The index of the parameter.
+     * @param parameter_index The index of the parameter.
      * @param pos The position from the associated tree node.
      */
     public static TypeAnnotationPosition
@@ -483,7 +479,7 @@ public class TypeAnnotationPosition {
      * Create a {@code TypeAnnotationPosition} for a method formal parameter.
      *
      * @param onLambda The lambda for this parameter.
-     * @param index The index of the parameter.
+     * @param parameter_index The index of the parameter.
      * @param pos The position from the associated tree node.
      */
     public static TypeAnnotationPosition
@@ -497,7 +493,7 @@ public class TypeAnnotationPosition {
     /**
      * Create a {@code TypeAnnotationPosition} for a method formal parameter.
      *
-     * @param index The index of the parameter.
+     * @param parameter_index The index of the parameter.
      * @param pos The position from the associated tree node.
      */
     public static TypeAnnotationPosition
@@ -510,7 +506,7 @@ public class TypeAnnotationPosition {
      * Create a {@code TypeAnnotationPosition} for a method formal parameter.
      *
      * @param location The type path.
-     * @param index The index of the parameter.
+     * @param parameter_index The index of the parameter.
      */
     public static TypeAnnotationPosition
         methodParameter(final List<TypePathEntry> location,
@@ -539,8 +535,6 @@ public class TypeAnnotationPosition {
      * Create a {@code TypeAnnotationPosition} for a method reference.
      *
      * @param location The type path.
-     * @param onLambda The lambda for this method reference.
-     * @param pos The position from the associated tree node.
      */
     public static TypeAnnotationPosition
         methodRef(final List<TypePathEntry> location) {
@@ -568,8 +562,6 @@ public class TypeAnnotationPosition {
      * Create a {@code TypeAnnotationPosition} for a constructor reference.
      *
      * @param location The type path.
-     * @param onLambda The lambda for this constructor reference.
-     * @param pos The position from the associated tree node.
      */
     public static TypeAnnotationPosition
         constructorRef(final List<TypePathEntry> location) {
@@ -724,8 +716,6 @@ public class TypeAnnotationPosition {
      * Create a {@code TypeAnnotationPosition} for a resource variable.
      *
      * @param location The type path.
-     * @param onLambda The lambda for this variable.
-     * @param pos The position from the associated tree node.
      */
     public static TypeAnnotationPosition
         resourceVariable(final List<TypePathEntry> location) {
@@ -752,8 +742,6 @@ public class TypeAnnotationPosition {
     /**
      * Create a {@code TypeAnnotationPosition} for a new.
      *
-     * @param location The type path.
-     * @param onLambda The lambda for this variable.
      * @param pos The position from the associated tree node.
      */
     public static TypeAnnotationPosition newObj(final int pos) {
@@ -764,8 +752,6 @@ public class TypeAnnotationPosition {
      * Create a {@code TypeAnnotationPosition} for a new.
      *
      * @param location The type path.
-     * @param onLambda The lambda for this variable.
-     * @param pos The position from the associated tree node.
      */
     public static TypeAnnotationPosition
         newObj(final List<TypePathEntry> location) {
@@ -796,7 +782,6 @@ public class TypeAnnotationPosition {
      *
      * @param location The type path.
      * @param onLambda The lambda for this variable.
-     * @param type_index The index of the interface.
      * @param pos The position from the associated tree node.
      */
     public static TypeAnnotationPosition
@@ -858,8 +843,6 @@ public class TypeAnnotationPosition {
      * Create a {@code TypeAnnotationPosition} for an instanceof.
      *
      * @param location The type path.
-     * @param onLambda The lambda for this variable.
-     * @param pos The position from the associated tree node.
      */
     public static TypeAnnotationPosition
         instanceOf(final List<TypePathEntry> location) {
@@ -889,9 +872,7 @@ public class TypeAnnotationPosition {
      * Create a {@code TypeAnnotationPosition} for a type cast.
      *
      * @param location The type path.
-     * @param onLambda The lambda for this variable.
      * @param type_index The index into an intersection type.
-     * @param pos The position from the associated tree node.
      */
     public static TypeAnnotationPosition
         typeCast(final List<TypePathEntry> location,
@@ -988,9 +969,7 @@ public class TypeAnnotationPosition {
      * Create a {@code TypeAnnotationPosition} for a type parameter.
      *
      * @param location The type path.
-     * @param onLambda The lambda for this variable.
      * @param parameter_index The index of the type parameter.
-     * @param pos The position from the associated tree node.
      */
     public static TypeAnnotationPosition
         typeParameter(final List<TypePathEntry> location,
@@ -1066,7 +1045,7 @@ public class TypeAnnotationPosition {
      *
      * @param location The type path.
      * @param onLambda The lambda for this variable.
-     * @param parameter_index The index of the type argument.
+     * @param type_index The index of the type argument.
      * @param pos The position from the associated tree node.
      */
     public static TypeAnnotationPosition
@@ -1085,9 +1064,7 @@ public class TypeAnnotationPosition {
      * type argument.
      *
      * @param location The type path.
-     * @param onLambda The lambda for this variable.
-     * @param parameter_index The index of the type argument.
-     * @param pos The position from the associated tree node.
+     * @param type_index The index of the type argument.
      */
     public static TypeAnnotationPosition
         methodRefTypeArg(final List<TypePathEntry> location,
@@ -1101,7 +1078,7 @@ public class TypeAnnotationPosition {
      *
      * @param location The type path.
      * @param onLambda The lambda for this variable.
-     * @param parameter_index The index of the type argument.
+     * @param type_index The index of the type argument.
      * @param pos The position from the associated tree node.
      */
     public static TypeAnnotationPosition
@@ -1120,7 +1097,7 @@ public class TypeAnnotationPosition {
      * type argument.
      *
      * @param location The type path.
-     * @param parameter_index The index of the type argument.
+     * @param type_index The index of the type argument.
      */
     public static TypeAnnotationPosition
         constructorRefTypeArg(final List<TypePathEntry> location,

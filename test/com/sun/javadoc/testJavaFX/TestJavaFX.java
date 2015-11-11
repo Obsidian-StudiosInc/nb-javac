@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,11 @@
 
 /*
  * @test
- * @bug 7112427 8012295 8025633 8026567 8061305
+ * @bug 7112427 8012295 8025633 8026567 8061305 8081854
  * @summary Test of the JavaFX doclet features.
  * @author jvalenta
  * @library ../lib
+ * @modules jdk.javadoc
  * @build JavadocTester
  * @run main TestJavaFX
  */

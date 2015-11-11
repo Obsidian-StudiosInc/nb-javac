@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.sun.tools.sjavac.Util;
+import com.sun.tools.sjavac.client.PortFileInaccessibleException;
 import com.sun.tools.sjavac.comp.PooledSjavac;
 import com.sun.tools.sjavac.comp.SjavacImpl;
 
@@ -52,9 +53,10 @@ import com.sun.tools.sjavac.comp.SjavacImpl;
  */
 public class SjavacServer implements Terminable {
 
-    // Used in protocol to indicate which method to invoke
-    public final static String CMD_COMPILE = "compile";
-    public final static String CMD_SYS_INFO = "sys-info";
+    // Used in protocol to tell the content of each line
+    public final static String LINE_TYPE_RC = "RC";
+    public final static String LINE_TYPE_STDOUT = "STDOUT";
+    public final static String LINE_TYPE_STDERR = "STDERR";
 
     final private String portfilename;
     final private String logfile;
@@ -122,7 +124,7 @@ public class SjavacServer implements Terminable {
     /**
      * Acquire the port file. Synchronized since several threads inside an smart javac wrapper client acquires the same port file at the same time.
      */
-    public static synchronized PortFile getPortFile(String filename) throws FileNotFoundException {
+    public static synchronized PortFile getPortFile(String filename) throws PortFileInaccessibleException {
         if (allPortFiles == null) {
             allPortFiles = new HashMap<>();
         }

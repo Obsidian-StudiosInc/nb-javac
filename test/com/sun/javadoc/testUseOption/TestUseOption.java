@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,11 @@
 
 /*
  * @test
- * @bug 4496290 4985072 7006178 7068595 8016328 8050031 8048351
+ * @bug 4496290 4985072 7006178 7068595 8016328 8050031 8048351 8081854
  * @summary A simple test to ensure class-use files are correct.
  * @author jamieh
  * @library ../lib
+ * @modules jdk.javadoc
  * @build JavadocTester
  * @run main TestUseOption
  */

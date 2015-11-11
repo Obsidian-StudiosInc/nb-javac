@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,18 +25,25 @@
 
 package com.sun.tools.sjavac;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
-import java.util.Set;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
+import com.sun.tools.sjavac.comp.CompilationService;
 import com.sun.tools.sjavac.options.Options;
-import com.sun.tools.sjavac.server.Sjavac;
+import com.sun.tools.sjavac.pubapi.PubApi;
 
 /**
  * The clean properties transform should not be necessary.
@@ -56,20 +63,22 @@ public class CleanProperties implements Transformer {
         // Any extra information is ignored for clean properties.
     }
 
-    public boolean transform(Sjavac sjavac,
+    public boolean transform(CompilationService sjavac,
                              Map<String,Set<URI>> pkgSrcs,
                              Set<URI>             visibleSrcs,
                              Map<URI,Set<String>> visibleClasses,
                              Map<String,Set<String>> oldPackageDependencies,
                              URI destRoot,
                              Map<String,Set<URI>>    packageArtifacts,
-                             Map<String,Set<String>> packageDependencies,
-                             Map<String,String>      packagePublicApis,
+                             Map<String, Map<String, Set<String>>> packageDependencies,
+                             Map<String, Map<String, Set<String>>> packageCpDependencies,
+                             Map<String, PubApi> packagePublicApis,
+                             Map<String, PubApi> dependencyPublicApis,
                              int debugLevel,
                              boolean incremental,
                              int numCores,
-                             PrintStream out,
-                             PrintStream err) {
+                             Writer out,
+                             Writer err) {
         boolean rc = true;
         for (String pkgName : pkgSrcs.keySet()) {
             String pkgNameF = pkgName.replace('.',File.separatorChar);

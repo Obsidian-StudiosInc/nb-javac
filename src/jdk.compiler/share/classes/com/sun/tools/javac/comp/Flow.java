@@ -2305,6 +2305,7 @@ public class Flow {
             final Bits prevUninits = new Bits(uninits);
             final Bits prevInits = new Bits(inits);
             int returnadrPrev = returnadr;
+            int nextadrPrev = nextadr;
             ListBuffer<AssignPendingExit> prevPending = pendingExits;
             try {
                 returnadr = nextadr;
@@ -2326,6 +2327,7 @@ public class Flow {
                 uninits.assign(prevUninits);
                 inits.assign(prevInits);
                 pendingExits = prevPending;
+                nextadr = nextadrPrev;
             }
         }
 

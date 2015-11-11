@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,15 @@
 
 /*
  * @test
- * @bug 7021614
+ * @bug 7021614 8078320 8132096
  * @summary extend com.sun.source API to support parsing javadoc comments
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.tree
+ *          jdk.compiler/com.sun.tools.javac.util
  * @build DocCommentTester
  * @run main DocCommentTester FirstSentenceTest.java
+ * @run main DocCommentTester -useBreakIterator FirstSentenceTest.java
  */
 
 class FirstSentenceTest {
@@ -39,10 +44,27 @@ DocComment[DOC_COMMENT, pos:-1
   block tags: empty
 ]
 */
+/*
+BREAK_ITERATOR
+DocComment[DOC_COMMENT, pos:-1
+  firstSentence: empty
+  body: empty
+  block tags: empty
+]
+*/
 
     /** abc def ghi */
     void no_terminator() { }
 /*
+DocComment[DOC_COMMENT, pos:0
+  firstSentence: 1
+    Text[TEXT, pos:0, abc_def_ghi]
+  body: empty
+  block tags: empty
+]
+*/
+/*
+BREAK_ITERATOR
 DocComment[DOC_COMMENT, pos:0
   firstSentence: 1
     Text[TEXT, pos:0, abc_def_ghi]
@@ -63,7 +85,15 @@ DocComment[DOC_COMMENT, pos:1
   block tags: empty
 ]
 */
-
+/*
+BREAK_ITERATOR
+DocComment[DOC_COMMENT, pos:1
+  firstSentence: 1
+    Text[TEXT, pos:1, abc_def_ghi.]
+  body: empty
+  block tags: empty
+]
+*/
     /**
      * abc def ghi. jkl mno pqr.
      */
@@ -77,7 +107,15 @@ DocComment[DOC_COMMENT, pos:1
   block tags: empty
 ]
 */
-
+/*
+BREAK_ITERATOR
+DocComment[DOC_COMMENT, pos:1
+  firstSentence: 1
+    Text[TEXT, pos:1, abc_def_ghi._jkl_mno_pqr.]
+  body: empty
+  block tags: empty
+]
+*/
     /**
      * abc def ghi.
      * jkl mno pqr
@@ -92,7 +130,16 @@ DocComment[DOC_COMMENT, pos:1
   block tags: empty
 ]
 */
-
+/*
+BREAK_ITERATOR
+DocComment[DOC_COMMENT, pos:1
+  firstSentence: 1
+    Text[TEXT, pos:1, abc_def_ghi.]
+  body: 1
+    Text[TEXT, pos:15, jkl_mno_pqr]
+  block tags: empty
+]
+*/
     /**
      * abc def ghi
      * <p>jkl mno pqr
@@ -111,7 +158,53 @@ DocComment[DOC_COMMENT, pos:1
   block tags: empty
 ]
 */
-
+/*
+BREAK_ITERATOR
+DocComment[DOC_COMMENT, pos:1
+  firstSentence: 1
+    Text[TEXT, pos:1, abc_def_ghi]
+  body: 2
+    StartElement[START_ELEMENT, pos:14
+      name:p
+      attributes: empty
+    ]
+    Text[TEXT, pos:17, jkl_mno_pqr]
+  block tags: empty
+]
+*/
+    /**
+     *
+     * <p>abc def ghi.
+     * jdl mno pqf
+     */
+    void newline_p() { }
+/*
+DocComment[DOC_COMMENT, pos:2
+  firstSentence: 2
+    StartElement[START_ELEMENT, pos:2
+      name:p
+      attributes: empty
+    ]
+    Text[TEXT, pos:5, abc_def_ghi.]
+  body: 1
+    Text[TEXT, pos:19, jdl_mno_pqf]
+  block tags: empty
+]
+*/
+/*
+BREAK_ITERATOR
+DocComment[DOC_COMMENT, pos:2
+  firstSentence: 2
+    StartElement[START_ELEMENT, pos:2
+      name:p
+      attributes: empty
+    ]
+    Text[TEXT, pos:5, abc_def_ghi.]
+  body: 1
+    Text[TEXT, pos:19, jdl_mno_pqf]
+  block tags: empty
+]
+*/
     /**
      * abc def ghi
      * </p>jkl mno pqr
@@ -127,7 +220,17 @@ DocComment[DOC_COMMENT, pos:1
   block tags: empty
 ]
 */
-
+/*
+BREAK_ITERATOR
+DocComment[DOC_COMMENT, pos:1
+  firstSentence: 1
+    Text[TEXT, pos:1, abc_def_ghi]
+  body: 2
+    EndElement[END_ELEMENT, pos:14, p]
+    Text[TEXT, pos:18, jkl_mno_pqr]
+  block tags: empty
+]
+*/
     /**
      * abc &lt; ghi. jkl mno pqr.
      */
@@ -143,7 +246,17 @@ DocComment[DOC_COMMENT, pos:1
   block tags: empty
 ]
 */
-
+/*
+BREAK_ITERATOR
+DocComment[DOC_COMMENT, pos:1
+  firstSentence: 3
+    Text[TEXT, pos:1, abc_]
+    Entity[ENTITY, pos:5, lt]
+    Text[TEXT, pos:9, _ghi._jkl_mno_pqr.]
+  body: empty
+  block tags: empty
+]
+*/
     /**
      * abc {@code code} ghi. jkl mno pqr.
      */
@@ -159,7 +272,17 @@ DocComment[DOC_COMMENT, pos:1
   block tags: empty
 ]
 */
-
+/*
+BREAK_ITERATOR
+DocComment[DOC_COMMENT, pos:1
+  firstSentence: 3
+    Text[TEXT, pos:1, abc_]
+    Literal[CODE, pos:5, code]
+    Text[TEXT, pos:17, _ghi._jkl_mno_pqr.]
+  body: empty
+  block tags: empty
+]
+*/
     /**
      * abc def ghi
      * @author jjg
@@ -177,7 +300,19 @@ DocComment[DOC_COMMENT, pos:1
     ]
 ]
 */
-
+/*
+BREAK_ITERATOR
+DocComment[DOC_COMMENT, pos:1
+  firstSentence: 1
+    Text[TEXT, pos:1, abc_def_ghi]
+  body: empty
+  block tags: 1
+    Author[AUTHOR, pos:14
+      name: 1
+        Text[TEXT, pos:22, jjg]
+    ]
+]
+*/
     /**
      * @author jjg
      */
@@ -193,6 +328,81 @@ DocComment[DOC_COMMENT, pos:1
     ]
 ]
 */
+/*
+BREAK_ITERATOR
+DocComment[DOC_COMMENT, pos:1
+  firstSentence: empty
+  body: empty
+  block tags: 1
+    Author[AUTHOR, pos:1
+      name: 1
+        Text[TEXT, pos:9, jjg]
+    ]
+]
+*/
+    /**
+     * <p> abc def.
+     * ghi jkl
+     */
+    void p_at_zero() { }
+/*
+DocComment[DOC_COMMENT, pos:1
+  firstSentence: 2
+    StartElement[START_ELEMENT, pos:1
+      name:p
+      attributes: empty
+    ]
+    Text[TEXT, pos:4, _abc_def.]
+  body: 1
+    Text[TEXT, pos:15, ghi_jkl]
+  block tags: empty
+]
+*/
+/*
+BREAK_ITERATOR
+DocComment[DOC_COMMENT, pos:1
+  firstSentence: 2
+    StartElement[START_ELEMENT, pos:1
+      name:p
+      attributes: empty
+    ]
+    Text[TEXT, pos:4, _abc_def.]
+  body: 1
+    Text[TEXT, pos:15, ghi_jkl]
+  block tags: empty
+]
+*/
 
+    /**
+     * abc <p> def. ghi jkl
+     */
+    void p_at_nonzero() { }
+/*
+DocComment[DOC_COMMENT, pos:1
+  firstSentence: 1
+    Text[TEXT, pos:1, abc]
+  body: 2
+    StartElement[START_ELEMENT, pos:5
+      name:p
+      attributes: empty
+    ]
+    Text[TEXT, pos:8, _def._ghi_jkl]
+  block tags: empty
+]
+*/
+/*
+BREAK_ITERATOR
+DocComment[DOC_COMMENT, pos:1
+  firstSentence: 1
+    Text[TEXT, pos:1, abc]
+  body: 2
+    StartElement[START_ELEMENT, pos:5
+      name:p
+      attributes: empty
+    ]
+    Text[TEXT, pos:8, _def._ghi_jkl]
+  block tags: empty
+]
+*/
 }
 

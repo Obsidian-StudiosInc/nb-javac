@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,10 @@
  * @author Fredrik O
  * @author sogoel (rewrite)
  * @library /tools/lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.compiler/com.sun.tools.sjavac
  * @build Wrapper ToolBox
  * @run main Wrapper IncCompileDropClasses
  */
@@ -47,9 +51,10 @@ public class IncCompileDropClasses extends SJavacTester {
     ToolBox tb = new ToolBox();
 
     void test() throws Exception {
-        Files.createDirectory(GENSRC);
-        Files.createDirectory(BIN);
-        Files.createDirectory(HEADERS);
+        clean(TEST_ROOT);
+        Files.createDirectories(GENSRC);
+        Files.createDirectories(BIN);
+        Files.createDirectories(HEADERS);
 
         initialCompile();
         incrementalCompileDroppingClasses();
@@ -64,15 +69,20 @@ public class IncCompileDropClasses extends SJavacTester {
         System.out.println("\nIn incrementalCompileDroppingClasses() ");
         System.out.println("Testing that deleting AA.java deletes all generated inner class including AA.class");
         removeFrom(GENSRC, "alfa/omega/AA.java");
-        compile("gensrc", "-d", "bin", "-h", "headers", "-j", "1",
-                SERVER_ARG, "--log=debug");
+        compile(GENSRC.toString(),
+                "-d", BIN.toString(),
+                "--state-dir=" + BIN,
+                "-h", HEADERS.toString(),
+                "-j", "1",
+                SERVER_ARG,
+                "--log=debug");
         Map<String,Long> new_bin_state = collectState(BIN);
         verifyThatFilesHaveBeenRemoved(previous_bin_state, new_bin_state,
-                                       "bin/alfa/omega/AA$1.class",
-                                       "bin/alfa/omega/AA$AAAA.class",
-                                       "bin/alfa/omega/AA$AAA.class",
-                                       "bin/alfa/omega/AAAAA.class",
-                                       "bin/alfa/omega/AA.class");
+                                       BIN + "/alfa/omega/AA$1.class",
+                                       BIN + "/alfa/omega/AA$AAAA.class",
+                                       BIN + "/alfa/omega/AA$AAA.class",
+                                       BIN + "/alfa/omega/AAAAA.class",
+                                       BIN + "/alfa/omega/AA.class");
 
         previous_bin_state = new_bin_state;
         Map<String,Long> new_headers_state = collectState(HEADERS);

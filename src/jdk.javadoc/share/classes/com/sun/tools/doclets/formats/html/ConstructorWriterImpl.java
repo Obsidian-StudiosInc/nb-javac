@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -92,6 +92,13 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
     /**
      * {@inheritDoc}
      */
+    public void addMemberTree(Content memberSummaryTree, Content memberTree) {
+        writer.addMemberTree(memberSummaryTree, memberTree);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public Content getConstructorDetailsTreeHeader(ClassDoc classDoc,
             Content memberDetailsTree) {
         memberDetailsTree.addContent(HtmlConstants.START_OF_CONSTRUCTOR_DETAILS);
@@ -128,6 +135,7 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
     public Content getSignature(ConstructorDoc constructor) {
         Content pre = new HtmlTree(HtmlTag.PRE);
         writer.addAnnotationInfo(constructor, pre);
+        int annotationLength = pre.charCount();
         addModifiers(constructor, pre);
         if (configuration.linksource) {
             Content constructorName = new StringContent(constructor.name());
@@ -135,7 +143,7 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
         } else {
             addName(constructor.name(), pre);
         }
-        int indent = pre.charCount();
+        int indent = pre.charCount() - annotationLength;
         addParameters(constructor, pre, indent);
         addExceptions(constructor, pre, indent);
         return pre;
@@ -177,6 +185,10 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
      * {@inheritDoc}
      */
     public Content getConstructorDetails(Content constructorDetailsTree) {
+        if (configuration.allowTag(HtmlTag.SECTION)) {
+            HtmlTree htmlTree = HtmlTree.SECTION(getMemberTree(constructorDetailsTree));
+            return htmlTree;
+        }
         return getMemberTree(constructorDetailsTree);
     }
 

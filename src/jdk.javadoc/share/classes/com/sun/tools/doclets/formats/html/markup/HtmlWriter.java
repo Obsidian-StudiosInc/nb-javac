@@ -306,9 +306,8 @@ public class HtmlWriter {
      * @return an HtmlTree for the SCRIPT tag
      */
     protected HtmlTree getWinTitleScript(){
-        HtmlTree script = new HtmlTree(HtmlTag.SCRIPT);
+        HtmlTree script = HtmlTree.SCRIPT();
         if(winTitle != null && winTitle.length() > 0) {
-            script.addAttr(HtmlAttr.TYPE, "text/javascript");
             String scriptCode = "<!--" + DocletConstants.NL +
                     "    try {" + DocletConstants.NL +
                     "        if (location.href.indexOf('is-external=true') == -1) {" + DocletConstants.NL +
@@ -377,8 +376,7 @@ public class HtmlWriter {
      * @return a content for the SCRIPT tag
      */
     protected Content getFramesJavaScript() {
-        HtmlTree script = new HtmlTree(HtmlTag.SCRIPT);
-        script.addAttr(HtmlAttr.TYPE, "text/javascript");
+        HtmlTree script = HtmlTree.SCRIPT();
         String scriptCode = DocletConstants.NL +
                 "    targetPage = \"\" + window.location.search;" + DocletConstants.NL +
                 "    if (targetPage != \"\" && targetPage != \"undefined\")" + DocletConstants.NL +
@@ -467,10 +465,10 @@ public class HtmlWriter {
         for (Map.Entry<String,Integer> entry : typeMap.entrySet()) {
             vars.append(sep);
             sep = ",";
-            vars.append("\"");
-            vars.append(entry.getKey());
-            vars.append("\":");
-            vars.append(entry.getValue());
+            vars.append("\"")
+                    .append(entry.getKey())
+                    .append("\":")
+                    .append(entry.getValue());
         }
         vars.append("};").append(DocletConstants.NL);
         sep = "";
@@ -478,11 +476,19 @@ public class HtmlWriter {
         for (MethodTypes entry : methodTypes) {
             vars.append(sep);
             sep = ",";
-            vars.append(entry.value()).append(":");
-            vars.append("[").append("\"").append(entry.tabId());
-            vars.append("\"").append(sep).append("\"").append(entry.text()).append("\"]");
+            vars.append(entry.value())
+                    .append(":")
+                    .append("[")
+                    .append("\"")
+                    .append(entry.tabId())
+                    .append("\"")
+                    .append(sep)
+                    .append("\"")
+                    .append(configuration.getText(entry.resourceKey()))
+                    .append("\"]");
         }
-        vars.append("};").append(DocletConstants.NL);
+        vars.append("};")
+                .append(DocletConstants.NL);
         addStyles(HtmlStyle.altColor, vars);
         addStyles(HtmlStyle.rowColor, vars);
         addStyles(HtmlStyle.tableTab, vars);

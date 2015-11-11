@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -30,6 +28,10 @@
  * @author Fredrik O
  * @author sogoel (rewrite)
  * @library /tools/lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.compiler/com.sun.tools.sjavac
  * @build Wrapper ToolBox
  * @run main Wrapper CompileWithAtFile
  */
@@ -44,9 +46,14 @@ public class CompileWithAtFile extends SJavacTester {
     }
 
     void test() throws Exception {
+        clean(TEST_ROOT);
         ToolBox tb = new ToolBox();
         tb.writeFile(GENSRC.resolve("list.txt"),
-                 "-if */alfa/omega/A.java\n-if */beta/B.java\ngensrc\n-d bin\n");
+                     "-if */alfa/omega/A.java\n" +
+                     "-if */beta/B.java\n" +
+                     GENSRC + "\n" +
+                     "-d " + BIN + "\n" +
+                     "--state-dir=" + BIN + "\n");
         tb.writeFile(GENSRC.resolve("alfa/omega/A.java"),
                  "package alfa.omega; import beta.B; public class A { B b; }");
         tb.writeFile(GENSRC.resolve("beta/B.java"),
@@ -56,13 +63,14 @@ public class CompileWithAtFile extends SJavacTester {
 
         Files.createDirectory(BIN);
         Map<String,Long> previous_bin_state = collectState(BIN);
-        compile("@gensrc/list.txt", "--server:portfile=testserver,background=false");
+
+        compile("@" + GENSRC + "/list.txt", "--server:portfile=testserver,background=false");
 
         Map<String,Long> new_bin_state = collectState(BIN);
         verifyThatFilesHaveBeenAdded(previous_bin_state, new_bin_state,
-                         "bin/javac_state",
-                         "bin/alfa/omega/A.class",
-                         "bin/beta/B.class");
+                         BIN + "/javac_state",
+                         BIN + "/alfa/omega/A.class",
+                         BIN + "/beta/B.class");
         clean(GENSRC, BIN);
     }
 }

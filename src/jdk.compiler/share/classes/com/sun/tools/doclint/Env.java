@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,7 @@ import javax.lang.model.util.Types;
 import javax.tools.Diagnostic.Kind;
 
 import com.sun.source.doctree.DocCommentTree;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.util.DocTrees;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.SourcePositions;
@@ -98,6 +99,8 @@ public class Env {
 
     Set<Pattern> includePackages;
     Set<Pattern> excludePackages;
+
+    HtmlVersion htmlVersion = HtmlVersion.HTML4;
 
     // Utility classes
     DocTrees trees;
@@ -193,6 +196,10 @@ public class Env {
         return true;
     }
 
+    void setHtmlVersion(HtmlVersion version) {
+        htmlVersion = version;
+    }
+
     /** Set the current declaration and its doc comment. */
     void setCurrent(TreePath path, DocCommentTree comment) {
         currPath = path;
@@ -221,6 +228,35 @@ public class Env {
     long getStartPos(TreePath p) {
         SourcePositions sp = trees.getSourcePositions();
         return sp.getStartPosition(p.getCompilationUnit(), p.getLeaf());
+    }
+
+    boolean shouldCheck(CompilationUnitTree unit) {
+        if (includePackages == null)
+            return true;
+
+        String packageName =   unit.getPackageName() != null
+                             ? unit.getPackageName().toString()
+                             : "";
+
+        if (!includePackages.isEmpty()) {
+            boolean included = false;
+            for (Pattern pack : includePackages) {
+                if (pack.matcher(packageName).matches()) {
+                    included = true;
+                    break;
+                }
+            }
+            if (!included)
+                return false;
+        }
+
+        for (Pattern pack : excludePackages) {
+            if (pack.matcher(packageName).matches()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private <T extends Comparable<T>> T min(T item1, T item2) {

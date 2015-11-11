@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,11 @@ import javax.lang.model.element.*;
 import javax.lang.model.util.ElementScanner6;
 import javax.tools.JavaFileObject;
 
+import com.sun.tools.javac.code.Attribute.Compound;
+import com.sun.tools.javac.code.TypeAnnotations.AnnotationType;
+import com.sun.tools.javac.code.TypeMetadata.Entry;
+import com.sun.tools.javac.comp.Annotate.AnnotationTypeCompleter;
+import com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.comp.Attr;
@@ -94,6 +99,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
     public Symbol owner;
 
     /** The completer of this symbol.
+     * This should never equal null (NULL_COMPLETER should be used instead).
      */
     public Completer completer;
 
@@ -191,6 +197,10 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         return (metadata != null && !metadata.isTypesEmpty());
     }
 
+    public boolean isCompleted() {
+        return completer.isTerminal();
+    }
+
     public void prependAttributes(List<Attribute.Compound> l) {
         if (l.nonEmpty()) {
             initedMetadata().prepend(l);
@@ -241,7 +251,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         this.flags_field = flags;
         this.type = type;
         this.owner = owner;
-        this.completer = null;
+        this.completer = Completer.NULL_COMPLETER;
         this.erasure_field = null;
         this.name = name;
     }
@@ -566,9 +576,9 @@ public abstract class Symbol extends AnnoConstruct implements Element {
     /** Complete the elaboration of this symbol's definition.
      */
     public void complete() throws CompletionFailure {
-        if (completer != null) {
+        if (completer != Completer.NULL_COMPLETER) {
             Completer c = completer;
-            completer = null;
+            completer = Completer.NULL_COMPLETER;
             c.complete(this);
         }
     }
@@ -743,6 +753,13 @@ public abstract class Symbol extends AnnoConstruct implements Element {
             return list;
         }
 
+        public AnnotationTypeMetadata getAnnotationTypeMetadata() {
+            Assert.error("Only on ClassSymbol");
+            return null; //unreachable
+        }
+
+        public boolean isAnnotationType() { return false; }
+
         @Override
         public <R, P> R accept(Symbol.Visitor<R, P> v, P p) {
             return v.visitTypeSymbol(this, p);
@@ -868,14 +885,14 @@ public abstract class Symbol extends AnnoConstruct implements Element {
 
         public WriteableScope members() {
             try {
-                if (completer != null) complete();
+                complete();
             } catch (CompletionFailure cf) {}
             return members_field;
         }
 
         public long flags() {
             try {
-                if (completer != null) complete();
+                complete();
             } catch (CompletionFailure cf) {}
             return flags_field;
         }
@@ -883,8 +900,8 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         @Override
         public List<Attribute.Compound> getRawAttributes() {
             try {
-                if (completer != null) complete();
-                if (package_info != null && package_info.completer != null) {
+                complete();
+                if (package_info != null) {
                     package_info.complete();
                     mergeAttributes();
                 }
@@ -971,6 +988,9 @@ public abstract class Symbol extends AnnoConstruct implements Element {
          */
         public Pool pool;
 
+        /** the annotation metadata attached to this class */
+        private AnnotationTypeMetadata annotationTypeMetadata;
+
         public ClassSymbol(long flags, Name name, Type type, Symbol owner) {
             super(TYP, flags, name, type, owner);
             this.members_field = null;
@@ -979,6 +999,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
             this.sourcefile = null;
             this.classfile = null;
             this.pool = null;
+            this.annotationTypeMetadata = AnnotationTypeMetadata.notAnAnnotationType();
         }
 
         public ClassSymbol(long flags, Name name, Symbol owner) {
@@ -998,14 +1019,14 @@ public abstract class Symbol extends AnnoConstruct implements Element {
 
         public long flags() {
             try {
-                if (completer != null) complete();
+                complete();
             } catch (CompletionFailure cf) {}
             return flags_field;
         }
 
         public WriteableScope members() {
             try {
-                if (completer != null) complete();
+                complete();
             } catch (CompletionFailure cf) {}
             return members_field;
         }
@@ -1013,7 +1034,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         @Override
         public List<Attribute.Compound> getRawAttributes() {
             try {
-                if (completer != null) complete();
+                complete();
             } catch (CompletionFailure cf) {}
             return super.getRawAttributes();
         }
@@ -1021,7 +1042,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         @Override
         public List<Attribute.TypeCompound> getRawTypeAttributes() {
             try {
-                if (completer != null) complete();
+                complete();
             } catch (CompletionFailure cf) {}               
             return super.getRawTypeAttributes();
         }
@@ -1231,8 +1252,24 @@ public abstract class Symbol extends AnnoConstruct implements Element {
                 t.all_interfaces_field = null;
             }
             metadata = null;
+            annotationTypeMetadata = AnnotationTypeMetadata.notAnAnnotationType();
         }
 
+        @Override
+        public AnnotationTypeMetadata getAnnotationTypeMetadata() {
+            return annotationTypeMetadata;
+        }
+
+        @Override
+        public boolean isAnnotationType() {
+            return (flags_field & Flags.ANNOTATION) != 0;
+        }
+
+        public void setAnnotationTypeMetadata(AnnotationTypeMetadata a) {
+            Assert.checkNonNull(a);
+            Assert.check(!annotationTypeMetadata.isMetadataForAnnotationType());
+            this.annotationTypeMetadata = a;
+        }
     }
 
 
@@ -1448,7 +1485,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         /** The names of the parameters */
         public List<Name> savedParameterNames;
 
-        /** For an attribute field accessor, its default value if any.
+        /** For an annotation type element, its default value if any.
          *  The value is null if none appeared in the method
          *  declaration.
          */
@@ -1579,9 +1616,33 @@ public abstract class Symbol extends AnnoConstruct implements Element {
          *  It is assumed that both symbols have the same name.  The static
          *  modifier is ignored for this test.
          *
+         *  A quirk in the works is that if the receiver is a method symbol for
+         *  an inherited abstract method we answer false summarily all else being
+         *  immaterial. Abstract "own" methods (i.e `this' is a direct member of
+         *  origin) don't get rejected as summarily and are put to test against the
+         *  suitable criteria.
+         *
          *  See JLS 8.4.6.1 (without transitivity) and 8.4.6.4
          */
         public boolean overrides(Symbol _other, TypeSymbol origin, Types types, boolean checkResult) {
+            return overrides(_other, origin, types, checkResult, true);
+        }
+
+        /** Does this symbol override `other' symbol, when both are seen as
+         *  members of class `origin'?  It is assumed that _other is a member
+         *  of origin.
+         *
+         *  Caveat: If `this' is an abstract inherited member of origin, it is
+         *  deemed to override `other' only when `requireConcreteIfInherited'
+         *  is false.
+         *
+         *  It is assumed that both symbols have the same name.  The static
+         *  modifier is ignored for this test.
+         *
+         *  See JLS 8.4.6.1 (without transitivity) and 8.4.6.4
+         */
+        public boolean overrides(Symbol _other, TypeSymbol origin, Types types, boolean checkResult,
+                                            boolean requireConcreteIfInherited) {
             if (isConstructor() || _other.kind != MTH) return false;
 
             if (this == _other) return true;
@@ -1601,7 +1662,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
             }
 
             // check for an inherited implementation
-            if ((flags() & ABSTRACT) != 0 ||
+            if (((flags() & ABSTRACT) != 0 && requireConcreteIfInherited) ||
                     ((other.flags() & ABSTRACT) == 0 && (other.flags() & DEFAULT) == 0) ||
                     !other.isOverridableIn(origin) ||
                     !this.isMemberOf(origin, types))
@@ -1646,6 +1707,10 @@ public abstract class Symbol extends AnnoConstruct implements Element {
                 default:
                     return super.isInheritedIn(clazz, types);
             }
+        }
+
+        public boolean isLambdaMethod() {
+            return (flags() & LAMBDA_METHOD) == LAMBDA_METHOD;
         }
 
         /** The implementation of this (abstract) symbol in class origin;
@@ -1840,7 +1905,29 @@ public abstract class Symbol extends AnnoConstruct implements Element {
     /** Symbol completer interface.
      */
     public static interface Completer {
+
+        /** Dummy completer to be used when the symbol has been completed or
+         * does not need completion.
+         */
+        public final static Completer NULL_COMPLETER = new Completer() {
+            public void complete(Symbol sym) { }
+            public boolean isTerminal() { return true; }
+        };
+
         void complete(Symbol sym) throws CompletionFailure;
+
+        /** Returns true if this completer is <em>terminal</em>. A terminal
+         * completer is used as a place holder when the symbol is completed.
+         * Calling complete on a terminal completer will not affect the symbol.
+         *
+         * The dummy NULL_COMPLETER and the GraphDependencies completer are
+         * examples of terminal completers.
+         *
+         * @return true iff this completer is terminal
+         */
+        default boolean isTerminal() {
+            return false;
+        }
     }
 
     public static class CompletionFailure extends RuntimeException {

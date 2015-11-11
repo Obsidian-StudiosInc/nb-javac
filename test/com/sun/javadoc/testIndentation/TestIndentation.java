@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,10 @@
 
 /*
  * @test
- * @bug      8011288
+ * @bug      8011288 8062647
  * @summary  Erratic/inconsistent indentation of signatures
  * @library  ../lib
+ * @modules jdk.javadoc
  * @build    JavadocTester
  * @run main TestIndentation
  */
@@ -50,5 +51,12 @@ public class TestIndentation extends JavadocTester {
                 + "                  T&nbsp;t2)",
                 "\n"
                 + "           throws java.lang.Exception");
+
+        // Test indentation of annotations and annotated method arguments
+        checkOutput("p/IndentAnnot.html", false,
+                " @Deprecated",
+                "                int&nbsp;b)",
+                "                java.lang.Object...&nbsp;b)");
+
     }
 }

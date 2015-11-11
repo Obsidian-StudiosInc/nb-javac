@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,12 @@
 
 /*
  * @test
- * @bug 4521661
+ * @bug 4521661 8081854
  * @summary Test to make sure that there is a link with a proper anchor
  * from a serializable class to serialized-form.html.
  * @author jamieh
  * @library ../lib
+ * @modules jdk.javadoc
  * @build JavadocTester
  * @run main TestLinkToSerialForm
  */

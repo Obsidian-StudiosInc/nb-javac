@@ -44,7 +44,7 @@ import java.util.*;
  * instance method that is overridden in extended components.  A base
  * phase supporting extension would look something like this:
  *
- * <p><pre>{@code
+ * <pre>{@code
  * public class Phase {
  *     protected static final Context.Key<Phase> phaseKey =
  *         new Context.Key<Phase>();
@@ -70,7 +70,7 @@ import java.util.*;
  * and this must be done before any reference to the phase is accessed
  * using Phase.instance().  An extended phase might be declared thus:
  *
- * <p><pre>{@code
+ * <pre>{@code
  * public class NewPhase extends Phase {
  *     protected NewPhase(Context context) {
  *         super(context);
@@ -87,7 +87,7 @@ import java.util.*;
  *
  * <p>And is registered early in the extended compiler like this
  *
- * <p><pre>
+ * <pre>
  *     NewPhase.preRegister(context);
  * </pre>
  *
@@ -119,7 +119,7 @@ public class Context {
      * or
      * {@literal Key<T> -> Factory<T> }
      */
-    private final Map<Key<?>,Object> ht = new HashMap<>();
+    protected final Map<Key<?>,Object> ht = new HashMap<>();
 
     /** Set the factory for the key in this context. */
     public <T> void put(Key<T> key, Factory<T> fac) {
@@ -173,7 +173,7 @@ public class Context {
      */
     private final Map<Class<?>, Key<?>> kt = new HashMap<>();
 
-    private <T> Key<T> key(Class<T> clss) {
+    protected <T> Key<T> key(Class<T> clss) {
         checkState(kt);
         Key<T> k = uncheckedCast(kt.get(clss));
         if (k == null) {

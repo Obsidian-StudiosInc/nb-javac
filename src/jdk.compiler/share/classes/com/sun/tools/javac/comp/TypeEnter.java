@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package com.sun.tools.javac.comp;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.BiConsumer;
 
 import javax.tools.JavaFileObject;
 
@@ -36,6 +37,7 @@ import com.sun.tools.javac.code.Scope.ImportFilter;
 import com.sun.tools.javac.code.Scope.NamedImportScope;
 import com.sun.tools.javac.code.Scope.StarImportScope;
 import com.sun.tools.javac.code.Scope.WriteableScope;
+import com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.DefinedBy.Api;
@@ -52,7 +54,6 @@ import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.code.TypeTag.ERROR;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 
-import com.sun.tools.javac.util.Dependencies.AttributionKind;
 import com.sun.tools.javac.util.Dependencies.CompletionCause;
 import com.sun.tools.javac.parser.Tokens.Comment;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
@@ -138,6 +139,7 @@ public class TypeEnter implements Completer {
         lint = Lint.instance(context);
         typeEnvs = TypeEnvs.instance(context);
         dependencies = Dependencies.instance(context);
+        Source source = Source.instance(context);
         allowTypeAnnos = source.allowTypeAnnotations();
         allowDeprecationOnImport = source.allowDeprecationOnImport();
         Options options = Options.instance(context);
@@ -178,7 +180,7 @@ public class TypeEnter implements Completer {
                     }
                 });
             }
-       }
+        }
     }
 
 /* ********************************************************************
@@ -198,14 +200,14 @@ public class TypeEnter implements Completer {
         }
 
         try {
-            annotate.enterStart();
+            annotate.blockAnnotations();
             sym.flags_field |= UNATTRIBUTED;
 
             List<Env<AttrContext>> queue;
 
             dependencies.push((ClassSymbol) sym, CompletionCause.MEMBER_ENTER);
             try {
-                queue = completeClass.runPhase(List.of(typeEnvs.get((ClassSymbol) sym)));
+                queue = completeClass.completeEnvs(List.of(typeEnvs.get((ClassSymbol) sym)));
             } finally {
                 dependencies.pop();
             }
@@ -220,7 +222,7 @@ public class TypeEnter implements Completer {
                 }
             }
         } finally {
-            annotate.enterDone();
+            annotate.unblockAnnotations();
         }
     }
 
@@ -230,6 +232,7 @@ public class TypeEnter implements Completer {
             resolve.run();
             chk.checkImportsUnique(toplevel);
             chk.checkImportsResolvable(toplevel);
+            chk.checkImportedPackagesObservable(toplevel);
             toplevel.namedImportScope.finalizeScope();
             toplevel.starImportScope.finalizeScope();
         } finally {
@@ -247,9 +250,22 @@ public class TypeEnter implements Completer {
             this.next = next;
         }
 
-        public List<Env<AttrContext>> runPhase(List<Env<AttrContext>> envs) {
+        public final List<Env<AttrContext>> completeEnvs(List<Env<AttrContext>> envs) {
             boolean firstToComplete = queue.isEmpty();
 
+            doCompleteEnvs(envs);
+
+            if (firstToComplete) {
+                List<Env<AttrContext>> out = queue.toList();
+
+                queue.clear();
+                return next != null ? next.completeEnvs(out) : out;
+            } else {
+                return List.nil();
+            }
+        }
+
+        protected void doCompleteEnvs(List<Env<AttrContext>> envs) {
             for (Env<AttrContext> env : envs) {
                 JCClassDecl tree = (JCClassDecl)env.tree;
 
@@ -259,7 +275,7 @@ public class TypeEnter implements Completer {
                 DiagnosticPosition prevLintPos = deferredLintHandler.setPos(tree.pos());
                 try {
                     dependencies.push(env.enclClass.sym, phaseName);
-                    doRunPhase(env);
+                    runPhase(env);
                 } catch (CompletionFailure ex) {
                     chk.completionError(tree.pos(), ex);
                 } catch (Attr.BreakAttr br) {
@@ -271,18 +287,9 @@ public class TypeEnter implements Completer {
                     log.useSource(prev);
                 }
             }
+        }
 
-            if (firstToComplete) {
-                List<Env<AttrContext>> out = queue.toList();
-
-                queue.clear();
-                return next != null ? next.runPhase(out) : out;
-            } else {
-                return List.nil();
-            }
-       }
-
-        protected abstract void doRunPhase(Env<AttrContext> env);
+        protected abstract void runPhase(Env<AttrContext> env);
     }
 
     private final ImportsPhase completeClass = new ImportsPhase();
@@ -298,9 +305,11 @@ public class TypeEnter implements Completer {
         Env<AttrContext> env;
         ImportFilter staticImportFilter;
         ImportFilter typeImportFilter;
+        BiConsumer<JCImport, CompletionFailure> cfHandler =
+                (imp, cf) -> chk.completionError(imp.pos(), cf);
 
         @Override
-        protected void doRunPhase(Env<AttrContext> env) {
+        protected void runPhase(Env<AttrContext> env) {
             JCClassDecl tree = env.enclClass;
             ClassSymbol sym = tree.sym;
 
@@ -341,7 +350,17 @@ public class TypeEnter implements Completer {
                                          chk.importAccessible(sym, packge);
 
                 // Import-on-demand java.lang.
-                importAll(tree.pos, syms.enterPackage(names.java_lang), env);
+                PackageSymbol javaLang = syms.enterPackage(names.java_lang);
+                if (javaLang.members().isEmpty() && !javaLang.exists()) {
+                    JCDiagnostic msg = diags.fragment("fatal.err.no.java.lang");
+                    if (ignoreNoLang) {                    
+                        throw new CompletionFailure(javaLang, msg.toString());
+                    }
+                    else {
+                        throw new MissingPlatformError (msg);
+                    }
+                }
+                importAll(make.at(tree.pos()).Import(make.QualIdent(javaLang), false), javaLang, env);
 
                 // Process the package def and all import clauses.
                 if (tree.getPackage() != null)
@@ -379,7 +398,6 @@ public class TypeEnter implements Completer {
         }
 
         private void doImport(JCImport tree) {
-            dependencies.push(AttributionKind.IMPORT, tree);
             JCFieldAccess imp = (JCFieldAccess)tree.qualid;
             Name name = TreeInfo.name(imp);
 
@@ -392,13 +410,13 @@ public class TypeEnter implements Completer {
                 // Import on demand.
                 chk.checkCanonical(imp.selected);
                 if (tree.staticImport)
-                    importStaticAll(tree.pos, p, env);
+                    importStaticAll(tree, p, env);
                 else
-                    importAll(tree.pos, p, env);
+                    importAll(tree, p, env);
             } else {
                 // Named type import.
                 if (tree.staticImport) {
-                    importNamedStatic(tree.pos(), p, name, localEnv, tree);
+                    importNamedStatic(tree, p, name, localEnv);
                     chk.checkCanonical(imp.selected);
                 } else {
                     TypeSymbol c = attribImportType(imp, localEnv).tsym;
@@ -406,7 +424,6 @@ public class TypeEnter implements Completer {
                     importNamed(tree.pos(), c, env, tree);
                 }
             }
-            dependencies.pop();
         }
 
         Type attribImportType(JCTree tree, Env<AttrContext> env) {
@@ -425,66 +442,50 @@ public class TypeEnter implements Completer {
         }
 
         /** Import all classes of a class or package on demand.
-         *  @param pos           Position to be used for error reporting.
+         *  @param imp           The import that is being handled.
          *  @param tsym          The class or package the members of which are imported.
          *  @param env           The env in which the imported classes will be entered.
          */
-        private void importAll(int pos,
+        private void importAll(JCImport imp,
                                final TypeSymbol tsym,
                                Env<AttrContext> env) {
-            // Check that packages imported from exist (JLS ???).
-            if (tsym.kind == PCK && tsym.members().isEmpty() && !tsym.exists()) {
-                // If we can't find java.lang, exit immediately.
-                if (((PackageSymbol)tsym).fullname.equals(names.java_lang)) {
-                    JCDiagnostic msg = diags.fragment("fatal.err.no.java.lang");
-                    if (ignoreNoLang) {                    
-                        throw new CompletionFailure(tsym, msg.toString());
-                    }
-                    else {
-                        throw new MissingPlatformError (msg);
-                    }
-                } else {
-                    log.error(DiagnosticFlag.RESOLVE_ERROR, pos, "doesnt.exist", tsym);
-                }
-            }
-            env.toplevel.starImportScope.importAll(types, tsym.members(), typeImportFilter, false);
+            env.toplevel.starImportScope.importAll(types, tsym.members(), typeImportFilter, imp, cfHandler);
         }
 
         /** Import all static members of a class or package on demand.
-         *  @param pos           Position to be used for error reporting.
+         *  @param imp           The import that is being handled.
          *  @param tsym          The class or package the members of which are imported.
          *  @param env           The env in which the imported classes will be entered.
          */
-        private void importStaticAll(int pos,
+        private void importStaticAll(JCImport imp,
                                      final TypeSymbol tsym,
                                      Env<AttrContext> env) {
             final StarImportScope toScope = env.toplevel.starImportScope;
             final TypeSymbol origin = tsym;
 
-            toScope.importAll(types, origin.members(), staticImportFilter, true);
+            toScope.importAll(types, origin.members(), staticImportFilter, imp, cfHandler);
         }
 
         /** Import statics types of a given name.  Non-types are handled in Attr.
-         *  @param pos           Position to be used for error reporting.
+         *  @param imp           The import that is being handled.
          *  @param tsym          The class from which the name is imported.
          *  @param name          The (simple) name being imported.
          *  @param env           The environment containing the named import
          *                  scope to add to.
          */
-        private void importNamedStatic(final DiagnosticPosition pos,
+        private void importNamedStatic(final JCImport imp,
                                        final TypeSymbol tsym,
                                        final Name name,
-                                       final Env<AttrContext> env,
-                                       final JCImport imp) {
+                                       final Env<AttrContext> env) {
             if (tsym.kind != TYP) {
-                log.error(DiagnosticFlag.RECOVERABLE, pos, "static.imp.only.classes.and.interfaces");
+                log.error(DiagnosticFlag.RECOVERABLE, imp.pos(), "static.imp.only.classes.and.interfaces");
                 return;
             }
 
             final NamedImportScope toScope = env.toplevel.namedImportScope;
             final Scope originMembers = tsym.members();
 
-            imp.importScope = toScope.importByName(types, originMembers, name, staticImportFilter);
+            imp.importScope = toScope.importByName(types, originMembers, name, staticImportFilter, imp, cfHandler);
         }
 
         /** Import given class.
@@ -648,13 +649,7 @@ public class TypeEnter implements Completer {
 
             if (tree.extending != null) {
                 extending = clearTypeParams(tree.extending);
-                dependencies.push(AttributionKind.EXTENDS, tree.extending);
-                try {
-                    supertype = attr.attribBase(extending, baseEnv,
-                                                true, false, true);
-                } finally {
-                    dependencies.pop();
-                }
+                supertype = attr.attribBase(extending, baseEnv, true, false, true);
             } else {
                 extending = null;
                 supertype = ((tree.mods.flags & Flags.ENUM) != 0)
@@ -672,20 +667,14 @@ public class TypeEnter implements Completer {
             List<JCExpression> interfaceTrees = tree.implementing;
             for (JCExpression iface : interfaceTrees) {
                 iface = clearTypeParams(iface);
-                dependencies.push(AttributionKind.IMPLEMENTS, iface);
-                try {
-                    Type it = attr.attribBase(iface, baseEnv, false, true, true);
-                    if (it.hasTag(CLASS)) {
-                        interfaces.append(it);
-                        if (all_interfaces != null) all_interfaces.append(it);
-                    } else {
-                        if (all_interfaces == null)
-                            all_interfaces = new ListBuffer<Type>().appendList(interfaces);
-                        all_interfaces.append(modelMissingTypes(it, iface, true));
-
-                    }
-                } finally {
-                    dependencies.pop();
+                Type it = attr.attribBase(iface, baseEnv, false, true, true);
+                if (it.hasTag(CLASS)) {
+                    interfaces.append(it);
+                    if (all_interfaces != null) all_interfaces.append(it);
+                } else {
+                    if (all_interfaces == null)
+                        all_interfaces = new ListBuffer<Type>().appendList(interfaces);
+                    all_interfaces.append(modelMissingTypes(it, iface, true));
                 }
             }
 
@@ -704,14 +693,29 @@ public class TypeEnter implements Completer {
             }
     }
 
-    private final class HierarchyPhase extends AbstractHeaderPhase {
+    private final class HierarchyPhase extends AbstractHeaderPhase implements Completer {
 
         public HierarchyPhase() {
             super(CompletionCause.HIERARCHY_PHASE, new HeaderPhase());
         }
 
         @Override
-        protected void doRunPhase(Env<AttrContext> env) {
+        protected void doCompleteEnvs(List<Env<AttrContext>> envs) {
+            //The ClassSymbols in the envs list may not be in the dependency order.
+            //To get proper results, for every class or interface C, the supertypes of
+            //C must be processed by the HierarchyPhase phase before C.
+            //To achieve that, the HierarchyPhase is registered as the Completer for
+            //all the classes first, and then all the classes are completed.
+            for (Env<AttrContext> env : envs) {
+                env.enclClass.sym.completer = this;
+            }
+            for (Env<AttrContext> env : envs) {
+                env.enclClass.sym.complete();
+            }
+        }
+
+        @Override
+        protected void runPhase(Env<AttrContext> env) {
             JCClassDecl tree = env.enclClass;
             ClassSymbol sym = tree.sym;
             ClassType ct = (ClassType)sym.type;
@@ -765,6 +769,14 @@ public class TypeEnter implements Completer {
                 }
                 return false;
             }
+
+        @Override
+        public void complete(Symbol sym) throws CompletionFailure {
+            Env<AttrContext> env = typeEnvs.get((ClassSymbol) sym);
+
+            super.doCompleteEnvs(List.of(env));
+        }
+
     }
 
     private final class HeaderPhase extends AbstractHeaderPhase {
@@ -774,7 +786,7 @@ public class TypeEnter implements Completer {
         }
 
         @Override
-        protected void doRunPhase(Env<AttrContext> env) {
+        protected void runPhase(Env<AttrContext> env) {
             JCClassDecl tree = env.enclClass;
             ClassSymbol sym = tree.sym;
             ClassType ct = (ClassType)sym.type;
@@ -783,9 +795,9 @@ public class TypeEnter implements Completer {
             Env<AttrContext> baseEnv = baseEnv(tree, env);
 
             if (tree.extending != null)
-                annotate.annotateTypeLater(tree.extending, baseEnv, sym, tree.pos());
+                annotate.queueScanTreeAndTypeAnnotate(tree.extending, baseEnv, sym, tree.pos());
             for (JCExpression impl : tree.implementing)
-                annotate.annotateTypeLater(impl, baseEnv, sym, tree.pos());
+                annotate.queueScanTreeAndTypeAnnotate(impl, baseEnv, sym, tree.pos());
             annotate.flush();
 
             attribSuperTypes(env, baseEnv);
@@ -803,7 +815,7 @@ public class TypeEnter implements Completer {
 
             attr.attribTypeVariables(tree.typarams, baseEnv);
             for (JCTypeParameter tp : tree.typarams)
-                annotate.annotateTypeLater(tp, baseEnv, sym, tree.pos());
+                annotate.queueScanTreeAndTypeAnnotate(tp, baseEnv, sym, tree.pos());
 
             // check that no package exists with same fully qualified name,
             // but admit classes in the unnamed package which have the same
@@ -829,7 +841,7 @@ public class TypeEnter implements Completer {
         }
 
         @Override
-        protected void doRunPhase(Env<AttrContext> env) {
+        protected void runPhase(Env<AttrContext> env) {
             JCClassDecl tree = env.enclClass;
             ClassSymbol sym = tree.sym;
             ClassType ct = (ClassType)sym.type;
@@ -906,6 +918,11 @@ public class TypeEnter implements Completer {
                 }
             }
             memberEnter.memberEnter(tree.defs, env);
+
+            if (tree.sym.isAnnotationType()) {
+                Assert.check(tree.sym.isCompleted());
+                tree.sym.setAnnotationTypeMetadata(new AnnotationTypeMetadata(tree.sym, annotate.annotationTypeSourceCompleter()));
+            }
         }
 
         /** Add the implicit members for an enum type

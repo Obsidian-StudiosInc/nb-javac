@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
  * considered a separator when parsing the simple tag argument.
  * @author jamieh
  * @library ../lib
+ * @modules jdk.javadoc
  * @build JavadocTester
  * @run main TestSimpleTag
  */
@@ -50,7 +51,8 @@ public class TestSimpleTag extends JavadocTester {
                 "-tag", "regular:a:Regular Tag:",
                 "-tag", "back-slash\\:tag\\\\:a:Back-Slash-Tag:",
                 testSrc("C.java"));
-        checkExit(Exit.FAILED); // TODO: investigate why failed
+        // doclint fails because '\' is not allowed in tag name
+        checkExit(Exit.FAILED);
 
         checkOutput("C.html", true,
                 "<span class=\"simpleTagLabel\">Todo:</span>",

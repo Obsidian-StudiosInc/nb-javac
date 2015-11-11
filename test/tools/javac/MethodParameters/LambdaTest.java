@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,17 @@
 
 /*
  * @test
- * @bug 8006582 8037546
+ * @bug 8006582 8037546 8138729
  * @summary javac should generate method parameters correctly.
+ * @modules jdk.jdeps/com.sun.tools.classfile
  * @build Tester
  * @compile -parameters LambdaTest.java
  * @run main Tester LambdaTest LambdaTest.out
  */
 
 /**
- * Post https://bugs.openjdk.java.net/browse/JDK-8037546, this test verifies
- * that MethodParameters attribute for lambdas are emitted properly.
+ * Post https://bugs.openjdk.java.net/browse/JDK-8138729, this test verifies
+ * that MethodParameters attribute are NOT emitted for lambdas.
  */
 class LambdaTest {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,13 @@
 package com.sun.tools.javac.code;
 
 import com.sun.tools.javac.code.Kinds.Kind;
+import java.lang.ref.WeakReference;
 import java.util.*;
+import java.util.function.BiConsumer;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
+import com.sun.tools.javac.code.Symbol.CompletionFailure;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.tree.JCTree.JCImport;
 import com.sun.tools.javac.util.*;
@@ -35,8 +40,6 @@ import com.sun.tools.javac.util.List;
 
 import static com.sun.tools.javac.code.Scope.LookupKind.NON_RECURSIVE;
 import static com.sun.tools.javac.code.Scope.LookupKind.RECURSIVE;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 /** A scope represents an area of visibility in a Java program. The
  *  Scope class is a container for symbols which provides
@@ -160,15 +163,49 @@ public abstract class Scope {
 
     /** A list of scopes to be notified if items are to be removed from this scope.
      */
-    List<ScopeListener> listeners = List.nil();
-
-    public void addScopeListener(ScopeListener sl) {
-        listeners = listeners.prepend(sl);
-    }
+    ScopeListenerList listeners = new ScopeListenerList();
 
     public interface ScopeListener {
-        public void symbolAdded(Symbol sym, Scope s);
-        public void symbolRemoved(Symbol sym, Scope s);
+        void symbolAdded(Symbol sym, Scope s);
+        void symbolRemoved(Symbol sym, Scope s);
+    }
+
+    /**
+     * A list of scope listeners; listeners are stored in weak references, to avoid memory leaks.
+     * When the listener list is scanned (upon notification), elements corresponding to GC-ed
+     * listeners are removed so that the listener list size is kept in check.
+     */
+    public static class ScopeListenerList {
+
+        List<WeakReference<ScopeListener>> listeners = List.nil();
+
+        void add(ScopeListener sl) {
+            listeners = listeners.prepend(new WeakReference<>(sl));
+        }
+
+        void symbolAdded(Symbol sym, Scope scope) {
+            walkReferences(sym, scope, false);
+        }
+
+        void symbolRemoved(Symbol sym, Scope scope) {
+            walkReferences(sym, scope, true);
+        }
+
+        private void walkReferences(Symbol sym, Scope scope, boolean isRemove) {
+            ListBuffer<WeakReference<ScopeListener>> newListeners = new ListBuffer<>();
+            for (WeakReference<ScopeListener> wsl : listeners) {
+                ScopeListener sl = wsl.get();
+                if (sl != null) {
+                    if (isRemove) {
+                        sl.symbolRemoved(sym, scope);
+                    } else {
+                        sl.symbolAdded(sym, scope);
+                    }
+                    newListeners.add(wsl);
+                }
+            }
+            listeners = newListeners.toList();
+        }
     }
 
     public enum LookupKind {
@@ -402,17 +439,14 @@ public abstract class Scope {
             elems = e;
 
             //notify listeners
-            for (List<ScopeListener> l = listeners; l.nonEmpty(); l = l.tail) {
-                l.head.symbolAdded(sym, this);
-            }
+            listeners.symbolAdded(sym, this);
         }
 
-        /** Remove symbol from this scope.  Used when an inner class
-         *  attribute tells us that the class isn't a package member.
+        /** Remove symbol from this scope.
          */
         public void remove(Symbol sym) {
             Assert.check(shared == 0);
-            Entry e = lookup(sym.name);
+            Entry e = lookup(sym.name, candidate -> candidate == sym);
             if (e.scope == null) return;
 
             // remove e from table and shadowed list;
@@ -441,9 +475,7 @@ public abstract class Scope {
             }
 
             //notify listeners
-            for (List<ScopeListener> l = listeners; l.nonEmpty(); l = l.tail) {
-                l.head.symbolRemoved(sym, this);
-            }
+            listeners.symbolRemoved(sym, this);
         }
 
         /** Enter symbol sym in this scope if not already there.
@@ -697,11 +729,12 @@ public abstract class Scope {
                         finalized.enter(sym);
                     }
 
-                    finalized.addScopeListener(new ScopeListener() {
+                    finalized.listeners.add(new ScopeListener() {
                         @Override
                         public void symbolAdded(Symbol sym, Scope s) {
                             Assert.error("The scope is sealed.");
                         }
+
                         @Override
                         public void symbolRemoved(Symbol sym, Scope s) {
                             Assert.error("The scope is sealed.");
@@ -722,8 +755,8 @@ public abstract class Scope {
             prependSubScope(currentFileScope);
         }
 
-        public Scope importByName(Types types, Scope origin, Name name, ImportFilter filter) {
-            return appendScope(new FilterImportScope(types, origin, name, filter, true));
+        public Scope importByName(Types types, Scope origin, Name name, ImportFilter filter, JCImport imp, BiConsumer<JCImport, CompletionFailure> cfHandler) {
+            return appendScope(new FilterImportScope(types, origin, name, filter, imp, cfHandler));
         }
 
         public Scope importType(Scope delegate, Scope origin, Symbol sym) {
@@ -787,15 +820,16 @@ public abstract class Scope {
 
         public void importAll(Types types, Scope origin,
                               ImportFilter filter,
-                              boolean staticImport) {
+                              JCImport imp,
+                              BiConsumer<JCImport, CompletionFailure> cfHandler) {
             for (Scope existing : subScopes) {
                 Assert.check(existing instanceof FilterImportScope);
                 FilterImportScope fis = (FilterImportScope) existing;
                 if (fis.origin == origin && fis.filter == filter &&
-                    fis.staticImport == staticImport)
+                    fis.imp.staticImport == imp.staticImport)
                     return ; //avoid entering the same scope twice
             }
-            prependSubScope(new FilterImportScope(types, origin, null, filter, staticImport));
+            prependSubScope(new FilterImportScope(types, origin, null, filter, imp, cfHandler));
         }
 
         public boolean isFilled() {
@@ -814,32 +848,40 @@ public abstract class Scope {
         private final Scope origin;
         private final Name  filterName;
         private final ImportFilter filter;
-        private final boolean staticImport;
+        private final JCImport imp;
+        private final BiConsumer<JCImport, CompletionFailure> cfHandler;
 
         public FilterImportScope(Types types,
                                  Scope origin,
                                  Name  filterName,
                                  ImportFilter filter,
-                                 boolean staticImport) {
+                                 JCImport imp,
+                                 BiConsumer<JCImport, CompletionFailure> cfHandler) {
             super(origin.owner);
             this.types = types;
             this.origin = origin;
             this.filterName = filterName;
             this.filter = filter;
-            this.staticImport = staticImport;
+            this.imp = imp;
+            this.cfHandler = cfHandler;
         }
 
         @Override
         public Iterable<Symbol> getSymbols(final Filter<Symbol> sf, final LookupKind lookupKind) {
             if (filterName != null)
                 return getSymbolsByName(filterName, sf, lookupKind);
-            SymbolImporter si = new SymbolImporter(staticImport) {
-                @Override
-                Iterable<Symbol> doLookup(TypeSymbol tsym) {
-                    return tsym.members().getSymbols(sf, lookupKind);
-                }
-            };
-            return si.importFrom((TypeSymbol) origin.owner) :: iterator;
+            try {
+                SymbolImporter si = new SymbolImporter(imp.staticImport) {
+                    @Override
+                    Iterable<Symbol> doLookup(TypeSymbol tsym) {
+                        return tsym.members().getSymbols(sf, lookupKind);
+                    }
+                };
+                return si.importFrom((TypeSymbol) origin.owner) :: iterator;
+            } catch (CompletionFailure cf) {
+                cfHandler.accept(imp, cf);
+                return Collections.emptyList();
+            }
         }
 
         @Override
@@ -848,13 +890,18 @@ public abstract class Scope {
                                                  final LookupKind lookupKind) {
             if (filterName != null && filterName != name)
                 return Collections.emptyList();
-            SymbolImporter si = new SymbolImporter(staticImport) {
-                @Override
-                Iterable<Symbol> doLookup(TypeSymbol tsym) {
-                    return tsym.members().getSymbolsByName(name, sf, lookupKind);
-                }
-            };
-            return si.importFrom((TypeSymbol) origin.owner) :: iterator;
+            try {
+                SymbolImporter si = new SymbolImporter(imp.staticImport) {
+                    @Override
+                    Iterable<Symbol> doLookup(TypeSymbol tsym) {
+                        return tsym.members().getSymbolsByName(name, sf, lookupKind);
+                    }
+                };
+                return si.importFrom((TypeSymbol) origin.owner) :: iterator;
+            } catch (CompletionFailure cf) {
+                cfHandler.accept(imp, cf);
+                return Collections.emptyList();
+            }
         }
 
         @Override
@@ -864,7 +911,7 @@ public abstract class Scope {
 
         @Override
         public boolean isStaticallyImported(Symbol byName) {
-            return staticImport;
+            return imp.staticImport;
         }
 
         abstract class SymbolImporter {
@@ -916,26 +963,20 @@ public abstract class Scope {
         public void prependSubScope(Scope that) {
            if (that != null) {
                 subScopes = subScopes.prepend(that);
-                that.addScopeListener(this);
+                that.listeners.add(this);
                 mark++;
-                for (ScopeListener sl : listeners) {
-                    sl.symbolAdded(null, this); //propagate upwards in case of nested CompoundScopes
-                }
+                listeners.symbolAdded(null, this);
            }
         }
 
         public void symbolAdded(Symbol sym, Scope s) {
             mark++;
-            for (ScopeListener sl : listeners) {
-                sl.symbolAdded(sym, s);
-            }
+            listeners.symbolAdded(sym, s);
         }
 
         public void symbolRemoved(Symbol sym, Scope s) {
             mark++;
-            for (ScopeListener sl : listeners) {
-                sl.symbolRemoved(sym, s);
-            }
+            listeners.symbolRemoved(sym, s);
         }
 
         public int getMark() {
@@ -959,30 +1000,21 @@ public abstract class Scope {
         @Override
         public Iterable<Symbol> getSymbols(final Filter<Symbol> sf,
                                            final LookupKind lookupKind) {
-            return new Iterable<Symbol>() {
-                public Iterator<Symbol> iterator() {
-                    return new CompoundScopeIterator(subScopes) {
-                        Iterator<Symbol> nextIterator(Scope s) {
-                            return s.getSymbols(sf, lookupKind).iterator();
-                        }
-                    };
-                }
-            };
+            return () -> Iterators.createCompoundIterator(subScopes,
+                                                          scope -> scope.getSymbols(sf,
+                                                                                    lookupKind)
+                                                                        .iterator());
         }
 
         @Override
         public Iterable<Symbol> getSymbolsByName(final Name name,
                                                  final Filter<Symbol> sf,
                                                  final LookupKind lookupKind) {
-            return new Iterable<Symbol>() {
-                public Iterator<Symbol> iterator() {
-                    return new CompoundScopeIterator(subScopes) {
-                        Iterator<Symbol> nextIterator(Scope s) {
-                            return s.getSymbolsByName(name, sf, lookupKind).iterator();
-                        }
-                    };
-                }
-            };
+            return () -> Iterators.createCompoundIterator(subScopes,
+                                                          scope -> scope.getSymbolsByName(name,
+                                                                                          sf,
+                                                                                          lookupKind)
+                                                                        .iterator());
         }
 
         @Override
@@ -1005,43 +1037,6 @@ public abstract class Scope {
             return false;
         }
 
-        abstract class CompoundScopeIterator implements Iterator<Symbol> {
-
-            private Iterator<Symbol> currentIterator;
-            private List<Scope> scopesToScan;
-
-            public CompoundScopeIterator(List<Scope> scopesToScan) {
-                this.scopesToScan = scopesToScan;
-                update();
-            }
-
-            abstract Iterator<Symbol> nextIterator(Scope s);
-
-            public boolean hasNext() {
-                return currentIterator != null;
-            }
-
-            public Symbol next() {
-                Symbol sym = currentIterator.next();
-                if (!currentIterator.hasNext()) {
-                    update();
-                }
-                return sym;
-            }
-
-            public void remove() {
-                throw new UnsupportedOperationException();
-            }
-
-            private void update() {
-                while (scopesToScan.nonEmpty()) {
-                    currentIterator = nextIterator(scopesToScan.head);
-                    scopesToScan = scopesToScan.tail;
-                    if (currentIterator.hasNext()) return;
-                }
-                currentIterator = null;
-            }
-        }
     }
 
     /** An error scope, for which the owner should be an error symbol. */

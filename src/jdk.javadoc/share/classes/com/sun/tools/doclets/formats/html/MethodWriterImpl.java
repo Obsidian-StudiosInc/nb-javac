@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -82,6 +82,13 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
     /**
      * {@inheritDoc}
      */
+    public void addMemberTree(Content memberSummaryTree, Content memberTree) {
+        writer.addMemberTree(memberSummaryTree, memberTree);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public Content getMethodDetailsTreeHeader(ClassDoc classDoc,
             Content memberDetailsTree) {
         memberDetailsTree.addContent(HtmlConstants.START_OF_METHOD_DETAILS);
@@ -121,6 +128,7 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
     public Content getSignature(MethodDoc method) {
         Content pre = new HtmlTree(HtmlTag.PRE);
         writer.addAnnotationInfo(method, pre);
+        int annotationLength = pre.charCount();
         addModifiers(method, pre);
         addTypeParameters(method, pre);
         addReturnType(method, pre);
@@ -130,7 +138,7 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
         } else {
             addName(method.name(), pre);
         }
-        int indent = pre.charCount();
+        int indent = pre.charCount() - annotationLength;
         addParameters(method, pre, indent);
         addExceptions(method, pre, indent);
         return pre;
@@ -182,6 +190,10 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
      * {@inheritDoc}
      */
     public Content getMethodDetails(Content methodDetailsTree) {
+        if (configuration.allowTag(HtmlTag.SECTION)) {
+            HtmlTree htmlTree = HtmlTree.SECTION(getMemberTree(methodDetailsTree));
+            return htmlTree;
+        }
         return getMemberTree(methodDetailsTree);
     }
 
