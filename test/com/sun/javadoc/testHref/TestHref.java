@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,11 @@
 
 /*
  * @test
- * @bug      4663254 8016328 8025633 8026567
+ * @bug      4663254 8016328 8025633 8026567 8081854
  * @summary  Verify that spaces do not appear in hrefs and anchors.
  * @author   jamieh
  * @library  ../lib
+ * @modules jdk.javadoc
  * @build    JavadocTester
  * @run main TestHref
  */

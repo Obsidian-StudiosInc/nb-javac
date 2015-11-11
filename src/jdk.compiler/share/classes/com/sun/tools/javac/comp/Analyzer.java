@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
+import com.sun.tools.javac.comp.ArgumentAttr.LocalCacheContext;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCAnnotation;
 import com.sun.tools.javac.tree.JCTree.JCBlock;
@@ -59,7 +60,6 @@ import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
-import com.sun.tools.javac.util.Filter;
 import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
 import com.sun.tools.javac.util.List;
@@ -77,7 +77,6 @@ import static com.sun.tools.javac.code.Flags.GENERATEDCONSTR;
 import static com.sun.tools.javac.code.Flags.SYNTHETIC;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.tree.JCTree.Tag.APPLY;
-import static com.sun.tools.javac.tree.JCTree.Tag.CLASSDEF;
 import static com.sun.tools.javac.tree.JCTree.Tag.METHODDEF;
 import static com.sun.tools.javac.tree.JCTree.Tag.NEWCLASS;
 import static com.sun.tools.javac.tree.JCTree.Tag.TYPEAPPLY;
@@ -93,8 +92,10 @@ public class Analyzer {
     final Log log;
     final Attr attr;
     final DeferredAttr deferredAttr;
+    final ArgumentAttr argumentAttr;
     final TreeMaker make;
     final Names names;
+    private final boolean allowDiamondWithAnonymousClassCreation;
 
     final EnumSet<AnalyzerMode> analyzerModes;
 
@@ -111,12 +112,14 @@ public class Analyzer {
         log = Log.instance(context);
         attr = Attr.instance(context);
         deferredAttr = DeferredAttr.instance(context);
+        argumentAttr = ArgumentAttr.instance(context);
         make = TreeMaker.instance(context);
         names = Names.instance(context);
         Options options = Options.instance(context);
         String findOpt = options.get("find");
         //parse modes
         Source source = Source.instance(context);
+        allowDiamondWithAnonymousClassCreation = source.allowDiamondWithAnonymousClassCreation();
         analyzerModes = AnalyzerMode.getAnalyzerModes(findOpt, source);
     }
 
@@ -215,7 +218,7 @@ public class Analyzer {
         boolean match(JCNewClass tree) {
             return tree.clazz.hasTag(TYPEAPPLY) &&
                     !TreeInfo.isDiamond(tree) &&
-                    tree.def == null;
+                    (tree.def == null || allowDiamondWithAnonymousClassCreation);
         }
 
         @Override
@@ -229,8 +232,18 @@ public class Analyzer {
         @Override
         void process(JCNewClass oldTree, JCNewClass newTree, boolean hasErrors) {
             if (!hasErrors) {
-                List<Type> inferredArgs = newTree.type.getTypeArguments();
-                List<Type> explicitArgs = oldTree.type.getTypeArguments();
+                List<Type> inferredArgs, explicitArgs;
+                if (oldTree.def != null) {
+                    inferredArgs = newTree.def.implementing.nonEmpty()
+                                      ? newTree.def.implementing.get(0).type.getTypeArguments()
+                                      : newTree.def.extending.type.getTypeArguments();
+                    explicitArgs = oldTree.def.implementing.nonEmpty()
+                                      ? oldTree.def.implementing.get(0).type.getTypeArguments()
+                                      : oldTree.def.extending.type.getTypeArguments();
+                } else {
+                    inferredArgs = newTree.type.getTypeArguments();
+                    explicitArgs = oldTree.type.getTypeArguments();
+                }
                 for (Type t : inferredArgs) {
                     if (!types.isSameType(t, explicitArgs.head)) {
                         log.warning(oldTree.clazz, "diamond.redundant.args.1",
@@ -357,8 +370,13 @@ public class Analyzer {
 
             TreeMapper treeMapper = new TreeMapper(context);
             //TODO: to further refine the analysis, try all rewriting combinations
-            deferredAttr.attribSpeculative(fakeBlock, env, attr.statInfo, treeMapper,
-                    t -> new AnalyzeDeferredDiagHandler(context));
+            LocalCacheContext localCacheContext = argumentAttr.withLocalCacheContext();
+            try {
+                deferredAttr.attribSpeculative(fakeBlock, env, attr.statInfo, treeMapper,
+                        t -> new AnalyzeDeferredDiagHandler(context));
+            } finally {
+                localCacheContext.leave();
+            }
 
             context.treeMap.entrySet().forEach(e -> {
                 context.treesToAnalyzer.get(e.getKey())

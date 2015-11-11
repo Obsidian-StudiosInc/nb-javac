@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug      4927167 4974929 7010344 8025633
+ * @bug      4927167 4974929 7010344 8025633 8081854
  * @summary  When the type parameters are more than 10 characters in length,
  *           make sure there is a line break between type params and return type
  *           in member summary. Also, test for type parameter links in package-summary and
@@ -31,6 +31,7 @@
  *           parameter links in the class/annotation signature section when -linksource is set.
  * @author   jamieh
  * @library  ../lib
+ * @modules jdk.javadoc
  * @build    JavadocTester
  * @run main TestTypeParameters
  */

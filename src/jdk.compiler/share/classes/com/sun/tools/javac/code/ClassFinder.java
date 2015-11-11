@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,8 @@
 
 package com.sun.tools.javac.code;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.File;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,18 +40,18 @@ import javax.tools.StandardJavaFileManager;
 
 import com.sun.tools.javac.api.ClassNamesForFileOraculum;
 import com.sun.tools.javac.code.Scope.WriteableScope;
-import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.Completer;
 import com.sun.tools.javac.code.Symbol.CompletionFailure;
 import com.sun.tools.javac.code.Symbol.PackageSymbol;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.comp.Annotate;
+import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.file.JRTIndex;
 import com.sun.tools.javac.file.JavacFileManager;
-import com.sun.tools.javac.file.RelativePath.RelativeDirectory;
 import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.jvm.Profile;
+import com.sun.tools.javac.platform.PlatformDescription;
 import com.sun.tools.javac.util.*;
 
 import static javax.tools.StandardLocation.*;
@@ -59,6 +60,7 @@ import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 
 import static com.sun.tools.javac.main.Option.*;
+
 import com.sun.tools.javac.util.Dependencies.CompletionCause;
 
 /**
@@ -76,7 +78,7 @@ public class ClassFinder {
 
     ClassReader reader;
 
-    Annotate annotate;
+    private final Annotate annotate;
 
     /** Switch: verbose output.
      */
@@ -98,6 +100,11 @@ public class ClassFinder {
      * bootclasspath
      */
     protected boolean userPathsFirst;
+
+    /**
+     * Switch: should read OTHER classfiles (.sig files) from PLATFORM_CLASS_PATH.
+     */
+    private boolean allowSigFiles;
 
     /** The log to use for verbose output
      */
@@ -131,7 +138,7 @@ public class ClassFinder {
      *  the completer to be used for ".java" files. If this remains unassigned
      *  ".java" files will not be loaded.
      */
-    public Completer sourceCompleter = null;
+    public Completer sourceCompleter = Completer.NULL_COMPLETER;
 
     /** The path name of the class file currently being read.
      */
@@ -196,6 +203,7 @@ public class ClassFinder {
         cacheCompletionFailure = options.isUnset("dev");
         preferSource = "source".equals(options.get("-Xprefer"));
         userPathsFirst = options.isSet(XXUSERPATHSFIRST);
+        allowSigFiles = context.get(PlatformDescription.class) != null;
 
         completionFailureName =
             options.isSet("failcomplete")
@@ -276,16 +284,10 @@ public class ClassFinder {
             try {
                 ClassSymbol c = (ClassSymbol) sym;
                 dependencies.push(c, CompletionCause.CLASS_READER);
+                annotate.blockAnnotations();
                 Scope tempScope = c.members_field = new Scope.ErrorScope(c); // make sure it's always defined
-                annotate.enterStart();
-                try {
-                    completeOwners(c.owner);
-                    completeEnclosing(c);
-                } finally {
-                    // The flush needs to happen only after annotations
-                    // are filled in.
-                    annotate.enterDoneWithoutFlush();
-                }
+                completeOwners(c.owner);
+                completeEnclosing(c);
                 if (c.members_field == tempScope) { // do not fill in when already completed as a result of completing owners
                     try {
                         fillIn(c);
@@ -294,6 +296,7 @@ public class ClassFinder {
                     }
                 }
             } finally {
+                annotate.unblockAnnotationsNoFlush();
                 dependencies.pop();
             }
         } else if (sym.kind == PCK) {
@@ -352,11 +355,12 @@ public class ClassFinder {
                 if (verbose) {
                     log.printVerbose("loading", currentClassFile.toString());
                 }
-                if (classfile.getKind() == JavaFileObject.Kind.CLASS) {
+                if (classfile.getKind() == JavaFileObject.Kind.CLASS ||
+                    classfile.getKind() == JavaFileObject.Kind.OTHER) {
                     reader.readClassFile(c);
                     c.flags_field |= getSupplementaryFlags(c);
                 } else {
-                    if (sourceCompleter != null) {
+                    if (!sourceCompleter.isTerminal()) {
                         if (!classfile.isNameCompatible("package-info", JavaFileObject.Kind.SOURCE)) {
                             sourceCompleter.complete(c);
                         }
@@ -409,7 +413,7 @@ public class ClassFinder {
     public ClassSymbol loadClass(Name flatname) throws CompletionFailure {
         boolean absent = syms.classes.get(flatname) == null;
         ClassSymbol c = syms.enterClass(flatname);
-        if (c.members_field == null && c.completer != null) {
+        if (c.members_field == null) {
             try {
                 c.complete();
             } catch (CompletionFailure ex) {
@@ -441,7 +445,7 @@ public class ClassFinder {
                 q.flags_field |= EXISTS;
         JavaFileObject.Kind kind = file.getKind();
         int seen;
-        if (kind == JavaFileObject.Kind.CLASS)
+        if (kind == JavaFileObject.Kind.CLASS || kind == JavaFileObject.Kind.OTHER)
             seen = CLASS_SEEN;
         else
             seen = SOURCE_SEEN;
@@ -611,10 +615,13 @@ public class ClassFinder {
         fillIn(p, PLATFORM_CLASS_PATH,
                fileManager.list(PLATFORM_CLASS_PATH,
                                 p.fullname.toString(),
-                                EnumSet.of(JavaFileObject.Kind.CLASS),
+                                allowSigFiles ? EnumSet.of(JavaFileObject.Kind.CLASS,
+                                                           JavaFileObject.Kind.OTHER)
+                                              : EnumSet.of(JavaFileObject.Kind.CLASS),
                                 false));
     }
     // where
+        @SuppressWarnings("fallthrough")
         private void fillIn(PackageSymbol p,
                             Location location,
                             Iterable<JavaFileObject> files)
@@ -622,6 +629,15 @@ public class ClassFinder {
             currentLoc = location;
             for (JavaFileObject fo : files) {
                 switch (fo.getKind()) {
+                case OTHER:
+                    boolean sigFile = location == PLATFORM_CLASS_PATH &&
+                                      allowSigFiles &&
+                                      fo.getName().endsWith(".sig");
+                    if (!sigFile) {
+                        extraFileActions(p, fo);
+                        break;
+                    }
+                    //intentional fall-through:
                 case CLASS:
                 case SOURCE: {
                     String[] binaryNames = null;

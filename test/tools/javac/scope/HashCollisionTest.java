@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,21 @@
 
 /*
  * @test
- * @bug 7004029
+ * @bug 7004029 8131915
  * @summary Ensure Scope impl can cope with hash collisions
  * @library /tools/javac/lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.code
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.tree
+ *          jdk.compiler/com.sun.tools.javac.util
  * @build DPrinter HashCollisionTest
  * @run main HashCollisionTest
  */
 
 import java.lang.reflect.*;
 import java.io.*;
+import java.util.function.BiConsumer;
 
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.api.JavacTrees;
@@ -40,6 +46,8 @@ import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Scope.*;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.file.JavacFileManager;
+import com.sun.tools.javac.tree.JCTree.JCImport;
+import com.sun.tools.javac.tree.TreeMaker;
 
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 
@@ -52,6 +60,7 @@ public class HashCollisionTest {
         // set up basic environment for test
         Context context = new Context();
         JavacFileManager.preRegister(context); // required by ClassReader which is required by Symtab
+        make = TreeMaker.instance(context);
         names = Names.instance(context);       // Name.Table impls tied to an instance of Names
         symtab = Symtab.instance(context);
         trees = JavacTrees.instance(context);
@@ -122,12 +131,14 @@ public class HashCollisionTest {
                 return sym.kind == TYP;
             }
         };
-        starImportScope.importAll(types, fromScope, typeFilter, false);
+        BiConsumer<JCImport, CompletionFailure> noCompletionFailure =
+                (imp, cf) -> { throw new IllegalStateException(); };
+        starImportScope.importAll(types, fromScope, typeFilter, make.Import(null, false), noCompletionFailure);
 
         dump("imported p", starImportScope);
 
         // 7. Insert the class from 3.
-        starImportScope.importAll(types, cc.members_field, typeFilter, false);
+        starImportScope.importAll(types, cc.members_field, typeFilter, make.Import(null, false), noCompletionFailure);
         dump("imported ce", starImportScope);
 
         /*
@@ -194,6 +205,7 @@ public class HashCollisionTest {
     int MAX_TRIES = 100; // max tries to find a hash clash before giving up.
     int scopeHashMask;
 
+    TreeMaker make;
     Names names;
     Symtab symtab;
     Trees trees;

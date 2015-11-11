@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,6 @@ import com.sun.tools.javac.comp.Check.CheckContext;
 import com.sun.tools.javac.comp.DeferredAttr.AttrMode;
 import com.sun.tools.javac.comp.DeferredAttr.DeferredAttrContext;
 import com.sun.tools.javac.comp.DeferredAttr.DeferredType;
-import com.sun.tools.javac.comp.Infer.InferenceContext;
 import com.sun.tools.javac.comp.Infer.FreeTypeListener;
 import com.sun.tools.javac.comp.Resolve.MethodResolutionContext.Candidate;
 import com.sun.tools.javac.comp.Resolve.MethodResolutionDiagHelper.Template;
@@ -196,7 +195,7 @@ public class Resolve {
 
     void reportVerboseResolutionDiagnostic(DiagnosticPosition dpos, Name name, Type site,
             List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar) {
-        boolean success = !bestSoFar.kind.isOverloadError();
+        boolean success = !bestSoFar.kind.isResolutionError();
 
         if (success && !verboseResolutionMode.contains(VerboseResolutionMode.SUCCESS)) {
             return;
@@ -234,8 +233,7 @@ public class Resolve {
             }
         }
         String key = success ? "verbose.resolve.multi" : "verbose.resolve.multi.1";
-        List<Type> argtypes2 = Type.map(argtypes,
-                    deferredAttr.new RecoveryDeferredTypeMap(AttrMode.SPECULATIVE, bestSoFar, currentResolutionContext.step));
+        List<Type> argtypes2 = argtypes.map(deferredAttr.new RecoveryDeferredTypeMap(AttrMode.SPECULATIVE, bestSoFar, currentResolutionContext.step));
         JCDiagnostic main = diags.note(log.currentSource(), dpos, key, name,
                 site.tsym, mostSpecificPos, currentResolutionContext.step,
                 methodArguments(argtypes2),
@@ -294,6 +292,13 @@ public class Resolve {
     }
 
     public boolean isAccessible(Env<AttrContext> env, TypeSymbol c, boolean checkInner) {
+
+        /* 15.9.5.1: Note that it is possible for the signature of the anonymous constructor
+           to refer to an inaccessible type
+        */
+        if (env.enclMethod != null && (env.enclMethod.mods.flags & ANONCONSTR) != 0)
+            return true;
+
         boolean isAccessible = false;
         if (c == null)
             return isAccessible;
@@ -307,13 +312,7 @@ public class Resolve {
                 isAccessible =
                     env.toplevel.packge == c.owner // fast special case
                     ||
-                    env.toplevel.packge == c.packge()
-                    ||
-                    // Hack: this case is added since synthesized default constructors
-                    // of anonymous classes should be allowed to access
-                    // classes which would be inaccessible otherwise.
-                    env.enclMethod != null &&
-                    (env.enclMethod.mods.flags & ANONCONSTR) != 0;
+                    env.toplevel.packge == c.packge();
                 break;
             default: // error recovery
             case PUBLIC:
@@ -367,6 +366,13 @@ public class Resolve {
     }
     public boolean isAccessible(Env<AttrContext> env, Type site, Symbol sym, boolean checkInner) {
         if (sym.name == names.init && sym.owner != site.tsym) return false;
+
+        /* 15.9.5.1: Note that it is possible for the signature of the anonymous constructor
+           to refer to an inaccessible type
+        */
+        if (env.enclMethod != null && (env.enclMethod.mods.flags & ANONCONSTR) != 0)
+            return true;
+
         switch ((short)(sym.flags() & AccessFlags)) {
         case PRIVATE:
             return
@@ -594,7 +600,8 @@ public class Resolve {
         MethodResolutionContext prevContext = currentResolutionContext;
         try {
             currentResolutionContext = new MethodResolutionContext();
-            currentResolutionContext.attrMode = DeferredAttr.AttrMode.CHECK;
+            currentResolutionContext.attrMode = (resultInfo.pt == Infer.anyPoly) ?
+                    AttrMode.SPECULATIVE : DeferredAttr.AttrMode.CHECK;
             if (env.tree.hasTag(JCTree.Tag.REFERENCE)) {
                 //method/constructor references need special check class
                 //to handle inference variables in 'argtypes' (might happen
@@ -838,20 +845,19 @@ public class Resolve {
                                     List<Type> formals,
                                     Warner warn) {
             super.argumentsAcceptable(env, deferredAttrContext, argtypes, formals, warn);
-            //should we expand formals?
+            // should we check varargs element type accessibility?
             if (deferredAttrContext.phase.isVarargsRequired()) {
-                Type typeToCheck = null;
-                if (!checkVarargsAccessAfterResolution) {
-                    typeToCheck = types.elemtype(formals.last());
-                } else if (deferredAttrContext.mode == AttrMode.CHECK) {
-                    typeToCheck = types.erasure(types.elemtype(formals.last()));
-                }
-                if (typeToCheck != null) {
-                    varargsAccessible(env, typeToCheck, deferredAttrContext.inferenceContext);
+                if (deferredAttrContext.mode == AttrMode.CHECK || !checkVarargsAccessAfterResolution) {
+                    varargsAccessible(env, types.elemtype(formals.last()), deferredAttrContext.inferenceContext);
                 }
             }
         }
 
+        /**
+         * Test that the runtime array element type corresponding to 't' is accessible.  't' should be the
+         * varargs element type of either the method invocation type signature (after inference completes)
+         * or the method declaration signature (before inference completes).
+         */
         private void varargsAccessible(final Env<AttrContext> env, final Type t, final InferenceContext inferenceContext) {
             if (inferenceContext.free(t)) {
                 inferenceContext.addFreeTypeListener(List.of(t), new FreeTypeListener() {
@@ -861,7 +867,7 @@ public class Resolve {
                     }
                 });
             } else {
-                if (!isAccessible(env, t)) {
+                if (!isAccessible(env, types.erasure(t))) {
                     Symbol location = env.enclClass.sym;
                     reportMC(env.tree, MethodCheckDiag.INACCESSIBLE_VARARGS, inferenceContext, t, Kinds.kindName(location), location);
                 }
@@ -1039,6 +1045,11 @@ public class Resolve {
         protected ResultInfo dup(CheckContext newContext) {
             return new MethodResultInfo(pt, newContext);
         }
+
+        @Override
+        protected ResultInfo dup(Type newPt, CheckContext newContext) {
+            return new MethodResultInfo(newPt, newContext);
+        }
     }
 
     /**
@@ -1099,10 +1110,9 @@ public class Resolve {
                         unrelatedFunctionalInterfaces(found, req) &&
                         (actual != null && actual.getTag() == DEFERRED)) {
                     DeferredType dt = (DeferredType) actual;
-                    DeferredType.SpeculativeCache.Entry e =
-                            dt.speculativeCache.get(deferredAttrContext.msym, deferredAttrContext.phase);
-                    if (e != null && e.speculativeTree != deferredAttr.stuckTree) {
-                        return functionalInterfaceMostSpecific(found, req, e.speculativeTree);
+                    JCTree speculativeTree = dt.speculativeTree(deferredAttrContext);
+                    if (speculativeTree != deferredAttr.stuckTree) {
+                        return functionalInterfaceMostSpecific(found, req, speculativeTree);
                     }
                 }
                 return compatibleBySubtyping(found, req);
@@ -1154,8 +1164,8 @@ public class Resolve {
 
                 @Override
                 public void visitConditional(JCConditional tree) {
-                    scan(tree.truepart);
-                    scan(tree.falsepart);
+                    scan(asExpr(tree.truepart));
+                    scan(asExpr(tree.falsepart));
                 }
 
                 @Override
@@ -1184,6 +1194,11 @@ public class Resolve {
                             result &= compatibleBySubtyping(ret_t, ret_s);
                         }
                     }
+                }
+
+                @Override
+                public void visitParens(JCParens tree) {
+                    scan(asExpr(tree.expr));
                 }
 
                 @Override
@@ -1221,7 +1236,7 @@ public class Resolve {
 
                 private List<JCExpression> lambdaResults(JCLambda lambda) {
                     if (lambda.getBodyKind() == JCTree.JCLambda.BodyKind.EXPRESSION) {
-                        return List.of((JCExpression) lambda.body);
+                        return List.of(asExpr((JCExpression) lambda.body));
                     } else {
                         final ListBuffer<JCExpression> buffer = new ListBuffer<>();
                         DeferredAttr.LambdaReturnScanner lambdaScanner =
@@ -1229,13 +1244,23 @@ public class Resolve {
                                     @Override
                                     public void visitReturn(JCReturn tree) {
                                         if (tree.expr != null) {
-                                            buffer.append(tree.expr);
+                                            buffer.append(asExpr(tree.expr));
                                         }
                                     }
                                 };
                         lambdaScanner.scan(lambda.body);
                         return buffer.toList();
                     }
+                }
+
+                private JCExpression asExpr(JCExpression expr) {
+                    if (expr.type.hasTag(DEFERRED)) {
+                        JCTree speculativeTree = ((DeferredType)expr.type).speculativeTree(deferredAttrContext);
+                        if (speculativeTree != deferredAttr.stuckTree) {
+                            expr = (JCExpression)speculativeTree;
+                        }
+                    }
+                    return expr;
                 }
             }
 
@@ -1394,7 +1419,7 @@ public class Resolve {
                 if (currentSymbol.kind != VAR)
                     continue;
                 // invariant: sym.kind == Symbol.Kind.VAR
-                if (!bestSoFar.kind.isOverloadError() &&
+                if (!bestSoFar.kind.isResolutionError() &&
                     currentSymbol.owner != bestSoFar.owner)
                     return new AmbiguityError(bestSoFar, currentSymbol);
                 else if (!bestSoFar.kind.betterThan(VAR)) {
@@ -1437,12 +1462,13 @@ public class Resolve {
                 !sym.isInheritedIn(site.tsym, types)) {
             return bestSoFar;
         } else if (useVarargs && (sym.flags() & VARARGS) == 0) {
-            return bestSoFar.kind.isOverloadError() ?
+            return bestSoFar.kind.isResolutionError() ?
                     new BadVarargsMethod((ResolveError)bestSoFar.baseSymbol()) :
                     bestSoFar;
         }
-        Assert.check(!sym.kind.isOverloadError());
+        Assert.check(!sym.kind.isResolutionError());
         try {
+            types.noWarnings.clear();
             Type mt = rawInstantiate(env, site, sym, null, argtypes, typeargtypes,
                                allowBoxing, useVarargs, types.noWarnings);
             currentResolutionContext.addApplicableCandidate(sym, mt);
@@ -1462,7 +1488,7 @@ public class Resolve {
                 ? new AccessError(env, site, sym)
                 : bestSoFar;
         }
-        return (bestSoFar.kind.isOverloadError() && bestSoFar.kind != AMBIGUOUS)
+        return (bestSoFar.kind.isResolutionError() && bestSoFar.kind != AMBIGUOUS)
             ? sym
             : mostSpecific(argtypes, sym, bestSoFar, env, site, useVarargs);
     }
@@ -1951,8 +1977,8 @@ public class Resolve {
              bestSoFar.kind != AMBIGUOUS && l.nonEmpty();
              l = l.tail) {
             sym = findMemberType(env, site, name, l.head.tsym);
-            if (!bestSoFar.kind.isOverloadError() &&
-                !sym.kind.isOverloadError() &&
+            if (!bestSoFar.kind.isResolutionError() &&
+                !sym.kind.isResolutionError() &&
                 sym.owner != bestSoFar.owner)
                 bestSoFar = new AmbiguityError(bestSoFar, sym);
             else
@@ -2019,6 +2045,8 @@ public class Resolve {
      *  @param name      The type's name.
      */
     Symbol findType(Env<AttrContext> env, Name name) {
+        if (name == names.empty)
+            return typeNotFound; // do not allow inadvertent "lookup" of anonymous types
         Symbol bestSoFar = typeNotFound;
         Symbol sym;
         boolean staticOnly = false;
@@ -2188,7 +2216,7 @@ public class Resolve {
                   List<Type> argtypes,
                   List<Type> typeargtypes,
                   LogResolveHelper logResolveHelper) {
-        if (sym.kind.isOverloadError()) {
+        if (sym.kind.isResolutionError()) {
             ResolveError errSym = (ResolveError)sym.baseSymbol();
             sym = errSym.access(name, qualified ? site.tsym : syms.noSymbol);
             argtypes = logResolveHelper.getArgumentTypes(errSym, sym, name, argtypes);
@@ -2270,7 +2298,7 @@ public class Resolve {
                         (typeargtypes == null || !Type.isErroneous(typeargtypes));
         }
         public List<Type> getArgumentTypes(ResolveError errSym, Symbol accessedSym, Name name, List<Type> argtypes) {
-            return Type.map(argtypes, new ResolveDeferredRecoveryMap(AttrMode.SPECULATIVE, accessedSym, currentResolutionContext.step));
+            return argtypes.map(new ResolveDeferredRecoveryMap(AttrMode.SPECULATIVE, accessedSym, currentResolutionContext.step));
         }
     };
 
@@ -2378,7 +2406,7 @@ public class Resolve {
             }
             @Override
             Symbol access(Env<AttrContext> env, DiagnosticPosition pos, Symbol location, Symbol sym) {
-                if (sym.kind.isOverloadError()) {
+                if (sym.kind.isResolutionError()) {
                     sym = super.access(env, pos, location, sym);
                 } else if (allowMethodHandles) {
                     MethodSymbol msym = (MethodSymbol)sym;
@@ -2417,7 +2445,9 @@ public class Resolve {
                 return spMethod;
             }
         };
-        polymorphicSignatureScope.enter(msym);
+        if (!mtype.isErroneous()) { // Cache only if kosher.
+            polymorphicSignatureScope.enter(msym);
+        }
         return msym;
     }
 
@@ -2535,7 +2565,7 @@ public class Resolve {
                     }
                     @Override
                     Symbol access(Env<AttrContext> env, DiagnosticPosition pos, Symbol location, Symbol sym) {
-                        if (sym.kind.isOverloadError()) {
+                        if (sym.kind.isResolutionError()) {
                             if (sym.kind != WRONG_MTH &&
                                 sym.kind != WRONG_MTHS) {
                                 sym = super.access(env, pos, location, sym);
@@ -2567,7 +2597,8 @@ public class Resolve {
                               boolean allowBoxing,
                               boolean useVarargs) {
         Symbol bestSoFar = methodNotFound;
-        for (final Symbol sym : site.tsym.members().getSymbolsByName(names.init)) {
+        TypeSymbol tsym = site.tsym.isInterface() ? syms.objectType.tsym : site.tsym;
+        for (final Symbol sym : tsym.members().getSymbolsByName(names.init)) {
             //- System.out.println(" e " + e.sym);
             if (sym.kind == MTH &&
                 (sym.flags_field & SYNTHETIC) == 0) {
@@ -2945,7 +2976,7 @@ public class Resolve {
          */
         final boolean shouldStop(Symbol sym, MethodResolutionPhase phase) {
             return phase.ordinal() > maxPhase.ordinal() ||
-                !sym.kind.isOverloadError() || sym.kind == AMBIGUOUS;
+                !sym.kind.isResolutionError() || sym.kind == AMBIGUOUS;
         }
 
         /**
@@ -2991,7 +3022,7 @@ public class Resolve {
 
         @Override
         Symbol access(Env<AttrContext> env, DiagnosticPosition pos, Symbol location, Symbol sym) {
-            if (sym.kind.isOverloadError()) {
+            if (sym.kind.isResolutionError()) {
                 //if nothing is found return the 'first' error
                 sym = accessMethod(sym, pos, location, site, name, true, argtypes, typeargtypes);
             }
@@ -3195,10 +3226,7 @@ public class Resolve {
                 findDiamond(env, site, argtypes, typeargtypes, phase.isBoxingRequired(), phase.isVarargsRequired()) :
                 findMethod(env, site, name, argtypes, typeargtypes,
                         phase.isBoxingRequired(), phase.isVarargsRequired());
-            return (sym.kind != MTH ||
-                    site.getEnclosingType().hasTag(NONE) ||
-                    hasEnclosingInstance(env, site)) ?
-                    sym : new BadConstructorReferenceError(sym);
+            return enclosingInstanceMissing(env, site) ? new BadConstructorReferenceError(sym) : sym;
         }
 
         @Override
@@ -3344,9 +3372,12 @@ public class Resolve {
         }
     }
 
-    boolean hasEnclosingInstance(Env<AttrContext> env, Type type) {
-        Symbol encl = resolveSelfContainingInternal(env, type.tsym, false);
-        return encl != null && !encl.kind.isOverloadError();
+    boolean enclosingInstanceMissing(Env<AttrContext> env, Type type) {
+        if (type.hasTag(CLASS) && type.getEnclosingType().hasTag(CLASS)) {
+            Symbol encl = resolveSelfContainingInternal(env, type.tsym, false);
+            return encl == null || encl.kind.isResolutionError();
+        }
+        return false;
     }
 
     private Symbol resolveSelfContainingInternal(Env<AttrContext> env,
@@ -3528,7 +3559,7 @@ public class Resolve {
 
         @Override
         public Symbol access(Name name, TypeSymbol location) {
-            if (!sym.kind.isOverloadError() && sym.kind.matches(KindSelector.TYP))
+            if (!sym.kind.isResolutionError() && sym.kind.matches(KindSelector.TYP))
                 return types.createErrorType(name, location, sym.type).tsym;
             else
                 return sym;
@@ -4091,7 +4122,7 @@ public class Resolve {
             } else {
                 key = "bad.instance.method.in.unbound.lookup";
             }
-            return sym.kind.isOverloadError() ?
+            return sym.kind.isResolutionError() ?
                     ((ResolveError)sym).getDiagnostic(dkind, pos, location, site, name, argtypes, typeargtypes) :
                     diags.create(dkind, log.currentSource(), pos, key, Kinds.kindName(sym), sym);
         }
@@ -4273,8 +4304,8 @@ public class Resolve {
             @Override
             public Symbol mergeResults(Symbol bestSoFar, Symbol sym) {
                 //Check invariants (see {@code LookupHelper.shouldStop})
-                Assert.check(bestSoFar.kind.isOverloadError() && bestSoFar.kind != AMBIGUOUS);
-                if (!sym.kind.isOverloadError()) {
+                Assert.check(bestSoFar.kind.isResolutionError() && bestSoFar.kind != AMBIGUOUS);
+                if (!sym.kind.isResolutionError()) {
                     //varargs resolution successful
                     return sym;
                 } else {

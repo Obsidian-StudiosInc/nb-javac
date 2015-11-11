@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,6 +80,7 @@ public class DocLint implements Plugin {
     private static final String STATS = "-stats";
     public static final String XIMPLICIT_HEADERS = "-XimplicitHeaders:";
     public static final String XCUSTOM_TAGS_PREFIX = "-XcustomTags:";
+    public static final String XHTML_VERSION_PREFIX = "-XhtmlVersion:";
     public static final String XCHECK_PACKAGE = "-XcheckPackage:";
     public static final String SEPARATOR = ",";
 
@@ -210,6 +211,14 @@ public class DocLint implements Plugin {
                 env.messages.setOptions(arg.substring(arg.indexOf(":") + 1));
             } else if (arg.startsWith(XCUSTOM_TAGS_PREFIX)) {
                 env.setCustomTags(arg.substring(arg.indexOf(":") + 1));
+            } else if (arg.startsWith(XHTML_VERSION_PREFIX)) {
+                String argsVersion = arg.substring(arg.indexOf(":") + 1);
+                HtmlVersion htmlVersion = HtmlVersion.getHtmlVersion(argsVersion);
+                if (htmlVersion != null) {
+                    env.setHtmlVersion(htmlVersion);
+                } else {
+                    throw new BadArgs("dc.bad.value.for.option", arg, argsVersion);
+                }
             } else if (arg.equals("-h") || arg.equals("-help") || arg.equals("--help")
                     || arg.equals("-?") || arg.equals("-usage")) {
                 needHelp = true;
@@ -274,6 +283,14 @@ public class DocLint implements Plugin {
                 env.setImplicitHeaders(Character.digit(ch, 10));
             } else if (arg.startsWith(XCUSTOM_TAGS_PREFIX)) {
                 env.setCustomTags(arg.substring(arg.indexOf(":") + 1));
+            } else if (arg.startsWith(XHTML_VERSION_PREFIX)) {
+                String argsVersion = arg.substring(arg.indexOf(":") + 1);
+                HtmlVersion htmlVersion = HtmlVersion.getHtmlVersion(argsVersion);
+                if (htmlVersion != null) {
+                    env.setHtmlVersion(htmlVersion);
+                } else {
+                    throw new IllegalArgumentException(argsVersion);
+                }
             } else if (arg.startsWith(XCHECK_PACKAGE)) {
                 env.setCheckPackages(arg.substring(arg.indexOf(":") + 1));
             } else
@@ -325,6 +342,10 @@ public class DocLint implements Plugin {
     public void scan(TreePath p) {
         DocCommentTree dc = env.trees.getDocCommentTree(p);
         checker.scan(dc, p);
+    }
+
+    public boolean shouldCheck(CompilationUnitTree unit) {
+        return env.shouldCheck(unit);
     }
 
     public void reportStats(PrintWriter out) {
@@ -389,26 +410,8 @@ public class DocLint implements Plugin {
 
         @Override @DefinedBy(Api.COMPILER_TREE)
         public Void visitCompilationUnit(CompilationUnitTree node, Void p) {
-            if (env.includePackages != null) {
-                String packageName =   node.getPackageName() != null
-                                     ? node.getPackageName().toString()
-                                     : "";
-                if (!env.includePackages.isEmpty()) {
-                    boolean included = false;
-                    for (Pattern pack : env.includePackages) {
-                        if (pack.matcher(packageName).matches()) {
-                            included = true;
-                            break;
-                        }
-                    }
-                    if (!included)
-                        return null;
-                }
-                for (Pattern pack : env.excludePackages) {
-                    if (pack.matcher(packageName).matches()) {
-                        return null;
-                    }
-                }
+            if (!env.shouldCheck(node)) {
+                return null;
             }
             return super.visitCompilationUnit(node, p);
         }

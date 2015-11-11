@@ -69,12 +69,12 @@ public class Gen extends JCTree.Visitor {
     private final TreeMaker make;
     private final Names names;
     private final Target target;
-    private final Type stringBufferType;
     private final Map<Type,Symbol> stringBufferAppend;
     private Name accessDollar;
     private final Types types;
     private final Lower lower;
     private final Flow flow;
+    private final Annotate annotate;
 
     /** Format of stackmap tables to be generated. */
     private final Code.StackMapFormat stackMap;
@@ -106,7 +106,6 @@ public class Gen extends JCTree.Visitor {
         target = Target.instance(context);
         types = Types.instance(context);
         methodType = new MethodType(null, null, null, syms.methodClass);
-        stringBufferType = syms.stringBuilderType;
         stringBufferAppend = new HashMap<>();
         accessDollar = names.
             fromString("access" + target.syntheticNameChar());
@@ -142,6 +141,7 @@ public class Gen extends JCTree.Visitor {
         }
         this.jsrlimit = setjsrlimit;
         this.useJsrLocally = false; // reset in visitTry
+        annotate = Annotate.instance(context);
     }
 
     /** Switches
@@ -470,6 +470,10 @@ public class Gen extends JCTree.Visitor {
                         clinitTAs.addAll(getAndRemoveNonFieldTAs(sym));
                     } else {
                         checkStringConstant(vdef.init.pos(), sym.getConstValue());
+                        /* if the init contains a reference to an external class, add it to the
+                         * constant's pool
+                         */
+                        vdef.init.accept(classReferenceVisitor);
                     }
                 }
                 break;
@@ -1471,21 +1475,18 @@ public class Gen extends JCTree.Visitor {
                       int startpc, int endpc,
                       List<Integer> gaps) {
             if (startpc != endpc) {
-                List<JCExpression> subClauses = TreeInfo.isMultiCatch(tree) ?
-                        ((JCTypeUnion)tree.param.vartype).alternatives :
-                        List.of(tree.param.vartype);
+                List<Pair<List<Attribute.TypeCompound>, JCExpression>> catchTypeExprs
+                        = catchTypesWithAnnotations(tree);
                 while (gaps.nonEmpty()) {
-                    for (JCExpression subCatch : subClauses) {
+                    for (Pair<List<Attribute.TypeCompound>, JCExpression> subCatch1 : catchTypeExprs) {
+                        JCExpression subCatch = subCatch1.snd;
                         int catchType = makeRef(tree.pos(), subCatch.type);
                         int end = gaps.head.intValue();
                         registerCatch(tree.pos(),
                                       startpc,  end, code.curCP(),
                                       catchType);
-                        if (subCatch.type.isAnnotated()) {
-                            for (Attribute.TypeCompound tc :
-                                     subCatch.type.getAnnotationMirrors()) {
+                        for (Attribute.TypeCompound tc :  subCatch1.fst) {
                                 tc.position.setCatchInfo(catchType, startpc);
-                            }
                         }
                     }
                     gaps = gaps.tail;
@@ -1493,16 +1494,14 @@ public class Gen extends JCTree.Visitor {
                     gaps = gaps.tail;
                 }
                 if (startpc < endpc) {
-                    for (JCExpression subCatch : subClauses) {
+                    for (Pair<List<Attribute.TypeCompound>, JCExpression> subCatch1 : catchTypeExprs) {
+                        JCExpression subCatch = subCatch1.snd;
                         int catchType = makeRef(tree.pos(), subCatch.type);
                         registerCatch(tree.pos(),
                                       startpc, endpc, code.curCP(),
                                       catchType);
-                        if (subCatch.type.isAnnotated()) {
-                            for (Attribute.TypeCompound tc :
-                                     subCatch.type.getAnnotationMirrors()) {
-                                tc.position.setCatchInfo(catchType, startpc);
-                            }
+                        for (Attribute.TypeCompound tc :  subCatch1.fst) {
+                            tc.position.setCatchInfo(catchType, startpc);
                         }
                     }
                 }
@@ -1510,13 +1509,37 @@ public class Gen extends JCTree.Visitor {
                 code.statBegin(tree.pos);
                 code.markStatBegin();
                 int limit = code.nextreg;
-                int exlocal = code.newLocal(exparam);
+                code.newLocal(exparam);
                 items.makeLocalItem(exparam).store();
                 code.statBegin(TreeInfo.firstStatPos(tree.body));
                 genStat(tree.body, env, CRT_BLOCK);
                 code.endScopes(limit);
                 code.statBegin(TreeInfo.endPos(tree.body));
             }
+        }
+        // where
+        List<Pair<List<Attribute.TypeCompound>, JCExpression>> catchTypesWithAnnotations(JCCatch tree) {
+            return TreeInfo.isMultiCatch(tree) ?
+                    catchTypesWithAnnotationsFromMulticatch((JCTypeUnion)tree.param.vartype, tree.param.sym.getRawTypeAttributes()) :
+                    List.of(new Pair<>(tree.param.sym.getRawTypeAttributes(), tree.param.vartype));
+        }
+        // where
+        List<Pair<List<Attribute.TypeCompound>, JCExpression>> catchTypesWithAnnotationsFromMulticatch(JCTypeUnion tree, List<TypeCompound> first) {
+            List<JCExpression> alts = tree.alternatives;
+            List<Pair<List<TypeCompound>, JCExpression>> res = List.of(new Pair<>(first, alts.head));
+            alts = alts.tail;
+
+            while(alts != null && alts.head != null) {
+                JCExpression alt = alts.head;
+                if (alt instanceof JCAnnotatedType) {
+                    JCAnnotatedType a = (JCAnnotatedType)alt;
+                    res = res.prepend(new Pair<>(annotate.fromAnnotations(a.annotations), alt));
+                } else {
+                    res = res.prepend(new Pair<>(List.nil(), alt));
+                }
+                alts = alts.tail;
+            }
+            return res.reverse();
         }
 
         /** Register a catch clause in the "Exceptions" code-attribute.
@@ -1677,6 +1700,11 @@ public class Gen extends JCTree.Visitor {
     public void visitReturn(JCReturn tree) {
         int limit = code.nextreg;
         final Env<GenContext> targetEnv;
+
+        /* Save and then restore the location of the return in case a finally
+         * is expanded (with unwind()) in the middle of our bytecodes.
+         */
+        int tmpPos = code.pendingStatPos;
         if (tree.expr != null) {
             Item r = genExpr(tree.expr, pt).load();
             if (hasFinally(env.enclMethod, env)) {
@@ -1684,17 +1712,10 @@ public class Gen extends JCTree.Visitor {
                 r.store();
             }
             targetEnv = unwind(env.enclMethod, env);
+            code.pendingStatPos = tmpPos;
             r.load();
             code.emitop0(ireturn + Code.truncate(Code.typecode(pt)));
         } else {
-            /*  If we have a statement like:
-             *
-             *  return;
-             *
-             *  we need to store the code.pendingStatPos value before generating
-             *  the finalizer.
-             */
-            int tmpPos = code.pendingStatPos;
             targetEnv = unwind(env.enclMethod, env);
             code.pendingStatPos = tmpPos;
             code.emitop0(return_);
@@ -1866,6 +1887,13 @@ public class Gen extends JCTree.Visitor {
     public void visitAssign(JCAssign tree) {
         Item l = genExpr(tree.lhs, tree.lhs.type);
         genExpr(tree.rhs, tree.lhs.type).load();
+        if (tree.rhs.type.hasTag(BOT)) {
+            /* This is just a case of widening reference conversion that per 5.1.5 simply calls
+               for "regarding a reference as having some other type in a manner that can be proved
+               correct at compile time."
+            */
+            code.state.forceStackTop(tree.lhs);
+        }
         result = items.makeAssignItem(l);
     }
 
@@ -2048,10 +2076,10 @@ public class Gen extends JCTree.Visitor {
         /** Make a new string buffer.
          */
         void makeStringBuffer(DiagnosticPosition pos) {
-            code.emitop2(new_, makeRef(pos, stringBufferType));
+            code.emitop2(new_, makeRef(pos, syms.stringBuilderType));
             code.emitop0(dup);
             callMethod(
-                pos, stringBufferType, names.init, List.<Type>nil(), false);
+                    pos, syms.stringBuilderType, names.init, List.<Type>nil(), false);
         }
 
         /** Append value (on tos) to string buffer (on tos - 1).
@@ -2069,7 +2097,7 @@ public class Gen extends JCTree.Visitor {
             if (method == null) {
                 method = rs.resolveInternalMethod(tree.pos(),
                                                   attrEnv,
-                                                  stringBufferType,
+                                                  syms.stringBuilderType,
                                                   names.append,
                                                   List.of(t),
                                                   null);
@@ -2099,11 +2127,11 @@ public class Gen extends JCTree.Visitor {
          */
         void bufferToString(DiagnosticPosition pos) {
             callMethod(
-                pos,
-                stringBufferType,
-                names.toString,
-                List.<Type>nil(),
-                false);
+                    pos,
+                    syms.stringBuilderType,
+                    names.toString,
+                    List.<Type>nil(),
+                    false);
         }
 
         /** Complete generating code for operation, with left operand
@@ -2278,12 +2306,7 @@ public class Gen extends JCTree.Visitor {
     public void visitLiteral(JCLiteral tree) {
         if (tree.type.hasTag(BOT)) {
             code.emitop0(aconst_null);
-            if (types.dimensions(pt) > 1) {
-                code.emitop2(checkcast, makeRef(tree.pos(), pt));
-                result = items.makeStackItem(pt);
-            } else {
-                result = items.makeStackItem(tree.type);
-            }
+            result = items.makeStackItem(tree.type);
         }
         else
             result = items.makeImmediateItem(tree.type, tree.value);
@@ -2322,9 +2345,11 @@ public class Gen extends JCTree.Visitor {
             ClassSymbol c = cdef.sym;
             this.toplevel = env.toplevel;
             this.endPosTable = toplevel.endPositions;
-            cdef.defs = normalizeDefs(cdef.defs, c);
             c.pool = pool;
             pool.reset();
+            /* method normalizeDefs() can add references to external classes into the constant pool
+             */
+            cdef.defs = normalizeDefs(cdef.defs, c);
             generateReferencesToPrunedTree(c, pool);
             Env<GenContext> localEnv = new Env<>(cdef, new GenContext());
             localEnv.toplevel = env.toplevel;

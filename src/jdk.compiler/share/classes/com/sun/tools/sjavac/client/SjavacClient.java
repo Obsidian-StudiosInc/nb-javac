@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,33 +25,30 @@
 
 package com.sun.tools.sjavac.client;
 
+import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.Writer;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
-import java.util.Set;
 
 import com.sun.tools.sjavac.Log;
 import com.sun.tools.sjavac.Util;
 import com.sun.tools.sjavac.options.OptionHelper;
 import com.sun.tools.sjavac.options.Options;
-import com.sun.tools.sjavac.server.CompilationResult;
+import com.sun.tools.sjavac.server.CompilationSubResult;
 import com.sun.tools.sjavac.server.PortFile;
 import com.sun.tools.sjavac.server.Sjavac;
 import com.sun.tools.sjavac.server.SjavacServer;
-import com.sun.tools.sjavac.server.SysInfo;
 
 /**
  * Sjavac implementation that delegates requests to a SjavacServer.
@@ -89,22 +86,19 @@ public class SjavacClient implements Sjavac {
     // Store the server conf settings here.
     private final String settings;
 
-    // This constructor should not throw FileNotFoundException (to be resolved
-    // in JDK-8060030)
-    public SjavacClient(Options options) throws FileNotFoundException {
+    public SjavacClient(Options options) throws PortFileInaccessibleException {
         String tmpServerConf = options.getServerConf();
         String serverConf = (tmpServerConf!=null)? tmpServerConf : "";
         String tmpId = Util.extractStringOption("id", serverConf);
         id = (tmpId!=null) ? tmpId : "id"+(((new java.util.Random()).nextLong())&Long.MAX_VALUE);
-        String defaultPortfile = options.getStateDir()
+        String defaultPortfile = options.getDestDir()
                                         .resolve("javac_server")
                                         .toAbsolutePath()
                                         .toString();
         String portfileName = Util.extractStringOption("portfile", serverConf, defaultPortfile);
         try {
             portFile = SjavacServer.getPortFile(portfileName);
-        } catch (FileNotFoundException e) {
-            // Reached for instance if directory of port file does not exist
+        } catch (PortFileInaccessibleException e) {
             Log.error("Port file inaccessable: " + e);
             throw e;
         }
@@ -126,73 +120,48 @@ public class SjavacClient implements Sjavac {
         return settings;
     }
 
-    /**
-     * Make a request to the server only to get the maximum possible heap size to use for compilations.
-     *
-     * @param port_file The port file used to synchronize creation of this server.
-     * @param id The identify of the compilation.
-     * @param out Standard out information.
-     * @param err Standard err information.
-     * @return The maximum heap size in bytes.
-     */
     @Override
-    public SysInfo getSysInfo() {
+    public int compile(String[] args, Writer stdout, Writer stderr) {
+        int result = -1;
         try (Socket socket = tryConnect()) {
-            // The ObjectInputStream constructor will block until the
-            // corresponding ObjectOutputStream has written and flushed the
-            // header, so it is important that the ObjectOutputStreams on server
-            // and client are opened before the ObjectInputStreams.
-            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-            ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
-            oos.writeObject(id);
-            oos.writeObject(SjavacServer.CMD_SYS_INFO);
-            oos.flush();
-            return (SysInfo) ois.readObject();
-        } catch (IOException | ClassNotFoundException ex) {
-            Log.error("[CLIENT] Exception caught: " + ex);
-            Log.debug(Util.getStackTrace(ex));
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt(); // Restore interrupt
-            Log.error("[CLIENT] getSysInfo interrupted.");
-            Log.debug(Util.getStackTrace(ie));
-        }
-        return null;
-    }
+            PrintWriter out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()));
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-    @Override
-    public CompilationResult compile(String protocolId,
-                                     String invocationId,
-                                     String[] args,
-                                     List<File> explicitSources,
-                                     Set<URI> sourcesToCompile,
-                                     Set<URI> visibleSources) {
-        CompilationResult result;
-        try (Socket socket = tryConnect()) {
-            // The ObjectInputStream constructor will block until the
-            // corresponding ObjectOutputStream has written and flushed the
-            // header, so it is important that the ObjectOutputStreams on server
-            // and client are opened before the ObjectInputStreams.
-            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-            ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
-            oos.writeObject(id);
-            oos.writeObject(SjavacServer.CMD_COMPILE);
-            oos.writeObject(protocolId);
-            oos.writeObject(invocationId);
-            oos.writeObject(args);
-            oos.writeObject(explicitSources);
-            oos.writeObject(sourcesToCompile);
-            oos.writeObject(visibleSources);
-            oos.flush();
-            result = (CompilationResult) ois.readObject();
-        } catch (IOException | ClassNotFoundException ex) {
-            Log.error("[CLIENT] Exception caught: " + ex);
-            result = new CompilationResult(CompilationResult.ERROR_FATAL);
-            result.stderr = Util.getStackTrace(ex);
+            // Send args array to server
+            out.println(args.length);
+            for (String arg : args)
+                out.println(arg);
+            out.flush();
+
+            // Read server response line by line
+            String line;
+            while (null != (line = in.readLine())) {
+                String[] typeAndContent = line.split(":", 2);
+                String type = typeAndContent[0];
+                String content = typeAndContent[1];
+                switch (type) {
+                case SjavacServer.LINE_TYPE_STDOUT:
+                    stdout.write(content);
+                    stdout.write('\n');
+                    break;
+                case SjavacServer.LINE_TYPE_STDERR:
+                    stderr.write(content);
+                    stderr.write('\n');
+                    break;
+                case SjavacServer.LINE_TYPE_RC:
+                    result = Integer.parseInt(content);
+                    break;
+                }
+            }
+        } catch (IOException ioe) {
+            Log.error("[CLIENT] Exception caught: " + ioe);
+            result = CompilationSubResult.ERROR_FATAL;
+            ioe.printStackTrace(new PrintWriter(stderr));
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt(); // Restore interrupt
             Log.error("[CLIENT] compile interrupted.");
-            result = new CompilationResult(CompilationResult.ERROR_FATAL);
-            result.stderr = Util.getStackTrace(ie);
+            result = CompilationSubResult.ERROR_FATAL;
+            ie.printStackTrace(new PrintWriter(stderr));
         }
         return result;
     }

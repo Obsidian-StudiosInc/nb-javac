@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -28,6 +26,9 @@
  * @bug 8035063 8054465
  * @summary Tests decoding of String[] into Options.
  *
+ * @modules jdk.compiler/com.sun.tools.sjavac
+ *          jdk.compiler/com.sun.tools.sjavac.client
+ *          jdk.compiler/com.sun.tools.sjavac.options
  * @build Wrapper
  * @run main Wrapper OptionDecoding
  */
@@ -48,17 +49,16 @@ import java.util.List;
 import java.util.Map;
 
 import com.sun.tools.sjavac.CopyFile;
-import com.sun.tools.sjavac.Main;
 import com.sun.tools.sjavac.Module;
 import com.sun.tools.sjavac.Source;
 import com.sun.tools.sjavac.client.ClientMain;
+import com.sun.tools.sjavac.comp.SjavacImpl;
 import com.sun.tools.sjavac.options.Options;
 import com.sun.tools.sjavac.options.SourceLocation;
 
 public class OptionDecoding {
 
     public static void main(String[] args) throws IOException {
-
         testPaths();
         testDupPaths();
         testSourceLocations();
@@ -66,30 +66,28 @@ public class OptionDecoding {
         testServerConf();
         testSearchPaths();
         testTranslationRules();
-
     }
 
     // Test decoding of output paths
     static void testPaths() throws IOException {
-
         final String H = "headers";
         final String G = "gensrc";
         final String D = "dest";
+        final String stateDir = "stateDir";
         final String CMP = "srcRefList.txt";
 
-        Options options = Options.parseArgs("-h", H, "-s", G, "-d", D,
+        Options options = Options.parseArgs("-h", H, "-s", G, "-d", D, "--state-dir=" + stateDir,
                                             "--compare-found-sources", CMP);
 
         assertEquals(Paths.get(H).toAbsolutePath(), options.getHeaderDir());
         assertEquals(Paths.get(G).toAbsolutePath(), options.getGenSrcDir());
         assertEquals(Paths.get(D).toAbsolutePath(), options.getDestDir());
+        assertEquals(Paths.get(stateDir).toAbsolutePath(), options.getStateDir());
         assertEquals(Paths.get(CMP), options.getSourceReferenceList());
-
     }
 
     // Providing duplicate header / dest / gensrc paths should produce an error.
     static void testDupPaths() throws IOException {
-
         try {
             Options.parseArgs("-h", "dir1", "-h", "dir2");
             throw new RuntimeException("Duplicate header directories should fail.");
@@ -110,12 +108,10 @@ public class OptionDecoding {
         } catch (IllegalArgumentException iae) {
             // Expected
         }
-
     }
 
     // Test source locations and -x, -i, -xf, -if filters
     static void testSourceLocations() throws IOException {
-
         Path a1 = Paths.get("root/pkg1/ClassA1.java");
         Path a2 = Paths.get("root/pkg1/ClassA2.java");
         Path b1 = Paths.get("root/pkg1/pkg2/ClassB1.java");
@@ -133,7 +129,7 @@ public class OptionDecoding {
             Options options = Options.parseArgs("-if", "root/pkg1/ClassA1.java", "root");
 
             Map<String, Source> foundFiles = new HashMap<>();
-            ClientMain.findSourceFiles(options.getSources(), Collections.singleton(".java"), foundFiles,
+            SjavacImpl.findSourceFiles(options.getSources(), Collections.singleton(".java"), foundFiles,
                     new HashMap<String, Module>(), new Module("", ""), false, true);
 
             checkFilesFound(foundFiles.keySet(), a1);
@@ -145,7 +141,7 @@ public class OptionDecoding {
             Options options = Options.parseArgs("-i", "pkg1/*", "root");
 
             Map<String, Source> foundFiles = new HashMap<>();
-            ClientMain.findSourceFiles(options.getSources(), Collections.singleton(".java"), foundFiles,
+            SjavacImpl.findSourceFiles(options.getSources(), Collections.singleton(".java"), foundFiles,
                     new HashMap<String, Module>(), new Module("", ""), false, true);
 
             checkFilesFound(foundFiles.keySet(), a1, a2, b1, b2);
@@ -157,7 +153,7 @@ public class OptionDecoding {
             Options options = Options.parseArgs("-xf", "root/pkg1/ClassA1.java", "root");
 
             Map<String, Source> foundFiles = new HashMap<>();
-            ClientMain.findSourceFiles(options.getSources(), Collections.singleton(".java"), foundFiles,
+            SjavacImpl.findSourceFiles(options.getSources(), Collections.singleton(".java"), foundFiles,
                     new HashMap<String, Module>(), new Module("", ""), false, true);
 
             checkFilesFound(foundFiles.keySet(), a2, b1, b2, c1, c2);
@@ -168,7 +164,7 @@ public class OptionDecoding {
             Options options = Options.parseArgs("-i", "pkg1/*", "root");
 
             Map<String, Source> foundFiles = new HashMap<>();
-            ClientMain.findSourceFiles(options.getSources(), Collections.singleton(".java"), foundFiles,
+            SjavacImpl.findSourceFiles(options.getSources(), Collections.singleton(".java"), foundFiles,
                     new HashMap<String, Module>(), new Module("", ""), false, true);
 
             checkFilesFound(foundFiles.keySet(), a1, a2, b1, b2);
@@ -179,17 +175,15 @@ public class OptionDecoding {
             Options options = Options.parseArgs("-i", "pkg1/*", "-x", "pkg1/pkg2/*", "root");
 
             Map<String, Source> foundFiles = new HashMap<>();
-            ClientMain.findSourceFiles(options.getSources(), Collections.singleton(".java"), foundFiles,
+            SjavacImpl.findSourceFiles(options.getSources(), Collections.singleton(".java"), foundFiles,
                     new HashMap<String, Module>(), new Module("", ""), false, true);
 
             checkFilesFound(foundFiles.keySet(), a1, a2);
         }
-
     }
 
     // Test basic options
     static void testSimpleOptions() {
-
         Options options = Options.parseArgs("-j", "17", "--log=debug");
         assertEquals(17, options.getNumCores());
         assertEquals("debug", options.getLogLevel());
@@ -238,7 +232,6 @@ public class OptionDecoding {
 
     // Test -tr option
     static void testTranslationRules() {
-
         Class<?> cls = com.sun.tools.sjavac.CompileJavaPackages.class;
 
         Options options = Options.parseArgs(
@@ -249,6 +242,5 @@ public class OptionDecoding {
         assertEquals(cls, options.getTranslationRules().get(".exa").getClass());
         assertEquals(cls, options.getTranslationRules().get(".exb").getClass());
         assertEquals(CopyFile.class, options.getTranslationRules().get(".html").getClass());
-
     }
 }

@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -28,6 +26,8 @@
  * @bug 6851834
  * @summary This test verifies the HTML document generation for javadoc output.
  * @library ../lib
+ * @modules jdk.javadoc/com.sun.tools.doclets.formats.html.markup
+ *          jdk.javadoc/com.sun.tools.doclets.internal.toolkit
  * @build JavadocTester
  * @author Bhavesh Patel
  * @run main TestHtmlDocument
@@ -113,7 +113,7 @@ public class TestHtmlDocument extends JavadocTester {
         // Test another version of A tag.
         HtmlTree anchor = new HtmlTree(HtmlTag.A);
         anchor.addAttr(HtmlAttr.HREF, "testLink.html");
-        anchor.addAttr(HtmlAttr.NAME, "Another version of a tag");
+        anchor.addAttr(HtmlAttr.ID, "Another version of a tag");
         p1.addContent(anchor);
         body.addContent(p1);
         // Test for empty tags.

@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -28,6 +26,7 @@
  * @bug 8035063
  * @summary Tests the preparation of javac-arguments.
  *
+ * @modules jdk.compiler/com.sun.tools.sjavac.options
  * @build Wrapper
  * @run main Wrapper JavacOptionPrep
  */
@@ -82,6 +81,7 @@ public class JavacOptionPrep {
 
         // Check the result
         boolean destDirFound = false;
+        boolean userPathsFirst = false;
         boolean headerDirFound = false;
         boolean gensrcDirFound = false;
         boolean classPathFound = false;
@@ -93,6 +93,11 @@ public class JavacOptionPrep {
         while (javacArgIter.hasNext()) {
 
             String option = javacArgIter.next();
+
+            // Ignore this option for now. When the file=... requirement goes
+            // away, this will be easier to handle.
+            if (option.startsWith("-XDcompletionDeps"))
+                continue;
 
             switch (option) {
             case "-classpath":
@@ -165,7 +170,6 @@ public class JavacOptionPrep {
 
         if (!implicitNoneFound)
             throw new AssertionError("\"-implicit:none\" not found.");
-
     }
 
     static void assertEquals(Object expected, Object actual) {

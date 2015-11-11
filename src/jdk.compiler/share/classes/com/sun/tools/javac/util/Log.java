@@ -330,6 +330,13 @@ public class Log extends AbstractLog {
         return instance;
     }
 
+    /**
+     * Register a Context.Factory to create a Log.
+     */
+    public static void preRegister(Context context, PrintWriter w) {
+        context.put(Log.class, (Context.Factory<Log>) (c -> new Log(c, w)));
+    }
+
     /** The number of errors encountered so far.
      */
     public int nerrors = 0;
@@ -342,7 +349,7 @@ public class Log extends AbstractLog {
      *  error message more than once. For each error, a pair consisting of the
      *  source file name and source code position of the error is added to the set.
      */
-    private Set<Pair<JavaFileObject, Integer>> recorded = new HashSet<>();
+    protected Set<Pair<JavaFileObject, Integer>> recorded = new HashSet<>();
 
     public boolean hasDiagnosticListener() {
         return diagListener != null;

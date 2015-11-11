@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -25,11 +23,10 @@
 
 /**
  * @test
- * @bug 8055963
+ * @bug 8055963 8062373
  * @summary Inference failure with nested invocation
- * @compile T8055963.java
  */
-class T8055963 {
+public class T8055963 {
 
     static class C<T> {}
 
@@ -37,5 +34,9 @@ class T8055963 {
 
     void test() {
         C<String> cs = choose(new C<String>(), new C<>());
+    }
+
+    public static void main(String [] args) {
+      new T8055963().test();
     }
 }

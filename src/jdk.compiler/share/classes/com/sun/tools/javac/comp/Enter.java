@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,6 @@ import com.sun.tools.javac.code.Kinds.KindSelector;
 import com.sun.tools.javac.code.Scope.*;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
-import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.main.Option.PkgInfo;
 import com.sun.tools.javac.model.LazyTreeLoader;
 import com.sun.tools.javac.tree.*;
@@ -94,11 +93,11 @@ import static com.sun.tools.javac.code.Kinds.Kind.*;
 public class Enter extends JCTree.Visitor {
     protected static final Context.Key<Enter> enterKey = new Context.Key<>();
 
+    Annotate annotate;
     Log log;
     Symtab syms;
     Check chk;
     TreeMaker make;
-    Annotate annotate;
     TypeEnter typeEnter;
     Types types;
     Lint lint;
@@ -217,6 +216,7 @@ public class Enter extends JCTree.Visitor {
         localEnv.info.isSelfCall = false;
         localEnv.info.lint = null; // leave this to be filled in by Attr,
                                    // when annotations have been processed
+        localEnv.info.isAnonymousDiamond = TreeInfo.isDiamond(env.tree);
         return localEnv;
     }
 
@@ -296,11 +296,13 @@ public class Enter extends JCTree.Visitor {
         Env<AttrContext> prevEnv = this.env;
         try {
             this.env = env;
+            annotate.blockAnnotations();
             tree.accept(this);
             return result;
         }  catch (CompletionFailure ex) {
             return chk.completionError(tree.pos(), ex);
         } finally {
+            annotate.unblockAnnotations();
             this.env = prevEnv;
         }
     }
@@ -364,7 +366,7 @@ public class Enter extends JCTree.Visitor {
             ClassSymbol c = syms.enterClass(name, tree.packge);
             c.flatname = names.fromString(tree.packge + "." + name);
             c.sourcefile = tree.sourcefile;
-            c.completer = null;
+            c.completer = Completer.NULL_COMPLETER;
             c.members_field = WriteableScope.create(c);
             tree.packge.package_info = c;
         }
@@ -554,8 +556,8 @@ public class Enter extends JCTree.Visitor {
         typeEnvs.put(c, localEnv);
 
         // Fill out class fields.
-        boolean notYetCompleted = c.completer != null;
-        c.completer = null; // do not allow the initial completer linger on.
+        boolean notYetCompleted = !c.completer.isTerminal();
+        c.completer = Completer.NULL_COMPLETER; // do not allow the initial completer linger on.
         c.sourcefile = env.toplevel.sourcefile;
         if (notYetCompleted || (c.flags_field & FROMCLASS) == 0 && (enclScope.owner.flags_field & FROMCLASS) == 0) {
             c.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, c, tree);
@@ -703,7 +705,7 @@ public class Enter extends JCTree.Visitor {
      *  @param c          The class symbol to be processed or null to process all.
      */
     public void complete(List<JCCompilationUnit> trees, ClassSymbol c) {
-        annotate.enterStart();
+        annotate.blockAnnotations();
         ListBuffer<ClassSymbol> prevUncompleted = uncompleted;
         if (typeEnter.completionEnabled) uncompleted = new ListBuffer<>();
 
@@ -726,7 +728,7 @@ public class Enter extends JCTree.Visitor {
             }
         } finally {
             uncompleted = prevUncompleted;
-            annotate.enterDone();
+            annotate.unblockAnnotations();
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,10 @@
 /* @test
  * @bug 8043484 8007307
  * @summary Make sure DPrinter.java compiles
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.code
+ *          jdk.compiler/com.sun.tools.javac.tree
+ *          jdk.compiler/com.sun.tools.javac.util
  * @compile DPrinter.java
  */
 
@@ -477,7 +481,7 @@ public class DPrinter {
                 out.print(label);
                 out.println(": " +
                         info(sym.getClass(),
-                            String.format("0x%x--%s", sym.kind, Kinds.kindName(sym)),
+                            String.format("0x%x--%s", sym.kind.ordinal(), Kinds.kindName(sym)),
                             sym.getKind())
                         + " " + sym.name
                         + " " + hashString(sym));

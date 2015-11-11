@@ -26,6 +26,7 @@
 package com.sun.tools.javac.parser;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 
@@ -509,7 +510,7 @@ public class JavacParser implements Parser {
         if (mods != 0) {
             long lowestMod = mods & -mods;
             error(token.pos, "mod.not.allowed.here",
-                      Flags.asFlagSet(lowestMod));
+                    Flags.asFlagSet(lowestMod));
         }
     }
 
@@ -584,6 +585,10 @@ public class JavacParser implements Parser {
      * Ident = IDENTIFIER
      */
     protected Name ident() {
+        return ident(false);
+    }
+
+    protected Name ident(boolean advanceOnErrors) {
         if (token.kind == IDENTIFIER) {
             Name name = token.name();
             nextToken();
@@ -619,6 +624,9 @@ public class JavacParser implements Parser {
             return name;
         } else {
             accept(IDENTIFIER);
+            if (advanceOnErrors) {
+                nextToken();
+            }
             return names.error;
         }
     }
@@ -942,10 +950,7 @@ public class JavacParser implements Parser {
         t = odStack[0];
 
         if (t.hasTag(JCTree.Tag.PLUS)) {
-            StringBuilder buf = foldStrings(t);
-            if (buf != null) {
-                t = toP(F.at(startPos).Literal(TypeTag.CLASS, buf.toString()));
-            }
+            t = foldStrings(t);
         }
 
         odStackSupply.add(odStack);
@@ -969,36 +974,75 @@ public class JavacParser implements Parser {
         /** If tree is a concatenation of string literals, replace it
          *  by a single literal representing the concatenated string.
          */
-        protected StringBuilder foldStrings(JCTree tree) {
-            int depth = 0;
-            List<String> buf = List.nil();
+        protected JCExpression foldStrings(JCExpression tree) {
+            if (!allowStringFolding)
+                return tree;
+            ListBuffer<JCExpression> opStack = new ListBuffer<>();
+            ListBuffer<JCLiteral> litBuf = new ListBuffer<>();
+            boolean needsFolding = false;
+            JCExpression curr = tree;
             while (true) {
-                depth++;
-                if (tree.hasTag(LITERAL)) {
-                    JCLiteral lit = (JCLiteral) tree;
-                    if (lit.typetag == TypeTag.CLASS) {
-                        StringBuilder sbuf =
-                            new StringBuilder((String)lit.value);
-                        while (buf.nonEmpty()) {
-                            sbuf.append(buf.head);
-                            buf = buf.tail;
-                        }
-                        return allowStringFolding || depth > 1024 ? sbuf : null;
-                    }
-                } else if (tree.hasTag(JCTree.Tag.PLUS)) {
-                    JCBinary op = (JCBinary)tree;
-                    if (op.rhs.hasTag(LITERAL)) {
-                        JCLiteral lit = (JCLiteral) op.rhs;
-                        if (lit.typetag == TypeTag.CLASS) {
-                            buf = buf.prepend((String) lit.value);
-                            tree = op.lhs;
-                            continue;
-                        }
-                    }
+                if (curr.hasTag(JCTree.Tag.PLUS)) {
+                    JCBinary op = (JCBinary)curr;
+                    needsFolding |= foldIfNeeded(op.rhs, litBuf, opStack, false);
+                    curr = op.lhs;
+                } else {
+                    needsFolding |= foldIfNeeded(curr, litBuf, opStack, true);
+                    break; //last one!
                 }
-                return null;
+            }
+            if (needsFolding) {
+                List<JCExpression> ops = opStack.toList();
+                JCExpression res = ops.head;
+                for (JCExpression op : ops.tail) {
+                    res = F.at(op.getStartPosition()).Binary(optag(TokenKind.PLUS), res, op);
+                    storeEnd(res, getEndPos(op));
+                }
+                return res;
+            } else {
+                return tree;
             }
         }
+
+        private boolean foldIfNeeded(JCExpression tree, ListBuffer<JCLiteral> litBuf,
+                                                ListBuffer<JCExpression> opStack, boolean last) {
+            JCLiteral str = stringLiteral(tree);
+            if (str != null) {
+                litBuf.prepend(str);
+                return last && merge(litBuf, opStack);
+            } else {
+                boolean res = merge(litBuf, opStack);
+                litBuf.clear();
+                opStack.prepend(tree);
+                return res;
+            }
+        }
+
+        boolean merge(ListBuffer<JCLiteral> litBuf, ListBuffer<JCExpression> opStack) {
+            if (litBuf.isEmpty()) {
+                return false;
+            } else if (litBuf.size() == 1) {
+                opStack.prepend(litBuf.first());
+                return false;
+            } else {
+                JCExpression t = F.at(litBuf.first().getStartPosition()).Literal(TypeTag.CLASS,
+                        litBuf.stream().map(lit -> (String)lit.getValue()).collect(Collectors.joining()));
+                storeEnd(t, litBuf.last().getEndPosition(endPosTable));
+                opStack.prepend(t);
+                return true;
+            }
+        }
+
+        private JCLiteral stringLiteral(JCTree tree) {
+            if (tree.hasTag(LITERAL)) {
+                JCLiteral lit = (JCLiteral)tree;
+                if (lit.typetag == TypeTag.CLASS) {
+                    return lit;
+                }
+            }
+            return null;
+        }
+
 
         /** optimization: To save allocating a new operand/operator stack
          *  for every binary operation, we use supplys.
@@ -1427,7 +1471,7 @@ public class JavacParser implements Parser {
                         // is the mode check needed?
                         tyannos = typeAnnotationsOpt();
                     }
-                    t = toP(F.at(pos1).Select(t, ident()));
+                    t = toP(F.at(pos1).Select(t, ident(true)));
                     if (tyannos != null && tyannos.nonEmpty()) {
                         t = toP(F.at(tyannos.head.pos).AnnotatedType(tyannos, t));
                     }
@@ -3037,7 +3081,7 @@ public class JavacParser implements Parser {
             name = token.name();
             nextToken();
         } else {
-            if (allowThisIdent) {
+            if (allowThisIdent && !lambdaParameter) {
                 JCExpression pn = qualident(false);
                 if (pn.hasTag(Tag.IDENT) && ((JCIdent)pn).name != names._this) {
                     name = ((JCIdent)pn).name;

@@ -41,6 +41,7 @@ import com.sun.source.util.SourcePositions;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.comp.*;
+import com.sun.tools.javac.file.BaseFileManager;
 import com.sun.tools.javac.main.*;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.parser.JavacParser;
@@ -81,7 +82,7 @@ public class JavacTaskImpl extends BasicJavacTask {
     private final AtomicBoolean used = new AtomicBoolean();
     private Iterable<? extends Processor> processors;
 
-    JavacTaskImpl(Context context) {
+    protected JavacTaskImpl(Context context) {
         super(context, true);
         args = Arguments.instance(context);
         ccw = ClientCodeWrapper.instance(context);

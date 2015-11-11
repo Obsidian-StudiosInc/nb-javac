@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
  * @test
  * @bug 6493690 8024434
  * @summary javadoc should have a javax.tools.Tool service provider
+ * @modules jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.util
  * @build APITest
  * @run main GetTask_FileManagerTest
  */
@@ -45,8 +47,6 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
 import com.sun.tools.javac.file.JavacFileManager;
-import com.sun.tools.javac.nio.JavacPathFileManager;
-import com.sun.tools.javac.nio.PathFileManager;
 import com.sun.tools.javac.util.Context;
 
 /**
@@ -59,7 +59,7 @@ public class GetTask_FileManagerTest extends APITest {
 
     /**
      * Verify that an alternate file manager can be specified:
-     * in this case, a PathFileManager.
+     * in this case, a TestFileManager.
      */
     @Test
     public void testFileManager() throws Exception {

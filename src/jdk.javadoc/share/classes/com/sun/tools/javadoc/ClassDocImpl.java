@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -127,19 +127,14 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
      * Returns the flags of a ClassSymbol in terms of javac's flags
      */
     static long getFlags(ClassSymbol clazz) {
-        while (true) {
-            try {
-                return clazz.flags();
-            } catch (CompletionFailure ex) {
-                /* Quietly ignore completion failures.
-                 * Note that a CompletionFailure can only
-                 * occur as a result of calling complete(),
-                 * which will always remove the current
-                 * completer, leaving it to be null or
-                 * follow-up completer. Thus the loop
-                 * is guaranteed to eventually terminate.
-                 */
-            }
+        try {
+            return clazz.flags();
+        } catch (CompletionFailure ex) {
+            /* Quietly ignore completion failures and try again - the type
+             * for which the CompletionFailure was thrown shouldn't be completed
+             * again by the completer that threw the CompletionFailure.
+             */
+            return getFlags(clazz);
         }
     }
 
@@ -797,9 +792,7 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
         }
 
         // make sure that this symbol has been completed
-        if (tsym.completer != null) {
-            tsym.complete();
-        }
+        tsym.complete();
 
         // search imports
 
@@ -1281,8 +1274,8 @@ public class ClassDocImpl extends ProgramElementDocImpl implements ClassDoc {
      * each Serializable field defined by an <code>ObjectStreamField</code>
      * array component of <code>serialPersistentField</code>.
      *
-     * @returns an array of <code>FieldDoc</code> for the Serializable fields
-     * of this class.
+     * @return an array of {@code FieldDoc} for the Serializable fields
+     *         of this class.
      *
      * @see #definesSerializableFields()
      * @see SerialFieldTagImpl

@@ -643,7 +643,7 @@ public class Lower extends TreeTranslator {
             c.flatname = chk.localClassName(c);
         }
         c.sourcefile = owner.sourcefile;
-        c.completer = null;
+        c.completer = Completer.NULL_COMPLETER;
         c.members_field = WriteableScope.create(c);
         c.flags_field = flags;
         ClassType ctype = (ClassType) c.type;
@@ -2760,20 +2760,6 @@ public class Lower extends TreeTranslator {
             return translationMap;
         }
 
-    public void visitAnnotatedType(JCAnnotatedType tree) {
-        // No need to retain type annotations in the tree
-        // tree.annotations = translate(tree.annotations);
-        tree.annotations = List.nil();
-        tree.underlyingType = translate(tree.underlyingType);
-        // but maintain type annotations in the type.
-        if (tree.type.isAnnotated()) {
-            tree.type = tree.underlyingType.type.annotatedType(tree.type.getAnnotationMirrors());
-        } else if (tree.underlyingType.type.isAnnotated()) {
-            tree.type = tree.underlyingType.type;
-        }
-        result = tree;
-    }
-
     public void visitTypeCast(JCTypeCast tree) {
         tree.clazz = translate(tree.clazz);
         if (tree.type.isPrimitive() != tree.expr.type.isPrimitive())
@@ -3098,7 +3084,7 @@ public class Lower extends TreeTranslator {
             if (!unboxedTarget.hasTag(NONE)) {
                 if (!types.isSubtype(tree.type, unboxedTarget)) //e.g. Character c = 89;
                     tree.type = unboxedTarget.constType(tree.type.constValue());
-                return (T)boxPrimitive((JCExpression)tree, type);
+                return (T)boxPrimitive((JCExpression)tree, types.erasure(type));
             } else {
                 tree = (T)boxPrimitive((JCExpression)tree);
             }

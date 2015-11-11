@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ import java.util.*;
 import javax.tools.JavaFileManager;
 
 import com.sun.javadoc.*;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.TreePath;
 import com.sun.tools.doclint.DocLint;
@@ -814,18 +815,21 @@ public class DocEnv {
         return result;
     }
 
-    void initDoclint(Collection<String> opts, Collection<String> customTagNames) {
+    void initDoclint(Collection<String> opts, Collection<String> customTagNames, String htmlVersion) {
         ArrayList<String> doclintOpts = new ArrayList<>();
+        boolean msgOptionSeen = false;
 
-        for (String opt: opts) {
-            doclintOpts.add(opt == null ? DocLint.XMSGS_OPTION : DocLint.XMSGS_CUSTOM_PREFIX + opt);
+        for (String opt : opts) {
+            if (opt.startsWith(DocLint.XMSGS_OPTION)) {
+                if (opt.equals(DocLint.XMSGS_CUSTOM_PREFIX + "none"))
+                    return;
+                msgOptionSeen = true;
+            }
+            doclintOpts.add(opt);
         }
 
-        if (doclintOpts.isEmpty()) {
+        if (!msgOptionSeen) {
             doclintOpts.add(DocLint.XMSGS_OPTION);
-        } else if (doclintOpts.size() == 1
-                && doclintOpts.get(0).equals(DocLint.XMSGS_CUSTOM_PREFIX + "none")) {
-            return;
         }
 
         String sep = "";
@@ -836,6 +840,7 @@ public class DocEnv {
             sep = DocLint.SEPARATOR;
         }
         doclintOpts.add(DocLint.XCUSTOM_TAGS_PREFIX + customTags.toString());
+        doclintOpts.add(DocLint.XHTML_VERSION_PREFIX + htmlVersion);
 
         JavacTask t = BasicJavacTask.instance(context);
         doclint = new DocLint();
@@ -846,5 +851,11 @@ public class DocEnv {
 
     boolean showTagMessages() {
         return (doclint == null);
+    }
+
+    Map<CompilationUnitTree, Boolean> shouldCheck = new HashMap<>();
+
+    boolean shouldCheck(CompilationUnitTree unit) {
+        return shouldCheck.computeIfAbsent(unit, doclint :: shouldCheck);
     }
 }

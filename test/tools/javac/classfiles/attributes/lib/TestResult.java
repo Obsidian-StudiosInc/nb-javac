@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,18 +24,16 @@
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * This class accumulates test results. Test results can be checked with method @{code checkStatus}.
  */
 public class TestResult extends TestBase {
 
-    private final List<Info> testCases;
+    private final List<Info> testCasesInfo;
 
     public TestResult() {
-        testCases = new ArrayList<>();
-        testCases.add(new Info("Global test info"));
+        testCasesInfo = new ArrayList<>();
     }
 
     /**
@@ -44,20 +42,16 @@ public class TestResult extends TestBase {
      * @param info the information about test case
      */
     public void addTestCase(String info) {
-        testCases.add(new Info(info));
-    }
-
-    private String errorMessage() {
-        return testCases.stream().filter(Info::isFailed)
-                .map(tc -> String.format("Failure in test case:\n%s\n%s", tc.info(), tc.getMessage()))
-                .collect(Collectors.joining("\n"));
+        System.err.println("Test case: " + info);
+        testCasesInfo.add(new Info(info));
     }
 
     public boolean checkEquals(Object actual, Object expected, String message) {
         echo("Testing : " + message);
         if (!Objects.equals(actual, expected)) {
-            getLastTestCase().addAssert(new AssertionFailedException(
-                    String.format("%s%nGot: %s, Expected: %s", message, actual, expected)));
+            getLastTestCase().addAssert(String.format("%s\n" +
+                    "Expected: %s,\n" +
+                    "     Got: %s", message, expected, actual));
             return false;
         }
         return true;
@@ -70,8 +64,7 @@ public class TestResult extends TestBase {
     public boolean checkNotNull(Object actual, String message) {
         echo("Testing : " + message);
         if (Objects.isNull(actual)) {
-            getLastTestCase().addAssert(new AssertionFailedException(
-                    message + " : Expected not null value"));
+            getLastTestCase().addAssert(message + " : Expected not null value");
             return false;
         }
         return true;
@@ -88,18 +81,25 @@ public class TestResult extends TestBase {
     public boolean checkContains(Set<?> found, Set<?> expected, String message) {
         Set<?> copy = new HashSet<>(expected);
         copy.removeAll(found);
-        return checkTrue(found.containsAll(expected), message + " : " + copy);
+        if (!found.containsAll(expected)) {
+            return checkTrue(false, message + " FAIL : not found elements : " + copy);
+        } else {
+            return checkTrue(true, message + " PASS : all elements found");
+        }
     }
 
     public void addFailure(Throwable th) {
-        testCases.get(testCases.size() - 1).addFailure(th);
+        if (testCasesInfo.isEmpty()) {
+            testCasesInfo.add(new Info("Dummy info"));
+        }
+        getLastTestCase().addFailure(th);
     }
 
     private Info getLastTestCase() {
-        if (testCases.size() == 1) {
+        if (testCasesInfo.isEmpty()) {
             throw new IllegalStateException("Test case should be created");
         }
-        return testCases.get(testCases.size() - 1);
+        return testCasesInfo.get(testCasesInfo.size() - 1);
     }
 
     /**
@@ -110,22 +110,41 @@ public class TestResult extends TestBase {
      *                             or an exception occurs
      */
     public void checkStatus() throws TestFailedException {
-        if (testCases.stream().anyMatch(Info::isFailed)) {
-            echo(errorMessage());
+        int passed = 0;
+        int failed = 0;
+        for (Info testCaseInfo : testCasesInfo) {
+            if (testCaseInfo.isFailed()) {
+                String info = testCaseInfo.info().replace("\n", LINE_SEPARATOR);
+                String errorMessage = testCaseInfo.getMessage().replace("\n", LINE_SEPARATOR);
+                System.err.printf("Failure in test case:%n%s%n%s%n", info, errorMessage);
+                ++failed;
+            } else {
+                ++passed;
+            }
+        }
+        System.err.printf("Test cases: passed: %d, failed: %d, total: %d.%n", passed, failed, passed + failed);
+        if (failed > 0) {
             throw new TestFailedException("Test failed");
+        }
+        if (passed + failed == 0) {
+            throw new TestFailedException("Test cases were not found");
         }
     }
 
-    private class Info {
+    @Override
+    public void printf(String template, Object... args) {
+        getLastTestCase().printf(template, args);
+    }
+
+    private static class Info {
 
         private final String info;
-        private final List<AssertionFailedException> asserts;
-        private final List<Throwable> errors;
+        private final StringWriter writer;
+        private boolean isFailed;
 
         private Info(String info) {
             this.info = info;
-            asserts = new ArrayList<>();
-            errors = new ArrayList<>();
+            writer = new StringWriter();
         }
 
         public String info() {
@@ -133,28 +152,25 @@ public class TestResult extends TestBase {
         }
 
         public boolean isFailed() {
-            return !asserts.isEmpty() || !errors.isEmpty();
+            return isFailed;
+        }
+
+        public void printf(String template, Object... args) {
+            writer.write(String.format(template, args));
         }
 
         public void addFailure(Throwable th) {
-            errors.add(th);
+            isFailed = true;
             printf("[ERROR] : %s\n", getStackTrace(th));
         }
 
-        public void addAssert(AssertionFailedException e) {
-            asserts.add(e);
-            printf("[ASSERT] : %s\n", getStackTrace(e));
+        public void addAssert(String e) {
+            isFailed = true;
+            printf("[ASSERT] : %s\n", e);
         }
 
         public String getMessage() {
-            return (asserts.size() > 0 ? getErrorMessage("[ASSERT]", asserts) + "\n" : "")
-                    + getErrorMessage("[ERROR]", errors);
-        }
-
-        public String getErrorMessage(String header, List<? extends Throwable> list) {
-            return list.stream()
-                    .map(throwable -> String.format("%s : %s", header, getStackTrace(throwable)))
-                    .collect(Collectors.joining("\n"));
+            return writer.toString();
         }
 
         public String getStackTrace(Throwable throwable) {

@@ -58,6 +58,7 @@ import com.sun.tools.javac.comp.CompileStates.CompileState;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.parser.*;
+import com.sun.tools.javac.platform.PlatformDescription;
 import com.sun.tools.javac.processing.*;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
@@ -88,7 +89,7 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
  */
 public class JavaCompiler {
     /** The context key for the compiler. */
-    protected static final Context.Key<JavaCompiler> compilerKey = new Context.Key<>();
+    public static final Context.Key<JavaCompiler> compilerKey = new Context.Key<>();
 
     /** Get the JavaCompiler instance for this context. */
     public static JavaCompiler instance(Context context) {
@@ -445,6 +446,11 @@ public class JavaCompiler {
 
         if (options.isUnset("oldDiags"))
             log.setDiagnosticFormatter(RichDiagnosticFormatter.instance(context));
+
+        PlatformDescription platformProvider = context.get(PlatformDescription.class);
+
+        if (platformProvider != null)
+            closeables = closeables.prepend(platformProvider);
     }
 
     /* Switches:
@@ -848,7 +854,7 @@ public class JavaCompiler {
         // as a JavaCompiler can only be used once, throw an exception if
         // it has been used before.
         if (hasBeenUsed)
-            throw new AssertionError("attempt to reuse JavaCompiler");
+            checkReusable();
         hasBeenUsed = true;
 
         // forcibly set the equivalent of -Xlint:-options, so that no further
@@ -923,6 +929,10 @@ public class JavaCompiler {
             if (procEnvImpl != null)
                 procEnvImpl.close();
         }
+    }
+
+    protected void checkReusable() {
+        throw new AssertionError("attempt to reuse JavaCompiler");
     }
 
     /**
@@ -1079,7 +1089,6 @@ public class JavaCompiler {
     /**
      * Process any annotations found in the specified compilation units.
      * @param roots a list of compilation units
-     * @return an instance of the compiler in which to complete the compilation
      */
     // Implementation note: when this method is called, log.deferredDiagnostics
     // will have been set true by initProcessAnnotations, meaning that any diagnostics
@@ -1238,7 +1247,7 @@ public class JavaCompiler {
      * Note that attributing classes may cause additional files to be
      * parsed and entered via the SourceCompleter.
      * Attribution of the entries in the list does not stop if any errors occur.
-     * @returns a list of environments for attributd classes.
+     * @return a list of environments for attribute classes.
      */
     public Queue<Env<AttrContext>> attribute(Queue<Env<AttrContext>> envs) {
         ListBuffer<Env<AttrContext>> results = new ListBuffer<>();
@@ -1249,7 +1258,7 @@ public class JavaCompiler {
 
     /**
      * Attribute a parse tree.
-     * @returns the attributed parse tree
+     * @return the attributed parse tree
      */
     public Env<AttrContext> attribute(Env<AttrContext> env) {
         if (compileStates.isDone(env, CompileState.ATTR))
@@ -1289,7 +1298,7 @@ public class JavaCompiler {
      * Perform dataflow checks on attributed parse trees.
      * These include checks for definite assignment and unreachable statements.
      * If any errors occur, an empty list will be returned.
-     * @returns the list of attributed parse trees
+     * @return the list of attributed parse trees
      */
     public Queue<Env<AttrContext>> flow(Queue<Env<AttrContext>> envs) {
         ListBuffer<Env<AttrContext>> results = new ListBuffer<>();
@@ -1361,7 +1370,7 @@ public class JavaCompiler {
      * Prepare attributed parse trees, in conjunction with their attribution contexts,
      * for source or code generation.
      * If any errors occur, an empty list will be returned.
-     * @returns a list containing the classes to be generated
+     * @return a list containing the classes to be generated
      */
     public Queue<Pair<Env<AttrContext>, JCClassDecl>> desugar(Queue<Env<AttrContext>> envs) {
         ListBuffer<Pair<Env<AttrContext>, JCClassDecl>> results = new ListBuffer<>();

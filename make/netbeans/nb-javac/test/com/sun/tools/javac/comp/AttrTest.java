@@ -299,12 +299,13 @@ public class AttrTest extends TestCase {
 
     public void testAnonymous() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String use = "package test; import java.util.*; public class Use { public void t() { List<String> ll = new ArrayList<>() { }; } }";
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("Use", use)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject("Use", use)));
         
         ct.analyze();
         

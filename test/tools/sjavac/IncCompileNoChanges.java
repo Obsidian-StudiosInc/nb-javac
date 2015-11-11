@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,10 @@
  * @author Fredrik O
  * @author sogoel (rewrite)
  * @library /tools/lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.compiler/com.sun.tools.sjavac
  * @build Wrapper ToolBox
  * @run main Wrapper IncCompileNoChanges
  */
@@ -46,9 +50,10 @@ public class IncCompileNoChanges  extends SJavacTester {
     Map<String,Long> previous_headers_state;
 
     void test() throws Exception {
-        Files.createDirectory(GENSRC);
-        Files.createDirectory(BIN);
-        Files.createDirectory(HEADERS);
+        clean(Paths.get(getClass().getSimpleName()));
+        Files.createDirectories(GENSRC);
+        Files.createDirectories(BIN);
+        Files.createDirectories(HEADERS);
 
         initialCompile();
         incrementalCompileNoChanges();
@@ -62,8 +67,13 @@ public class IncCompileNoChanges  extends SJavacTester {
         previous_headers_state = collectState(HEADERS);
         System.out.println("\nIn incrementalCompileNoChanges() ");
         System.out.println("Testing that no change in sources implies no change in binaries");
-        compile("gensrc", "-d", "bin", "-h", "headers", "-j", "1",
-                SERVER_ARG, "--log=debug");
+        compile(GENSRC.toString(),
+                "-d", BIN.toString(),
+                "--state-dir=" + BIN,
+                "-h", HEADERS.toString(),
+                "-j", "1",
+                SERVER_ARG,
+                "--log=debug");
         Map<String,Long> new_bin_state = collectState(BIN);
         verifyEqual(new_bin_state, previous_bin_state);
         Map<String,Long> new_headers_state = collectState(HEADERS);

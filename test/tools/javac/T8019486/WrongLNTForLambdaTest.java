@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -28,6 +26,11 @@
  * @bug 8019486 8026861 8027142
  * @summary javac, generates erroneous LVT for a test case with lambda code
  * @library /tools/lib
+ * @modules jdk.jdeps/com.sun.tools.classfile
+ *          jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.compiler/com.sun.tools.javac.util
  * @build ToolBox
  * @run main WrongLNTForLambdaTest
  */

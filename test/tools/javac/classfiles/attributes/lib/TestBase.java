@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,9 @@
  * questions.
  */
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -45,6 +44,7 @@ import com.sun.tools.classfile.ConstantPoolException;
 public class TestBase {
 
     public static final String LINE_SEPARATOR = System.lineSeparator();
+    public static final boolean isDumpOfSourceEnabled = Boolean.getBoolean("dump.src");
 
     private <S> InMemoryFileManager compile(
             List<String> options,
@@ -177,7 +177,9 @@ public class TestBase {
      * @throws ConstantPoolException if constant pool error occurs
      */
     public ClassFile readClassFile(File file) throws IOException, ConstantPoolException {
-        return readClassFile(new FileInputStream(file));
+        try (InputStream is = new FileInputStream(file)) {
+            return readClassFile(is);
+        }
     }
 
     public void assertEquals(Object actual, Object expected, String message) {
@@ -208,6 +210,20 @@ public class TestBase {
         Set<?> copy = new HashSet<>(expected);
         copy.removeAll(found);
         assertTrue(found.containsAll(expected), message + " : " + copy);
+    }
+
+    public void writeToFile(Path path, String source) throws IOException {
+        try (BufferedWriter writer = Files.newBufferedWriter(path)) {
+            writer.write(source);
+        }
+    }
+
+    public void writeToFileIfEnabled(Path path, String source) throws IOException {
+        if (isDumpOfSourceEnabled) {
+            writeToFile(path, source);
+        } else {
+            System.err.println("Source dumping disabled. To enable, run the test with '-Ddump.src=true'");
+        }
     }
 
     public File getSourceDir() {

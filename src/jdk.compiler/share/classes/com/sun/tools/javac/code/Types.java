@@ -32,12 +32,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.function.BiPredicate;
+import java.util.stream.Collector;
 
 import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Type.UndetVar.InferenceBound;
+import com.sun.tools.javac.code.TypeMetadata.Entry.Kind;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.comp.Enter;
@@ -643,7 +646,7 @@ public class Types {
         Symbol descSym = findDescriptorSymbol(targets.head.tsym);
         Type descType = findDescriptorType(targets.head);
         ClassSymbol csym = new ClassSymbol(cflags, name, env.enclClass.sym.outermostClass());
-        csym.completer = null;
+        csym.completer = Completer.NULL_COMPLETER;
         csym.members_field = WriteableScope.create(csym);
         MethodSymbol instDescSym = new MethodSymbol(descSym.flags(), descSym.name, descType, csym);
         csym.members_field.enter(instDescSym);
@@ -808,7 +811,7 @@ public class Types {
         return isSubtype(t, s, false);
     }
     public boolean isSubtype(Type t, Type s, boolean capture) {
-        if (t == s)
+        if (t.equalsIgnoreMetadata(s))
             return true;
         if (s.isPartial())
             return isSuperType(s, t);
@@ -1082,14 +1085,11 @@ public class Types {
                 isSameTypeStrict.visit(t, s) :
                 isSameTypeLoose.visit(t, s);
     }
-    public boolean isSameAnnotatedType(Type t, Type s) {
-        return isSameAnnotatedType.visit(t, s);
-    }
     // where
         abstract class SameTypeVisitor extends TypeRelation {
 
             public Boolean visitType(Type t, Type s) {
-                if (t == s)
+                if (t.equalsIgnoreMetadata(s))
                     return true;
 
                 if (s.isPartial())
@@ -1281,39 +1281,6 @@ public class Types {
         };
 
     // </editor-fold>
-
-    TypeRelation isSameAnnotatedType = new LooseSameTypeVisitor() {
-            private Boolean compareAnnotations(Type t1, Type t2) {
-                List<Attribute.TypeCompound> annos1 = t1.getAnnotationMirrors();
-                List<Attribute.TypeCompound> annos2 = t2.getAnnotationMirrors();
-                return annos1.containsAll(annos2) && annos2.containsAll(annos1);
-            }
-
-            @Override
-            public Boolean visitType(Type t, Type s) {
-                return compareAnnotations(t, s) && super.visitType(t, s);
-            }
-
-            @Override
-            public Boolean visitWildcardType(WildcardType t, Type s) {
-                return compareAnnotations(t, s) && super.visitWildcardType(t, s);
-            }
-
-            @Override
-            public Boolean visitClassType(ClassType t, Type s) {
-                return compareAnnotations(t, s) && super.visitClassType(t, s);
-            }
-
-            @Override
-            public Boolean visitArrayType(ArrayType t, Type s) {
-                return compareAnnotations(t, s) && super.visitArrayType(t, s);
-            }
-
-            @Override
-            public Boolean visitForAll(ForAll t, Type s) {
-                return compareAnnotations(t, s) && super.visitForAll(t, s);
-            }
-        };
 
     // <editor-fold defaultstate="collapsed" desc="Contains Type">
     public boolean containedBy(Type t, Type s) {
@@ -1770,10 +1737,11 @@ public class Types {
 
     // <editor-fold defaultstate="collapsed" desc="cvarLowerBounds">
     public List<Type> cvarLowerBounds(List<Type> ts) {
-        return map(ts, cvarLowerBoundMapping);
+        return ts.map(cvarLowerBoundMapping);
     }
-    private final Mapping cvarLowerBoundMapping = new Mapping("cvarLowerBound") {
-            public Type apply(Type t) {
+        private final TypeMapping<Void> cvarLowerBoundMapping = new TypeMapping<Void>() {
+            @Override
+            public Type visitCapturedType(CapturedType t, Void _unused) {
                 return cvarLowerBound(t);
             }
         };
@@ -1883,9 +1851,15 @@ public class Types {
     /**
      * Mapping to take element type of an arraytype
      */
-    private Mapping elemTypeFun = new Mapping ("elemTypeFun") {
-        public Type apply(Type t) {
-            return elemtype(skipTypeVars(t, false));
+    private TypeMapping<Void> elemTypeFun = new TypeMapping<Void>() {
+        @Override
+        public Type visitArrayType(ArrayType t, Void _unused) {
+            return t.elemtype;
+        }
+
+        @Override
+        public Type visitTypeVar(TypeVar t, Void _unused) {
+            return visit(skipTypeVars(t, false));
         }
     };
 
@@ -2184,24 +2158,24 @@ public class Types {
         }
         }
     // where
-        private SimpleVisitor<Type, Boolean> erasure = new SimpleVisitor<Type, Boolean>() {
-            private Type combineMetadata(final Type ty,
-                                         final TypeMetadata md) {
-                if (!md.isEmpty()) {
-                    switch (ty.getKind()) {
-                    default: return ty.clone(ty.metadata.combine(md));
-                    case OTHER:
-                    case UNION:
-                    case INTERSECTION:
-                    case PACKAGE:
-                    case EXECUTABLE:
-                    case NONE:
-                    case VOID:
-                    case ERROR:
-                        return ty;
+        private TypeMapping<Boolean> erasure = new TypeMapping<Boolean>() {
+            private Type combineMetadata(final Type s,
+                                         final Type t) {
+                if (t.getMetadata() != TypeMetadata.EMPTY) {
+                    switch (s.getKind()) {
+                        case OTHER:
+                        case UNION:
+                        case INTERSECTION:
+                        case PACKAGE:
+                        case EXECUTABLE:
+                        case NONE:
+                        case VOID:
+                        case ERROR:
+                            return s;
+                        default: return s.cloneWithMetadata(s.getMetadata().without(Kind.ANNOTATIONS));
                     }
                 } else {
-                    return ty;
+                    return s;
                 }
             }
 
@@ -2209,8 +2183,8 @@ public class Types {
                 if (t.isPrimitive())
                     return t; /*fast special case*/
                 else {
-                    Type erased = t.map(recurse ? erasureRecFun : erasureFun);
-                    return combineMetadata(erased, t.getMetadata());
+                    //other cases already handled
+                    return combineMetadata(t, t);
                 }
             }
 
@@ -2218,35 +2192,23 @@ public class Types {
             public Type visitClassType(ClassType t, Boolean recurse) {
                 Type erased = t.tsym.erasure(Types.this);
                 if (recurse) {
-                    erased = new ErasedClassType(erased.getEnclosingType(),erased.tsym, t.getMetadata());
+                    erased = new ErasedClassType(erased.getEnclosingType(),erased.tsym,
+                            t.getMetadata().without(Kind.ANNOTATIONS));
                     return erased;
                 } else {
-                    return combineMetadata(erased, t.getMetadata());
+                    return combineMetadata(erased, t);
                 }
             }
 
             @Override
             public Type visitTypeVar(TypeVar t, Boolean recurse) {
                 Type erased = erasure(t.bound, recurse);
-                return combineMetadata(erased, t.getMetadata());
-            }
-
-            @Override
-            public Type visitErrorType(ErrorType t, Boolean recurse) {
-                return t;
+                return combineMetadata(erased, t);
             }
         };
-
-    private Mapping erasureFun = new Mapping ("erasure") {
-            public Type apply(Type t) { return erasure(t); }
-        };
-
-    private Mapping erasureRecFun = new Mapping ("erasureRecursive") {
-        public Type apply(Type t) { return erasureRecursive(t); }
-    };
 
     public List<Type> erasure(List<Type> ts) {
-        return Type.map(ts, erasureFun);
+        return erasure.visit(ts, false);
     }
 
     public Type erasureRecursive(Type t) {
@@ -2254,7 +2216,7 @@ public class Types {
     }
 
     public List<Type> erasureRecursive(List<Type> ts) {
-        return Type.map(ts, erasureRecFun);
+        return erasure.visit(ts, true);
     }
     // </editor-fold>
 
@@ -2704,73 +2666,92 @@ public class Types {
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="compute transitive closure of all members in given site">
-    class MembersClosureCache extends SimpleVisitor<CompoundScope, Boolean> {
+    class MembersClosureCache extends SimpleVisitor<Scope.CompoundScope, Void> {
 
-        private WeakHashMap<TypeSymbol, Entry> _map = new WeakHashMap<>();
+        private Map<TypeSymbol, CompoundScope> _map = new HashMap<>();
 
-        class Entry {
-            final boolean skipInterfaces;
-            final CompoundScope compoundScope;
+        Set<TypeSymbol> seenTypes = new HashSet<>();
 
-            public Entry(boolean skipInterfaces, CompoundScope compoundScope) {
-                this.skipInterfaces = skipInterfaces;
-                this.compoundScope = compoundScope;
+        class MembersScope extends CompoundScope {
+
+            CompoundScope scope;
+
+            public MembersScope(CompoundScope scope) {
+                super(scope.owner);
+                this.scope = scope;
             }
 
-            boolean matches(boolean skipInterfaces) {
-                return this.skipInterfaces == skipInterfaces;
+            Filter<Symbol> combine(Filter<Symbol> sf) {
+                return s -> !s.owner.isInterface() && (sf == null || sf.accepts(s));
+            }
+
+            @Override
+            public Iterable<Symbol> getSymbols(Filter<Symbol> sf, LookupKind lookupKind) {
+                return scope.getSymbols(combine(sf), lookupKind);
+            }
+
+            @Override
+            public Iterable<Symbol> getSymbolsByName(Name name, Filter<Symbol> sf, LookupKind lookupKind) {
+                return scope.getSymbolsByName(name, combine(sf), lookupKind);
+            }
+
+            @Override
+            public int getMark() {
+                return scope.getMark();
             }
         }
 
-        List<TypeSymbol> seenTypes = List.nil();
+        CompoundScope nilScope;
 
         /** members closure visitor methods **/
 
-        public CompoundScope visitType(Type t, Boolean skipInterface) {
-            return null;
+        public CompoundScope visitType(Type t, Void _unused) {
+            if (nilScope == null) {
+                nilScope = new CompoundScope(syms.noSymbol);
+            }
+            return nilScope;
         }
 
         @Override
-        public CompoundScope visitClassType(ClassType t, Boolean skipInterface) {
-            if (seenTypes.contains(t.tsym)) {
+        public CompoundScope visitClassType(ClassType t, Void _unused) {
+            if (!seenTypes.add(t.tsym)) {
                 //this is possible when an interface is implemented in multiple
-                //superclasses, or when a classs hierarchy is circular - in such
+                //superclasses, or when a class hierarchy is circular - in such
                 //cases we don't need to recurse (empty scope is returned)
                 return new CompoundScope(t.tsym);
             }
             try {
-                seenTypes = seenTypes.prepend(t.tsym);
+                seenTypes.add(t.tsym);
                 ClassSymbol csym = (ClassSymbol)t.tsym;
-                Entry e = _map.get(csym);
-                if (e == null || !e.matches(skipInterface)) {
-                    CompoundScope membersClosure = new CompoundScope(csym);
-                    if (!skipInterface) {
-                        for (Type i : interfaces(t)) {
-                            membersClosure.prependSubScope(visit(i, skipInterface));
-                        }
+                CompoundScope membersClosure = _map.get(csym);
+                if (membersClosure == null) {
+                    membersClosure = new CompoundScope(csym);
+                    for (Type i : interfaces(t)) {
+                        membersClosure.prependSubScope(visit(i, null));
                     }
-                    membersClosure.prependSubScope(visit(supertype(t), skipInterface));
+                    membersClosure.prependSubScope(visit(supertype(t), null));
                     membersClosure.prependSubScope(csym.members());
-                    e = new Entry(skipInterface, membersClosure);
-                    _map.put(csym, e);
+                    _map.put(csym, membersClosure);
                 }
-                return e.compoundScope;
+                return membersClosure;
             }
             finally {
-                seenTypes = seenTypes.tail;
+                seenTypes.remove(t.tsym);
             }
         }
 
         @Override
-        public CompoundScope visitTypeVar(TypeVar t, Boolean skipInterface) {
-            return visit(t.getUpperBound(), skipInterface);
+        public CompoundScope visitTypeVar(TypeVar t, Void _unused) {
+            return visit(t.getUpperBound(), null);
         }
     }
 
     private MembersClosureCache membersCache = new MembersClosureCache();
 
     public CompoundScope membersClosure(Type site, boolean skipInterface) {
-        return membersCache.visit(site, skipInterface);
+        CompoundScope cs = membersCache.visit(site, null);
+        Assert.checkNonNull(cs, () -> "type " + site);
+        return skipInterface ? membersCache.new MembersScope(cs) : cs;
     }
     // </editor-fold>
 
@@ -2794,7 +2775,7 @@ public class Types {
                 Scope s = c.members();
                 for (Symbol sym : s.getSymbols(NON_RECURSIVE)) {
                     if (sym.kind == MTH &&
-                        (sym.flags() & (ABSTRACT|IPROXY|DEFAULT)) == ABSTRACT) {
+                        (sym.flags() & (ABSTRACT|IPROXY|DEFAULT|PRIVATE)) == ABSTRACT) {
                         MethodSymbol absmeth = (MethodSymbol)sym;
                         MethodSymbol implmeth = absmeth.implementation(impl, this, true);
                         if (implmeth == null || implmeth == absmeth) {
@@ -2943,7 +2924,7 @@ public class Types {
     public List<Type> subst(List<Type> ts,
                             List<Type> from,
                             List<Type> to) {
-        return new Subst(from, to).subst(ts);
+        return ts.map(new Subst(from, to));
     }
 
     /**
@@ -2953,10 +2934,10 @@ public class Types {
      * elements of the longer list.
      */
     public Type subst(Type t, List<Type> from, List<Type> to) {
-        return new Subst(from, to).subst(t);
+        return t.map(new Subst(from, to));
     }
 
-    private class Subst extends UnaryVisitor<Type> {
+    private class Subst extends TypeMapping<Void> {
         List<Type> from;
         List<Type> to;
 
@@ -2975,49 +2956,12 @@ public class Types {
             this.to = to;
         }
 
-        Type subst(Type t) {
-            if (from.tail == null || t == null)
-                return t;
-            else
-                return visit(t);
-            }
-
-        List<Type> subst(List<Type> ts) {
-            if (from.tail == null)
-                return ts;
-            boolean wild = false;
-            if (ts.nonEmpty() && from.nonEmpty()) {
-                Type head1 = subst(ts.head);
-                List<Type> tail1 = subst(ts.tail);
-                if (head1 != ts.head || tail1 != ts.tail)
-                    return tail1.prepend(head1);
-            }
-            return ts;
-        }
-
-        public Type visitType(Type t, Void ignored) {
-            return t;
-        }
-
-        @Override
-        public Type visitMethodType(MethodType t, Void ignored) {
-            List<Type> argtypes = subst(t.argtypes);
-            Type restype = subst(t.restype);
-            List<Type> thrown = subst(t.thrown);
-            if (argtypes == t.argtypes &&
-                restype == t.restype &&
-                thrown == t.thrown)
-                return t;
-            else
-                return new MethodType(argtypes, restype, thrown, t.tsym);
-        }
-
         @Override
         public Type visitTypeVar(TypeVar t, Void ignored) {
             for (List<Type> from = this.from, to = this.to;
                  from.nonEmpty();
                  from = from.tail, to = to.tail) {
-                if (t == from.head) {
+                if (t.equalsIgnoreMetadata(from.head)) {
                     return to.head.withTypeVar(t);
                 }
             }
@@ -3025,26 +2969,12 @@ public class Types {
         }
 
         @Override
-        public Type visitUndetVar(UndetVar t, Void ignored) {
-            //do nothing - we should not replace inside undet variables
-            return t;
-        }
-
-        @Override
         public Type visitClassType(ClassType t, Void ignored) {
             if (!t.isCompound()) {
-                List<Type> typarams = t.getTypeArguments();
-                List<Type> typarams1 = subst(typarams);
-                Type outer = t.getEnclosingType();
-                Type outer1 = subst(outer);
-                if (typarams1 == typarams && outer1 == outer)
-                    return t;
-                else
-                    return new ClassType(outer1, typarams1, t.tsym,
-                                         t.getMetadata());
+                return super.visitClassType(t, ignored);
             } else {
-                Type st = subst(supertype(t));
-                List<Type> is = subst(interfaces(t));
+                Type st = visit(supertype(t));
+                List<Type> is = visit(interfaces(t), ignored);
                 if (st == supertype(t) && is == interfaces(t))
                     return t;
                 else
@@ -3054,26 +2984,11 @@ public class Types {
 
         @Override
         public Type visitWildcardType(WildcardType t, Void ignored) {
-            Type bound = t.type;
-            if (t.kind != BoundKind.UNBOUND)
-                bound = subst(bound);
-            if (bound == t.type) {
-                return t;
-            } else {
-                if (t.isExtendsBound() && bound.isExtendsBound())
-                    bound = wildUpperBound(bound);
-                return new WildcardType(bound, t.kind, syms.boundClass,
-                                        t.bound, t.getMetadata());
+            WildcardType t2 = (WildcardType)super.visitWildcardType(t, ignored);
+            if (t2 != t && t.isExtendsBound() && t2.type.isExtendsBound()) {
+                t2.type = wildUpperBound(t2.type);
             }
-        }
-
-        @Override
-        public Type visitArrayType(ArrayType t, Void ignored) {
-            Type elemtype = subst(t.elemtype);
-            if (elemtype == t.elemtype)
-                return t;
-            else
-                return new ArrayType(elemtype, t.tsym, t.getMetadata());
+            return t2;
         }
 
         @Override
@@ -3086,20 +3001,24 @@ public class Types {
                                Types.this.subst(t.qtype, t.tvars, freevars));
             }
             List<Type> tvars1 = substBounds(t.tvars, from, to);
-            Type qtype1 = subst(t.qtype);
+            Type qtype1 = visit(t.qtype);
             if (tvars1 == t.tvars && qtype1 == t.qtype) {
                 return t;
             } else if (tvars1 == t.tvars) {
-                return new ForAll(tvars1, qtype1);
+                return new ForAll(tvars1, qtype1) {
+                    @Override
+                    public boolean needsStripping() {
+                        return true;
+                    }
+                };
             } else {
-                return new ForAll(tvars1,
-                                  Types.this.subst(qtype1, t.tvars, tvars1));
+                return new ForAll(tvars1, Types.this.subst(qtype1, t.tvars, tvars1)) {
+                    @Override
+                    public boolean needsStripping() {
+                        return true;
+                    }
+                };
             }
-        }
-
-        @Override
-        public Type visitErrorType(ErrorType t, Void ignored) {
-            return t;
         }
     }
 
@@ -3184,15 +3103,18 @@ public class Types {
      *  changing all recursive bounds from old to new list.
      */
     public List<Type> newInstances(List<Type> tvars) {
-        List<Type> tvars1 = Type.map(tvars, newInstanceFun);
+        List<Type> tvars1 = tvars.map(newInstanceFun);
         for (List<Type> l = tvars1; l.nonEmpty(); l = l.tail) {
             TypeVar tv = (TypeVar) l.head;
             tv.bound = subst(tv.bound, tvars, tvars1);
         }
         return tvars1;
     }
-    private static final Mapping newInstanceFun = new Mapping("newInstanceFun") {
-            public Type apply(Type t) { return new TypeVar(t.tsym, t.getUpperBound(), t.getLowerBound(), t.getMetadata()); }
+        private static final TypeMapping<Void> newInstanceFun = new TypeMapping<Void>() {
+            @Override
+            public TypeVar visitTypeVar(TypeVar t, Void _unused) {
+                return new TypeVar(t.tsym, t.getUpperBound(), t.getLowerBound(), t.getMetadata());
+            }
         };
     // </editor-fold>
 
@@ -3237,10 +3159,20 @@ public class Types {
                 throw new IllegalArgumentException("Not a method type: " + t);
             }
             public Type visitMethodType(MethodType t, Type newReturn) {
-                return new MethodType(t.argtypes, newReturn, t.thrown, t.tsym);
+                return new MethodType(t.argtypes, newReturn, t.thrown, t.tsym) {
+                    @Override
+                    public Type baseType() {
+                        return t;
+                    }
+                };
             }
             public Type visitForAll(ForAll t, Type newReturn) {
-                return new ForAll(t.tvars, t.qtype.accept(this, newReturn));
+                return new ForAll(t.tvars, t.qtype.accept(this, newReturn)) {
+                    @Override
+                    public Type baseType() {
+                        return t;
+                    }
+                };
             }
         };
 
@@ -3418,39 +3350,84 @@ public class Types {
     }
 
     /**
+     * Collect types into a new closure (using a @code{ClosureHolder})
+     */
+    public Collector<Type, ClosureHolder, List<Type>> closureCollector(boolean minClosure, BiPredicate<Type, Type> shouldSkip) {
+        return Collector.of(() -> new ClosureHolder(minClosure, shouldSkip),
+                ClosureHolder::add,
+                ClosureHolder::merge,
+                ClosureHolder::closure);
+    }
+    //where
+        class ClosureHolder {
+            List<Type> closure;
+            final boolean minClosure;
+            final BiPredicate<Type, Type> shouldSkip;
+
+            ClosureHolder(boolean minClosure, BiPredicate<Type, Type> shouldSkip) {
+                this.closure = List.nil();
+                this.minClosure = minClosure;
+                this.shouldSkip = shouldSkip;
+            }
+
+            void add(Type type) {
+                closure = insert(closure, type, shouldSkip);
+            }
+
+            ClosureHolder merge(ClosureHolder other) {
+                closure = union(closure, other.closure, shouldSkip);
+                return this;
+            }
+
+            List<Type> closure() {
+                return minClosure ? closureMin(closure) : closure;
+            }
+        }
+
+    BiPredicate<Type, Type> basicClosureSkip = (t1, t2) -> t1.tsym == t2.tsym;
+
+    /**
      * Insert a type in a closure
      */
-    public List<Type> insert(List<Type> cl, Type t) {
+    public List<Type> insert(List<Type> cl, Type t, BiPredicate<Type, Type> shouldSkip) {
         if (cl.isEmpty()) {
             return cl.prepend(t);
-        } else if (t.tsym == cl.head.tsym) {
+        } else if (shouldSkip.test(t, cl.head)) {
             return cl;
         } else if (t.tsym.precedes(cl.head.tsym, this)) {
             return cl.prepend(t);
         } else {
             // t comes after head, or the two are unrelated
-            return insert(cl.tail, t).prepend(cl.head);
+            return insert(cl.tail, t, shouldSkip).prepend(cl.head);
         }
+    }
+
+    public List<Type> insert(List<Type> cl, Type t) {
+        return insert(cl, t, basicClosureSkip);
     }
 
     /**
      * Form the union of two closures
      */
-    public List<Type> union(List<Type> cl1, List<Type> cl2) {
+    public List<Type> union(List<Type> cl1, List<Type> cl2, BiPredicate<Type, Type> shouldSkip) {
         if (cl1.isEmpty()) {
             return cl2;
         } else if (cl2.isEmpty()) {
             return cl1;
-        } else if (cl1.head.tsym == cl2.head.tsym) {
-            return union(cl1.tail, cl2.tail).prepend(cl1.head);
+        } else if (shouldSkip.test(cl1.head, cl2.head)) {
+            return union(cl1.tail, cl2.tail, shouldSkip).prepend(cl1.head);
         } else if (cl1.head.tsym.precedes(cl2.head.tsym, this)) {
-            return union(cl1.tail, cl2).prepend(cl1.head);
+            return union(cl1.tail, cl2, shouldSkip).prepend(cl1.head);
         } else if (cl2.head.tsym.precedes(cl1.head.tsym, this)) {
-            return union(cl1, cl2.tail).prepend(cl2.head);
+            return union(cl1, cl2.tail, shouldSkip).prepend(cl2.head);
         } else {
             // unrelated types
-            return union(cl1.tail, cl2).prepend(cl1.head);
+            return union(cl1.tail, cl2, shouldSkip).prepend(cl1.head);
         }
+    }
+
+    public List<Type> union(List<Type> cl1, List<Type> cl2) {
+        return union(cl1, cl2, basicClosureSkip);
     }
 
     /**
@@ -3815,11 +3792,24 @@ public class Types {
      * Compute a hash code on a type.
      */
     public int hashCode(Type t) {
-        return hashCode.visit(t);
+        return hashCode(t, false);
+    }
+
+    public int hashCode(Type t, boolean strict) {
+        return strict ?
+                hashCodeStrictVisitor.visit(t) :
+                hashCodeVisitor.visit(t);
     }
     // where
-        private static final UnaryVisitor<Integer> hashCode = new UnaryVisitor<Integer>() {
+        private static final HashCodeVisitor hashCodeVisitor = new HashCodeVisitor();
+        private static final HashCodeVisitor hashCodeStrictVisitor = new HashCodeVisitor() {
+            @Override
+            public Integer visitTypeVar(TypeVar t, Void ignored) {
+                return System.identityHashCode(t);
+            }
+        };
 
+        private static class HashCodeVisitor extends UnaryVisitor<Integer> {
             public Integer visitType(Type t, Void ignored) {
                 return t.getTag().ordinal();
             }
@@ -3875,7 +3865,7 @@ public class Types {
             public Integer visitErrorType(ErrorType t, Void ignored) {
                 return 0;
             }
-        };
+        }
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Return-Type-Substitutable">
@@ -4203,8 +4193,7 @@ public class Types {
     }
 
     private boolean containsTypeEquivalent(Type t, Type s) {
-        return
-            isSameType(t, s) || // shortcut
+        return isSameType(t, s) || // shortcut
             containsType(t, s) && containsType(s, t);
     }
 
@@ -4645,7 +4634,7 @@ public class Types {
         return getRetention(a.type.tsym);
     }
 
-    public RetentionPolicy getRetention(Symbol sym) {
+    public RetentionPolicy getRetention(TypeSymbol sym) {
         RetentionPolicy vis = RetentionPolicy.CLASS; // the default
         Attribute.Compound c = sym.attribute(syms.retentionType.tsym);
         if (c != null) {

@@ -140,7 +140,7 @@ public class ClassWriter extends ClassFile {
     /** The bootstrap methods to be written in the corresponding class attribute
      *  (one for each invokedynamic)
      */
-    Map<DynamicMethod, MethodHandle> bootstrapMethods;
+    Map<DynamicMethod.BootstrapMethodsKey, DynamicMethod.BootstrapMethodsValue> bootstrapMethods;
 
     /** The log to use for verbose output.
      */
@@ -415,8 +415,16 @@ public class ClassWriter extends ClassFile {
                     //invokedynamic
                     DynamicMethodSymbol dynSym = (DynamicMethodSymbol)m;
                     MethodHandle handle = new MethodHandle(dynSym.bsmKind, dynSym.bsm, types);
-                    DynamicMethod dynMeth = new DynamicMethod(dynSym, types);
-                    bootstrapMethods.put(dynMeth, handle);
+                    DynamicMethod.BootstrapMethodsKey key = new DynamicMethod.BootstrapMethodsKey(dynSym, types);
+
+                    // Figure out the index for existing BSM; create a new BSM if no key
+                    DynamicMethod.BootstrapMethodsValue val = bootstrapMethods.get(key);
+                    if (val == null) {
+                        int index = bootstrapMethods.size();
+                        val = new DynamicMethod.BootstrapMethodsValue(handle, index);
+                        bootstrapMethods.put(key, val);
+                    }
+
                     //init cp entries
                     pool.put(names.BootstrapMethods);
                     pool.put(handle);
@@ -424,7 +432,7 @@ public class ClassWriter extends ClassFile {
                         pool.put(staticArg);
                     }
                     poolbuf.appendByte(CONSTANT_InvokeDynamic);
-                    poolbuf.appendChar(bootstrapMethods.size() - 1);
+                    poolbuf.appendChar(val.index);
                     poolbuf.appendChar(pool.put(nameType(dynSym)));
                 }
             } else if (value instanceof VarSymbol) {
@@ -1074,15 +1082,14 @@ public class ClassWriter extends ClassFile {
     void writeBootstrapMethods() {
         int alenIdx = writeAttr(names.BootstrapMethods);
         databuf.appendChar(bootstrapMethods.size());
-        for (Map.Entry<DynamicMethod, MethodHandle> entry : bootstrapMethods.entrySet()) {
-            DynamicMethod dmeth = entry.getKey();
-            DynamicMethodSymbol dsym = (DynamicMethodSymbol)dmeth.baseSymbol();
+        for (Map.Entry<DynamicMethod.BootstrapMethodsKey, DynamicMethod.BootstrapMethodsValue> entry : bootstrapMethods.entrySet()) {
+            DynamicMethod.BootstrapMethodsKey bsmKey = entry.getKey();
             //write BSM handle
-            databuf.appendChar(pool.get(entry.getValue()));
+            databuf.appendChar(pool.get(entry.getValue().mh));
+            Object[] uniqueArgs = bsmKey.getUniqueArgs();
             //write static args length
-            databuf.appendChar(dsym.staticArgs.length);
+            databuf.appendChar(uniqueArgs.length);
             //write static args array
-            Object[] uniqueArgs = dmeth.uniqueStaticArgs;
             for (Object o : uniqueArgs) {
                 databuf.appendChar(pool.get(o));
             }
@@ -1150,8 +1157,10 @@ public class ClassWriter extends ClassFile {
             endAttr(alenIdx);
             acount++;
         }
-        if (options.isSet(PARAMETERS))
-            acount += writeMethodParametersAttr(m);
+        if (options.isSet(PARAMETERS)) {
+            if (!m.isLambdaMethod()) // Per JDK-8138729, do not emit parameters table for lambda bodies.
+                acount += writeMethodParametersAttr(m);
+        }
         acount += writeMemberAttrs(m);
         acount += writeExtraMemberAttributes(m);
         acount += writeParameterAttrs(m);
