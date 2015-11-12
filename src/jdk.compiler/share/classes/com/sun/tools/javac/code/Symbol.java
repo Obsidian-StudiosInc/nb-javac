@@ -1251,6 +1251,10 @@ public abstract class Symbol extends AnnoConstruct implements Element {
                 t.interfaces_field = null;
                 t.all_interfaces_field = null;
             }
+            resetMetadata();
+        }
+
+        public void resetMetadata() {
             metadata = null;
             annotationTypeMetadata = AnnotationTypeMetadata.notAnAnnotationType();
         }
