@@ -1461,6 +1461,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                             return null;
                         }
                     }.scan(node.sym);
+                    node.sym.resetMetadata();
                     if (chk.compiled.get(node.sym.flatname) == node.sym)
                         chk.compiled.remove(node.sym.flatname);
 //                    node.sym.completer = new ImplicitCompleter(topLevel);
