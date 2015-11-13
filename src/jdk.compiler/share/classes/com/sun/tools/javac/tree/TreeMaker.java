@@ -30,7 +30,6 @@ import java.util.Iterator;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
-import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
@@ -80,8 +79,8 @@ public class TreeMaker implements JCTree.Factory {
      */
     protected TreeMaker(Context context) {
         context.put(treeMakerKey, this);
-        //ClassReader needs to be instantiated before Symtab:
-        ClassReader.instance(context);
+        //ClassFinder needs to be instantiated before Symtab:
+        ClassFinder.instance(context);
         this.pos = Position.NOPOS;
         this.toplevel = null;
         this.names = Names.instance(context);
