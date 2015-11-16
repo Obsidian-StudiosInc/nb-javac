@@ -2139,7 +2139,8 @@ public class Attr extends JCTree.Visitor {
                 argtypes = List.nil();
                 typeargtypes = List.nil();
                 skipNonDiamondPath = true;
-            } else if (TreeInfo.isDiamond(tree) && !wasError) {
+            }
+            if (TreeInfo.isDiamond(tree) && !wasError) {
                 ClassType site = new ClassType(clazztype.getEnclosingType(),
                             clazztype.tsym.type.getTypeArguments(),
                                                clazztype.tsym,
