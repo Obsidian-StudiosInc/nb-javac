@@ -1424,7 +1424,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             JCCompilationUnit topLevel;
             public void visitTopLevel(JCCompilationUnit node) {
                 if (node.packge != null) {
-                    if (node.getPackage().annotations.nonEmpty())
+                    if (node.getPackageAnnotations().nonEmpty())
                         node.packge.flags_field |= Flags.APT_CLEANED;
                     if (node.packge.package_info != null) {
                         node.packge.package_info.reset();
