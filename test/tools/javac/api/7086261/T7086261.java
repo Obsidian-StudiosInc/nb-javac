@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
  * @test
  * @bug 7086261
  * @summary javac doesn't report error as expected, it only reports ClientCodeWrapper$DiagnosticSourceUnwrapper
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.util
  */
 
 import javax.tools.*;
@@ -66,10 +68,11 @@ public class T7086261 {
 
     void test() throws Throwable {
         JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
-        JavaFileManager jfm = javac.getStandardFileManager(null, null, null);
-        JavaCompiler.CompilationTask task =
-                javac.getTask(null, jfm, new DiagnosticChecker(), null, null, Arrays.asList(new ErroneousSource()));
-        task.call();
+        try (JavaFileManager jfm = javac.getStandardFileManager(null, null, null)) {
+            JavaCompiler.CompilationTask task =
+                    javac.getTask(null, jfm, new DiagnosticChecker(), null, null, Arrays.asList(new ErroneousSource()));
+            task.call();
+        }
     }
 
     public static void main(String[] args) throws Throwable {

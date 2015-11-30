@@ -40,7 +40,7 @@ import javax.tools.Diagnostic.Kind;
  *
  * @author lahvac
  */
-@SupportedSourceVersion(SourceVersion.RELEASE_6)
+@SupportedSourceVersion(SourceVersion.RELEASE_7)
 public class ErrorProducingAP extends AbstractProcessor {
 
     @Override

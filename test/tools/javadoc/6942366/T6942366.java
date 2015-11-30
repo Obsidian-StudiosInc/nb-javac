@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
  * @test
  * @bug 6942366
  * @summary javadoc no longer inherits doc from sourcepath
+ * @modules jdk.javadoc
  * @build p.Base Test
  * @run main T6942366
  */
@@ -75,14 +76,6 @@ public class T6942366 {
             args.add("-classpath");
             args.add(".");
         }
-
-        // use a very simple bootclasspath to avoid stuff jtreg might have put on path
-        File javaHome = new File(System.getProperty("java.home"));
-        File rt_jar = new File(javaHome, "lib/rt.jar");
-        if (!rt_jar.exists())
-            throw new Exception("rt.jar not found");
-        args.add("-bootclasspath");
-        args.add(rt_jar.getPath());
 
         args.add(new File(testSrc, "Test.java").getPath());
         System.out.println("javadoc: " + args);

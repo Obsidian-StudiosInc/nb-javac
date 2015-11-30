@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
  * @test
  * @bug 6985205 6986246
  * @summary access to tree positions and doc comments may be lost across annotation processing rounds
+ * @modules jdk.compiler
  * @build TreePosRoundsTest
  * @compile -proc:only -processor TreePosRoundsTest TreePosRoundsTest.java
  * @run main TreePosRoundsTest
@@ -54,18 +55,19 @@ public class TreePosRoundsTest extends AbstractProcessor {
         String testSrc = System.getProperty("test.src");
         String testClasses = System.getProperty("test.classes");
         JavaCompiler c = ToolProvider.getSystemJavaCompiler();
-        StandardJavaFileManager fm = c.getStandardFileManager(null, null, null);
-        String thisName = TreePosRoundsTest.class.getName();
-        File thisFile = new File(testSrc, thisName + ".java");
-        Iterable<? extends JavaFileObject> files = fm.getJavaFileObjects(thisFile);
-        List<String> options = Arrays.asList(
-                "-proc:only",
-                "-processor", thisName,
-                "-processorpath", testClasses);
-        CompilationTask t = c.getTask(null, fm, null, options, null, files);
-        boolean ok = t.call();
-        if (!ok)
-            throw new Exception("processing failed");
+        try (StandardJavaFileManager fm = c.getStandardFileManager(null, null, null)) {
+            String thisName = TreePosRoundsTest.class.getName();
+            File thisFile = new File(testSrc, thisName + ".java");
+            Iterable<? extends JavaFileObject> files = fm.getJavaFileObjects(thisFile);
+            List<String> options = Arrays.asList(
+                    "-proc:only",
+                    "-processor", thisName,
+                    "-processorpath", testClasses);
+            CompilationTask t = c.getTask(null, fm, null, options, null, files);
+            boolean ok = t.call();
+            if (!ok)
+                throw new Exception("processing failed");
+        }
     }
 
     Filer filer;
@@ -139,9 +141,9 @@ public class TreePosRoundsTest extends AbstractProcessor {
         }
 
         @Override
-        public Void visitVariable(VariableTree tree, Void _) {
+        public Void visitVariable(VariableTree tree, Void p) {
             check(getCurrentPath());
-            return super.visitVariable(tree, _);
+            return super.visitVariable(tree, p);
         }
 
         void check(TreePath tp) {
@@ -155,6 +157,9 @@ public class TreePosRoundsTest extends AbstractProcessor {
                 //System.err.println("  encl: " +enclKind);
                 if (enclKind == Tree.Kind.CLASS || enclKind == Tree.Kind.BLOCK)
                     expect += ";";
+                // t-w-r- adds implicit final: remove it
+                if (enclKind == Tree.Kind.TRY && expect.startsWith("final "))
+                    expect = expect.substring(6);
             }
             //System.err.println("expect: " + expect);
 

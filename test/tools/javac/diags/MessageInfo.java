@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,12 @@
  * @test
  * @bug 7013272 7127924
  * @summary Automatically generate info about how compiler resource keys are used
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.code
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.compiler/com.sun.tools.javac.parser
+ *          jdk.compiler/com.sun.tools.javac.util
  * @build Example ArgTypeCompilerFactory MessageFile MessageInfo
  * @run main/othervm MessageInfo
  */
@@ -168,7 +174,7 @@ public class MessageInfo {
             for (File d = testSrc; d != null; d = d.getParentFile()) {
                 if (new File(d, "TEST.ROOT").exists()) {
                     d = d.getParentFile();
-                    File f = new File(d, "src/share/classes/com/sun/tools/javac/resources/compiler.properties");
+                    File f = new File(d, "src/jdk.compiler/share/classes/com/sun/tools/javac/resources/compiler.properties");
                     if (f.exists()) {
                         msgFile = f;
                         break;

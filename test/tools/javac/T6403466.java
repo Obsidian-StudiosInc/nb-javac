@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
  * @test
  * @bug 6403466
  * @summary javac TaskListener should be informed when annotation processing occurs
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
  */
 
 import com.sun.source.util.*;
@@ -51,24 +53,25 @@ public class T6403466 extends AbstractProcessor {
     public static void main(String[] args) throws IOException {
         JavacTool tool = JavacTool.create();
 
-        StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null);
-        Iterable<? extends JavaFileObject> files =
-            fm.getJavaFileObjectsFromFiles(Arrays.asList(new File(testSrcDir, self + ".java")));
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null)) {
+            Iterable<? extends JavaFileObject> files =
+                fm.getJavaFileObjectsFromFiles(Arrays.asList(new File(testSrcDir, self + ".java")));
 
-        Iterable<String> options = Arrays.asList("-processorpath", testClassDir,
-                                                 "-processor", self,
-                                                 "-s", ".",
-                                                 "-d", ".");
-        JavacTask task = tool.getTask(out, fm, null, options, null, files);
+            Iterable<String> options = Arrays.asList("-processorpath", testClassDir,
+                                                     "-processor", self,
+                                                     "-s", ".",
+                                                     "-d", ".");
+            JavacTask task = tool.getTask(out, fm, null, options, null, files);
 
-        VerifyingTaskListener vtl = new VerifyingTaskListener(new File(testSrcDir, self + ".out"));
-        task.setTaskListener(vtl);
+            VerifyingTaskListener vtl = new VerifyingTaskListener(new File(testSrcDir, self + ".out"));
+            task.setTaskListener(vtl);
 
-        if (!task.call())
-            throw new AssertionError("compilation failed");
+            if (!task.call())
+                throw new AssertionError("compilation failed");
 
-        if (vtl.iter.hasNext() || vtl.errors)
-            throw new AssertionError("comparison against golden file failed.");
+            if (vtl.iter.hasNext() || vtl.errors)
+                throw new AssertionError("comparison against golden file failed.");
+        }
     }
 
     public boolean process(Set<? extends TypeElement> annos, RoundEnvironment rEnv) {

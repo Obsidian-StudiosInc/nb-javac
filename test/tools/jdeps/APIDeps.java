@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,10 @@
  * @test
  * @bug 8015912 8029216 8048063 8050804
  * @summary Test -apionly and -jdkinternals options
+ * @modules java.base/sun.security.x509
+ *          java.management
+ *          jdk.jdeps/com.sun.tools.classfile
+ *          jdk.jdeps/com.sun.tools.jdeps
  * @build m.Bar m.Foo m.Gee b.B c.C c.I d.D e.E f.F g.G
  * @run main APIDeps
  */
@@ -39,27 +43,6 @@ import java.util.*;
 import java.util.regex.*;
 
 public class APIDeps {
-    private static boolean symbolFileExist = initProfiles();
-    private static boolean initProfiles() {
-        // check if ct.sym exists; if not use the profiles.properties file
-        Path home = Paths.get(System.getProperty("java.home"));
-        if (home.endsWith("jre")) {
-            home = home.getParent();
-        }
-        Path ctsym = home.resolve("lib").resolve("ct.sym");
-        boolean symbolExists = ctsym.toFile().exists();
-        if (!symbolExists) {
-            Path testSrcProfiles =
-                Paths.get(System.getProperty("test.src", "."), "profiles.properties");
-            if (!testSrcProfiles.toFile().exists())
-                throw new Error(testSrcProfiles + " does not exist");
-            System.out.format("%s doesn't exist.%nUse %s to initialize profiles info%n",
-                ctsym, testSrcProfiles);
-            System.setProperty("jdeps.profiles", testSrcProfiles.toString());
-        }
-        return symbolExists;
-    }
-
     public static void main(String... args) throws Exception {
         int errors = 0;
         errors += new APIDeps().run();
@@ -89,20 +72,20 @@ public class APIDeps {
              new String[] {testDirBasename},
              new String[] {"-classpath", testDir.getPath(), "-verbose:class", "-filter:none", "-P"});
         test(new File(mDir, "Gee.class"),
-             new String[] {"g.G", "sun.misc.Lock", "com.sun.tools.classfile.ClassFile",
+             new String[] {"g.G", "sun.security.x509.X509CertInfo", "com.sun.tools.classfile.ClassFile",
                            "com.sun.management.ThreadMXBean", "com.sun.source.tree.BinaryTree"},
              new String[] {testDirBasename, "JDK internal API", "compact3", ""},
              new String[] {"-classpath", testDir.getPath(), "-verbose", "-P"});
 
         // -jdkinternals
         test(new File(mDir, "Gee.class"),
-             new String[] {"sun.misc.Lock", "com.sun.tools.classfile.ClassFile"},
+             new String[] {"sun.security.x509.X509CertInfo", "com.sun.tools.classfile.ClassFile"},
              new String[] {"JDK internal API"},
              new String[] {"-jdkinternals"});
         // -jdkinternals parses all classes on -classpath and the input arguments
         test(new File(mDir, "Gee.class"),
              new String[] {"com.sun.tools.jdeps.Main", "com.sun.tools.classfile.ClassFile",
-                           "sun.misc.Lock", "sun.misc.Unsafe"},
+                           "sun.security.x509.X509CertInfo", "sun.misc.Unsafe"},
              new String[] {"JDK internal API"},
              new String[] {"-classpath", testDir.getPath(), "-jdkinternals"});
 

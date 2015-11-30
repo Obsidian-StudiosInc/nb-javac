@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
  * @bug     4813736 8015073
  * @summary Provide a basic test of access to the Java Model from javac, and error messages
  * @author  Peter von der Ah\u00e9
+ * @modules jdk.compiler/com.sun.tools.javac.api
  * @run main TestJavacTask TestJavacTask.java
  */
 
@@ -41,8 +42,8 @@ import javax.tools.ToolProvider;
 
 public class TestJavacTask {
     static final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    static final StandardJavaFileManager fm = compiler.getStandardFileManager(null, null, null);
     static JavacTaskImpl getTask(File... file) {
-        StandardJavaFileManager fm = compiler.getStandardFileManager(null, null, null);
         Iterable<? extends JavaFileObject> files =
             fm.getJavaFileObjectsFromFiles(Arrays.asList(file));
         return (JavacTaskImpl)compiler.getTask(null, fm, null, null, null, files);
@@ -61,7 +62,10 @@ public class TestJavacTask {
         try {
             getTask(testFile);
         } catch (IllegalArgumentException iae) {
-            if (!iae.getMessage().contains("\"" + testFile.getName() + "\"")) {
+            // The following check is somewhat fragile, since the content of the ILA is not
+            // formally specified. If we want to fix this, we should catch/rewrap ILA coming
+            // from use of java.nio.file.Path inside javac's impl of JavaFileManager.
+            if (!iae.getMessage().contains(testFile.getName())) {
                 System.err.println("Got message: " + iae.getMessage());
                 throw new RuntimeException("Error: expected string not found");
             }
@@ -69,7 +73,11 @@ public class TestJavacTask {
     }
 
     public static void main(String... args) throws IOException {
-        basicTest(args);
-        checkKindError();
+        try {
+            basicTest(args);
+            checkKindError();
+        } finally {
+            fm.close();
+        }
     }
 }

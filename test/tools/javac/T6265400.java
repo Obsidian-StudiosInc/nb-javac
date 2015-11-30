@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
  * @test
  * @bug 6265400
  * @summary  Javac should be shielded from client code errors in JSR 199
+ * @modules java.compiler
+ *          jdk.compiler
  * @run main T6265400
  */
 
@@ -44,10 +46,11 @@ public class T6265400 {
                         throw new NullPointerException(SILLY_BILLY);
                     }
                 };
-            StandardJavaFileManager fm = javac.getStandardFileManager(dl, null, null);
-            Iterable<? extends JavaFileObject> files =
-                fm.getJavaFileObjectsFromStrings(Arrays.asList("badfile.java"));
-            javac.getTask(null, fm, dl, null, null, files).call();
+            try (StandardJavaFileManager fm = javac.getStandardFileManager(dl, null, null)) {
+                Iterable<? extends JavaFileObject> files =
+                    fm.getJavaFileObjectsFromStrings(Arrays.asList("badfile.java"));
+                javac.getTask(null, fm, dl, null, null, files).call();
+            }
         }
         catch (RuntimeException e) {
             Throwable cause = e.getCause();

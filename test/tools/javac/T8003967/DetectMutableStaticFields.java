@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -27,6 +25,8 @@
  * @test
  * @bug 8003967
  * @summary detect and remove all mutable implicit static enum fields in langtools
+ * @modules jdk.jdeps/com.sun.tools.classfile
+ *          jdk.compiler/com.sun.tools.javac.util
  * @run main DetectMutableStaticFields
  */
 
@@ -101,6 +101,9 @@ public class DetectMutableStaticFields {
                     Arrays.asList("defaultBundle", "defaultMessages"));
         classFieldsToIgnoreMap.
                 put("com/sun/tools/javac/file/ZipFileIndexCache",
+                    Arrays.asList("sharedInstance"));
+        classFieldsToIgnoreMap.
+                put("com/sun/tools/javac/file/JRTIndex",
                     Arrays.asList("sharedInstance"));
         classFieldsToIgnoreMap.
                 put("com/sun/tools/javac/main/JavaCompiler",
@@ -179,18 +182,19 @@ public class DetectMutableStaticFields {
             ConstantPoolException,
             InvalidDescriptor {
         JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
-        StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null);
-        JavaFileManager.Location location =
-                StandardLocation.locationFor(resource.getPath());
-        fm.setLocation(location, com.sun.tools.javac.util.List.of(
-                new File(resource.getPath())));
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null)) {
+            JavaFileManager.Location location =
+                    StandardLocation.locationFor(resource.getPath());
+            fm.setLocation(location, com.sun.tools.javac.util.List.of(
+                    new File(resource.getPath())));
 
-        for (JavaFileObject file : fm.list(location, "", EnumSet.of(CLASS), true)) {
-            String className = fm.inferBinaryName(location, file);
-            int index = className.lastIndexOf('.');
-            String pckName = index == -1 ? "" : className.substring(0, index);
-            if (shouldAnalyzePackage(pckName)) {
-                analyzeClassFile(ClassFile.read(file.openInputStream()));
+            for (JavaFileObject file : fm.list(location, "", EnumSet.of(CLASS), true)) {
+                String className = fm.inferBinaryName(location, file);
+                int index = className.lastIndexOf('.');
+                String pckName = index == -1 ? "" : className.substring(0, index);
+                if (shouldAnalyzePackage(pckName)) {
+                    analyzeClassFile(ClassFile.read(file.openInputStream()));
+                }
             }
         }
     }

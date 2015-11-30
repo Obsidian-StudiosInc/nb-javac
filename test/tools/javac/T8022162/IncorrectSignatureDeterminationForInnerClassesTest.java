@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,13 @@
  * @test
  * @bug 8022162
  * @summary Incorrect signature determination for certain inner class generics
- * @library /tools/javac/lib
+ * @library /tools/lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
  * @build ToolBox
  * @run main IncorrectSignatureDeterminationForInnerClassesTest
  */
-
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 public class IncorrectSignatureDeterminationForInnerClassesTest {
 
@@ -69,21 +69,20 @@ public class IncorrectSignatureDeterminationForInnerClassesTest {
     }
 
     void compile() throws Exception {
-        Files.createDirectory(Paths.get("classes"));
+        ToolBox tb = new ToolBox();
+        tb.createDirectories("classes");
 
-        ToolBox.JavaToolArgs javacParams =
-                new ToolBox.JavaToolArgs()
-                .appendArgs("-d", "classes")
-                .setSources(DSrc);
-
-        ToolBox.javac(javacParams);
+        tb.new JavacTask()
+                .outdir("classes")
+                .sources(DSrc)
+                .run();
 
         // compile class H against the class files for classes D and Q
-        javacParams =
-                new ToolBox.JavaToolArgs()
-                .appendArgs("-d", "classes", "-cp", "classes")
-                .setSources(HSrc);
-        ToolBox.javac(javacParams);
+        tb.new JavacTask()
+                .outdir("classes")
+                .classpath("classes")
+                .sources(HSrc)
+                .run();
     }
 
 }

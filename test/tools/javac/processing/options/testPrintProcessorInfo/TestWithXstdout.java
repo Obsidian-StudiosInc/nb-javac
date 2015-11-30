@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@
  * @bug 6987384
  * @summary -XprintProcessorRoundsInfo message printed with different timing than previous
  * @library /tools/javac/lib
+ * @modules java.compiler
+ *          jdk.compiler
  * @build JavacTestingAbstractProcessor Test TestWithXstdout
  * @run main TestWithXstdout
  */
@@ -56,8 +58,6 @@ public class TestWithXstdout {
 
     static void run_javac(String... args) throws IOException, InterruptedException {
         File javaHome = new File(System.getProperty("java.home"));
-        if (javaHome.getName().equals("jre"))
-            javaHome = javaHome.getParentFile();
         File javac = new File(new File(javaHome, "bin"), "javac");
 
         List<String> opts = new ArrayList<>();

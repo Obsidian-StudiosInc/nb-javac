@@ -33,6 +33,7 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Scope;
+import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
 import java.io.IOException;
 import java.net.URI;
@@ -132,7 +133,7 @@ public class ScopeTest extends TestCase {
             TypeMirror type = field.asType();
             if (type.getKind() == TypeKind.ERROR) {
                 Type.ErrorType et = (Type.ErrorType)type;
-                for (Scope.Entry e = et.tsym.members().lookup(et.tsym.name.table.fromString("XYZ")); e.sym != null; e = e.next());
+                for (Symbol symbol : et.tsym.members().getSymbolsByName(et.tsym.name.table.fromString("XYZ")));
             }
         }
     }

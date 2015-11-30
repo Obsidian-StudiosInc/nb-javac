@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,60 +23,52 @@
 
 /*
  * @test
- * @bug      7052170
+ * @bug      7052170 8047745
  * @summary  Run a test on -charset to make sure the charset gets generated as a
  *           part of the meta tag.
  * @author   Bhavesh Patel
- * @library  ../lib/
- * @build    JavadocTester TestCharset
+ * @library  ../lib
+ * @modules jdk.javadoc
+ * @build    JavadocTester
  * @run main TestCharset
  */
 
 public class TestCharset extends JavadocTester {
 
-    //Test information.
-    private static final String BUG_ID = "7052170";
-
-    //Javadoc arguments.
-    private static final String[] ARGS = new String[] {
-        "-d", BUG_ID, "-charset", "UTF-8", "-sourcepath", SRC_DIR, "pkg"
-    };
-
-    private static final String[][] TEST = {
-        {BUG_ID + FS + "index.html",
-            "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">"},
-        {BUG_ID + FS + "pkg" + FS + "Foo.html",
-            "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">"}
-    };
-
-    private static final String[][] NEGATED_TEST = {
-        {BUG_ID + FS + "index.html",
-            "<meta http-equiv=\"Content-Type\" content=\"text/html\" charset=\"UTF-8\">"},
-        {BUG_ID + FS + "pkg" + FS + "Foo.html",
-            "<meta http-equiv=\"Content-Type\" content=\"text/html\" charset=\"UTF-8\">"}
-    };
-
-    /**
-     * The entry point of the test.
-     * @param args the array of command line arguments.
-     */
-    public static void main(String[] args) {
+    public static void main(String... args) throws Exception {
         TestCharset tester = new TestCharset();
-        run(tester, ARGS, TEST, NEGATED_TEST);
-        tester.printSummary();
+        tester.runTests();
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    public String getBugId() {
-        return BUG_ID;
+    @Test
+    void test() {
+        javadoc("-d", "out",
+                "-charset", "ISO-8859-1",
+                "-sourcepath", testSrc,
+                "pkg");
+        checkExit(Exit.OK);
+
+        checkOutput("index.html", true,
+            "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=ISO-8859-1\">");
+        checkOutput("pkg/Foo.html", true,
+            "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=ISO-8859-1\">");
+
+        checkOutput("index.html", false,
+            "<meta http-equiv=\"Content-Type\" content=\"text/html\" charset=\"ISO-8859-1\">");
+        checkOutput("pkg/Foo.html", false,
+            "<meta http-equiv=\"Content-Type\" content=\"text/html\" charset=\"ISO-8859-1\">");
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    public String getBugName() {
-        return getClass().getName();
+    @Test
+    void test1() {
+        javadoc("-d", "out-1",
+                "-sourcepath", testSrc,
+                "pkg");
+        checkExit(Exit.OK);
+
+        checkOutput("index.html", true,
+            "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">");
+        checkOutput("pkg/Foo.html", true,
+            "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">");
     }
 }

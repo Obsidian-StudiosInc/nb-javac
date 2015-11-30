@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,10 @@
  * @test
  * @bug 6877202 6986246
  * @summary Elements.getDocComment() is not getting JavaDocComments
+ * @library /tools/javac/lib
+ * @modules jdk.compiler
+ * @build JavacTestingAbstractProcessor TestDocComments
+ * @run main TestDocComments
  */
 
 import com.sun.source.tree.*;
@@ -49,8 +53,7 @@ import javax.tools.*;
  */
 
 @SupportedOptions("scan")
-@SupportedAnnotationTypes("*")
-public class TestDocComments extends AbstractProcessor {
+public class TestDocComments extends JavacTestingAbstractProcessor {
     enum CompileKind { API, CMD };
     enum ScanKind { TREE, ELEMENT };
 
@@ -72,7 +75,7 @@ public class TestDocComments extends AbstractProcessor {
     }
 
     static void test(CompileKind ck, ScanKind sk) throws IOException {
-        String testClasses = System.getProperty("test.classes");
+        String testClasses = System.getProperty("test.class.path");
         String testSrc = System.getProperty("test.src");
         File testDir = new File("test." + ck + "." + sk);
         testDir.mkdirs();
@@ -102,11 +105,12 @@ public class TestDocComments extends AbstractProcessor {
             }
         };
         JavaCompiler c = ToolProvider.getSystemJavaCompiler();
-        StandardJavaFileManager fm = c.getStandardFileManager(null, null, null);
-        Iterable<? extends JavaFileObject> units = fm.getJavaFileObjects(files);
-        JavacTask t = (JavacTask) c.getTask(null, fm, dl, Arrays.asList(opts), null, units);
-        t.parse();
-        t.analyze();
+        try (StandardJavaFileManager fm = c.getStandardFileManager(null, null, null)) {
+            Iterable<? extends JavaFileObject> units = fm.getJavaFileObjects(files);
+            JavacTask t = (JavacTask) c.getTask(null, fm, dl, Arrays.asList(opts), null, units);
+            t.parse();
+            t.analyze();
+        }
     }
 
     static void test_javac_cmd(String[] opts, File[] files) {
@@ -136,26 +140,15 @@ public class TestDocComments extends AbstractProcessor {
     // ----- Annotation processor: scan for elements and check doc comments ----
 
     Map<String,String> options;
-    Filer filer;
-    Messager messager;
-    Elements elements;
     Trees trees;
     ScanKind skind;
 
     int round = 0;
 
     @Override
-    public SourceVersion getSupportedSourceVersion() {
-        return SourceVersion.latest();
-    }
-
-    @Override
     public void init(ProcessingEnvironment pEnv) {
         super.init(pEnv);
         options = pEnv.getOptions();
-        filer = pEnv.getFiler();
-        messager = pEnv.getMessager();
-        elements = pEnv.getElementUtils();
         trees = Trees.instance(processingEnv);
         skind = ScanKind.valueOf(options.get("scan"));
     }
@@ -271,21 +264,21 @@ public class TestDocComments extends AbstractProcessor {
 
     // ----- Scanners to find elements -----------------------------------------
 
-    class TestElementScanner extends ElementScanner7<Void, Void> {
+    class TestElementScanner extends ElementScanner<Void, Void> {
         @Override
-        public Void visitExecutable(ExecutableElement e, Void _) {
+        public Void visitExecutable(ExecutableElement e, Void p) {
             check(e);
-            return super.visitExecutable(e, _);
+            return super.visitExecutable(e, p);
         }
         @Override
-        public Void visitType(TypeElement e, Void _) {
+        public Void visitType(TypeElement e, Void p) {
             check(e);
-            return super.visitType(e, _);
+            return super.visitType(e, p);
         }
         @Override
-        public Void visitVariable(VariableElement e, Void _) {
+        public Void visitVariable(VariableElement e, Void p) {
             check(e);
-            return super.visitVariable(e, _);
+            return super.visitVariable(e, p);
         }
     }
 
@@ -306,5 +299,4 @@ public class TestDocComments extends AbstractProcessor {
             return super.visitVariable(tree, trees);
         }
     }
-
 }

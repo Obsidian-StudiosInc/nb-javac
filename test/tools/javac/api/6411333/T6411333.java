@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@
  * @summary Ensure 6400208, 6400225, and 6400267 are tested
  * @author  Peter von der Ah\u00e9
  * @library ../lib
+ * @modules java.compiler
+ *          jdk.compiler
  * @build ToolTester
  * @compile T6411333.java
  * @run main T6411333
@@ -82,7 +84,10 @@ public class T6411333 extends ToolTester {
         testRelativeUri("util/List.java", false);
         testRelativeUri("/util/List.java", true);
     }
-    public static void main(String... args) {
-        new T6411333().test(args);
+
+    public static void main(String... args) throws IOException {
+        try (T6411333 t = new T6411333()) {
+            t.test(args);
+        }
     }
 }

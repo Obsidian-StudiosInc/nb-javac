@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
  * @test
  * @bug 6410706
  * @summary CONFORMANCE Mandatory warnings in Tree API
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
  */
 
 import java.io.File;
@@ -44,21 +46,22 @@ public class T6410706 {
         String testClasses = System.getProperty("test.classes", ".");
         JavacTool tool = JavacTool.create();
         MyDiagListener dl = new MyDiagListener();
-        StandardJavaFileManager fm = tool.getStandardFileManager(dl, null, null);
-        fm.setLocation(StandardLocation.CLASS_OUTPUT, Arrays.asList(new File(testClasses)));
-        Iterable<? extends JavaFileObject> files =
-            fm.getJavaFileObjectsFromFiles(Arrays.asList(new File(testSrc, T6410706.class.getName()+".java")));
-        JavacTask task = tool.getTask(null, fm, dl, null, null, files);
-        task.parse();
-        task.analyze();
-        task.generate();
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(dl, null, null)) {
+            fm.setLocation(StandardLocation.CLASS_OUTPUT, Arrays.asList(new File(testClasses)));
+            Iterable<? extends JavaFileObject> files =
+                fm.getJavaFileObjectsFromFiles(Arrays.asList(new File(testSrc, T6410706.class.getName()+".java")));
+            JavacTask task = tool.getTask(null, fm, dl, null, null, files);
+            task.parse();
+            task.analyze();
+            task.generate();
 
-        // expect 2 notes:
-        // Note: T6410706.java uses or overrides a deprecated API.
-        // Note: Recompile with -Xlint:deprecation for details.
+            // expect 2 notes:
+            // Note: T6410706.java uses or overrides a deprecated API.
+            // Note: Recompile with -Xlint:deprecation for details.
 
-        if (dl.notes != 2)
-            throw new AssertionError(dl.notes + " notes given");
+            if (dl.notes != 2)
+                throw new AssertionError(dl.notes + " notes given");
+        }
     }
 
     private static class MyDiagListener implements DiagnosticListener<JavaFileObject>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,11 +27,14 @@
  * @summary JSR 199: JavaCompilerTool can compile and generate '.class' of non '.java' files
  * @author  Peter von der Ah\u00e9
  * @library ../lib
+ * @modules java.compiler
+ *          jdk.compiler
  * @build ToolTester
  * @run main T6422327
  */
 
 import java.io.File;
+import java.io.IOException;
 
 public class T6422327 extends ToolTester {
     void test(String... args) {
@@ -43,7 +46,9 @@ public class T6422327 extends ToolTester {
             System.err.println("OK, got expected exception: " + e.getLocalizedMessage());
         }
     }
-    public static void main(String... args) {
-        new T6422327().test(args);
+    public static void main(String... args) throws IOException {
+        try (T6422327 t = new T6422327()) {
+            t.test(args);
+        }
     }
 }

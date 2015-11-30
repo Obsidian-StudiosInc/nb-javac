@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,12 @@
 
 /*
  * @test
- * @bug 7047734 8027660 8037937 8047719 8058708
+ * @bug 7047734 8027660 8037937 8047719 8058708 8064857
  * @summary The LVT is not generated correctly during some try/catch scenarios
  *          javac crash while creating LVT entry for a local variable defined in
  *          an inner block
  * @library /tools/javac/lib
+ * @modules jdk.jdeps/com.sun.tools.classfile
  * @build JavacTestingAbstractProcessor LVTHarness
  * @run main LVTHarness
  */
@@ -76,18 +77,21 @@ public class LVTHarness {
     static final StandardJavaFileManager fm = comp.getStandardFileManager(null, null, null);
 
     public static void main(String[] args) throws Exception {
+        try {
+            String testDir = System.getProperty("test.src");
+            fm.setLocation(SOURCE_PATH, Arrays.asList(new File(testDir, "tests")));
 
-        String testDir = System.getProperty("test.src");
-        fm.setLocation(SOURCE_PATH, Arrays.asList(new File(testDir, "tests")));
+            // Make sure classes are written to scratch dir.
+            fm.setLocation(CLASS_OUTPUT, Arrays.asList(new File(".")));
 
-        // Make sure classes are written to scratch dir.
-        fm.setLocation(CLASS_OUTPUT, Arrays.asList(new File(".")));
-
-        for (JavaFileObject jfo : fm.list(SOURCE_PATH, "", Collections.singleton(SOURCE), true)) {
-            new LVTHarness(jfo).check();
-        }
-        if (nerrors > 0) {
-            throw new AssertionError("Errors were found");
+            for (JavaFileObject jfo : fm.list(SOURCE_PATH, "", Collections.singleton(SOURCE), true)) {
+                new LVTHarness(jfo).check();
+            }
+            if (nerrors > 0) {
+                throw new AssertionError("Errors were found");
+            }
+        } finally {
+            fm.close();
         }
     }
 
@@ -144,7 +148,7 @@ public class LVTHarness {
     }
 
     void checkMethod(ConstantPool constantPool, Method method, AliveRanges ranges)
-            throws InvalidIndex, UnexpectedEntry {
+            throws InvalidIndex, UnexpectedEntry, ConstantPoolException {
         Code_attribute code = (Code_attribute) method.attributes.get(Attribute.Code);
         LocalVariableTable_attribute lvt =
             (LocalVariableTable_attribute) (code.attributes.get(Attribute.LocalVariableTable));
@@ -166,7 +170,7 @@ public class LVTHarness {
         }
 
         if (i < infoFromRanges.size()) {
-            error(infoFromLVT, infoFromRanges);
+            error(infoFromLVT, infoFromRanges, method.getName(constantPool).toString());
         }
     }
 
@@ -202,9 +206,10 @@ public class LVTHarness {
         return sb.toString();
     }
 
-    protected void error(List<String> infoFromLVT, List<String> infoFromRanges) {
+    protected void error(List<String> infoFromLVT, List<String> infoFromRanges, String methodName) {
         nerrors++;
         System.err.printf("Error occurred while checking file: %s\n", jfo.getName());
+        System.err.printf("at method: %s\n", methodName);
         System.err.println("The range info from the annotations is");
         printStringListToErrOutput(infoFromRanges);
         System.err.println();

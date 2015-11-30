@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
  * @test
  * @bug 7150368 8003412 8000407
  * @summary javac should include basic ability to generate native headers
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
  */
 
 import java.io.File;
@@ -193,27 +195,30 @@ public class NativeHeaderTest {
     void run() throws Exception {
         javac = JavacTool.create();
         fm = javac.getStandardFileManager(null, null, null);
-
-        for (RunKind rk: RunKind.values()) {
-            for (GenKind gk: GenKind.values()) {
-                for (Method m: getClass().getDeclaredMethods()) {
-                    Annotation a = m.getAnnotation(Test.class);
-                    if (a != null) {
-                        init(rk, gk, m.getName());
-                        try {
-                            m.invoke(this, new Object[] { rk, gk });
-                        } catch (InvocationTargetException e) {
-                            Throwable cause = e.getCause();
-                            throw (cause instanceof Exception) ? ((Exception) cause) : e;
+        try {
+            for (RunKind rk: RunKind.values()) {
+                for (GenKind gk: GenKind.values()) {
+                    for (Method m: getClass().getDeclaredMethods()) {
+                        Annotation a = m.getAnnotation(Test.class);
+                        if (a != null) {
+                            init(rk, gk, m.getName());
+                            try {
+                                m.invoke(this, new Object[] { rk, gk });
+                            } catch (InvocationTargetException e) {
+                                Throwable cause = e.getCause();
+                                throw (cause instanceof Exception) ? ((Exception) cause) : e;
+                            }
+                            System.err.println();
                         }
-                        System.err.println();
                     }
                 }
             }
+            System.err.println(testCount + " tests" + ((errorCount == 0) ? "" : ", " + errorCount + " errors"));
+            if (errorCount > 0)
+                throw new Exception(errorCount + " errors found");
+        } finally {
+            fm.close();
         }
-        System.err.println(testCount + " tests" + ((errorCount == 0) ? "" : ", " + errorCount + " errors"));
-        if (errorCount > 0)
-            throw new Exception(errorCount + " errors found");
     }
 
     /**

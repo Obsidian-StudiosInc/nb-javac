@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -27,7 +25,12 @@
  * @test
  * @bug 8024039
  * @summary javac, previous solution for JDK-8022186 was incorrect
- * @library /tools/javac/lib
+ * @library /tools/lib
+ * @modules jdk.jdeps/com.sun.tools.classfile
+ *          jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.compiler/com.sun.tools.javac.util
  * @build ToolBox
  * @run main NoDeadCodeGenerationOnTrySmtTest
  */
@@ -76,6 +79,8 @@ public class NoDeadCodeGenerationOnTrySmtTest {
 
     static final String[] methodsToLookFor = {"m1", "m2"};
 
+    ToolBox tb = new ToolBox();
+
     public static void main(String[] args) throws Exception {
         new NoDeadCodeGenerationOnTrySmtTest().run();
     }
@@ -87,9 +92,9 @@ public class NoDeadCodeGenerationOnTrySmtTest {
     }
 
     void compileTestClass() throws Exception {
-        ToolBox.JavaToolArgs javacSuccessArgs =
-                new ToolBox.JavaToolArgs().setSources(testSource);
-        ToolBox.javac(javacSuccessArgs);
+        tb.new JavacTask()
+                .sources(testSource)
+                .run();
     }
 
     void checkClassFile(final File cfile, String[] methodsToFind) throws Exception {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
  * @test
  * @bug 6358955
  * @summary JavacFileManager.getFileForInput(dir) shuld throw IAE
+ * @modules java.compiler
+ *          jdk.compiler
  */
 
 import java.io.File;
@@ -36,34 +38,35 @@ import static javax.tools.JavaFileObject.Kind.*;
 public class T6358955 {
     public static void main(String[] args) throws Exception {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        StandardJavaFileManager jfm = compiler.getStandardFileManager(null, null, null);
+        try (StandardJavaFileManager jfm = compiler.getStandardFileManager(null, null, null)) {
 
-        File dir = new File("temp" + args.hashCode());
-        if (!dir.exists())
-            dir.mkdir();
-        if (!dir.isDirectory())
-            throw new AssertionError("Not a directory " + dir);
+            File dir = new File("temp" + args.hashCode());
+            if (!dir.exists())
+                dir.mkdir();
+            if (!dir.isDirectory())
+                throw new AssertionError("Not a directory " + dir);
 
-        try {
-            jfm.setLocation(StandardLocation.CLASS_OUTPUT,
-                            Arrays.asList(dir.getCanonicalFile().getParentFile()));
             try {
-                jfm.getFileForInput(StandardLocation.CLASS_OUTPUT, "", dir.getPath());
-                throw new AssertionError("IllegalArgumentException not thrown");
-            } catch (IllegalArgumentException e) {
-                System.out.println("OK: " + e.getLocalizedMessage());
-            }
-            try {
-                jfm.getJavaFileObjectsFromFiles(Arrays.asList(dir));
-                throw new AssertionError("IllegalArgumentException not thrown");
-            } catch (IllegalArgumentException e) {
-                System.out.println("OK: " + e.getLocalizedMessage());
-            }
-        } finally {
-            try {
-                dir.delete(); // cleanup
-            } catch (Throwable t) {
-                t.printStackTrace();
+                jfm.setLocation(StandardLocation.CLASS_OUTPUT,
+                                Arrays.asList(dir.getCanonicalFile().getParentFile()));
+                try {
+                    jfm.getFileForInput(StandardLocation.CLASS_OUTPUT, "", dir.getPath());
+                    throw new AssertionError("IllegalArgumentException not thrown");
+                } catch (IllegalArgumentException e) {
+                    System.out.println("OK: " + e.getLocalizedMessage());
+                }
+                try {
+                    jfm.getJavaFileObjectsFromFiles(Arrays.asList(dir));
+                    throw new AssertionError("IllegalArgumentException not thrown");
+                } catch (IllegalArgumentException e) {
+                    System.out.println("OK: " + e.getLocalizedMessage());
+                }
+            } finally {
+                try {
+                    dir.delete(); // cleanup
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
             }
         }
     }

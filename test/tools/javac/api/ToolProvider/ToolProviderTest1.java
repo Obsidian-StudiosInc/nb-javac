@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,15 @@
  * @test
  * @bug 6604599
  * @summary ToolProvider should be less compiler-specific
+ * @library /tools/lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
+ * @build ToolBox
+ * @run main ToolProviderTest1
  */
 
-import java.io.*;
+import java.util.List;
 
 // verify that running accessing ToolProvider by itself does not
 // trigger loading com.sun.tools.javac.*
@@ -42,32 +48,22 @@ public class ToolProviderTest1 {
     }
 
     void run() throws Exception {
-        File javaHome = new File(System.getProperty("java.home"));
-        if (javaHome.getName().equals("jre"))
-            javaHome = javaHome.getParentFile();
-        File javaExe = new File(new File(javaHome, "bin"), "java");
+        ToolBox tb = new ToolBox();
         String classpath = System.getProperty("java.class.path");
 
-        String[] cmd = {
-            javaExe.getPath(),
-            "-verbose:class",
-            "-classpath", classpath,
-            ToolProviderTest1.class.getName(),
-            "javax.tools.ToolProvider"
-        };
+        List<String> lines = tb.new JavaTask()
+                .vmOptions("-verbose:class")
+                .classpath(classpath)
+                .className(getClass().getName())
+                .classArgs("javax.tools.ToolProvider")
+                .run()
+                .getOutputLines(ToolBox.OutputKind.STDOUT);
 
-        ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true);
-        Process p = pb.start();
-        BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
-        String line;
-        while ((line = r.readLine()) != null) {
+        for (String line : lines) {
             System.err.println(line);
             if (line.contains("com.sun.tools.javac."))
                 error(">>> " + line);
         }
-        int rc = p.waitFor();
-        if (rc != 0)
-            error("Unexpected exit code: " + rc);
 
         if (errors > 0)
             throw new Exception(errors + " errors occurred");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@
  * @summary diagnostic output should optionally include source line
  * @author  Maurizio Cimadamore
  * @library ../lib
+ * @modules java.compiler
+ *          jdk.compiler
  * @build ToolTester
  * @run main T6731573
  */
@@ -106,6 +108,8 @@ public class T6731573 extends ToolTester {
     }
 
     public static void main(String... args) throws Exception {
-        new T6731573().test();
+        try (T6731573 t = new T6731573()) {
+            t.test();
+        }
     }
 }

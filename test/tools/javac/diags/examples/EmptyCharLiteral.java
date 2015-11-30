@@ -22,8 +22,6 @@
  */
 
 // key: compiler.err.empty.char.lit
-// key: compiler.err.unclosed.char.lit
-// key: compiler.err.premature.eof
 
 class X {
     char c = '';

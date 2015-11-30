@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
  * @bug     6608214
  * @summary Exception throw while analysing a file with error
  * @author  Maurizio Cimadamore
+ * @modules jdk.compiler
  */
 
 import com.sun.source.util.JavacTask;
@@ -47,8 +48,7 @@ public class T6608214 {
             }
         };
         List<? extends JavaFileObject> files = Arrays.asList(sfo);
-        String bootPath = System.getProperty("sun.boot.class.path");
-        List<String> opts = Arrays.asList("-bootclasspath",  bootPath, "-Xjcov");
+        List<String> opts = Arrays.asList("-Xjcov");
         JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         JavacTask ct = (JavacTask)tool.getTask(null, null, null,opts,null,files);
         ct.analyze();

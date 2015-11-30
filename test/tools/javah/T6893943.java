@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
  * @test
  * @bug 6893943 6937318
  * @summary exit code from javah with no args is 0
+ * @modules jdk.compiler
  */
 
 import java.io.*;
@@ -58,12 +59,8 @@ public class T6893943 {
     void testCommand(String[] args, int expect_rc) throws Exception {
         System.err.println("Test command: " + Arrays.asList(args));
         File javaHome = new File(System.getProperty("java.home"));
-        if (javaHome.getName().equals("jre"))
-            javaHome = javaHome.getParentFile();
-
         List<String> command = new ArrayList<String>();
         command.add(new File(new File(javaHome, "bin"), "javah").getPath());
-        command.add("-J-Xbootclasspath:" + System.getProperty("sun.boot.class.path"));
         command.addAll(Arrays.asList(args));
         //System.err.println("command: " + command);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,9 @@
 
 /*
  * @test
- * @bug 6499673
+ * @bug 6499673 6557966
  * @library /tools/javac/lib
+ * @modules jdk.compiler/com.sun.tools.javac.util
  * @build JavacTestingAbstractProcessor IntersectionPropertiesTest
  * @run main IntersectionPropertiesTest
  * @summary Assertion check for TypeVariable.getUpperBound() fails
@@ -76,10 +77,14 @@ public class IntersectionPropertiesTest {
     }
 
     public void run() throws IOException {
-        runOne(Intersection_name, Intersection_contents);
+        try {
+            runOne(Intersection_name, Intersection_contents);
 
-        if (0 != errors)
-            throw new RuntimeException(errors + " errors occurred");
+            if (0 != errors)
+                throw new RuntimeException(errors + " errors occurred");
+        } finally {
+            fm.close();
+        }
     }
 
     public static void main(String... args) throws IOException {

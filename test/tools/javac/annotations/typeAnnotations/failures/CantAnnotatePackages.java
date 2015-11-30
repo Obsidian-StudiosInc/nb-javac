@@ -1,8 +1,9 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 1234567
+ * @bug 8026564
  * @summary The parts of a fully-qualified type can't be annotated.
  * @author Werner Dietl
+ * @ignore 8057679 clarify error messages trying to annotate scoping
  * @compile/fail/ref=CantAnnotatePackages.out -XDrawDiagnostics CantAnnotatePackages.java
  */
 

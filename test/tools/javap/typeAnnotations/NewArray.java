@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ import com.sun.tools.classfile.*;
  * @test NewArray
  * @bug 6843077
  * @summary Test type annotations on local array are in method's code attribute.
+ * @modules jdk.jdeps/com.sun.tools.classfile
  */
 
 public class NewArray {
@@ -102,7 +103,7 @@ public class NewArray {
     }
 
     File compileTestFile(File f) {
-        int rc = com.sun.tools.javac.Main.compile(new String[] { "-source", "1.8", "-g", f.getPath() });
+        int rc = com.sun.tools.javac.Main.compile(new String[] {"-g", f.getPath() });
         if (rc != 0)
             throw new Error("compilation failed. rc=" + rc);
         String path = f.getPath();

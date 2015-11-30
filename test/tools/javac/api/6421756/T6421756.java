@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,11 +27,14 @@
  * @summary 6421756 JSR 199: In the method JavaCompilerTool.getTask 'options' can be supplied in the place of 'classes'
  * @author  Peter von der Ah\u00e9
  * @library ../lib
+ * @modules java.compiler
+ *          jdk.compiler
  * @build ToolTester
  * @compile T6421756.java
  * @run main T6421756
  */
 
+import java.io.IOException;
 import java.util.Collections;
 
 public class T6421756 extends ToolTester {
@@ -44,7 +47,9 @@ public class T6421756 extends ToolTester {
             System.out.println("OK: got expected error " + e.getLocalizedMessage());
         }
     }
-    public static void main(String... args) {
-        new T6421756().test(args);
+    public static void main(String... args) throws IOException {
+        try (T6421756 t = new T6421756()) {
+            t.test(args);
+        }
     }
 }

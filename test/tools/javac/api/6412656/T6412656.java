@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,10 +27,13 @@
  * @summary JSR 199: pass annotation processor instances to compiler
  * @author  Peter von der Ah\u00e9
  * @library ../lib
+ * @modules java.compiler
+ *          jdk.compiler
  * @build ToolTester
  * @run main T6412656
  */
 
+import java.io.IOException;
 import java.util.Set;
 import java.util.Collections;
 import javax.lang.model.element.TypeElement;
@@ -52,8 +55,10 @@ public class T6412656 extends ToolTester {
         System.out.println("OK");
     }
 
-    public static void main(String... args) {
-        new T6412656().test(args);
+    public static void main(String... args) throws IOException {
+        try (T6412656 t = new T6412656()) {
+            t.test(args);
+        }
     }
 
     @SupportedAnnotationTypes("*")

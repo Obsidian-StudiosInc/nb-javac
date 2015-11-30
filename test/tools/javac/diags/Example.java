@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaCompiler.CompilationTask;
+import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
@@ -311,24 +312,29 @@ class Example implements Comparable<Example> {
 
         static class DefaultFactory implements Factory {
             public Compiler getCompiler(List<String> opts, boolean verbose) {
-            String first;
-            String[] rest;
-                if (opts == null || opts.isEmpty()) {
-                first = null;
-                rest = new String[0];
-            } else {
-                first = opts.get(0);
-                rest = opts.subList(1, opts.size()).toArray(new String[opts.size() - 1]);
-            }
-            if (first == null || first.equals("jsr199"))
-                return new Jsr199Compiler(verbose, rest);
-            else if (first.equals("simple"))
-                return new SimpleCompiler(verbose);
-            else if (first.equals("backdoor"))
-                return new BackdoorCompiler(verbose);
-            else
-                throw new IllegalArgumentException(first);
+                String first;
+                String[] rest;
+                    if (opts == null || opts.isEmpty()) {
+                    first = null;
+                    rest = new String[0];
+                } else {
+                    first = opts.get(0);
+                    rest = opts.subList(1, opts.size()).toArray(new String[opts.size() - 1]);
                 }
+                // For more details on the different compilers,
+                // see their respective class doc comments.
+                // See also README.examples.txt in this directory.
+                if (first == null || first.equals("jsr199"))
+                    return new Jsr199Compiler(verbose, rest);
+                else if (first.equals("simple"))
+                    return new SimpleCompiler(verbose);
+                else if (first.equals("backdoor"))
+                    return new BackdoorCompiler(verbose);
+                else if (first.equals("exec"))
+                    return new ExecCompiler(verbose);
+                else
+                    throw new IllegalArgumentException(first);
+            }
         }
 
         static Factory factory;
@@ -349,6 +355,14 @@ class Example implements Comparable<Example> {
 
         void setSupportClassLoader(ClassLoader cl) {
             loader = cl;
+        }
+
+        protected void close(JavaFileManager fm) {
+            try {
+                fm.close();
+            } catch (IOException e) {
+                throw new Error(e);
+            }
         }
 
         protected ClassLoader loader;
@@ -399,21 +413,25 @@ class Example implements Comparable<Example> {
             JavaCompiler c = ToolProvider.getSystemJavaCompiler();
 
             StandardJavaFileManager fm = c.getStandardFileManager(dc, null, null);
-            if (fmOpts != null)
-                fm = new FileManager(fm, fmOpts);
+            try {
+                if (fmOpts != null)
+                    fm = new FileManager(fm, fmOpts);
 
-            Iterable<? extends JavaFileObject> fos = fm.getJavaFileObjectsFromFiles(files);
+                Iterable<? extends JavaFileObject> fos = fm.getJavaFileObjectsFromFiles(files);
 
-            CompilationTask t = c.getTask(out, fm, dc, opts, null, fos);
-            Boolean ok = t.call();
+                CompilationTask t = c.getTask(out, fm, dc, opts, null, fos);
+                Boolean ok = t.call();
 
-            if (keys != null) {
-                for (Diagnostic<? extends JavaFileObject> d: dc.getDiagnostics()) {
-                    scanForKeys(unwrap(d), keys);
+                if (keys != null) {
+                    for (Diagnostic<? extends JavaFileObject> d: dc.getDiagnostics()) {
+                        scanForKeys(unwrap(d), keys);
+                    }
                 }
-            }
 
-            return ok;
+                return ok;
+            } finally {
+                close(fm);
+            }
         }
 
         /**
@@ -493,6 +511,84 @@ class Example implements Comparable<Example> {
         }
     }
 
+    /**
+     * Run the test in a separate process.
+     */
+    static class ExecCompiler extends Compiler {
+        ExecCompiler(boolean verbose) {
+            super(verbose);
+        }
+
+        @Override
+        boolean run(PrintWriter out, Set<String> keys, boolean raw, List<String> opts, List<File> files) {
+            if (out != null && keys != null)
+                throw new IllegalArgumentException();
+
+            if (verbose)
+                System.err.println("run_exec: " + opts + " " + files);
+
+            List<String> args = new ArrayList<String>();
+
+            File javaHome = new File(System.getProperty("java.home"));
+            if (javaHome.getName().equals("jre"))
+                javaHome = javaHome.getParentFile();
+            File javaExe = new File(new File(javaHome, "bin"), "java");
+            args.add(javaExe.getPath());
+
+            File toolsJar = new File(new File(javaHome, "lib"), "tools.jar");
+            if (toolsJar.exists()) {
+                args.add("-classpath");
+                args.add(toolsJar.getPath());
+            }
+
+            addOpts(args, "test.vm.opts");
+            addOpts(args, "test.java.opts");
+            args.add(com.sun.tools.javac.Main.class.getName());
+
+            if (keys != null || raw)
+                args.add("-XDrawDiagnostics");
+
+            args.addAll(opts);
+            for (File f: files)
+                args.add(f.getPath());
+
+            try {
+                ProcessBuilder pb = new ProcessBuilder(args);
+                pb.redirectErrorStream(true);
+                Process p = pb.start();
+                BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
+                String line;
+                while ((line = in.readLine()) != null) {
+                    if (keys != null)
+                        scanForKeys(line, keys);
+                }
+                int rc = p.waitFor();
+
+                return (rc == 0);
+            } catch (IOException | InterruptedException e) {
+                System.err.println("Exception execing javac" + e);
+                System.err.println("Command line: " + opts);
+                return false;
+            }
+        }
+
+        private static void scanForKeys(String text, Set<String> keys) {
+            StringTokenizer st = new StringTokenizer(text, " ,\r\n():");
+            while (st.hasMoreElements()) {
+                String t = st.nextToken();
+                if (t.startsWith("compiler."))
+                    keys.add(t);
+            }
+        }
+
+        private static void addOpts(List<String> args, String propName) {
+            String propValue = System.getProperty(propName);
+            if (propValue == null || propValue.isEmpty())
+                return;
+            args.addAll(Arrays.asList(propValue.split(" +", 0)));
+        }
+    }
+
     static class BackdoorCompiler extends Compiler {
         BackdoorCompiler(boolean verbose) {
             super(verbose);
@@ -526,14 +622,19 @@ class Example implements Comparable<Example> {
             Context c = new Context();
             JavacFileManager.preRegister(c); // can't create it until Log has been set up
             MessageTracker.preRegister(c, keys);
-            Main m = new Main("javac", pw);
-            Main.Result rc = m.compile(args.toArray(new String[args.size()]), c);
 
-            if (keys != null) {
-                pw.close();
+            try {
+                Main m = new Main("javac", pw);
+                Main.Result rc = m.compile(args.toArray(new String[args.size()]), c);
+
+                if (keys != null) {
+                    pw.close();
+                }
+
+                return rc.isOK();
+            } finally {
+                close(c.get(JavaFileManager.class));
             }
-
-            return rc.isOK();
         }
 
         static class MessageTracker extends JavacMessages {

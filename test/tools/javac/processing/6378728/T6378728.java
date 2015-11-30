@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
  * @bug     6378728
  * @summary Verify -proc:only doesn't produce class files
  * @author  Joseph D. Darcy
+ * @modules java.compiler
+ *          jdk.compiler
  * @compile T6378728.java
  * @run main T6378728
  */
@@ -64,21 +66,22 @@ public class T6378728 {
         }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         // Get a compiler tool
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         String srcdir = System.getProperty("test.src");
         File source = new File(srcdir, "T6378728.java");
-        StandardJavaFileManager fm = compiler.getStandardFileManager(null, null, null);
+        try (StandardJavaFileManager fm = compiler.getStandardFileManager(null, null, null)) {
 
-        CompilationTask task =
-            compiler.getTask(null,
-                             new ExceptionalFileManager(fm),
-                             null,
-                             Arrays.asList("-proc:only"),
-                             null,
-                             fm.getJavaFileObjectsFromFiles(Arrays.asList(source)));
-        if (!task.call())
-            throw new RuntimeException("Unexpected compilation failure");
+            CompilationTask task =
+                compiler.getTask(null,
+                                 new ExceptionalFileManager(fm),
+                                 null,
+                                 Arrays.asList("-proc:only"),
+                                 null,
+                                 fm.getJavaFileObjectsFromFiles(Arrays.asList(source)));
+            if (!task.call())
+                throw new RuntimeException("Unexpected compilation failure");
+        }
     }
 }

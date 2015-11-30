@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,13 @@
 
 /*
  * @test
- * @bug 8004182
+ * @bug 8004182 8028545
  * @summary Add support for profiles in javac
+ * @modules java.desktop
+ *          java.sql.rowset
+ *          jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.jvm
+ *          jdk.security.auth
  */
 
 import java.io.PrintWriter;
@@ -67,7 +72,7 @@ public class ProfileOptionTest {
     // ---------- Test cases, invoked reflectively via run. ----------
 
     @Test
-    void testInvalidProfile_CommandLine() throws Exception {
+    void testInvalidProfile_API() throws Exception {
         JavaFileObject fo = new StringJavaFileObject("Test.java", "class Test { }");
         String badName = "foo";
         List<String> opts = Arrays.asList("-profile", badName);
@@ -82,7 +87,7 @@ public class ProfileOptionTest {
     }
 
     @Test
-    void testInvalidProfile_API() throws Exception {
+    void testInvalidProfile_CommandLine() throws Exception {
         String badName = "foo";
         String[] opts = { "-profile", badName };
         StringWriter sw = new StringWriter();
@@ -105,20 +110,31 @@ public class ProfileOptionTest {
         JavaFileObject fo = new StringJavaFileObject("Test.java", "class Test { }");
         for (Target t: Target.values()) {
             switch (t) {
-                case JDK1_1: case JDK1_2: // no equivalent -source
+                case JDK1_1:
+                case JDK1_2:
+                case JDK1_3:
+                case JDK1_4:
+                case JDK1_5: // not supported
                     continue;
             }
 
             for (Profile p: Profile.values()) {
-                List<String> opts = new ArrayList<String>();
+                List<String> opts = new ArrayList<>();
                 opts.addAll(Arrays.asList("-source", t.name, "-target", t.name));
-                opts.add("-Xlint:-options"); // dont warn about no -bootclasspath
+                opts.add("-Xlint:-options"); // don't warn about no -bootclasspath
                 if (p != Profile.DEFAULT)
                     opts.addAll(Arrays.asList("-profile", p.name));
+
+                IllegalStateException ise;
                 StringWriter sw = new StringWriter();
-                JavacTask task = (JavacTask) javac.getTask(sw, fm, null, opts, null,
-                        Arrays.asList(fo));
-                task.analyze();
+                try {
+                    JavacTask task = (JavacTask) javac.getTask(sw, fm, null, opts, null,
+                            Arrays.asList(fo));
+                    task.analyze();
+                    ise = null;
+                } catch (IllegalStateException e) {
+                    ise = e;
+                }
 
                 // sadly, command line errors are not (yet?) reported to
                 // the diag listener
@@ -128,14 +144,18 @@ public class ProfileOptionTest {
 
                 switch (t) {
                     case JDK1_8:
-                        if (!out.isEmpty())
-                            error("unexpected output from compiler");
+                    case JDK1_9:
+                        if (ise != null)
+                            error("unexpected exception from compiler: " + ise);
                         break;
                     default:
-                        if (p != Profile.DEFAULT
-                                && !out.contains("profile " + p.name
+                        if (p == Profile.DEFAULT)
+                            break;
+                        if (ise == null)
+                            error("IllegalStateException not thrown as expected");
+                        else if (!ise.getMessage().contains("profile " + p.name
                                     + " is not valid for target release " + t.name)) {
-                            error("expected message not found");
+                            error("exception not thrown as expected: " + ise);
                         }
                 }
             }
@@ -183,8 +203,7 @@ public class ProfileOptionTest {
                 com.sun.security.auth.PolicyFile.class); // specifically included in 3
 
         init(Profile.DEFAULT,
-                java.beans.BeanInfo.class,
-                javax.management.remote.rmi._RMIServer_Stub.class); // specifically excluded in 3
+                java.beans.BeanInfo.class);
     }
 
     void init(Profile p, Class<?>... classes) {
@@ -226,24 +245,28 @@ public class ProfileOptionTest {
 
     /** Run all test cases. */
     void run() throws Exception {
-        initTestClasses();
+        try {
+            initTestClasses();
 
-        for (Method m: getClass().getDeclaredMethods()) {
-            Annotation a = m.getAnnotation(Test.class);
-            if (a != null) {
-                System.err.println(m.getName());
-                try {
-                    m.invoke(this, new Object[] { });
-                } catch (InvocationTargetException e) {
-                    Throwable cause = e.getCause();
-                    throw (cause instanceof Exception) ? ((Exception) cause) : e;
+            for (Method m: getClass().getDeclaredMethods()) {
+                Annotation a = m.getAnnotation(Test.class);
+                if (a != null) {
+                    System.err.println(m.getName());
+                    try {
+                        m.invoke(this, new Object[] { });
+                    } catch (InvocationTargetException e) {
+                        Throwable cause = e.getCause();
+                        throw (cause instanceof Exception) ? ((Exception) cause) : e;
+                    }
+                    System.err.println();
                 }
-                System.err.println();
             }
-        }
 
-        if (errors > 0)
-            throw new Exception(errors + " errors occurred");
+            if (errors > 0)
+                throw new Exception(errors + " errors occurred");
+        } finally {
+            fm.close();
+        }
     }
 
     void error(String msg) {

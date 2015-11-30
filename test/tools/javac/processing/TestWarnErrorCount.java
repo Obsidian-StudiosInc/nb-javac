@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
  * @bug 7022337
  * @summary repeated warnings about bootclasspath not set
  * @library /tools/javac/lib
+ * @modules jdk.compiler
  * @build JavacTestingAbstractProcessor TestWarnErrorCount
  * @run main TestWarnErrorCount
  */
@@ -214,7 +215,7 @@ public class TestWarnErrorCount extends JavacTestingAbstractProcessor {
                 javaWarnsExpected = 0;
                 break;
             case JAVA:
-                errsExpected = 2;
+                errsExpected = 1;
                 msgrWarnsExpected = mwk.count(1, ERROR_ROUND + 1);
                 javaWarnsExpected = 0;
                 break;

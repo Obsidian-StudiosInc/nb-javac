@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ import org.openjdk.tests.shapegen.*;
 import com.sun.source.util.JavacTask;
 import com.sun.tools.javac.util.Pair;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -41,6 +42,7 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
+import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.DataProvider;
@@ -70,12 +72,19 @@ public class FDTest {
         fm = comp.getStandardFileManager(null, null, null);
     }
 
+    @AfterSuite
+    static void teardown() throws IOException {
+        fm.close();
+    }
+
     public static void main(String[] args) throws Exception {
         init();
 
         for (Pair<TestKind,Hierarchy> fdtest : generateCases()) {
             runTest(fdtest.fst, fdtest.snd, comp, fm);
         }
+
+        teardown();
     }
 
     @Test(dataProvider = "fdCases")
@@ -99,9 +108,10 @@ public class FDTest {
     public static List<Pair<TestKind, Hierarchy>> generateCases() {
         ArrayList<Pair<TestKind,Hierarchy>> list = new ArrayList<>();
         HierarchyGenerator hg = new HierarchyGenerator();
+        int i = 0;
         for (TestKind tk : TestKind.values()) {
             for (Hierarchy hs : tk.getHierarchy(hg)) {
-                list.add(new Pair<>(tk, hs));
+                list.add((i++ % 2) == 0 ? new Pair<>(tk, hs) {} : new Pair<>(tk, hs));
             }
         }
         return list;

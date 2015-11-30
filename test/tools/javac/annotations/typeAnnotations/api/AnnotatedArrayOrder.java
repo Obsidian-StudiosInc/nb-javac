@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,10 @@
 
 /*
  * @test
+ * @bug 8031744
  * @summary Checks the annotation types targeting array types
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
  */
 
 import com.sun.tools.javac.api.JavacTool;
@@ -34,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.lang.annotation.*;
-import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import com.sun.source.tree.*;
 import com.sun.source.util.JavacTask;
@@ -46,18 +48,18 @@ public class AnnotatedArrayOrder {
     public static void main(String[] args) throws Exception {
         PrintWriter out = new PrintWriter(System.out, true);
         JavacTool tool = JavacTool.create();
-        StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null);
-        File testSrc = new File(System.getProperty("test.src"));
-        Iterable<? extends JavaFileObject> f =
-            fm.getJavaFileObjectsFromFiles(Arrays.asList(new File(testSrc, "AnnotatedArrayOrder.java")));
-        JavacTask task = tool.getTask(out, fm, null, null, null, f);
-        Iterable<? extends CompilationUnitTree> trees = task.parse();
-        out.flush();
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null)) {
+            File testSrc = new File(System.getProperty("test.src"));
+            Iterable<? extends JavaFileObject> f =
+                fm.getJavaFileObjectsFromFiles(Arrays.asList(new File(testSrc, "AnnotatedArrayOrder.java")));
+            JavacTask task = tool.getTask(out, fm, null, null, null, f);
+            Iterable<? extends CompilationUnitTree> trees = task.parse();
+            out.flush();
 
-        Scanner s = new Scanner();
-        for (CompilationUnitTree t: trees)
-            s.scan(t, null);
-
+            Scanner s = new Scanner();
+            for (CompilationUnitTree t: trees)
+                s.scan(t, null);
+        }
     }
 
     private static class Scanner extends TreeScanner<Void,Void> {

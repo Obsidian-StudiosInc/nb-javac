@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,13 +26,16 @@
  * @bug     6457284
  * @summary Internationalize "unnamed package" when the term is used in diagnostics
  * @author  Peter von der Ah\u00e9
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.util
  */
 
 import java.io.IOException;
 import java.net.URI;
 import javax.lang.model.element.Element;
 
-import com.sun.tools.javac.api.JavacTaskImpl;
+import com.sun.source.util.JavacTask;
+import com.sun.tools.javac.api.JavacTool;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.JavacMessages;
@@ -49,10 +52,12 @@ public class T6457284 {
         }
     }
     public static void main(String[] args) throws IOException {
-        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        JavacTaskImpl task = (JavacTaskImpl)compiler.getTask(null, null, null, null, null,
-                                                             List.of(new MyFileObject()));
-        MyMessages.preRegister(task.getContext());
+        Context context = new Context();
+        MyMessages.preRegister(context);
+        JavacTool tool = JavacTool.create();
+        JavacTask task = tool.getTask(null, null, null, null, null,
+                                      List.of(new MyFileObject()),
+                                      context);
         task.parse();
         for (Element e : task.analyze()) {
             if (!e.getEnclosingElement().toString().equals("compiler.misc.unnamed.package"))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,10 @@
  * @summary Additional functionality test of task and JSR 269
  * @author  Peter von der Ah\u00e9
  * @library ./lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.code
+ *          jdk.compiler/com.sun.tools.javac.parser
+ *          jdk.compiler/com.sun.tools.javac.util
  * @build ToolTester
  * @run main TestJavacTaskScanner TestJavacTaskScanner.java
  */
@@ -75,11 +79,7 @@ public class TestJavacTaskScanner extends ToolTester {
 
     public void run() {
         Iterable<? extends TypeElement> toplevels;
-        try {
-            toplevels = task.enter(task.parse());
-        } catch (IOException ex) {
-            throw new AssertionError(ex);
-        }
+        toplevels = task.enter(task.parse());
         for (TypeElement clazz : toplevels) {
             System.out.format("Testing %s:%n%n", clazz.getSimpleName());
             testParseType(clazz);
@@ -93,7 +93,7 @@ public class TestJavacTaskScanner extends ToolTester {
         System.out.println("#parseTypeElements: " + numParseTypeElements);
         System.out.println("#allMembers: " + numAllMembers);
 
-        check(numTokens, "#Tokens", 1222);
+        check(numTokens, "#Tokens", 1054);
         check(numParseTypeElements, "#parseTypeElements", 158);
         check(numAllMembers, "#allMembers", 52);
     }
@@ -119,7 +119,9 @@ public class TestJavacTaskScanner extends ToolTester {
 
     public static void main(String... args) throws IOException {
         String srcdir = System.getProperty("test.src");
-        new TestJavacTaskScanner(new File(srcdir, args[0])).run();
+        try (TestJavacTaskScanner t = new TestJavacTaskScanner(new File(srcdir, args[0]))) {
+            t.run();
+        }
     }
 
     private void testGetAllMembers(TypeElement clazz) {
@@ -140,30 +142,10 @@ public class TestJavacTaskScanner extends ToolTester {
     public StandardJavaFileManager getLocalFileManager(JavaCompiler tool,
                                                         DiagnosticListener<JavaFileObject> dl,
                                                         Charset encoding) {
-        File javac_classes;
-        try {
-            final String javacMainClass = "com/sun/tools/javac/Main.class";
-            URL url = getClass().getClassLoader().getResource(javacMainClass);
-            if (url == null)
-                throw new Error("can't locate javac classes");
-            URI uri = url.toURI();
-            String scheme = uri.getScheme();
-            String ssp = uri.getSchemeSpecificPart();
-            if (scheme.equals("jar")) {
-                javac_classes = new File(new URI(ssp.substring(0, ssp.indexOf("!/"))));
-            } else if (scheme.equals("file")) {
-                javac_classes = new File(ssp.substring(0, ssp.indexOf(javacMainClass)));
-            } else
-                throw new Error("unknown URL: " + url);
-        } catch (URISyntaxException e) {
-            throw new Error(e);
-        }
-        System.err.println("javac_classes: " + javac_classes);
-
         StandardJavaFileManager fm = tool.getStandardFileManager(dl, null, encoding);
         try {
             fm.setLocation(SOURCE_PATH,  Arrays.asList(test_src));
-            fm.setLocation(CLASS_PATH,   join(test_class_path, Arrays.asList(javac_classes)));
+            fm.setLocation(CLASS_PATH,   test_class_path);
             fm.setLocation(CLASS_OUTPUT, Arrays.asList(test_classes));
         } catch (IOException e) {
             throw new AssertionError(e);

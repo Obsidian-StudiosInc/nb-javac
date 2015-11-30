@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
  * @bug 6993963 7025809
  * @summary Project Coin: Use precise exception analysis for effectively final catch parameters
  * @library /tools/javac/lib
+ * @modules jdk.compiler
  * @build JavacTestingAbstractProcessor ModelChecker
  * @compile -processor ModelChecker Model01.java
  */
@@ -46,7 +47,6 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.UnionType;
 import javax.lang.model.type.UnknownTypeException;
 import javax.lang.model.util.SimpleTypeVisitor6;
-import javax.lang.model.util.SimpleTypeVisitor7;
 
 @SupportedAnnotationTypes("Check")
 public class ModelChecker extends JavacTestingAbstractProcessor {

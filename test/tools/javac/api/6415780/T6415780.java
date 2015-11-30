@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,10 +28,13 @@
  * @author  igor.tseytin@...
  * @author  Peter von der Ah\u00e9
  * @library ../lib
+ * @modules java.compiler
+ *          jdk.compiler
  * @build ToolTester
  * @run main T6415780
  */
 
+import java.io.IOException;
 import static javax.tools.StandardLocation.CLASS_PATH;
 
 public class T6415780 extends ToolTester {
@@ -39,8 +42,9 @@ public class T6415780 extends ToolTester {
         System.out.println(fm.getClassLoader(CLASS_PATH).toString()); // null-check
     }
 
-    public static void main(String... args) {
-        T6415780 tester = new T6415780();
-        tester.test();
+    public static void main(String... args) throws IOException {
+        try (T6415780 tester = new T6415780()) {
+            tester.test();
+        }
     }
 }

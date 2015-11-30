@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,12 +27,15 @@
  * @summary NullPointerException thrown when retrieving bounds for the type parameter
  * @author  Peter von der Ah\u00e9
  * @library ../lib
+ * @modules java.compiler
+ *          jdk.compiler
  * @build ToolTester
  * @compile -Xlint:all T6421111.java
  * @run main T6421111
  */
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
@@ -101,8 +104,10 @@ public class T6421111 extends ToolTester {
             return SourceVersion.latest();
         }
     }
-    public static void main(String... args) {
-        new T6421111().test(args);
+    public static void main(String... args) throws IOException {
+        try (T6421111 t = new T6421111()) {
+            t.test(args);
+        }
     }
     public static AssertionError error(String format, Object... args) {
         return new AssertionError(String.format(format, args));

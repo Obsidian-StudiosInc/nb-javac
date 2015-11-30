@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,11 +27,14 @@
  * @summary JSR 199: confusing help message with compiler API
  * @author  Peter von der Ah\u00e9
  * @library ../lib
+ * @modules java.compiler
+ *          jdk.compiler
  * @build ToolTester
  * @compile T6423003.java
  * @run main T6423003
  */
 
+import java.io.IOException;
 import java.util.Arrays;
 
 public class T6423003 extends ToolTester {
@@ -44,7 +47,9 @@ public class T6423003 extends ToolTester {
         }
         throw new AssertionError("Expected IllegalStateException not thrown");
     }
-    public static void main(String... args) {
-        new T6423003().test(args);
+    public static void main(String... args) throws IOException {
+        try (T6423003 t = new T6423003()) {
+            t.test(args);
+        }
     }
 }

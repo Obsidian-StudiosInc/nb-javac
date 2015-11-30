@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,15 @@
  * @test
  * @bug 6257087
  * @summary javah doesn't produce proper signatures for inner class native methods
- * @library /tools/javac/lib
+ * @library /tools/lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
  * @build ToolBox
  * @run main T6257087
  */
 
-import java.nio.file.Paths;
+import java.util.List;
 
 public class T6257087 {
 
@@ -58,13 +61,14 @@ public class T6257087 {
         "#endif";
 
     public static void main(String[] args) throws Exception {
-        ToolBox.JavaToolArgs javahArgs =
-                new ToolBox.JavaToolArgs()
-                .setAllArgs("-cp", System.getProperty("test.classes"), "foo");
-        ToolBox.javah(javahArgs);
+        ToolBox tb = new ToolBox();
+        tb.new JavahTask()
+                .classpath(ToolBox.testClasses)
+                .classes("foo")
+                .run();
 
-        ToolBox.compareLines(Paths.get("foo_bar.h"),
-                ToolBox.splitLines(fooBarGoldenFile, "\n"), null, true);
+        List<String> fooBarFile = tb.readAllLines("foo_bar.h");
+        tb.checkEqual(fooBarFile, tb.split(fooBarGoldenFile, "\n"));
     }
 
 }

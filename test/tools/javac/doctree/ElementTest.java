@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,12 @@
 
 /*
  * @test
- * @bug 7021614
+ * @bug 7021614 8078320
  * @summary extend com.sun.source API to support parsing javadoc comments
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.tree
+ *          jdk.compiler/com.sun.tools.javac.util
  * @build DocCommentTester
  * @run main DocCommentTester ElementTest.java
  */
@@ -36,13 +40,13 @@ class ElementTest {
     void simple() { }
 /*
 DocComment[DOC_COMMENT, pos:1
-  firstSentence: empty
-  body: 3
+  firstSentence: 2
     StartElement[START_ELEMENT, pos:1
       name:p
       attributes: empty
     ]
     Text[TEXT, pos:4, para]
+  body: 1
     EndElement[END_ELEMENT, pos:8, p]
   block tags: empty
 ]

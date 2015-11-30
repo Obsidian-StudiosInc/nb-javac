@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -27,33 +25,40 @@
  * @test
  * @bug 6851834
  * @summary This test verifies the HTML document generation for javadoc output.
+ * @library ../lib
+ * @modules jdk.javadoc/com.sun.tools.doclets.formats.html.markup
+ *          jdk.javadoc/com.sun.tools.doclets.internal.toolkit
+ * @build JavadocTester
  * @author Bhavesh Patel
- * @build TestHtmlDocument
  * @run main TestHtmlDocument
  */
 
-import java.io.*;
 import com.sun.tools.doclets.formats.html.markup.*;
 
 /**
  * The class reads each file, complete with newlines, into a string to easily
  * compare the existing markup with the generated markup.
  */
-public class TestHtmlDocument {
-
-    private static final String BUGID = "6851834";
-    private static final String BUGNAME = "TestHtmlDocument";
-    private static final String FS = System.getProperty("file.separator");
-    private static final String LS = System.getProperty("line.separator");
-    private static String srcdir = System.getProperty("test.src", ".");
+public class TestHtmlDocument extends JavadocTester {
 
     // Entry point
-    public static void main(String[] args) throws IOException {
+    public static void main(String... args) throws Exception {
+        TestHtmlDocument tester = new TestHtmlDocument();
+        tester.runTests();
+    }
+
+    @Test
+    void test() {
+        checking("markup");
         // Check whether the generated markup is same as the existing markup.
-        if (generateHtmlTree().equals(readFileToString(srcdir + FS + "testMarkup.html"))) {
-            System.out.println("\nTest passed for bug " + BUGID + " (" + BUGNAME + ")\n");
+        String expected = readFile(testSrc, "testMarkup.html").replace("\n", NL);
+        String actual = generateHtmlTree();
+        if (actual.equals(expected)) {
+            passed("");
         } else {
-            throw new Error("\nTest failed for bug " + BUGID + " (" + BUGNAME + ")\n");
+            failed("expected content in " + testSrc("testMarkup.html") + "\n"
+                + "Actual output:\n"
+                + actual);
         }
     }
 
@@ -108,7 +113,7 @@ public class TestHtmlDocument {
         // Test another version of A tag.
         HtmlTree anchor = new HtmlTree(HtmlTag.A);
         anchor.addAttr(HtmlAttr.HREF, "testLink.html");
-        anchor.addAttr(HtmlAttr.NAME, "Another version of a tag");
+        anchor.addAttr(HtmlAttr.ID, "Another version of a tag");
         p1.addContent(anchor);
         body.addContent(p1);
         // Test for empty tags.
@@ -135,26 +140,5 @@ public class TestHtmlDocument {
         html.addContent(body);
         HtmlDocument htmlDoc = new HtmlDocument(htmlDocType, html);
         return htmlDoc.toString();
-    }
-
-    // Read the file into a String
-    public static String readFileToString(String filename) throws IOException {
-        File file = new File(filename);
-        if ( !file.exists() ) {
-            System.out.println("\nFILE DOES NOT EXIST: " + filename);
-        }
-        BufferedReader in = new BufferedReader(new FileReader(file));
-        StringBuilder fileString = new StringBuilder();
-        // Create an array of characters the size of the file
-        try {
-            String line;
-            while ((line = in.readLine()) != null) {
-                fileString.append(line);
-                fileString.append(LS);
-            }
-        } finally {
-            in.close();
-        }
-        return fileString.toString();
     }
 }

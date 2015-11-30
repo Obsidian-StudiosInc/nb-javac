@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,10 @@
  * @bug 8029240 8030855
  * @summary Default methods not always visible under -source 7
  * Default methods should be visible under source previous to 8
- * @library /tools/javac/lib
+ * @library /tools/lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
  * @build ToolBox
  * @run main DefaultMethodsNotVisibleForSourceLessThan8Test
  */
@@ -101,10 +104,6 @@ public class DefaultMethodsNotVisibleForSourceLessThan8Test {
 
     public static void main(String[] args) throws Exception {
         String[] sources = new String[] {
-            "1.2",
-            "1.3",
-            "1.4",
-            "1.5",
             "1.6",
             "1.7",
         };
@@ -115,6 +114,7 @@ public class DefaultMethodsNotVisibleForSourceLessThan8Test {
 
     String outDir;
     String source;
+    ToolBox tb = new ToolBox();
 
     void run(String source) throws Exception {
         this.source = source;
@@ -131,50 +131,53 @@ public class DefaultMethodsNotVisibleForSourceLessThan8Test {
         /* as an extra check let's make sure that interface 'I' can't be compiled
          * with source < 8
          */
-        ToolBox.JavaToolArgs javacArgs =
-                new ToolBox.JavaToolArgs(ToolBox.Expect.FAIL)
-                .setOptions("-d", outDir, "-source", source)
-                .setSources(ISrc);
-        ToolBox.javac(javacArgs);
+        tb.new JavacTask()
+                .outdir(outDir)
+                .options("-source", source)
+                .sources(ISrc)
+                .run(ToolBox.Expect.FAIL);
 
         //but it should compile with source >= 8
-        javacArgs =
-                new ToolBox.JavaToolArgs()
-                .setOptions("-d", outDir)
-                .setSources(ISrc);
-        ToolBox.javac(javacArgs);
+        tb.new JavacTask()
+                .outdir(outDir)
+                .sources(ISrc)
+                .run();
 
-        javacArgs =
-                new ToolBox.JavaToolArgs()
-                .setOptions("-cp", outDir, "-d", outDir, "-source", source)
-                .setSources(JSrc, ASrc, BSrc);
-        ToolBox.javac(javacArgs);
+        tb.new JavacTask()
+                .outdir(outDir)
+                .classpath(outDir)
+                .options("-source", source)
+                .sources(JSrc, ASrc, BSrc)
+                .run();
     }
 
     void testLegacyImplementations() throws Exception {
         //compile C1-4
-        ToolBox.JavaToolArgs javacArgs =
-                new ToolBox.JavaToolArgs()
-                .setOptions("-cp", outDir, "-d", outDir, "-source", source)
-                .setSources(C1Src, C2Src, C3Src, C4Src);
-        ToolBox.javac(javacArgs);
+        tb.new JavacTask()
+                .outdir(outDir)
+                .classpath(outDir)
+                .options("-source", source)
+                .sources(C1Src, C2Src, C3Src, C4Src)
+                .run();
     }
 
     void testLegacyInvocations() throws Exception {
         //compile LegacyInvocation
-        ToolBox.JavaToolArgs javacArgs =
-                new ToolBox.JavaToolArgs()
-                .setOptions("-cp", outDir, "-d", outDir, "-source", source)
-                .setSources(LegacyInvocationSrc);
-        ToolBox.javac(javacArgs);
+        tb.new JavacTask()
+                .outdir(outDir)
+                .classpath(outDir)
+                .options("-source", source)
+                .sources(LegacyInvocationSrc)
+                .run();
     }
 
     void testSuperInvocations() throws Exception {
         //compile SubA, SubB
-        ToolBox.JavaToolArgs javacArgs =
-                new ToolBox.JavaToolArgs()
-                .setOptions("-cp", outDir, "-d", outDir, "-source", source)
-                .setSources(SubASrc, SubBSrc);
-        ToolBox.javac(javacArgs);
+        tb.new JavacTask()
+                .outdir(outDir)
+                .classpath(outDir)
+                .options("-source", source)
+                .sources(SubASrc, SubBSrc)
+                .run();
     }
 }

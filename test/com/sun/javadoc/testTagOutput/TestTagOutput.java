@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -28,51 +26,33 @@
  * @bug 8026370 8026567
  * @summary This test checks the generated tag output.
  * @author Bhavesh Patel
- * @library ../lib/
- * @build JavadocTester TestTagOutput
+ * @library ../lib
+ * @modules jdk.javadoc
+ * @build JavadocTester
  * @run main TestTagOutput
  */
 
 public class TestTagOutput extends JavadocTester {
 
-    private static final String BUG_ID = "8026370";
-    private static final String[][] TEST = {
-        {BUG_ID + FS + "pkg1" + FS + "DeprecatedTag.html",
-            "<div class=\"block\"><span class=\"deprecatedLabel\">Deprecated.</span>&nbsp;</div>"},
-        {BUG_ID + FS + "pkg1" + FS + "DeprecatedTag.html",
-            "<div class=\"block\"><span class=\"deprecatedLabel\">Deprecated.</span>&nbsp;" +
-            "<span class=\"deprecationComment\">Do not use this.</span></div>"}};
-
-    private static final String[][] NEGATED_TEST = {
-        {BUG_ID + FS + "pkg1" + FS + "DeprecatedTag.html",
-            "<div class=\"block\"><span class=\"deprecatedLabel\">Deprecated." +
-            "</span>&nbsp;<span class=\"deprecationComment\"></span></div>"}};
-
-    private static final String[] ARGS =
-        new String[] {
-            "-d", BUG_ID, "-sourcepath", SRC_DIR, "pkg1"};
-
-    /**
-     * The entry point of the test.
-     * @param args the array of command line arguments.
-     */
-    public static void main(String[] args) {
+    public static void main(String... args) throws Exception {
         TestTagOutput tester = new TestTagOutput();
-        run(tester, ARGS, TEST, NEGATED_TEST);
-        tester.printSummary();
+        tester.runTests();
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    public String getBugId() {
-        return BUG_ID;
-    }
+    @Test
+    void test() {
+        javadoc("-d", "out",
+                "-sourcepath", testSrc,
+                "pkg1");
+        checkExit(Exit.OK);
 
-    /**
-     * {@inheritDoc}
-     */
-    public String getBugName() {
-        return getClass().getName();
+        checkOutput("pkg1/DeprecatedTag.html", true,
+            "<div class=\"block\"><span class=\"deprecatedLabel\">Deprecated.</span>&nbsp;</div>",
+            "<div class=\"block\"><span class=\"deprecatedLabel\">Deprecated.</span>&nbsp;" +
+            "<span class=\"deprecationComment\">Do not use this.</span></div>");
+
+        checkOutput("pkg1/DeprecatedTag.html", false,
+            "<div class=\"block\"><span class=\"deprecatedLabel\">Deprecated." +
+            "</span>&nbsp;<span class=\"deprecationComment\"></span></div>");
     }
 }

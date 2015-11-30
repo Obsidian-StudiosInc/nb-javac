@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
  * @test
  * @bug 7027157
  * @summary Project Coin: javac warnings for AutoCloseable.close throwing InterruptedException
+ * @modules jdk.compiler
  */
 
 import com.sun.source.util.JavacTask;
@@ -117,16 +118,17 @@ public class InterruptedExceptionTest {
 
         //create default shared JavaCompiler - reused across multiple compilations
         JavaCompiler comp = ToolProvider.getSystemJavaCompiler();
-        StandardJavaFileManager fm = comp.getStandardFileManager(null, null, null);
+        try (StandardJavaFileManager fm = comp.getStandardFileManager(null, null, null)) {
 
-        for (XlintOption xlint : XlintOption.values()) {
-            for (SuppressLevel suppress_decl : SuppressLevel.values()) {
-                for (SuppressLevel suppress_use : SuppressLevel.values()) {
-                    for (ClassKind ck : ClassKind.values()) {
-                        for (ExceptionKind ek_decl : ExceptionKind.values()) {
-                            for (ExceptionKind ek_use : ExceptionKind.values()) {
-                                new InterruptedExceptionTest(xlint, suppress_decl,
-                                        suppress_use, ck, ek_decl, ek_use).run(comp, fm);
+            for (XlintOption xlint : XlintOption.values()) {
+                for (SuppressLevel suppress_decl : SuppressLevel.values()) {
+                    for (SuppressLevel suppress_use : SuppressLevel.values()) {
+                        for (ClassKind ck : ClassKind.values()) {
+                            for (ExceptionKind ek_decl : ExceptionKind.values()) {
+                                for (ExceptionKind ek_use : ExceptionKind.values()) {
+                                    new InterruptedExceptionTest(xlint, suppress_decl,
+                                            suppress_use, ck, ek_decl, ek_use).run(comp, fm);
+                                }
                             }
                         }
                     }

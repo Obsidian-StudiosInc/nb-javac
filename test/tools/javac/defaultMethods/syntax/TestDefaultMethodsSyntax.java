@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,9 @@
 
 /*
  * @test
- * @bug 7192245 8005851 8005166
+ * @bug 7192245 8005851 8005166 8071453
  * @summary Automatic test for checking set of allowed modifiers on interface methods
+ * @modules jdk.compiler
  */
 
 import com.sun.source.util.JavacTask;
@@ -45,7 +46,8 @@ public class TestDefaultMethodsSyntax {
 
     enum VersionKind {
         PRE_LAMBDA("7"),
-        LAMBDA("8");
+        LAMBDA("8"),
+        POST_LAMBDA("9");
 
         String versionString;
 
@@ -87,7 +89,8 @@ public class TestDefaultMethodsSyntax {
         static boolean compatible(MethodKind mk, ModifierKind mod1, ModifierKind mod2, EnclosingKind ek) {
             if (intersect(ABSTRACT, mod1, mod2) || intersect(NATIVE, mod1, mod2)) {
                 return mk == MethodKind.NO_BODY;
-            } else if (intersect(DEFAULT, mod1, mod2) || intersect(STATIC, mod1, mod2)) {
+            } else if (intersect(DEFAULT, mod1, mod2) || intersect(STATIC, mod1, mod2)
+                    || intersect(PRIVATE, mod1, mod2)) {
                 return mk == MethodKind.BODY;
             } else {
                 return ek == EnclosingKind.INTERFACE ?
@@ -97,7 +100,6 @@ public class TestDefaultMethodsSyntax {
 
         boolean compatible(EnclosingKind ek) {
             switch (this) {
-                case PRIVATE:
                 case PROTECTED:
                     return ek != EnclosingKind.INTERFACE;
                 default:
@@ -149,16 +151,16 @@ public class TestDefaultMethodsSyntax {
 
         static Result[][] allowedModifierPairs = {
             /*                     NONE  PUBLIC  PROTECTED  PRIVATE  ABSTRACT  STATIC  NATIVE  SYNCHRONIZED  FINAL  STRICTFP  DEFAULT */
-            /* NONE */           { T   , T    , C        , C       , T       , T     , C     , C           , C    , C       , I   },
+            /* NONE */           { T   , T    , C        , T       , T       , T     , C     , C           , C    , C       , I   },
             /* PUBLIC */         { T   , F    , F        , F       , T       , T     , C     , C           , C    , C       , I   },
             /* PROTECTED */      { C   , F    , F        , F       , C       , C     , C     , C           , C    , C       , F   },
-            /* PRIVATE */        { C   , F    , F        , F       , F       , C     , C     , C           , C    , C       , F   },
+            /* PRIVATE */        { T   , F    , F        , F       , F       , T     , C     , C           , C    , T       , F   },
             /* ABSTRACT */       { T   , T    , C        , F       , F       , F     , F     , F           , F    , F       , F   },
-            /* STATIC */         { T   , T    , C        , C       , F       , F     , C     , C           , C    , T       , F   },
+            /* STATIC */         { T   , T    , C        , T       , F       , F     , C     , C           , C    , T       , F   },
             /* NATIVE */         { C   , C    , C        , C       , F       , C     , F     , C           , C    , F       , F   },
             /* SYNCHRONIZED */   { C   , C    , C        , C       , F       , C     , C     , F           , C    , C       , F   },
             /* FINAL */          { C   , C    , C        , C       , F       , C     , C     , C           , F    , C       , F   },
-            /* STRICTFP */       { C   , C    , C        , C       , F       , T     , F     , C           , C    , F       , I   },
+            /* STRICTFP */       { C   , C    , C        , T       , F       , T     , F     , C           , C    , F       , I   },
             /* DEFAULT */        { I   , I    , F        , F       , F       , F     , F     , F           , F    , I       , F   }};
     }
 
@@ -188,20 +190,21 @@ public class TestDefaultMethodsSyntax {
 
         //create default shared JavaCompiler - reused across multiple compilations
         JavaCompiler comp = ToolProvider.getSystemJavaCompiler();
-        StandardJavaFileManager fm = comp.getStandardFileManager(null, null, null);
+        try (StandardJavaFileManager fm = comp.getStandardFileManager(null, null, null)) {
 
-        for (VersionKind vk : VersionKind.values()) {
-            for (EnclosingKind ek : EnclosingKind.values()) {
-                for (MethodKind mk : MethodKind.values()) {
-                    for (ModifierKind modk1 : ModifierKind.values()) {
-                        for (ModifierKind modk2 : ModifierKind.values()) {
-                            new TestDefaultMethodsSyntax(vk, ek, mk, modk1, modk2).run(comp, fm);
+            for (VersionKind vk : VersionKind.values()) {
+                for (EnclosingKind ek : EnclosingKind.values()) {
+                    for (MethodKind mk : MethodKind.values()) {
+                        for (ModifierKind modk1 : ModifierKind.values()) {
+                            for (ModifierKind modk2 : ModifierKind.values()) {
+                                new TestDefaultMethodsSyntax(vk, ek, mk, modk1, modk2).run(comp, fm);
+                            }
                         }
                     }
                 }
             }
+            System.out.println("Total check executed: " + checkCount);
         }
-        System.out.println("Total check executed: " + checkCount);
     }
 
     VersionKind vk;
@@ -266,6 +269,9 @@ public class TestDefaultMethodsSyntax {
 
         errorExpected |= ModifierKind.intersect(ModifierKind.STATIC, modk1, modk2) &&
                 ek == EnclosingKind.INTERFACE && vk == VersionKind.PRE_LAMBDA;
+
+        errorExpected |= ModifierKind.intersect(ModifierKind.PRIVATE, modk1, modk2) &&
+                ek == EnclosingKind.INTERFACE && (vk == VersionKind.LAMBDA || vk == VersionKind.PRE_LAMBDA);
 
         checkCount++;
         if (diagChecker.errorFound != errorExpected) {
