@@ -4,7 +4,8 @@
 ^make/netbeans/hudson/cache/
 ^build/
 ^dist/
-^make/netbeans/nb-javac/ext/
+^webrev
+^.idea
 /nbproject/private/
 ^.hgtip
 .DS_Store

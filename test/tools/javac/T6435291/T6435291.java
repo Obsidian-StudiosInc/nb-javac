@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,15 @@
  * @bug     6435291
  * @summary javac shouldn't throw NPE while compiling invalid RuntimeInvisibleParameterAnnotations
  * @author  Wei Tao
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.code
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.compiler/com.sun.tools.javac.util
  * @run main/othervm T6435291
  */
 
 import com.sun.tools.javac.api.JavacTaskImpl;
-import com.sun.tools.javac.jvm.ClassReader.BadClassFile;
+import com.sun.tools.javac.code.ClassFinder.BadClassFile;
 import com.sun.tools.javac.main.JavaCompiler;
 import javax.tools.ToolProvider;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@
  * @bug     6399602
  * @summary Verify that files are created relative to sibling
  * @author  Peter von der Ah\u00e9
+ * @modules java.compiler
+ *          jdk.compiler
  */
 
 import java.io.File;
@@ -39,17 +41,18 @@ import static javax.tools.JavaFileObject.Kind.CLASS;
 public class Sibling {
     public static void main(String... args) throws IOException {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        StandardJavaFileManager fm = compiler.getStandardFileManager(null, null, null);
-        JavaFileObject sibling =
-            fm.getJavaFileObjectsFromFiles(Arrays.asList(new File("Test.java")))
-            .iterator().next();
-        JavaFileObject classFile =  fm.getJavaFileForOutput(CLASS_OUTPUT,
-                                                            "foo.bar.baz.Test",
-                                                            CLASS,
-                                                            sibling);
-        File file = new File("Test.class").getAbsoluteFile();
-        if (!classFile.toUri().equals(file.toURI()))
-            throw new AssertionError("Expected " + file.toURI() + ", got " +
-                                     classFile.toUri());
+        try (StandardJavaFileManager fm = compiler.getStandardFileManager(null, null, null)) {
+            JavaFileObject sibling =
+                fm.getJavaFileObjectsFromFiles(Arrays.asList(new File("Test.java")))
+                .iterator().next();
+            JavaFileObject classFile =  fm.getJavaFileForOutput(CLASS_OUTPUT,
+                                                                "foo.bar.baz.Test",
+                                                                CLASS,
+                                                                sibling);
+            File file = new File("Test.class").getAbsoluteFile();
+            if (!classFile.toUri().equals(file.toURI()))
+                throw new AssertionError("Expected " + file.toURI() + ", got " +
+                                         classFile.toUri());
+        }
     }
 }

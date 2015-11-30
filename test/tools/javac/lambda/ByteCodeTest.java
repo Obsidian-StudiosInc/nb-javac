@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
  * @bug     8011738
  * @author  sogoel
  * @summary Code translation test for Lambda expressions, method references
+ * @modules jdk.jdeps/com.sun.tools.classfile
  * @run main ByteCodeTest
  */
 
@@ -122,7 +123,7 @@ public class ByteCodeTest {
 
     static File compile(File f) {
         int rc = com.sun.tools.javac.Main.compile(new String[] {
-                "-source", "1.8", "-g", f.getPath() });
+                "-g", f.getPath() });
         if (rc != 0)
                 throw new Error("compilation failed. rc=" + rc);
             String path = f.getPath();

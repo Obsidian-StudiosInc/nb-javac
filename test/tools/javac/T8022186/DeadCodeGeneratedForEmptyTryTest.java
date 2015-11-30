@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -27,6 +25,8 @@
  * @test
  * @bug 8022186
  * @summary javac generates dead code if a try with an empty body has a finalizer
+ * @modules jdk.jdeps/com.sun.tools.classfile
+ *          jdk.compiler/com.sun.tools.javac.util
  */
 
 import com.sun.tools.classfile.Attribute;

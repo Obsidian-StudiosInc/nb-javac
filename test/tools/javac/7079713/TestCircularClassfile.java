@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
  * @test
  * @bug 7079713
  * @summary javac hangs when compiling a class that references a cyclically inherited class
+ * @modules jdk.compiler
  * @run main TestCircularClassfile
  */
 
@@ -100,13 +101,14 @@ public class TestCircularClassfile {
 
     public static void main(String... args) throws Exception {
         JavaCompiler comp = ToolProvider.getSystemJavaCompiler();
-        StandardJavaFileManager fm = comp.getStandardFileManager(null, null, null);
-        int count = 0;
-        for (SourceKind sk1 : SourceKind.values()) {
-            for (SourceKind sk2 : SourceKind.values()) {
-                for (TestKind tk : TestKind.values()) {
-                    for (ClientKind ck : ClientKind.values()) {
-                        new TestCircularClassfile("sub_"+count++, sk1, sk2, tk, ck).check(comp, fm);
+        try (StandardJavaFileManager fm = comp.getStandardFileManager(null, null, null)) {
+            int count = 0;
+            for (SourceKind sk1 : SourceKind.values()) {
+                for (SourceKind sk2 : SourceKind.values()) {
+                    for (TestKind tk : TestKind.values()) {
+                        for (ClientKind ck : ClientKind.values()) {
+                            new TestCircularClassfile("sub_"+count++, sk1, sk2, tk, ck).check(comp, fm);
+                        }
                     }
                 }
             }

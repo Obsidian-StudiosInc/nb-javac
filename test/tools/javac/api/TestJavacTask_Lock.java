@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
  * @test
  * @bug 7026509
  * @summary Cannot use JavaCompiler to create multiple CompilationTasks for partial compilations
+ * @modules jdk.compiler
  */
 
 import java.io.*;
@@ -51,7 +52,7 @@ public class TestJavacTask_Lock {
             int test(CompilationTask t) {
                 try {
                     ((JavacTask) t).parse();
-                return 1;
+                    return 1;
                 } catch (IOException ex) {
                     throw new Error(ex);
                 }
@@ -67,15 +68,18 @@ public class TestJavacTask_Lock {
     void run() throws Exception {
         comp = ToolProvider.getSystemJavaCompiler();
         fm = comp.getStandardFileManager(null, null, null);
-
-        for (MethodKind first: MethodKind.values()) {
-            for (MethodKind second: MethodKind.values()) {
-                test(first, second);
+        try {
+            for (MethodKind first: MethodKind.values()) {
+                for (MethodKind second: MethodKind.values()) {
+                    test(first, second);
+                }
             }
-        }
 
-        if (errors > 0)
-            throw new Exception(errors + " errors found");
+            if (errors > 0)
+                throw new Exception(errors + " errors found");
+        } finally {
+            fm.close();
+        }
     }
 
     void test(MethodKind first, MethodKind second) {
@@ -94,6 +98,7 @@ public class TestJavacTask_Lock {
             second.test(t);
             error("No exception thrown");
         } catch (IllegalStateException e) {
+            e.printStackTrace();
             System.err.println("Expected exception caught: " + e);
         } catch (Exception e) {
             error("Unexpected exception caught: " + e);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,12 @@
 /**
  *  @test
  *  @bug 8001098 8004961 8004082
+ *  @library /tools/lib
+ *  @modules jdk.compiler/com.sun.tools.javac.api
+ *           jdk.compiler/com.sun.tools.javac.file
+ *           jdk.compiler/com.sun.tools.javac.main
+ *  @build ToolBox
+ *  @run main Test
  *  @summary Provide a simple light-weight "plug-in" mechanism for javac
  */
 
@@ -58,34 +64,44 @@ public class Test {
     final List<String> ref2;
     final JavaCompiler compiler;
     final StandardJavaFileManager fm;
+    ToolBox tb = new ToolBox();
 
     Test() throws Exception {
-        testSrc = new File(System.getProperty("test.src"));
+        testSrc = new File(tb.testSrc);
         pluginSrc = new File(testSrc, "ShowTypePlugin.java");
         pluginClasses = new File("plugin");
+        tb.createDirectories(pluginClasses.toPath());
         pluginJar = new File("plugin.jar");
-        ref1 = readFile(testSrc, "Identifiers.out");
-        ref2 = readFile(testSrc, "Identifiers_PI.out");
+        ref1 = tb.readAllLines((new File(testSrc,"Identifiers.out")).toPath());
+        ref2 = tb.readAllLines((new File(testSrc,"Identifiers_PI.out")).toPath());
         compiler = ToolProvider.getSystemJavaCompiler();
         fm = compiler.getStandardFileManager(null, null, null);
     }
 
     void run() throws Exception {
-        // compile the plugin explicitly, to a non-standard directory
-        // so that we don't find it on the wrong path by accident
-        pluginClasses.mkdirs();
-        compile("-d", pluginClasses.getPath(), pluginSrc.getPath());
-        writeFile(new File(pluginClasses, "META-INF/services/com.sun.source.util.Plugin"),
-                "ShowTypePlugin\n");
-        jar("cf", pluginJar.getPath(), "-C", pluginClasses.getPath(), ".");
+        try {
+            // compile the plugin explicitly, to a non-standard directory
+            // so that we don't find it on the wrong path by accident
+            tb.new JavacTask()
+              .options("-d", pluginClasses.getPath())
+              .files(pluginSrc.getPath())
+              .run();
 
-        testCommandLine("-Xplugin:showtype", ref1);
-        testCommandLine("-Xplugin:showtype PI", ref2);
-        testAPI("-Xplugin:showtype", ref1);
-        testAPI("-Xplugin:showtype PI", ref2);
+            File plugin = new File(pluginClasses.getPath(), "META-INF/services/com.sun.source.util.Plugin");
+            tb.writeFile(plugin.getPath(), "ShowTypePlugin\n");
+            tb.new JarTask()
+              .run("cf", pluginJar.getPath(), "-C", pluginClasses.getPath(), ".");
 
-        if (errors > 0)
-            throw new Exception(errors + " errors occurred");
+            testCommandLine("-Xplugin:showtype", ref1);
+            testCommandLine("-Xplugin:showtype PI", ref2);
+            testAPI("-Xplugin:showtype", ref1);
+            testAPI("-Xplugin:showtype PI", ref2);
+
+            if (errors > 0)
+                throw new Exception(errors + " errors occurred");
+        } finally {
+            fm.close();
+        }
     }
 
     void testAPI(String opt, List<String> ref) throws Exception {
@@ -96,14 +112,13 @@ public class Test {
         Iterable<? extends JavaFileObject> files = fm.getJavaFileObjects(identifiers);
 
         System.err.println("test api: " + options + " " + files);
-
-        StringWriter sw = new StringWriter();
-        PrintWriter pw = new PrintWriter(sw);
-        boolean ok = compiler.getTask(pw, fm, null, options, null, files).call();
-        String out = sw.toString();
-        System.err.println(out);
-        if (!ok)
-            error("testCommandLine: compilation failed");
+        ToolBox.Result result = tb.new JavacTask(ToolBox.Mode.API)
+                                  .fileManager(fm)
+                                  .options(opt)
+                                  .files(identifiers.toPath())
+                                  .run(ToolBox.Expect.SUCCESS)
+                                  .writeAll();
+        String out = result.getOutput(ToolBox.OutputKind.DIRECT);
         checkOutput(out, ref);
     }
 
@@ -116,14 +131,11 @@ public class Test {
             identifiers.getPath() };
 
         System.err.println("test command line: " + Arrays.asList(args));
-
-        StringWriter sw = new StringWriter();
-        PrintWriter pw = new PrintWriter(sw);
-        int rc = com.sun.tools.javac.Main.compile(args, pw);
-        String out = sw.toString();
-        System.err.println(out);
-        if (rc != 0)
-            error("testCommandLine: compilation failed");
+        ToolBox.Result result = tb.new JavacTask(ToolBox.Mode.CMDLINE)
+                                  .options(args)
+                                  .run(ToolBox.Expect.SUCCESS)
+                                  .writeAll();
+        String out = result.getOutput(ToolBox.OutputKind.DIRECT);
         checkOutput(out, ref);
     }
 
@@ -133,31 +145,6 @@ public class Test {
                 .split("[\r\n]+"));                             // allow for newline formats
         if (!lines.equals(ref)) {
             error("unexpected output");
-        }
-    }
-
-    private void compile(String... args) throws Exception {
-        System.err.println("compile: " + Arrays.asList(args));
-        int rc = com.sun.tools.javac.Main.compile(args);
-        if (rc != 0)
-            throw new Exception("compiled failed, rc=" + rc);
-    }
-
-    private void jar(String... args) throws Exception {
-        System.err.println("jar: " + Arrays.asList(args));
-        boolean ok = new sun.tools.jar.Main(System.out, System.err, "jar").run(args);
-        if (!ok)
-            throw new Exception("jar failed");
-    }
-
-    private List<String> readFile(File dir, String name) throws IOException {
-        return Files.readAllLines(new File(dir, name).toPath(), Charset.defaultCharset());
-    }
-
-    private void writeFile(File f, String body) throws IOException {
-        f.getParentFile().mkdirs();
-        try (FileWriter out = new FileWriter(f)) {
-            out.write(body);
         }
     }
 

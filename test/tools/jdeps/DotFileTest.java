@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
  * @test
  * @bug 8003562
  * @summary Basic tests for jdeps -dotoutput option
+ * @modules java.management
+ *          jdk.jdeps/com.sun.tools.jdeps
  * @build Test p.Foo p.Bar javax.activity.NotCompactProfile
  * @run main DotFileTest
  */
@@ -41,27 +43,6 @@ import java.util.*;
 import java.util.regex.*;
 
 public class DotFileTest {
-    private static boolean symbolFileExist = initProfiles();
-    private static boolean initProfiles() {
-        // check if ct.sym exists; if not use the profiles.properties file
-        Path home = Paths.get(System.getProperty("java.home"));
-        if (home.endsWith("jre")) {
-            home = home.getParent();
-        }
-        Path ctsym = home.resolve("lib").resolve("ct.sym");
-        boolean symbolExists = ctsym.toFile().exists();
-        if (!symbolExists) {
-            Path testSrcProfiles =
-                Paths.get(System.getProperty("test.src", "."), "profiles.properties");
-            if (!testSrcProfiles.toFile().exists())
-                throw new Error(testSrcProfiles + " does not exist");
-            System.out.format("%s doesn't exist.%nUse %s to initialize profiles info%n",
-                ctsym, testSrcProfiles);
-            System.setProperty("jdeps.profiles", testSrcProfiles.toString());
-        }
-        return symbolExists;
-    }
-
     public static void main(String... args) throws Exception {
         int errors = 0;
         errors += new DotFileTest().run();
@@ -124,7 +105,7 @@ public class DotFileTest {
              new String[] {"-v", "-classpath", testDir.getPath()});
 
         testSummary(new File(testDir, "Test.class"),
-             new String[] {"rt.jar", testDir.getName()},
+             new String[] {"java.base", testDir.getName()},
              new String[] {"compact1", ""},
              new String[] {"-classpath", testDir.getPath()});
         testSummary(new File(testDir, "Test.class"),

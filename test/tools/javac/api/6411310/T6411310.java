@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@
  * @summary JSR 199: FileObject should support user-friendly names via getName()
  * @author  Peter von der Ah\u00e9
  * @library ../lib
+ * @modules java.compiler
+ *          jdk.compiler
  * @build ToolTester
  * @compile T6411310.java
  * @run main T6411310
@@ -54,6 +56,8 @@ public class T6411310 extends ToolTester {
     }
 
     public static void main(String... args) throws IOException {
-        new T6411310().test(args);
+        try (T6411310 t = new T6411310()) {
+            t.test(args);
+        }
     }
 }

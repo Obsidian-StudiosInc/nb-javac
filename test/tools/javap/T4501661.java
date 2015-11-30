@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ import java.util.*;
  * @test
  * @bug 4501661
  * @summary disallow mixing -public, -private, and -protected
+ * @modules jdk.jdeps
  */
 public class T4501661 {
     public static void main(String... args) throws Exception {
@@ -38,10 +39,12 @@ public class T4501661 {
         File javaFile = writeTestFile();
         File classFile = compileTestFile(javaFile);
         boolean[] values = { false, true };
-        for (boolean priv: values) {
-            for (boolean prot: values) {
-                for (boolean publ: values) {
-                    test(priv, prot, publ, classFile);
+        for (boolean pack : values) {
+            for (boolean priv : values) {
+                for (boolean prot : values) {
+                    for (boolean publ : values) {
+                        test(pack, priv, prot, publ, classFile);
+                    }
                 }
             }
         }
@@ -50,8 +53,10 @@ public class T4501661 {
             throw new Exception(errors + " errors found");
     }
 
-    void test(boolean priv, boolean prot, boolean publ, File classFile) {
+    void test(boolean pack, boolean priv, boolean prot, boolean publ, File classFile) {
         List<String> args = new ArrayList<String>();
+        if (pack)
+            args.add("-package");
         if (priv)
             args.add("-private");
         if (prot)

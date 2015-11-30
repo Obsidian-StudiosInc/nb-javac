@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
  * @test
  * @bug 6964914
  * @summary javadoc does not output number of warnings using user written doclet
+ * @modules jdk.javadoc
  */
 
 import java.io.*;
@@ -47,8 +48,6 @@ public class TestUserDoclet extends Doclet {
     /** Main test method. */
     void run() throws Exception {
         File javaHome = new File(System.getProperty("java.home"));
-        if (javaHome.getName().equals("jre"))
-            javaHome = javaHome.getParentFile();
         File javadoc = new File(new File(javaHome, "bin"), "javadoc");
         File testSrc = new File(System.getProperty("test.src"));
         File testClasses = new File(System.getProperty("test.classes"));

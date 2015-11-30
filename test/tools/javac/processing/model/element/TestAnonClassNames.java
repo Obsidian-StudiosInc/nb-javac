@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
  * @summary Test that reported names of anonymous classes are non-null.
  * @author  Joseph D. Darcy
  * @library /tools/javac/lib
+ * @modules jdk.compiler
  * @build   JavacTestingAbstractProcessor TestAnonSourceNames
  * @compile -processor TestAnonSourceNames TestAnonClassNames.java
  * @run main TestAnonClassNames
@@ -96,9 +97,10 @@ public class TestAnonClassNames {
         List<String> names = new ArrayList<String>();
         for(Class<?> clazz : classes) {
             String name = clazz.getName();
-            System.out.format("%s is %s%n",
-                              clazz.getName(),
-                              clazz.getAnnotation(Nesting.class).value());
+            Nesting annotation = clazz.getAnnotation(Nesting.class);
+            NestingKind expected = annotation == null ?
+                NestingKind.ANONYMOUS : annotation.value();
+            System.out.format("%s is %s%n", name, expected);
             testClassName(name);
             names.add(name);
         }
@@ -186,7 +188,11 @@ class ClassNameProber extends JavacTestingAbstractProcessor {
                                   typeElt.getKind().toString(),
                                   nestingKind.toString());
 
-                if (typeElt.getAnnotation(Nesting.class).value() != nestingKind) {
+                Nesting annotation = typeElt.getAnnotation(Nesting.class);
+                NestingKind expected = annotation == null ?
+                    NestingKind.ANONYMOUS : annotation.value();
+
+                if (expected != nestingKind) {
                     throw new RuntimeException("Mismatch of expected and reported nesting kind.");
                 }
             }

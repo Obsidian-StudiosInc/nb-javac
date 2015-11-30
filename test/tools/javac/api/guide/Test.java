@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@
  * @summary Various bugs fixed while writing Compiler API Guide
  * @author  Peter von der Ah\u0081
  * @library ../lib
+ * @modules java.compiler
+ *          jdk.compiler
  * @build ToolTester
  * @compile Test.java
  * @run main Test
@@ -80,7 +82,9 @@ public class Test extends ToolTester {
     }
 
     public static void main(String... args) throws Exception {
-        new Test().test(args);
+        try (Test t = new Test()) {
+            t.test(args);
+        }
     }
 
 }

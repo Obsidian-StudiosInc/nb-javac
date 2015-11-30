@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -25,12 +23,11 @@
 
 /**
  * @test
- * @bug 8024696
+ * @bug 8024696 8075752
  * @summary Missing null check in bound method reference capture
  */
 
-import com.sun.tools.javac.util.Assert;
-import java.util.function.*;
+import java.util.function.Supplier;
 
 public class MethodReferenceNullCheckTest {
     public static void main(String[] args) {
@@ -41,7 +38,8 @@ public class MethodReferenceNullCheckTest {
         } catch (NullPointerException npe) {
             npeFired = true;
         } finally {
-            Assert.check(npeFired, "NPE should have been thrown");
+            if (!npeFired)
+                throw new AssertionError("NPE should have been thrown");
         }
     }
 }

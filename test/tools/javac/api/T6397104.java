@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@
  * @bug     6397104
  * @summary JSR 199: JavaFileManager.getFileForOutput should have sibling argument
  * @author  Peter von der Ah\u00e9
+ * @modules java.compiler
+ *          jdk.compiler
  */
 
 import java.io.File;
@@ -65,16 +67,15 @@ public class T6397104 {
     void test(boolean hasLocation, File siblingFile, String relName, String expectedPath)
         throws Exception
     {
-        StandardJavaFileManager fm;
-        if (hasLocation) {
-            for (Location location : StandardLocation.values()) {
-                fm = tool.getStandardFileManager(null, null, null);
-                fm.setLocation(location, Arrays.asList(new File(".")));
-                test(fm, location, siblingFile, relName, expectedPath);
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null)) {
+            if (hasLocation) {
+                for (Location location : StandardLocation.values()) {
+                    fm.setLocation(location, Arrays.asList(new File(".")));
+                    test(fm, location, siblingFile, relName, expectedPath);
+                }
+            } else {
+                test(fm, CLASS_OUTPUT, siblingFile, relName, expectedPath);
             }
-        } else {
-            fm = tool.getStandardFileManager(null, null, null);
-            test(fm, CLASS_OUTPUT, siblingFile, relName, expectedPath);
         }
     }
 

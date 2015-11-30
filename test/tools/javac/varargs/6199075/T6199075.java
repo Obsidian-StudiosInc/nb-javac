@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,10 @@
  * @summary Unambiguous varargs method calls flagged as ambiguous
  * @author mcimadamore
  *
+ * @modules jdk.jdeps/com.sun.tools.classfile
+ *          jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.util
  */
 
 import com.sun.source.util.JavacTask;
@@ -143,20 +147,24 @@ public class T6199075 {
     }
 
     void test() throws Exception {
-        for (TypeKind formal1 : TypeKind.values()) {
-            VarargsMethod m1 = new VarargsMethod(formal1);
-            for (TypeKind formal2 : TypeKind.values()) {
-                VarargsMethod m2 = new VarargsMethod(formal2);
-                for (TypeKind actual : TypeKind.values()) {
-                    for (ArgumentsArity argsArity : ArgumentsArity.values()) {
-                        compileAndCheck(m1, m2, actual, argsArity);
+        try {
+            for (TypeKind formal1 : TypeKind.values()) {
+                VarargsMethod m1 = new VarargsMethod(formal1);
+                for (TypeKind formal2 : TypeKind.values()) {
+                    VarargsMethod m2 = new VarargsMethod(formal2);
+                    for (TypeKind actual : TypeKind.values()) {
+                        for (ArgumentsArity argsArity : ArgumentsArity.values()) {
+                            compileAndCheck(m1, m2, actual, argsArity);
+                        }
                     }
                 }
             }
-        }
 
-        System.out.println("Total checks made: " + checkCount);
-        System.out.println("Bytecode checks made: " + bytecodeCheckCount);
+            System.out.println("Total checks made: " + checkCount);
+            System.out.println("Bytecode checks made: " + bytecodeCheckCount);
+        } finally {
+            fm.close();
+        }
     }
 
     // Create a single file manager and reuse it for each compile to save time.

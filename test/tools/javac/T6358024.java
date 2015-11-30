@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,9 @@
  * @test
  * @bug 6358024
  * @summary TaskListener should be propogated between processing rounds
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.util
  */
 
 import java.io.*;
@@ -54,13 +57,13 @@ public class T6358024 extends AbstractProcessor {
 
         test(fm, f,
              new Option[] { new Option("-d", ".")},
-             7);
+             8);
 
         test(fm, f,
              new Option[] { new XOption("-XprintRounds"),
                             new Option("-processorpath", "."),
                             new Option("-processor", self) },
-             12);
+             13);
     }
 
     static void test(JavacFileManager fm, JavaFileObject f, Option[] opts, int expect) throws Throwable {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@
  * @bug     6420464
  * @summary JSR 199: JavaFileObject.isNameCompatible throws unspecified exception (IllegalArgumentException)
  * @author  Igor Tseytin
+ * @modules java.compiler
+ *          jdk.compiler
  */
 
 import javax.tools.*;
@@ -38,15 +40,16 @@ public class T6420464 {
 
     public static void main(String... args) throws IOException {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        StandardJavaFileManager mgr = compiler.getStandardFileManager(null, null, null);
-        mgr.setLocation(StandardLocation.SOURCE_PATH, Collections.singleton(test_src));
-        JavaFileObject f = mgr.getJavaFileForInput(StandardLocation.SOURCE_PATH,
-                                                   "T6420464",
-                                                   JavaFileObject.Kind.SOURCE);
-        if (!f.isNameCompatible("T6420464", JavaFileObject.Kind.SOURCE))
-            throw new AssertionError("isNameCompatible(SOURCE) fails on " + f.toUri());
-        if (f.isNameCompatible("T6420464", JavaFileObject.Kind.OTHER))
-            throw new AssertionError("isNameCompatible(OTHER) fails on " + f.toUri());
-        System.out.println("OK");
+        try (StandardJavaFileManager mgr = compiler.getStandardFileManager(null, null, null)) {
+            mgr.setLocation(StandardLocation.SOURCE_PATH, Collections.singleton(test_src));
+            JavaFileObject f = mgr.getJavaFileForInput(StandardLocation.SOURCE_PATH,
+                                                       "T6420464",
+                                                       JavaFileObject.Kind.SOURCE);
+            if (!f.isNameCompatible("T6420464", JavaFileObject.Kind.SOURCE))
+                throw new AssertionError("isNameCompatible(SOURCE) fails on " + f.toUri());
+            if (f.isNameCompatible("T6420464", JavaFileObject.Kind.OTHER))
+                throw new AssertionError("isNameCompatible(OTHER) fails on " + f.toUri());
+            System.out.println("OK");
+        }
     }
 }

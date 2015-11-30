@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,10 @@
  * @test
  * @bug 6493690
  * @summary javadoc should have a javax.tools.Tool service provider
+ * @modules jdk.javadoc
  * @build APITest
  * @run main GetTask_DocletClassTest
+ * @key randomness
  */
 
 import com.sun.javadoc.DocErrorReporter;
@@ -70,20 +72,21 @@ public class GetTask_DocletClassTest extends APITest {
                 "pkg/C",
                 "package pkg; /** " + key + "*/ public class C { }");
         DocumentationTool tool = ToolProvider.getSystemDocumentationTool();
-        StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null);
-        File outDir = getOutDir();
-        fm.setLocation(DocumentationTool.Location.DOCUMENTATION_OUTPUT, Arrays.asList(outDir));
-        Iterable<? extends JavaFileObject> files = Arrays.asList(srcFile);
-        DocumentationTask t = tool.getTask(null, fm, null, TestDoclet.class, null, files);
-        if (t.call()) {
-            System.err.println("task succeeded");
-            if (TestDoclet.lastCaller.equals(String.valueOf(key)))
-                System.err.println("found expected key: " + key);
-            else
-                error("Expected key not found");
-            checkFiles(outDir, Collections.<String>emptySet());
-        } else {
-            throw new Exception("task failed");
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null)) {
+            File outDir = getOutDir();
+            fm.setLocation(DocumentationTool.Location.DOCUMENTATION_OUTPUT, Arrays.asList(outDir));
+            Iterable<? extends JavaFileObject> files = Arrays.asList(srcFile);
+            DocumentationTask t = tool.getTask(null, fm, null, TestDoclet.class, null, files);
+            if (t.call()) {
+                System.err.println("task succeeded");
+                if (TestDoclet.lastCaller.equals(String.valueOf(key)))
+                    System.err.println("found expected key: " + key);
+                else
+                    error("Expected key not found");
+                checkFiles(outDir, Collections.<String>emptySet());
+            } else {
+                throw new Exception("task failed");
+            }
         }
     }
 
@@ -115,20 +118,21 @@ public class GetTask_DocletClassTest extends APITest {
     public void testBadDoclet() throws Exception {
         JavaFileObject srcFile = createSimpleJavaFileObject();
         DocumentationTool tool = ToolProvider.getSystemDocumentationTool();
-        StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null);
-        File outDir = getOutDir();
-        fm.setLocation(DocumentationTool.Location.DOCUMENTATION_OUTPUT, Arrays.asList(outDir));
-        Iterable<? extends JavaFileObject> files = Arrays.asList(srcFile);
-        DocumentationTask t = tool.getTask(null, fm, null, BadDoclet.class, null, files);
-        try {
-            t.call();
-            error("call completed without exception");
-        } catch (RuntimeException e) {
-            Throwable c = e.getCause();
-            if (c.getClass() == UnexpectedError.class)
-                System.err.println("exception caught as expected: " + c);
-            else
-                throw e;
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null)) {
+            File outDir = getOutDir();
+            fm.setLocation(DocumentationTool.Location.DOCUMENTATION_OUTPUT, Arrays.asList(outDir));
+            Iterable<? extends JavaFileObject> files = Arrays.asList(srcFile);
+            DocumentationTask t = tool.getTask(null, fm, null, BadDoclet.class, null, files);
+            try {
+                t.call();
+                error("call completed without exception");
+            } catch (RuntimeException e) {
+                Throwable c = e.getCause();
+                if (c.getClass() == UnexpectedError.class)
+                    System.err.println("exception caught as expected: " + c);
+                else
+                    throw e;
+            }
         }
     }
 

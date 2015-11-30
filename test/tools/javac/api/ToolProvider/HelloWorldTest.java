@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,22 @@
  * @test
  * @bug 6604599
  * @summary ToolProvider should be less compiler-specific
+ * @library /tools/lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
+ * @build ToolBox
+ * @run main HelloWorldTest
  */
 
-import java.io.*;
-import java.util.*;
+import java.util.Arrays;
 
 // verify that running a simple program, such as this one, does not trigger
 // the loading of ToolProvider or any com.sun.tools.javac class
 public class HelloWorldTest {
     public static void main(String... args) throws Exception {
         if (args.length > 0) {
-            System.err.println(Arrays.asList(args));
+            System.err.println(Arrays.toString(args));
             return;
         }
 
@@ -43,32 +48,27 @@ public class HelloWorldTest {
     }
 
     void run() throws Exception {
-        File javaHome = new File(System.getProperty("java.home"));
-        if (javaHome.getName().equals("jre"))
-            javaHome = javaHome.getParentFile();
-        File javaExe = new File(new File(javaHome, "bin"), "java");
+        ToolBox tb = new ToolBox();
+
         String classpath = System.getProperty("java.class.path");
 
-        String[] cmd = {
-            javaExe.getPath(),
-            "-verbose:class",
-            "-classpath", classpath,
-            HelloWorldTest.class.getName(),
-            "Hello", "World"
-        };
+        ToolBox.Result tr = tb.new JavaTask()
+                .vmOptions("-verbose:class")
+                .classpath(classpath)
+                .className(HelloWorldTest.class.getName())
+                .classArgs("Hello", "World")
+                .run();
 
-        ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true);
-        Process p = pb.start();
-        BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
-        String line;
-        while ((line = r.readLine()) != null) {
-            System.err.println(line);
-            if (line.contains("javax.tools.ToolProvider") || line.contains("com.sun.tools.javac."))
-                error(">>> " + line);
+        if (tr.getOutput(ToolBox.OutputKind.STDOUT).contains("java.lang.Object")) {
+            for (String line : tr.getOutputLines(ToolBox.OutputKind.STDOUT)) {
+                System.err.println(line);
+                if (line.contains("javax.tools.ToolProvider") || line.contains("com.sun.tools.javac."))
+                    error(">>> " + line);
+            }
+        } else {
+            tr.writeAll();
+            error("verbose output not as expected");
         }
-        int rc = p.waitFor();
-        if (rc != 0)
-            error("Unexpected exit code: " + rc);
 
         if (errors > 0)
             throw new Exception(errors + " errors occurred");

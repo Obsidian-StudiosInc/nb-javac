@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,15 @@
  * @test
  * @bug 6964768 6964461 6964469 6964487 6964460 6964481 6980021
  * @summary need test program to validate javac resource bundles
+ * @modules jdk.jdeps/com.sun.tools.classfile
+ *          jdk.compiler/com.sun.tools.javac.code
  */
 
 import java.io.*;
 import java.util.*;
 import javax.tools.*;
 import com.sun.tools.classfile.*;
+import com.sun.tools.javac.code.Lint.LintCategory;
 
 /**
  * Compare string constants in javac classes against keys in javac resource bundles.
@@ -156,6 +159,20 @@ public class CheckResourceKeys {
             if (needToInvestigate.contains(rk))
                 continue;
 
+            //check lint description keys:
+            if (s.startsWith("opt.Xlint.desc.")) {
+                String option = s.substring(15);
+                boolean found = false;
+
+                for (LintCategory lc : LintCategory.values()) {
+                    if (option.equals(lc.option))
+                        found = true;
+                }
+
+                if (found)
+                    continue;
+            }
+
             error("Resource key not found in code: " + rk);
         }
     }
@@ -267,13 +284,15 @@ public class CheckResourceKeys {
             // file names
             "ct.sym",
             "rt.jar",
-            "tools.jar",
+            "jfxrt.jar",
+            "bootmodules.jimage",
             // -XD option names
             "process.packages",
             "ignore.symbol.file",
             // prefix/embedded strings
             "compiler.",
             "compiler.misc.",
+            "opt.Xlint.desc.",
             "count.",
             "illegal.",
             "javac.",
@@ -297,27 +316,28 @@ public class CheckResourceKeys {
     Set<String> getCodeStrings() throws IOException {
         Set<String> results = new TreeSet<String>();
         JavaCompiler c = ToolProvider.getSystemJavaCompiler();
-        JavaFileManager fm = c.getStandardFileManager(null, null, null);
-        JavaFileManager.Location javacLoc = findJavacLocation(fm);
-        String[] pkgs = {
-            "javax.annotation.processing",
-            "javax.lang.model",
-            "javax.tools",
-            "com.sun.source",
-            "com.sun.tools.javac"
-        };
-        for (String pkg: pkgs) {
-            for (JavaFileObject fo: fm.list(javacLoc,
-                    pkg, EnumSet.of(JavaFileObject.Kind.CLASS), true)) {
-                String name = fo.getName();
-                // ignore resource files, and files which are not really part of javac
-                if (name.matches(".*resources.[A-Za-z_0-9]+\\.class.*")
-                        || name.matches(".*CreateSymbols\\.class.*"))
-                    continue;
-                scan(fo, results);
+        try (JavaFileManager fm = c.getStandardFileManager(null, null, null)) {
+            JavaFileManager.Location javacLoc = findJavacLocation(fm);
+            String[] pkgs = {
+                "javax.annotation.processing",
+                "javax.lang.model",
+                "javax.tools",
+                "com.sun.source",
+                "com.sun.tools.javac"
+            };
+            for (String pkg: pkgs) {
+                for (JavaFileObject fo: fm.list(javacLoc,
+                        pkg, EnumSet.of(JavaFileObject.Kind.CLASS), true)) {
+                    String name = fo.getName();
+                    // ignore resource files, and files which are not really part of javac
+                    if (name.matches(".*resources.[A-Za-z_0-9]+\\.class.*")
+                            || name.matches(".*CreateSymbols\\.class.*"))
+                        continue;
+                    scan(fo, results);
+                }
             }
+            return results;
         }
-        return results;
     }
 
     // depending on how the test is run, javac may be on bootclasspath or classpath

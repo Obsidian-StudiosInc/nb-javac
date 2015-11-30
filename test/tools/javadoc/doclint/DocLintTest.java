@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,9 @@
 
 /*
  * @test
- * @bug 8004834 8007610
+ * @bug 8004834 8007610 8129909
  * @summary Add doclint support into javadoc
+ * @modules jdk.compiler/com.sun.tools.javac.main
  */
 
 import java.io.File;
@@ -58,7 +59,7 @@ public class DocLintTest {
 
     DocumentationTool javadoc;
     StandardJavaFileManager fm;
-    JavaFileObject file;
+    Iterable<? extends JavaFileObject> files;
 
     final String code =
         /* 01 */    "/** Class comment. */\n" +
@@ -76,6 +77,20 @@ public class DocLintTest {
         /* 13 */    "    public int emptyReturn() { return 0; }\n" +
         /* 14 */    "}\n";
 
+    final String p1Code =
+        /* 01 */    "package p1;\n" +
+        /* 02 */    "public class P1Test {\n" +
+        /* 03 */    "    /** Syntax < error. */\n" +
+        /* 04 */    "    public void method() { }\n" +
+        /* 05 */    "}\n";
+
+    final String p2Code =
+        /* 01 */    "package p2;\n" +
+        /* 02 */    "public class P2Test {\n" +
+        /* 03 */    "    /** Syntax < error. */\n" +
+        /* 04 */    "    public void method() { }\n" +
+        /* 05 */    "}\n";
+
     private final String rawDiags = "-XDrawDiagnostics";
 
     private enum Message {
@@ -83,6 +98,9 @@ public class DocLintTest {
         DL_ERR6(ERROR, "Test.java:6:16: compiler.err.proc.messager: malformed HTML"),
         DL_ERR9(ERROR, "Test.java:9:14: compiler.err.proc.messager: reference not found"),
         DL_WRN12(WARNING, "Test.java:12:9: compiler.warn.proc.messager: no description for @return"),
+
+        DL_ERR_P1TEST(ERROR, "P1Test.java:3:16: compiler.err.proc.messager: malformed HTML"),
+        DL_ERR_P2TEST(ERROR, "P2Test.java:3:16: compiler.err.proc.messager: malformed HTML"),
 
         // doclint messages when -XDrawDiagnostics is not in effect
         DL_ERR9A(ERROR, "Test.java:9: error: reference not found"),
@@ -94,7 +112,8 @@ public class DocLintTest {
 
         // javadoc messages for bad options
         OPT_BADARG(ERROR, "javadoc: error - Invalid argument for -Xdoclint option"),
-        OPT_BADQUAL(ERROR, "javadoc: error - Access qualifiers not permitted for -Xdoclint arguments");
+        OPT_BADQUAL(ERROR, "javadoc: error - Access qualifiers not permitted for -Xdoclint arguments"),
+        OPT_BADPACKAGEARG(ERROR, "javadoc: error - Invalid argument for -Xdoclint/package option");
 
         final Diagnostic.Kind kind;
         final String text;
@@ -121,67 +140,80 @@ public class DocLintTest {
     void run() throws Exception {
         javadoc = ToolProvider.getSystemDocumentationTool();
         fm = javadoc.getStandardFileManager(null, null, null);
-        fm.setLocation(StandardLocation.CLASS_OUTPUT, Arrays.asList(new File(".")));
-        file = new SimpleJavaFileObject(URI.create("Test.java"), JavaFileObject.Kind.SOURCE) {
-            @Override
-            public CharSequence getCharContent(boolean ignoreEncoding) {
-                return code;
-            }
-        };
+        try {
+            fm.setLocation(StandardLocation.CLASS_OUTPUT, Arrays.asList(new File(".")));
+            files = Arrays.asList(new TestJFO("Test.java", code));
 
-        test(Collections.<String>emptyList(),
-                Main.Result.ERROR,
-                EnumSet.of(Message.DL_ERR9A, Message.DL_WRN12A));
+            test(Collections.<String>emptyList(),
+                    Main.Result.ERROR,
+                    EnumSet.of(Message.DL_ERR9A, Message.DL_WRN12A));
 
-        test(Arrays.asList(rawDiags),
-                Main.Result.ERROR,
-                EnumSet.of(Message.DL_ERR9, Message.DL_WRN12));
+            test(Arrays.asList(rawDiags),
+                    Main.Result.ERROR,
+                    EnumSet.of(Message.DL_ERR9, Message.DL_WRN12));
 
-        test(Arrays.asList("-Xdoclint:none"),
-                Main.Result.OK,
-                EnumSet.of(Message.JD_WRN10, Message.JD_WRN13));
+            test(Arrays.asList("-Xdoclint:none"),
+                    Main.Result.OK,
+                    EnumSet.of(Message.JD_WRN10, Message.JD_WRN13));
 
-        test(Arrays.asList(rawDiags, "-Xdoclint"),
-                Main.Result.ERROR,
-                EnumSet.of(Message.DL_ERR9, Message.DL_WRN12));
+            test(Arrays.asList(rawDiags, "-Xdoclint"),
+                    Main.Result.ERROR,
+                    EnumSet.of(Message.DL_ERR9, Message.DL_WRN12));
 
-        test(Arrays.asList(rawDiags, "-Xdoclint:all/public"),
-                Main.Result.ERROR,
-                EnumSet.of(Message.OPT_BADQUAL));
+            test(Arrays.asList(rawDiags, "-Xdoclint:all/public"),
+                    Main.Result.ERROR,
+                    EnumSet.of(Message.OPT_BADQUAL));
 
-        test(Arrays.asList(rawDiags, "-Xdoclint:all", "-public"),
-                Main.Result.OK,
-                EnumSet.of(Message.DL_WRN12));
+            test(Arrays.asList(rawDiags, "-Xdoclint:all", "-public"),
+                    Main.Result.OK,
+                    EnumSet.of(Message.DL_WRN12));
 
-        test(Arrays.asList(rawDiags, "-Xdoclint:syntax"),
-                Main.Result.OK,
-                EnumSet.of(Message.DL_WRN12));
+            test(Arrays.asList(rawDiags, "-Xdoclint:syntax"),
+                    Main.Result.OK,
+                    EnumSet.of(Message.DL_WRN12));
 
-        test(Arrays.asList(rawDiags, "-private"),
-                Main.Result.ERROR,
-                EnumSet.of(Message.DL_ERR6, Message.DL_ERR9, Message.DL_WRN12));
+            test(Arrays.asList(rawDiags, "-private"),
+                    Main.Result.ERROR,
+                    EnumSet.of(Message.DL_ERR6, Message.DL_ERR9, Message.DL_WRN12));
 
-        test(Arrays.asList(rawDiags, "-Xdoclint:syntax", "-private"),
-                Main.Result.ERROR,
-                EnumSet.of(Message.DL_ERR6, Message.DL_WRN12));
+            test(Arrays.asList(rawDiags, "-Xdoclint:syntax", "-private"),
+                    Main.Result.ERROR,
+                    EnumSet.of(Message.DL_ERR6, Message.DL_WRN12));
 
-        test(Arrays.asList(rawDiags, "-Xdoclint:reference"),
-                Main.Result.ERROR,
-                EnumSet.of(Message.DL_ERR9));
+            test(Arrays.asList(rawDiags, "-Xdoclint:reference"),
+                    Main.Result.ERROR,
+                    EnumSet.of(Message.DL_ERR9));
 
-        test(Arrays.asList(rawDiags, "-Xdoclint:badarg"),
-                Main.Result.ERROR,
-                EnumSet.of(Message.OPT_BADARG));
+            test(Arrays.asList(rawDiags, "-Xdoclint:badarg"),
+                    Main.Result.ERROR,
+                    EnumSet.of(Message.OPT_BADARG));
 
-        if (errors > 0)
-            throw new Exception(errors + " errors occurred");
+            files = Arrays.asList(new TestJFO("p1/P1Test.java", p1Code),
+                                  new TestJFO("p2/P2Test.java", p2Code));
+
+            test(Arrays.asList(rawDiags),
+                    Main.Result.ERROR,
+                    EnumSet.of(Message.DL_ERR_P1TEST, Message.DL_ERR_P2TEST));
+
+            test(Arrays.asList(rawDiags, "-Xdoclint/package:p1"),
+                    Main.Result.ERROR,
+                    EnumSet.of(Message.DL_ERR_P1TEST));
+
+            test(Arrays.asList(rawDiags, "-Xdoclint/package:*p"),
+                    Main.Result.ERROR,
+                    EnumSet.of(Message.OPT_BADPACKAGEARG));
+
+            if (errors > 0)
+                throw new Exception(errors + " errors occurred");
+        } finally {
+            fm.close();
+        }
     }
 
     void test(List<String> opts, Main.Result expectResult, Set<Message> expectMessages) {
         System.err.println("test: " + opts);
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
-        List<JavaFileObject> files = Arrays.asList(file);
         try {
             DocumentationTask t = javadoc.getTask(pw, fm, null, null, opts, files);
             boolean ok = t.call();
@@ -252,4 +284,19 @@ public class DocLintTest {
     }
 
     int errors;
+
+    class TestJFO extends SimpleJavaFileObject {
+
+        private final String content;
+
+        public TestJFO(String fileName, String content) {
+            super(URI.create(fileName), JavaFileObject.Kind.SOURCE);
+            this.content = content;
+        }
+
+        @Override
+        public CharSequence getCharContent(boolean ignoreEncoding) {
+            return content;
+        }
+    };
 }

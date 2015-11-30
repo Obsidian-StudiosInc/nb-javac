@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
  * @test
  * @bug 7096014
  * @summary Javac tokens should retain state
+ * @modules jdk.compiler/com.sun.tools.javac.parser
+ *          jdk.compiler/com.sun.tools.javac.tree
  */
 
 import com.sun.source.tree.*;
@@ -90,24 +92,25 @@ public class DocCommentToplevelTest {
     public static void main(String... args) throws Exception {
         //create default shared JavaCompiler - reused across multiple compilations
         JavaCompiler comp = ToolProvider.getSystemJavaCompiler();
-        StandardJavaFileManager fm = comp.getStandardFileManager(null, null, null);
+        try (StandardJavaFileManager fm = comp.getStandardFileManager(null, null, null)) {
 
-        for (PackageKind pk : PackageKind.values()) {
-            for (ImportKind ik : ImportKind.values()) {
-                for (ModifierKind mk1 : ModifierKind.values()) {
-                    for (ModifierKind mk2 : ModifierKind.values()) {
-                        for (ToplevelDocKind tdk : ToplevelDocKind.values()) {
-                            new DocCommentToplevelTest(pk, ik, mk1, mk2, tdk).run(comp, fm);
+            for (PackageKind pk : PackageKind.values()) {
+                for (ImportKind ik : ImportKind.values()) {
+                    for (ModifierKind mk1 : ModifierKind.values()) {
+                        for (ModifierKind mk2 : ModifierKind.values()) {
+                            for (ToplevelDocKind tdk : ToplevelDocKind.values()) {
+                                new DocCommentToplevelTest(pk, ik, mk1, mk2, tdk).run(comp, fm);
+                            }
                         }
                     }
                 }
             }
+
+            if (errors > 0)
+                throw new AssertionError(errors + " errors found");
+
+            System.out.println(checks + " checks were made");
         }
-
-        if (errors > 0)
-            throw new AssertionError(errors + " errors found");
-
-        System.out.println(checks + " checks were made");
     }
 
     PackageKind pk;
@@ -144,12 +147,24 @@ public class DocCommentToplevelTest {
             public ClassTree visitCompilationUnit(CompilationUnitTree node, Void unused) {
                 docComments = ((JCTree.JCCompilationUnit)node).docComments;
                 boolean expectedComment = tdk == ToplevelDocKind.HAS_DOC &&
-                        (pk != PackageKind.NO_PKG || ik != ImportKind.ZERO);
+                                          pk == PackageKind.NO_PKG &&
+                                          ik != ImportKind.ZERO;
                 boolean foundComment = docComments.hasComment((JCTree) node);
                 if (expectedComment != foundComment) {
                     error("Unexpected comment " + docComments.getComment((JCTree) node) + " on toplevel");
                 }
                 return super.visitCompilationUnit(node, null);
+            }
+
+            @Override
+            public ClassTree visitPackage(PackageTree node, Void unused) {
+                boolean expectedComment = tdk == ToplevelDocKind.HAS_DOC &&
+                                          pk != PackageKind.NO_PKG;
+                boolean foundComment = docComments.hasComment((JCTree) node);
+                if (expectedComment != foundComment) {
+                    error("Unexpected comment " + docComments.getComment((JCTree) node) + " on toplevel");
+                }
+                return super.visitPackage(node, null);
             }
 
             @Override

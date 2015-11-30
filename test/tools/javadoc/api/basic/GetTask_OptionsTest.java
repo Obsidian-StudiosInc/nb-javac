@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
  * @test
  * @bug 6493690
  * @summary javadoc should have a javax.tools.Tool service provider
+ * @modules java.compiler
+ *          jdk.compiler
  * @build APITest
  * @run main GetTask_OptionsTest
  */
@@ -54,19 +56,20 @@ public class GetTask_OptionsTest extends APITest {
     public void testNoIndex() throws Exception {
         JavaFileObject srcFile = createSimpleJavaFileObject();
         DocumentationTool tool = ToolProvider.getSystemDocumentationTool();
-        StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null);
-        File outDir = getOutDir();
-        fm.setLocation(DocumentationTool.Location.DOCUMENTATION_OUTPUT, Arrays.asList(outDir));
-        Iterable<? extends JavaFileObject> files = Arrays.asList(srcFile);
-        Iterable<String> options = Arrays.asList("-noindex");
-        DocumentationTask t = tool.getTask(null, fm, null, null, options, files);
-        if (t.call()) {
-            System.err.println("task succeeded");
-            Set<String> expectFiles = new TreeSet<String>(standardExpectFiles);
-            expectFiles.remove("index-all.html");
-            checkFiles(outDir, expectFiles);
-        } else {
-            error("task failed");
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null)) {
+            File outDir = getOutDir();
+            fm.setLocation(DocumentationTool.Location.DOCUMENTATION_OUTPUT, Arrays.asList(outDir));
+            Iterable<? extends JavaFileObject> files = Arrays.asList(srcFile);
+            Iterable<String> options = Arrays.asList("-noindex");
+            DocumentationTask t = tool.getTask(null, fm, null, null, options, files);
+            if (t.call()) {
+                System.err.println("task succeeded");
+                Set<String> expectFiles = new TreeSet<String>(standardExpectFiles);
+                expectFiles.remove("index-all.html");
+                checkFiles(outDir, expectFiles);
+            } else {
+                error("task failed");
+            }
         }
     }
 
@@ -77,16 +80,17 @@ public class GetTask_OptionsTest extends APITest {
     public void testNull() throws Exception {
         JavaFileObject srcFile = createSimpleJavaFileObject();
         DocumentationTool tool = ToolProvider.getSystemDocumentationTool();
-        StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null);
-        File outDir = getOutDir();
-        fm.setLocation(DocumentationTool.Location.DOCUMENTATION_OUTPUT, Arrays.asList(outDir));
-        Iterable<String> options = Arrays.asList((String) null);
-        Iterable<? extends JavaFileObject> files = Arrays.asList(srcFile);
-        try {
-            DocumentationTask t = tool.getTask(null, fm, null, null, options, files);
-            error("getTask succeeded, no exception thrown");
-        } catch (NullPointerException e) {
-            System.err.println("exception caught as expected: " + e);
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null)) {
+            File outDir = getOutDir();
+            fm.setLocation(DocumentationTool.Location.DOCUMENTATION_OUTPUT, Arrays.asList(outDir));
+            Iterable<String> options = Arrays.asList((String) null);
+            Iterable<? extends JavaFileObject> files = Arrays.asList(srcFile);
+            try {
+                DocumentationTask t = tool.getTask(null, fm, null, null, options, files);
+                error("getTask succeeded, no exception thrown");
+            } catch (NullPointerException e) {
+                System.err.println("exception caught as expected: " + e);
+            }
         }
     }
 

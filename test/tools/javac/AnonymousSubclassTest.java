@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,18 +25,20 @@
  * @test
  * @bug 8023945
  * @summary javac wrongly allows a subclass of an anonymous class
- * @library /tools/javac/lib
+ * @library /tools/lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
  * @build ToolBox
  * @run main AnonymousSubclassTest
  */
-
-import java.util.ArrayList;
-import java.io.IOException;
 
 public class AnonymousSubclassTest {
     public static void main(String... args) throws Exception {
         new AnonymousSubclassTest().run();
     }
+
+    ToolBox tb = new ToolBox();
 
     // To trigger the error we want, first we need to compile
     // a class with an anonymous inner class: Foo$1.
@@ -65,20 +67,21 @@ public class AnonymousSubclassTest {
         "}";
 
     void compOk(String code) throws Exception {
-        ToolBox.javac(new ToolBox.JavaToolArgs().setSources(code));
+        tb.new JavacTask()
+                .sources(code)
+                .run();
     }
 
     void compFail(String code) throws Exception {
-        ArrayList<String> errors = new ArrayList<>();
-        ToolBox.JavaToolArgs args = new ToolBox.JavaToolArgs();
-        args.setSources(code)
-            .appendArgs("-cp", ".", "-XDrawDiagnostics")
-            .set(ToolBox.Expect.FAIL)
-            .setErrOutput(errors);
-        ToolBox.javac(args);
+        String errs = tb.new JavacTask()
+                .sources(code)
+                .classpath(".")
+                .options("-XDrawDiagnostics")
+                .run(ToolBox.Expect.FAIL)
+                .writeAll()
+                .getOutput(ToolBox.OutputKind.DIRECT);
 
-        if (!errors.get(0).contains("cant.inherit.from.anon")) {
-            System.out.println(errors.get(0));
+        if (!errs.contains("cant.inherit.from.anon")) {
             throw new Exception("test failed");
         }
     }

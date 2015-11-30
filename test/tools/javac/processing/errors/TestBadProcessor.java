@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
  * @test
  * @bug 8022163
  * @summary javac exits with 0 status and no messages on error to construct an ann-procesor
+ * @modules jdk.compiler
  */
 
 import java.io.*;
@@ -73,8 +74,10 @@ public class TestBadProcessor {
         String expect = "error: Bad service configuration file, " +
                 "or exception thrown while constructing Processor object: " +
                 "javax.annotation.processing.Processor: " +
-                "Provider AnnoProc could not be instantiated: java.lang.Error";
-        if (!out.trim().equals(expect)) {
+                "Provider AnnoProc could not be instantiated: java.lang.Error\n" +
+                "1 error";
+        String lineSeparator = System.getProperty("line.separator");
+        if (!out.trim().replace(lineSeparator, "\n").equals(expect)) {
             System.err.println("expected: " + expect);
             error("output not as expected");
         }

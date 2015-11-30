@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,10 @@
 
 /*
  * @test
- * @bug 8017216 8019422 8019421
+ * @bug 8017216 8019422 8019421 8054956
  * @summary verify start and end positions
+ * @modules java.compiler
+ *          jdk.compiler
  * @run main TreeEndPosTest
  */
 
@@ -102,6 +104,7 @@ public class TreeEndPosTest {
     public static void main(String... args) throws IOException {
         testUninitializedVariable();
         testMissingAnnotationValue();
+        testUnresolvableAnnotationAttribute();
         testFinalVariableWithDefaultConstructor();
         testFinalVariableWithConstructor();
     }
@@ -113,6 +116,11 @@ public class TreeEndPosTest {
     static void testMissingAnnotationValue() throws IOException {
         compile(JavaSource.createJavaSource("@Foo(\"vvvv\")",
                 null, "@interface Foo { }", "\"vvvv\""));
+    }
+
+    static void testUnresolvableAnnotationAttribute() throws IOException {
+        compile(JavaSource.createJavaSource("@Foo(value=\"vvvv\")",
+                null, "@interface Foo { }", "value"));
     }
 
     static void testFinalVariableWithDefaultConstructor() throws IOException {
@@ -131,32 +139,33 @@ public class TreeEndPosTest {
         File tempDir = new File(".");
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         DiagnosticCollector dc = new DiagnosticCollector();
-        JavaFileManager javaFileManager = getJavaFileManager(compiler, dc);
-        List<String> options = new ArrayList<>();
-        options.add("-cp");
-        options.add(tempDir.getPath());
-        options.add("-d");
-        options.add(tempDir.getPath());
-        options.add("-XDshouldStopPolicy=GENERATE");
+        try (JavaFileManager javaFileManager = getJavaFileManager(compiler, dc)) {
+            List<String> options = new ArrayList<>();
+            options.add("-cp");
+            options.add(tempDir.getPath());
+            options.add("-d");
+            options.add(tempDir.getPath());
+            options.add("-XDshouldStopPolicy=GENERATE");
 
-        List<JavaFileObject> sources = new ArrayList<>();
-        sources.add(src);
-        JavaCompiler.CompilationTask task =
-                compiler.getTask(writer, javaFileManager,
-                dc, options, null,
-                sources);
-        task.call();
-        for (Diagnostic diagnostic : (List<Diagnostic>) dc.getDiagnostics()) {
-            long actualStart = diagnostic.getStartPosition();
-            long actualEnd = diagnostic.getEndPosition();
-            System.out.println("Source: " + src.source);
-            System.out.println("Diagnostic: " + diagnostic);
-            System.out.print("Start position: Expected: " + src.startPos);
-            System.out.println(", Actual: " + actualStart);
-            System.out.print("End position: Expected: " + src.endPos);
-            System.out.println(", Actual: " + actualEnd);
-            if (src.startPos != actualStart || src.endPos != actualEnd) {
-                throw new RuntimeException("error: trees don't match");
+            List<JavaFileObject> sources = new ArrayList<>();
+            sources.add(src);
+            JavaCompiler.CompilationTask task =
+                    compiler.getTask(writer, javaFileManager,
+                    dc, options, null,
+                    sources);
+            task.call();
+            for (Diagnostic diagnostic : (List<Diagnostic>) dc.getDiagnostics()) {
+                long actualStart = diagnostic.getStartPosition();
+                long actualEnd = diagnostic.getEndPosition();
+                System.out.println("Source: " + src.source);
+                System.out.println("Diagnostic: " + diagnostic);
+                System.out.print("Start position: Expected: " + src.startPos);
+                System.out.println(", Actual: " + actualStart);
+                System.out.print("End position: Expected: " + src.endPos);
+                System.out.println(", Actual: " + actualEnd);
+                if (src.startPos != actualStart || src.endPos != actualEnd) {
+                    throw new RuntimeException("error: trees don't match");
+                }
             }
         }
     }

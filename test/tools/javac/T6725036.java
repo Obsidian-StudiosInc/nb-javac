@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,17 +23,24 @@
 
 /*
  * @test
- * @bug 6725036
- * @ignore 8016760: failure of regression test langtools/tools/javac/T6725036.java
+ * @bug 6725036 8016760
  * @summary javac returns incorrect value for lastModifiedTime() when
  *          source is a zip file archive
+ * @library /tools/lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.compiler/com.sun.tools.javac.util
+ * @build ToolBox
+ * @run main T6725036
  */
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Date;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import javax.tools.JavaFileObject;
+import javax.tools.*;
 
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.file.RelativePath.RelativeFile;
@@ -50,33 +57,43 @@ public class T6725036 {
     void run() throws Exception {
         RelativeFile TEST_ENTRY_NAME = new RelativeFile("java/lang/String.class");
 
-        File f = new File(System.getProperty("java.home"));
-        if (!f.getName().equals("jre"))
-            f = new File(f, "jre");
-        File rt_jar = new File(new File(f, "lib"), "rt.jar");
+        File testJar = createJar("test.jar", "java.lang.*");
 
-        JarFile j = new JarFile(rt_jar);
-        JarEntry je = j.getJarEntry(TEST_ENTRY_NAME.getPath());
-        long jarEntryTime = je.getTime();
+        try (JarFile j = new JarFile(testJar)) {
+            JarEntry je = j.getJarEntry(TEST_ENTRY_NAME.getPath());
+            long jarEntryTime = je.getTime();
 
-        ZipFileIndexCache zfic = ZipFileIndexCache.getSharedInstance();
-        ZipFileIndex zfi = zfic.getZipFileIndex(rt_jar, null, false, null, false);
-        long zfiTime = zfi.getLastModified(TEST_ENTRY_NAME);
+            ZipFileIndexCache zfic = ZipFileIndexCache.getSharedInstance();
+            ZipFileIndex zfi = zfic.getZipFileIndex(testJar.toPath(), null, false, null, false);
+            long zfiTime = zfi.getLastModified(TEST_ENTRY_NAME);
 
-        check(je, jarEntryTime, zfi + ":" + TEST_ENTRY_NAME.getPath(), zfiTime);
+            check(je, jarEntryTime, zfi + ":" + TEST_ENTRY_NAME.getPath(), zfiTime);
 
-        Context context = new Context();
-        JavacFileManager fm = new JavacFileManager(context, false, null);
-        ZipFileIndexArchive zfia = new ZipFileIndexArchive(fm, zfi);
-        JavaFileObject jfo =
-            zfia.getFileObject(TEST_ENTRY_NAME.dirname(),
-                                   TEST_ENTRY_NAME.basename());
-        long jfoTime = jfo.getLastModified();
+            Context context = new Context();
+            JavacFileManager fm = new JavacFileManager(context, false, null);
+            ZipFileIndexArchive zfia = new ZipFileIndexArchive(fm, zfi);
+            JavaFileObject jfo =
+                zfia.getFileObject(TEST_ENTRY_NAME.dirname(),
+                                       TEST_ENTRY_NAME.basename());
+            long jfoTime = jfo.getLastModified();
 
-        check(je, jarEntryTime, jfo, jfoTime);
+            check(je, jarEntryTime, jfo, jfoTime);
 
-        if (errors > 0)
-            throw new Exception(errors + " occurred");
+            if (errors > 0)
+                throw new Exception(errors + " occurred");
+        }
+    }
+
+    File createJar(String name, String... paths) throws IOException {
+        JavaCompiler comp = ToolProvider.getSystemJavaCompiler();
+        try (JavaFileManager fm = comp.getStandardFileManager(null, null, null)) {
+            File f = new File(name);
+            ToolBox tb = new ToolBox();
+            tb.new JarTask(name)
+                .files(fm, StandardLocation.PLATFORM_CLASS_PATH, paths)
+                .run();
+            return f;
+        }
     }
 
     void check(Object ref, long refTime, Object test, long testTime) {

@@ -70,9 +70,9 @@ public class LintTest extends TestCase {
                 }
             }
         };
-        final JavaCompiler tool15 = ToolProvider.getSystemJavaCompiler();
-        assert tool15 != null;
-        final JavacTask ct15 = (JavacTask) tool15.getTask(null, null, dl, Arrays.asList("-bootclasspath", bootPath, "-Xlint:rawtypes", "-source", "1.5", "-XDide"), null, Arrays.asList(new MyFileObject(code)));
+        final JavaCompiler tool16 = ToolProvider.getSystemJavaCompiler();
+        assert tool16 != null;
+        final JavacTask ct15 = (JavacTask) tool16.getTask(null, null, dl, Arrays.asList("-bootclasspath", bootPath, "-Xlint:rawtypes", "-source", "1.6", "-XDide"), null, Arrays.asList(new MyFileObject(code)));
         ct15.analyze();
         assertEquals(1, count.get());
         count.set(0);

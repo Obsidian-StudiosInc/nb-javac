@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,9 @@
  * @bug 8013789
  * @summary Compiler should emit bridges in interfaces
  * @library /tools/javac/lib
+ * @modules jdk.jdeps/com.sun.tools.classfile
+ *          jdk.compiler/com.sun.tools.javac.code
+ *          jdk.compiler/com.sun.tools.javac.util
  * @build JavacTestingAbstractProcessor BridgeHarness
  * @run main BridgeHarness
  */
@@ -70,19 +73,23 @@ public class BridgeHarness {
     static final StandardJavaFileManager fm = comp.getStandardFileManager(null, null, null);
 
     public static void main(String[] args) throws Exception {
-        //set sourcepath
-        fm.setLocation(SOURCE_PATH,
-                Arrays.asList(new File(System.getProperty("test.src"), "tests")));
-        //set output (-d)
-        fm.setLocation(javax.tools.StandardLocation.CLASS_OUTPUT,
-                Arrays.asList(new File(System.getProperty("user.dir"))));
-        for (JavaFileObject jfo : fm.list(SOURCE_PATH, "", Collections.singleton(JavaFileObject.Kind.SOURCE), true)) {
-            //for each source, compile and check against annotations
-            new BridgeHarness(jfo).compileAndCheck();
-        }
-        //if there were errors, fail
-        if (nerrors > 0) {
-            throw new AssertionError("Errors were found");
+        try {
+            //set sourcepath
+            fm.setLocation(SOURCE_PATH,
+                    Arrays.asList(new File(System.getProperty("test.src"), "tests")));
+            //set output (-d)
+            fm.setLocation(javax.tools.StandardLocation.CLASS_OUTPUT,
+                    Arrays.asList(new File(System.getProperty("user.dir"))));
+            for (JavaFileObject jfo : fm.list(SOURCE_PATH, "", Collections.singleton(JavaFileObject.Kind.SOURCE), true)) {
+                //for each source, compile and check against annotations
+                new BridgeHarness(jfo).compileAndCheck();
+            }
+            //if there were errors, fail
+            if (nerrors > 0) {
+                throw new AssertionError("Errors were found");
+            }
+        } finally {
+            fm.close();
         }
     }
 

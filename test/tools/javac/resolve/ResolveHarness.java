@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,9 @@
  * @bug 7098660 8014649 8034223
  * @summary Test harness for overload resolution/inference tests
  * @library /tools/javac/lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.code
+ *          jdk.compiler/com.sun.tools.javac.util
  * @build JavacTestingAbstractProcessor ResolveHarness
  * @run main ResolveHarness
  */
@@ -71,13 +74,17 @@ public class ResolveHarness implements javax.tools.DiagnosticListener<JavaFileOb
     static final StandardJavaFileManager fm = comp.getStandardFileManager(null, null, null);
 
     public static void main(String[] args) throws Exception {
-        fm.setLocation(SOURCE_PATH,
-                Arrays.asList(new File(System.getProperty("test.src"), "tests")));
-        for (JavaFileObject jfo : fm.list(SOURCE_PATH, "", Collections.singleton(JavaFileObject.Kind.SOURCE), true)) {
-            new ResolveHarness(jfo).check();
-        }
-        if (nerrors > 0) {
-            throw new AssertionError("Errors were found");
+        try {
+            fm.setLocation(SOURCE_PATH,
+                    Arrays.asList(new File(System.getProperty("test.src"), "tests")));
+            for (JavaFileObject jfo : fm.list(SOURCE_PATH, "", Collections.singleton(JavaFileObject.Kind.SOURCE), true)) {
+                new ResolveHarness(jfo).check();
+            }
+            if (nerrors > 0) {
+                throw new AssertionError("Errors were found");
+            }
+        } finally {
+            fm.close();
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
  * @test
  * @bug 6493690
  * @summary javadoc should have a javax.tools.Tool service provider
+ * @modules java.compiler
+ *          jdk.compiler
  * @build APITest
  * @run main Task_reuseTest
  */
@@ -77,16 +79,17 @@ public class Task_reuseTest extends APITest {
     private DocumentationTask getAndRunTask() throws Exception {
         JavaFileObject srcFile = createSimpleJavaFileObject();
         DocumentationTool tool = ToolProvider.getSystemDocumentationTool();
-        StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null);
-        File outDir = getOutDir();
-        fm.setLocation(DocumentationTool.Location.DOCUMENTATION_OUTPUT, Arrays.asList(outDir));
-        Iterable<? extends JavaFileObject> files = Arrays.asList(srcFile);
-        DocumentationTask t = tool.getTask(null, fm, null, null, null, files);
-        if (t.call()) {
-            System.err.println("task succeeded");
-            return t;
-        } else {
-            throw new Exception("task failed");
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null)) {
+            File outDir = getOutDir();
+            fm.setLocation(DocumentationTool.Location.DOCUMENTATION_OUTPUT, Arrays.asList(outDir));
+            Iterable<? extends JavaFileObject> files = Arrays.asList(srcFile);
+            DocumentationTask t = tool.getTask(null, fm, null, null, null, files);
+            if (t.call()) {
+                System.err.println("task succeeded");
+                return t;
+            } else {
+                throw new Exception("task failed");
+            }
         }
     }
 }

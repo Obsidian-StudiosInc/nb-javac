@@ -21,7 +21,6 @@ OSNAME = $(shell uname -s)
 ifeq ($(OSNAME), SunOS)
   SLASH_JAVA = /java
   PLATFORM = solaris
-  JT_PLATFORM = solaris
   ARCH = $(shell uname -p)
   ifeq ($(ARCH), i386)
     ARCH=i586
@@ -30,7 +29,6 @@ endif
 ifeq ($(OSNAME), Linux)
   SLASH_JAVA = /java
   PLATFORM = linux
-  JT_PLATFORM = linux
   ARCH = $(shell uname -m)
   ifeq ($(ARCH), i386)
     ARCH=i586
@@ -38,7 +36,6 @@ ifeq ($(OSNAME), Linux)
 endif
 ifeq ($(OSNAME), Darwin)
   PLATFORM = bsd
-  JT_PLATFORM = linux
   ARCH = $(shell uname -m)
   ifeq ($(ARCH), i386)
     ARCH=i586
@@ -55,7 +52,6 @@ endif
 
 ifeq ($(PLATFORM), windows)
   SLASH_JAVA = J:
-  JT_PLATFORM = win32
   ifeq ($(word 1, $(PROCESSOR_IDENTIFIER)),ia64)
     ARCH=ia64
   else
@@ -93,8 +89,8 @@ ifdef JPRT_JTREG_HOME
 else
   JTREG_HOME = $(SLASH_JAVA)/re/jtreg/4.1/promoted/latest/binaries/jtreg
 endif
-JTREG = $(JTREG_HOME)/$(JT_PLATFORM)/bin/jtreg
-JTDIFF = $(JTREG_HOME)/$(JT_PLATFORM)/bin/jtdiff
+JTREG = $(JTREG_HOME)/bin/jtreg
+JTDIFF = $(JTREG_HOME)/bin/jtdiff
 
 # Default JCK to run
 ifdef JPRT_JCK_HOME
@@ -105,21 +101,19 @@ endif
 
 # Default JDK for JTREG and JCK
 #
-# JT_JAVA is the version of java used to run jtreg/JCK. Since it is now
-# standard to execute tests in sameVM mode, it should normally be set the
-# same as TESTJAVA (although not necessarily so.)
+# JT_JAVA is the version of java used to run jtreg/JCK. 
 #
 ifdef JPRT_JAVA_HOME
   JT_JAVA = $(JPRT_JAVA_HOME)
 else
-  JT_JAVA = $(SLASH_JAVA)/re/jdk/1.7.0/archive/fcs/binaries/$(PLATFORM)-$(ARCH)
+  JT_JAVA = $(SLASH_JAVA)/re/jdk/1.9.0/archive/fcs/binaries/$(PLATFORM)-$(ARCH)
 endif
 
 # Default JDK to test
 ifdef JPRT_IMPORT_PRODUCT_HOME
   TESTJAVA = $(JPRT_IMPORT_PRODUCT_HOME)
 else
-  TESTJAVA = $(SLASH_JAVA)/re/jdk/1.7.0/promoted/latest/binaries/$(PLATFORM)-$(ARCH)
+  TESTJAVA = $(SLASH_JAVA)/re/jdk/1.9.0/promoted/latest/binaries/$(PLATFORM)-$(ARCH)
 endif
 
 # PRODUCT_HOME is a JPRT variable pointing to a directory containing the output from
@@ -152,7 +146,7 @@ endif
 ifdef CONCURRENCY
   JTREG_OPTIONS += -agentvm -concurrency:$(CONCURRENCY)
 else
-  JTREG_OPTIONS += -samevm
+  JTREG_OPTIONS += -agentvm
 endif
 
 ifdef JCK_CONCURRENCY
@@ -184,6 +178,10 @@ ifdef JPRT_JOB_ID
 endif
 ifdef JTREG_TIMEOUT_FACTOR
   JTREG_OPTIONS += -timeoutFactor:$(JTREG_TIMEOUT_FACTOR)
+endif
+
+ifdef JCK_TIMEOUT_FACTOR
+  JCK_OPTIONS += -timeout:$(JCK_TIMEOUT_FACTOR)
 endif
 
 # Default verbosity setting for jtreg
@@ -298,7 +296,7 @@ ifdef JTREG_REFERENCE
 endif
 
 jtreg-summary: FRC
-	if [ -r $(JTREG_OUTPUT_DIR)/status.txt ]; then \
+	@if [ -r $(JTREG_OUTPUT_DIR)/status.txt ]; then \
 	    echo ; echo "Summary of jtreg test failures" ; \
 	    cat $(JTREG_OUTPUT_DIR)/JTreport/text/summary.txt | \
 		grep -v 'Not run' | grep -v 'Passed' ; \
@@ -336,8 +334,8 @@ jck-compiler-tests: check-jck FRC
 	    $(JCK_COMPILER_OUTPUT_DIR)/diff.html $(JCK_COMPILER_OUTPUT_DIR)/status.txt
 	@mkdir -p $(JCK_COMPILER_OUTPUT_DIR)
 	$(JT_JAVA)/bin/java -Xmx512m \
-	    -jar $(JCK_HOME)/JCK-compiler-8/lib/jtjck.jar \
-	    $(if $(JCK_VERBOSE),-v:$(JCK_VERBOSE)) \
+	    -jar $(JCK_HOME)/JCK-compiler-9/lib/jtjck.jar \
+	    $(if $(JCK_VERBOSE),$(if $(filter $(JCK_VERBOSE),summary),-v,-v:$(JCK_VERBOSE))) \
             -r:$(JCK_COMPILER_OUTPUT_DIR)/report \
             -w:$(JCK_COMPILER_OUTPUT_DIR)/work \
             -jdk:$(TESTJAVA) \
@@ -353,7 +351,7 @@ ifdef JCK_COMPILER_REFERENCE
 endif
 
 jck-compiler-summary: FRC
-	if [ -r $(JCK_COMPILER_OUTPUT_DIR)/status.txt ]; then \
+	@if [ -r $(JCK_COMPILER_OUTPUT_DIR)/status.txt ]; then \
 	    echo ; echo "Summary of JCK-compiler test failures" ; \
 	    cat $(JCK_COMPILER_OUTPUT_DIR)/report/text/summary.txt | \
 		grep -v 'Not run' | grep -v 'Passed' ; \
@@ -387,8 +385,8 @@ jck-runtime-tests: check-jck FRC
 	    $(JCK_RUNTIME_OUTPUT_DIR)/diff.html $(JCK_RUNTIME_OUTPUT_DIR)/status.txt
 	@mkdir -p $(JCK_RUNTIME_OUTPUT_DIR)
 	$(JT_JAVA)/bin/java -Xmx512m \
-	    -jar $(JCK_HOME)/JCK-runtime-8/lib/jtjck.jar \
-	    $(if $(JCK_VERBOSE),-v:$(JCK_VERBOSE)) \
+	    -jar $(JCK_HOME)/JCK-runtime-9/lib/jtjck.jar \
+	    $(if $(JCK_VERBOSE),$(if $(filter $(JCK_VERBOSE),summary),-v,-v:$(JCK_VERBOSE))) \
             -r:$(JCK_RUNTIME_OUTPUT_DIR)/report \
             -w:$(JCK_RUNTIME_OUTPUT_DIR)/work \
             -jdk:$(TESTJAVA) \
@@ -405,7 +403,7 @@ ifdef JCK_RUNTIME_REFERENCE
 endif
 
 jck-runtime-summary: FRC
-	if [ -r $(JCK_RUNTIME_OUTPUT_DIR)/status.txt ]; then \
+	@if [ -r $(JCK_RUNTIME_OUTPUT_DIR)/status.txt ]; then \
 	    echo ; echo "Summary of JCK-runtime test failures" ; \
 	    cat $(JCK_RUNTIME_OUTPUT_DIR)/report/text/summary.txt | \
 		grep -v 'Not run' | grep -v 'Passed' ; \
@@ -417,7 +415,7 @@ jck-runtime-summary: FRC
 check-jck: $(JCK_HOME) $(PRODUCT_HOME)
 
 all-summary: FRC
-	if [ -n "`find $(TEST_OUTPUT_DIR) -name status.txt`" ]; then
+	@if [ -n "`find $(TEST_OUTPUT_DIR) -name status.txt`" ]; then
 	    echo ; echo "Summary of test failures" ; \
 	    cat `find $(TEST_OUTPUT_DIR) -name summary.txt` | \
 		grep -v 'Not run' | grep -v 'Passed' ; \

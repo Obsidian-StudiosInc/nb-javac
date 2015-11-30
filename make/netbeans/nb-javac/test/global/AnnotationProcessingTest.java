@@ -141,7 +141,7 @@ public class AnnotationProcessingTest extends TestCase {
 
         URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
         DiagnosticCollector<JavaFileObject> diagnostic = new DiagnosticCollector<JavaFileObject>();
-        List<String> options = new ArrayList<String>(Arrays.asList("-bootclasspath",  bootPath, "-source", "1.6", "-classpath", myself.toExternalForm(), "-processor", AP.class.getName(), "-s", sourceOutput.getAbsolutePath(), "-XDbackgroundCompilation"));
+        List<String> options = new ArrayList<String>(Arrays.asList("-bootclasspath",  bootPath, "-source", "1.7", "-classpath", myself.toExternalForm(), "-processor", AP.class.getName(), "-s", sourceOutput.getAbsolutePath(), "-XDbackgroundCompilation"));
         options.addAll(extraOptions);
         JavacTask ct = (JavacTask)tool.getTask(null, null, diagnostic, options, null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();
@@ -184,7 +184,7 @@ public class AnnotationProcessingTest extends TestCase {
         URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
         DiagnosticCollector<JavaFileObject> diagnostic = new DiagnosticCollector<JavaFileObject>();
         List<String> options = new LinkedList<String>();
-        options.addAll(Arrays.asList("-bootclasspath",  bootPath, "-source", "1.6", "-classpath", myself.toExternalForm()));
+        options.addAll(Arrays.asList("-bootclasspath",  bootPath, "-source", "1.7", "-classpath", myself.toExternalForm()));
         if (apName != null) {
             options.addAll(Arrays.asList("-processor", apName));
         } else {

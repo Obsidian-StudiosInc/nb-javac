@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -102,6 +102,12 @@ import static com.sun.tools.javac.util.Position.NOPOS;
  * @bug 6919889
  * @summary assorted position errors in compiler syntax trees
  * OLD: -q -r -ef ./tools/javac/typeAnnotations -ef ./tools/javap/typeAnnotations -et ANNOTATED_TYPE .
+ * @modules java.desktop
+ *          jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.code
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.tree
+ *          jdk.compiler/com.sun.tools.javac.util
  * @run main TreePosTest -q -r .
  */
 public class TreePosTest {
@@ -113,7 +119,7 @@ public class TreePosTest {
      * args is the value of ${test.src}. In jtreg mode, the -r option can be
      * given to change the default base directory to the root test directory.
      */
-    public static void main(String... args) {
+    public static void main(String... args) throws IOException {
         String testSrc = System.getProperty("test.src");
         File baseDir = (testSrc == null) ? null : new File(testSrc);
         boolean ok = new TreePosTest().run(baseDir, args);
@@ -133,61 +139,65 @@ public class TreePosTest {
      * @param args command line args
      * @return true if successful or in gui mode
      */
-    boolean run(File baseDir, String... args) {
-        if (args.length == 0) {
-            usage(System.out);
-            return true;
-        }
+    boolean run(File baseDir, String... args) throws IOException {
+        try {
+            if (args.length == 0) {
+                usage(System.out);
+                return true;
+            }
 
-        List<File> files = new ArrayList<File>();
-        for (int i = 0; i < args.length; i++) {
-            String arg = args[i];
-            if (arg.equals("-encoding") && i + 1 < args.length)
-                encoding = args[++i];
-            else if (arg.equals("-gui"))
-                gui = true;
-            else if (arg.equals("-q"))
-                quiet = true;
-            else if (arg.equals("-v"))
-                verbose = true;
-            else if (arg.equals("-t") && i + 1 < args.length)
-                tags.add(args[++i]);
-            else if (arg.equals("-ef") && i + 1 < args.length)
-                excludeFiles.add(new File(baseDir, args[++i]));
-            else if (arg.equals("-et") && i + 1 < args.length)
-                excludeTags.add(args[++i]);
-            else if (arg.equals("-r")) {
-                if (excludeFiles.size() > 0)
-                    throw new Error("-r must be used before -ef");
-                File d = baseDir;
-                while (!new File(d, "TEST.ROOT").exists()) {
-                    d = d.getParentFile();
-                    if (d == null)
-                        throw new Error("cannot find TEST.ROOT");
+            List<File> files = new ArrayList<File>();
+            for (int i = 0; i < args.length; i++) {
+                String arg = args[i];
+                if (arg.equals("-encoding") && i + 1 < args.length)
+                    encoding = args[++i];
+                else if (arg.equals("-gui"))
+                    gui = true;
+                else if (arg.equals("-q"))
+                    quiet = true;
+                else if (arg.equals("-v"))
+                    verbose = true;
+                else if (arg.equals("-t") && i + 1 < args.length)
+                    tags.add(args[++i]);
+                else if (arg.equals("-ef") && i + 1 < args.length)
+                    excludeFiles.add(new File(baseDir, args[++i]));
+                else if (arg.equals("-et") && i + 1 < args.length)
+                    excludeTags.add(args[++i]);
+                else if (arg.equals("-r")) {
+                    if (excludeFiles.size() > 0)
+                        throw new Error("-r must be used before -ef");
+                    File d = baseDir;
+                    while (!new File(d, "TEST.ROOT").exists()) {
+                        d = d.getParentFile();
+                        if (d == null)
+                            throw new Error("cannot find TEST.ROOT");
+                    }
+                    baseDir = d;
                 }
-                baseDir = d;
+                else if (arg.startsWith("-"))
+                    throw new Error("unknown option: " + arg);
+                else {
+                    while (i < args.length)
+                        files.add(new File(baseDir, args[i++]));
+                }
             }
-            else if (arg.startsWith("-"))
-                throw new Error("unknown option: " + arg);
-            else {
-                while (i < args.length)
-                    files.add(new File(baseDir, args[i++]));
+
+            for (File file: files) {
+                if (file.exists())
+                    test(file);
+                else
+                    error("File not found: " + file);
             }
+
+            if (fileCount != 1)
+                System.err.println(fileCount + " files read");
+            if (errors > 0)
+                System.err.println(errors + " errors");
+
+            return (gui || errors == 0);
+        } finally {
+            fm.close();
         }
-
-        for (File file: files) {
-            if (file.exists())
-                test(file);
-            else
-                error("File not found: " + file);
-        }
-
-        if (fileCount != 1)
-            System.err.println(fileCount + " files read");
-        if (errors > 0)
-            System.err.println(errors + " errors");
-
-        return (gui || errors == 0);
     }
 
     /**
@@ -367,7 +377,9 @@ public class TreePosTest {
                     // and because of inconsistent nesting of left and right of
                     // array declarations:
                     //    e.g.    int[][] a = new int[2][];
+                    if (!(encl.tag == REFERENCE && self.tag == ANNOTATED_TYPE)) {
                     check("encl.start <= start", encl, self, encl.start <= self.start);
+                    }
                     check("start <= pos", encl, self, self.start <= self.pos);
                     if (!( (self.tag == TYPEARRAY ||
                             isAnnotatedArray(self.tree))
@@ -377,6 +389,8 @@ public class TreePosTest {
                                 isAnnotatedArray(encl.tree))
                            ||
                             encl.tag == ANNOTATED_TYPE && self.tag == SELECT
+                           ||
+                            encl.tag == REFERENCE && self.tag == ANNOTATED_TYPE
                          )) {
                         check("encl.pos <= start || end <= encl.pos",
                                 encl, self, encl.pos <= self.start || self.end <= encl.pos);

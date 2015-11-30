@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,17 @@
  * @test
  * @bug 6395974
  * @summary files are parsed even after failure to find annotation processor is reported
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
  */
 
 import java.io.*;
 import java.util.*;
+
 import javax.tools.*;
+
 import com.sun.source.util.*;
+import com.sun.source.util.TaskEvent.Kind;
 import com.sun.tools.javac.api.*;
 
 
@@ -41,34 +46,32 @@ public class T6395974 {
         String testSrc = System.getProperty("test.src");
 
         JavacTool tool = JavacTool.create();
-        StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null);
-        Iterable<?extends JavaFileObject> f =
-            fm.getJavaFileObjectsFromFiles(Arrays.asList(new File(testSrc, self + ".java")));
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null)) {
+            Iterable<?extends JavaFileObject> f =
+                fm.getJavaFileObjectsFromFiles(Arrays.asList(new File(testSrc, self + ".java")));
 
-        PrintWriter out = new PrintWriter(System.err, true);
+            PrintWriter out = new PrintWriter(System.err, true);
 
-        JavacTaskImpl task = (JavacTaskImpl) tool.getTask(out,
-                                                          fm,
-                                                          null,
-                                                          Arrays.asList("-processor",
-                                                                        "Foo.java"),
-                                                          null,
-                                                          f);
+            JavacTaskImpl task = (JavacTaskImpl) tool.getTask(out,
+                                                              fm,
+                                                              null,
+                                                              Arrays.asList("-processor",
+                                                                            "Foo.java"),
+                                                              null,
+                                                              f);
 
-        MyTaskListener tl = new MyTaskListener();
-        task.setTaskListener(tl);
+            MyTaskListener tl = new MyTaskListener();
+            task.setTaskListener(tl);
 
-        task.call();
-
-        if (tl.event != null)
-            throw new AssertionError("Unexpected TaskListener event: " + tl.event);
+            task.call();
+        }
     }
 
     static class MyTaskListener implements TaskListener {
         public void started(TaskEvent e) {
-            System.err.println("Started: " + e);
-            if (event == null)
-                event = e;
+            if (e.getKind() != Kind.COMPILATION) {
+                throw new AssertionError("Unexpected TaskListener event: " + e);
+            }
         }
         public void finished(TaskEvent e) {
         }

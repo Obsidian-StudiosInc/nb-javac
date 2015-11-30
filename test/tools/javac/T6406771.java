@@ -2,6 +2,9 @@
  * @test  /nodynamiccopyright/
  * @bug 6406771
  * @summary CompilationUnitTree needs access to a line map
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.tree
  */
 
 // WARNING: White-space and layout is important in this file, especially tab characters.
@@ -21,9 +24,9 @@ import com.sun.tools.javac.tree.JCTree;
 @SupportedAnnotationTypes("*")
 public class T6406771 extends AbstractProcessor {
     String[] tests = {
-        "line:24",
-        "line:25",
-        "line:26", "line:26",
+        "line:27",
+        "line:28",
+        "line:29", "line:29",
 //       1         2         3         4         5         6
 //3456789012345678901234567890123456789012345678901234567890
       "col:7", "col:16", "col:26",                 // this line uses spaces
@@ -33,21 +36,22 @@ public class T6406771 extends AbstractProcessor {
 
     // White-space after this point does not matter
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         String self = T6406771.class.getName();
         String testSrc = System.getProperty("test.src");
         String testClasses = System.getProperty("test.classes");
 
         JavacTool tool = JavacTool.create();
-        StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null);
-        JavaFileObject f = fm.getJavaFileObjectsFromFiles(Arrays.asList(new File(testSrc, self+".java"))).iterator().next();
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null)) {
+            JavaFileObject f = fm.getJavaFileObjectsFromFiles(Arrays.asList(new File(testSrc, self+".java"))).iterator().next();
 
-        List<String> opts = Arrays.asList("-d", ".", "-processorpath", testClasses, "-processor", self, "-proc:only");
+            List<String> opts = Arrays.asList("-d", ".", "-processorpath", testClasses, "-processor", self, "-proc:only");
 
-        JavacTask task = tool.getTask(null, fm, null, opts, null, Arrays.asList(f));
+            JavacTask task = tool.getTask(null, fm, null, opts, null, Arrays.asList(f));
 
-        if (!task.call())
-            throw new AssertionError("failed");
+            if (!task.call())
+                throw new AssertionError("failed");
+        }
     }
 
     public boolean process(Set<? extends TypeElement> elems, RoundEnvironment rEnv) {

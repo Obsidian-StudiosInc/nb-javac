@@ -53,7 +53,7 @@ import org.junit.Test;
  *
  * @author lahvac
  */
-@SupportedSourceVersion(SourceVersion.RELEASE_6)
+@SupportedSourceVersion(SourceVersion.RELEASE_7)
 @SupportedAnnotationTypes("*")
 public class AP208917Test extends AbstractProcessor {
 
@@ -75,7 +75,7 @@ public class AP208917Test extends AbstractProcessor {
 
         DiagnosticCollector<JavaFileObject> diagnostic = new DiagnosticCollector<JavaFileObject>();
         List<String> options = new LinkedList<String>();
-        options.addAll(Arrays.asList("-bootclasspath",  bootPath, "-source", "1.6", "-classpath", System.getProperty("java.class.path")));
+        options.addAll(Arrays.asList("-bootclasspath",  bootPath, "-source", "1.7", "-classpath", System.getProperty("java.class.path")));
         options.addAll(Arrays.asList("-processor", AP208917Test.class.getName()));
         JavacTask ct = (JavacTask)tool.getTask(null, null, diagnostic, options, null, Arrays.asList(new MyFileObject("class Test {}")));
         ct.analyze();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,8 @@
  * @author  jesse.glick@...
  * @author  Peter von der Ah\u00e9
  * @library ../lib
+ * @modules java.compiler
+ *          jdk.compiler
  * @build ToolTester
  * @compile T6468404.java
  * @run main T6468404
@@ -88,8 +90,10 @@ public class T6468404 extends ToolTester {
         if (!task.call())
             throw new AssertionError();
     }
-    public static void main(String... args) {
-        new T6468404().test(args);
+    public static void main(String... args) throws IOException {
+        try (T6468404 t = new T6468404()) {
+            t.test(args);
+        }
     }
 
 }

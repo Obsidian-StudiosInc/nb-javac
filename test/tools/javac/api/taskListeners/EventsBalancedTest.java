@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,9 @@
  * @test
  * @bug     8040822
  * @summary Check that all TaskEvents are balanced.
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.comp
+ *          jdk.compiler/com.sun.tools.javac.file
  */
 
 import java.io.*;
@@ -44,7 +47,12 @@ public class EventsBalancedTest {
     StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null);
 
     public static void main(String... args) throws IOException {
-        new EventsBalancedTest().test();
+        EventsBalancedTest t = new EventsBalancedTest();
+        try {
+            t.test();
+        } finally {
+            t.fm.close();
+        }
     }
 
     void test() throws IOException {
@@ -66,11 +74,10 @@ public class EventsBalancedTest {
         }
     }
 
-    void test(Iterable<String> options, Iterable<JavaFileObject> files) throws IOException {
-        StringWriter sw = new StringWriter();
-        PrintWriter pw = new PrintWriter(sw);
+    void test(List<String> options, List<JavaFileObject> files) throws IOException {
+        System.err.println("testing: " + options + ", " + files);
         TestListener listener = new TestListener();
-        JavacTask task = tool.getTask(pw, fm, null, options, null, files);
+        JavacTask task = tool.getTask(null, fm, null, options, null, files);
 
         task.setTaskListener(listener);
 

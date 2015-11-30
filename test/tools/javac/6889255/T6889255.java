@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,15 +25,19 @@
  * @test
  * @bug 6889255
  * @summary ClassReader does not read parameter names correctly
+ * @modules jdk.compiler/com.sun.tools.javac.code
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.jvm
+ *          jdk.compiler/com.sun.tools.javac.util
  */
 
 import java.io.*;
 import java.util.*;
 import javax.tools.StandardLocation;
 import com.sun.tools.javac.code.Flags;
-import com.sun.tools.javac.code.Kinds;
-import com.sun.tools.javac.code.Scope;
+import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.*;
+import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.TypeTag;
@@ -41,6 +45,8 @@ import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Names;
+
+import static com.sun.tools.javac.code.Scope.LookupKind.NON_RECURSIVE;
 
 public class T6889255 {
     boolean testInterfaces = true;
@@ -363,6 +369,7 @@ public class T6889255 {
         Context ctx = new Context();
         JavacFileManager fm = new JavacFileManager(ctx, true, null);
         fm.setLocation(StandardLocation.CLASS_PATH, Arrays.asList(outDir));
+        Symtab syms = Symtab.instance(ctx);
         ClassReader cr = ClassReader.instance(ctx);
         cr.saveParameterNames = true;
         Names names = Names.instance(ctx);
@@ -372,25 +379,25 @@ public class T6889255 {
         String classname;
         while ((classname = work.poll()) != null) {
             System.err.println("Checking class " + classname);
-            ClassSymbol sym = cr.enterClass(names.table.fromString(classname));
+            ClassSymbol sym = syms.enterClass(names.table.fromString(classname));
             sym.complete();
 
             if ((sym.flags() & Flags.INTERFACE) != 0 && !testInterfaces)
                 continue;
 
-            for (Scope.Entry e = sym.members_field.elems; e != null; e = e.sibling) {
-                System.err.println("Checking member " + e.sym);
-                switch (e.sym.kind) {
-                    case Kinds.TYP: {
-                        String name = e.sym.flatName().toString();
+            for (Symbol s : sym.members_field.getSymbols(NON_RECURSIVE)) {
+                System.err.println("Checking member " + s);
+                switch (s.kind) {
+                    case TYP: {
+                        String name = s.flatName().toString();
                         if (!classes.contains(name)) {
                             classes.add(name);
                             work.add(name);
                         }
                         break;
                     }
-                    case Kinds.MTH:
-                        verify((MethodSymbol) e.sym, expectNames);
+                    case MTH:
+                        verify((MethodSymbol) s, expectNames);
                         break;
                 }
 

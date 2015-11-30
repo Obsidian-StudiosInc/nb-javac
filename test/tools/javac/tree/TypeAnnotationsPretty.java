@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@
  * @bug 8023522
  * @summary test Pretty print of type annotations
  * @author wmdietl
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.tree
  */
 
 import com.sun.source.tree.ClassTree;
@@ -40,6 +42,7 @@ import java.util.List;
 import java.util.LinkedList;
 
 import javax.tools.JavaCompiler;
+import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
@@ -114,13 +117,15 @@ public class TypeAnnotationsPretty {
                 code + "; }" +
                 postfix;
 
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, null,
-                null, Arrays.asList(new MyFileObject(src)));
+        try (JavaFileManager fm = tool.getStandardFileManager(null, null, null)) {
+            JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, fm, null, null,
+                    null, Arrays.asList(new MyFileObject(src)));
 
-        for (CompilationUnitTree cut : ct.parse()) {
-            JCTree.JCVariableDecl var =
-                    (JCTree.JCVariableDecl) ((ClassTree) cut.getTypeDecls().get(0)).getMembers().get(0);
-            checkMatch(code, var);
+            for (CompilationUnitTree cut : ct.parse()) {
+                JCTree.JCVariableDecl var =
+                        (JCTree.JCVariableDecl) ((ClassTree) cut.getTypeDecls().get(0)).getMembers().get(0);
+                checkMatch(code, var);
+            }
         }
     }
 
@@ -129,14 +134,16 @@ public class TypeAnnotationsPretty {
                 code + "}" +
                 postfix;
 
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, null,
-                null, Arrays.asList(new MyFileObject(src)));
+        try (JavaFileManager fm = tool.getStandardFileManager(null, null, null)) {
+            JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, fm, null, null,
+                    null, Arrays.asList(new MyFileObject(src)));
 
 
-        for (CompilationUnitTree cut : ct.parse()) {
-            JCTree.JCMethodDecl meth =
-                    (JCTree.JCMethodDecl) ((ClassTree) cut.getTypeDecls().get(0)).getMembers().get(0);
-            checkMatch(code, meth);
+            for (CompilationUnitTree cut : ct.parse()) {
+                JCTree.JCMethodDecl meth =
+                        (JCTree.JCMethodDecl) ((ClassTree) cut.getTypeDecls().get(0)).getMembers().get(0);
+                checkMatch(code, meth);
+            }
         }
     }
 

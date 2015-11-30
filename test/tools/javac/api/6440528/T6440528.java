@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@
  * @summary javac deposits package-info.class in bogus directory
  * @author  Peter von der Ah\u00e9
  * @library ../lib
+ * @modules java.compiler
+ *          jdk.compiler
  * @build ToolTester
  * @compile T6440528.java
  * @run main T6440528
@@ -34,6 +36,7 @@
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.nio.file.Path;
 import java.util.Arrays;
 import static javax.tools.StandardLocation.CLASS_OUTPUT;
 import javax.tools.*;
@@ -59,13 +62,15 @@ public class T6440528 extends ToolTester {
         System.err.println("Got:      " + got);
     }
 
-    private File getUnderlyingFile(Object o) throws Exception {
-        Field file = o.getClass().getDeclaredField("file");
+    private File getUnderlyingFile(FileObject o) throws Exception {
+        Field file = o.getClass().getDeclaredField("file"); // assumes RegularFileObject
         file.setAccessible(true);
-        return (File)file.get(o);
+        return ((Path)file.get(o)).toFile();
     }
 
     public static void main(String... args) throws Exception {
-        new T6440528().test(args);
+        try (T6440528 t = new T6440528()) {
+            t.test(args);
+        }
     }
 }

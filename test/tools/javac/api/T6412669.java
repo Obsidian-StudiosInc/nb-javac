@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
  * @test
  * @bug 6412669 6997958
  * @summary Should be able to get SourcePositions from 269 world
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
  */
 
 import java.io.*;
@@ -44,42 +46,24 @@ public class T6412669 extends AbstractProcessor {
         File testSrc = new File(System.getProperty("test.src", "."));
         File testClasses = new File(System.getProperty("test.classes", "."));
 
-        // Determine location of necessary tools classes. Assume all in one place.
-        // Likely candidates are typically tools.jar (when testing JDK build)
-        // or build/classes or dist/javac.jar (when testing langtools, using -Xbootclasspath/p:)
-        File toolsClasses;
-        URL u = T6412669.class.getClassLoader().getResource("com/sun/source/util/JavacTask.class");
-        switch (u.getProtocol()) {
-            case "file":
-                toolsClasses = new File(u.toURI());
-                break;
-            case "jar":
-                String s = u.getFile(); // will be file:path!/entry
-                int sep = s.indexOf("!");
-                toolsClasses = new File(new URI(s.substring(0, sep)));
-                break;
-            default:
-                throw new AssertionError("Cannot locate tools classes");
-        }
-        //System.err.println("toolsClasses: " + toolsClasses);
-
         JavacTool tool = JavacTool.create();
-        StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null);
-        fm.setLocation(StandardLocation.CLASS_PATH, Arrays.asList(testClasses, toolsClasses));
-        Iterable<? extends JavaFileObject> files =
-            fm.getJavaFileObjectsFromFiles(Arrays.asList(new File(testSrc, T6412669.class.getName()+".java")));
-        String[] opts = { "-proc:only", "-processor", T6412669.class.getName()};
-        StringWriter sw = new StringWriter();
-        JavacTask task = tool.getTask(sw, fm, null, Arrays.asList(opts), null, files);
-        boolean ok = task.call();
-        String out = sw.toString();
-        if (!out.isEmpty())
-            System.err.println(out);
-        if (!ok)
-            throw new AssertionError("compilation of test program failed");
-        // verify we found an annotated element to exercise the SourcePositions API
-        if (!out.contains("processing element"))
-            throw new AssertionError("expected text not found in compilation output");
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(null, null, null)) {
+            fm.setLocation(StandardLocation.CLASS_PATH, Arrays.asList(testClasses));
+            Iterable<? extends JavaFileObject> files =
+                fm.getJavaFileObjectsFromFiles(Arrays.asList(new File(testSrc, T6412669.class.getName()+".java")));
+            String[] opts = { "-proc:only", "-processor", T6412669.class.getName()};
+            StringWriter sw = new StringWriter();
+            JavacTask task = tool.getTask(sw, fm, null, Arrays.asList(opts), null, files);
+            boolean ok = task.call();
+            String out = sw.toString();
+            if (!out.isEmpty())
+                System.err.println(out);
+            if (!ok)
+                throw new AssertionError("compilation of test program failed");
+            // verify we found an annotated element to exercise the SourcePositions API
+            if (!out.contains("processing element"))
+                throw new AssertionError("expected text not found in compilation output");
+        }
     }
 
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
  * @test
  * @bug 6654037
  * @summary JCTree.pos may be incorrect for BinaryTrees
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.tree
  */
 
 import com.sun.source.tree.BinaryTree;
@@ -44,13 +46,12 @@ import javax.tools.ToolProvider;
 public class T6654037 {
 
     public static void main(String[] args) throws Exception {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; public class Test {private void test() {Object o = null; boolean b = o != null && o instanceof String;} private Test() {}}";
 
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
         MethodTree method = (MethodTree) clazz.getMembers().get(0);

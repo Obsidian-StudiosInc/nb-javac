@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,15 +25,24 @@
  * @test
  * @bug 4846262
  * @summary check that javac operates correctly in EBCDIC locale
- * @library /tools/javac/lib
+ * @library /tools/lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
  * @build ToolBox
  * @run main CheckEBCDICLocaleTest
  */
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.List;
 
 public class CheckEBCDICLocaleTest {
 
@@ -58,39 +67,48 @@ public class CheckEBCDICLocaleTest {
     }
 
     public void test() throws Exception {
-        String native2asciiBinary = Paths.get(
-                System.getProperty("test.jdk"),"bin", "native2ascii").toString();
+        ToolBox tb = new ToolBox();
+        tb.writeFile("Test.java", TestSrc);
+        tb.createDirectories("output");
 
-        ToolBox.createJavaFileFromSource(TestSrc);
-        Files.createDirectory(Paths.get("output"));
+        Charset ebcdic = Charset.forName("IBM1047");
+        Native2Ascii n2a = new Native2Ascii(ebcdic);
+        n2a.asciiToNative(Paths.get("Test.java"), Paths.get("output", "Test.java"));
 
-        ToolBox.AnyToolArgs nativeCmdParams =
-                new ToolBox.AnyToolArgs()
-                .appendArgs(native2asciiBinary)
-                .appendArgs(ToolBox.testToolVMOpts)
-                .appendArgs("-reverse", "-encoding", "IBM1047", "Test.java",
-                "output/Test.java");
-        ToolBox.executeCommand(nativeCmdParams);
+        // Use -encoding to specify the encoding with which to read source files
+        // Use a suitable configured output stream for javac diagnostics
+        int rc;
+        try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream("Test.tmp"), ebcdic))) {
+            String[] args = { "-encoding", ebcdic.name(), "output/Test.java" };
+            rc = com.sun.tools.javac.Main.compile(args, out);
+            if (rc != 1)
+                throw new Exception("unexpected exit from javac: " + rc);
+        }
 
-        ToolBox.AnyToolArgs javacParams =
-                new ToolBox.AnyToolArgs(ToolBox.Expect.FAIL)
-                .appendArgs(ToolBox.javacBinary)
-                .appendArgs(ToolBox.testToolVMOpts)
-                .appendArgs("-J-Duser.language=en",
-                "-J-Duser.region=US", "-J-Dfile.encoding=IBM1047",
-                "output/Test.java")
-                .setErrOutput(new File("Test.tmp"));
-        ToolBox.executeCommand(javacParams);
+        n2a.nativeToAscii(Paths.get("Test.tmp"), Paths.get("Test.out"));
 
-        nativeCmdParams = new ToolBox.AnyToolArgs()
-                .appendArgs(native2asciiBinary)
-                .appendArgs(ToolBox.testToolVMOpts)
-                .appendArgs("-encoding", "IBM1047", "Test.tmp", "Test.out");
-        ToolBox.executeCommand(nativeCmdParams);
+        List<String> expectLines = Arrays.asList(
+                String.format(TestOutTemplate, File.separator).split("\n"));
+        List<String> actualLines = Files.readAllLines(Paths.get("Test.out"));
+        try {
+            tb.checkEqual(expectLines, actualLines);
+        } catch (Throwable tt) {
+            PrintStream out = tb.out;
+            out.println("Output mismatch:");
 
-        String goldenFile = String.format(TestOutTemplate, File.separator);
-        ToolBox.compareLines(Paths.get("Test.out"),
-                Arrays.asList(goldenFile.split("\n")), null, true);
+            out.println("Expected output:");
+            for (String s: expectLines) {
+                out.println(s);
+            }
+            out.println();
+
+            out.println("Actual output:");
+            for (String s : actualLines) {
+                out.println(s);
+            }
+            out.println();
+
+            throw tt;
+        }
     }
-
 }

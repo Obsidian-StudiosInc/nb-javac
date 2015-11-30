@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@
  * @bug 6441871
  * @summary spurious compiler error elicited by packageElement.getEnclosedElements()
  * @library /tools/javac/lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.file
  * @build JavacTestingAbstractProcessor b6341534
  * @run main T6430209
  */
@@ -55,25 +57,26 @@ public class T6430209 {
         // run annotation processor b6341534 so we can check diagnostics
         // -proc:only -processor b6341534 -cp . ./src/*.java
         String testSrc = System.getProperty("test.src", ".");
-        String testClasses = System.getProperty("test.classes") + System.getProperty("path.separator") + "../../lib";
+        String testClassPath = System.getProperty("test.class.path");
         JavacTool tool = JavacTool.create();
         MyDiagListener dl = new MyDiagListener();
-        StandardJavaFileManager fm = tool.getStandardFileManager(dl, null, null);
-        fm.setLocation(StandardLocation.CLASS_PATH, Arrays.asList(new File(".")));
-        Iterable<? extends JavaFileObject> files = fm.getJavaFileObjectsFromFiles(Arrays.asList(
-            new File(testSrc, "test0.java"), new File(testSrc, "test1.java")));
-        Iterable<String> opts = Arrays.asList("-proc:only",
-                                              "-processor", "b6341534",
-                                              "-processorpath", testClasses);
-        StringWriter out = new StringWriter();
-        JavacTask task = tool.getTask(out, fm, dl, opts, null, files);
-        task.call();
-        String s = out.toString();
-        System.err.print(s);
-        // Expect the following 2 diagnostics, and no output to log
-        System.err.println(dl.count + " diagnostics; " + s.length() + " characters");
-        if (dl.count != 2 || s.length() != 0)
-            throw new AssertionError("unexpected output from compiler");
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(dl, null, null)) {
+            fm.setLocation(StandardLocation.CLASS_PATH, Arrays.asList(new File(".")));
+            Iterable<? extends JavaFileObject> files = fm.getJavaFileObjectsFromFiles(Arrays.asList(
+                new File(testSrc, "test0.java"), new File(testSrc, "test1.java")));
+            Iterable<String> opts = Arrays.asList("-proc:only",
+                                                  "-processor", "b6341534",
+                                                  "-processorpath", testClassPath);
+            StringWriter out = new StringWriter();
+            JavacTask task = tool.getTask(out, fm, dl, opts, null, files);
+            task.call();
+            String s = out.toString();
+            System.err.print(s);
+            // Expect the following 2 diagnostics, and no output to log
+            System.err.println(dl.count + " diagnostics; " + s.length() + " characters");
+            if (dl.count != 2 || s.length() != 0)
+                throw new AssertionError("unexpected output from compiler");
+        }
     }
 
     static class MyDiagListener implements DiagnosticListener<JavaFileObject> {

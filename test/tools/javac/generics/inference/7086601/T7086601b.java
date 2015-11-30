@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
  * @test
  * @bug 7086601
  * @summary Error message bug: cause for method mismatch is 'null'
+ * @modules jdk.compiler
  */
 
 import com.sun.source.util.JavacTask;
@@ -86,18 +87,19 @@ public class T7086601b {
 
         //create default shared JavaCompiler - reused across multiple compilations
         JavaCompiler comp = ToolProvider.getSystemJavaCompiler();
-        StandardJavaFileManager fm = comp.getStandardFileManager(null, null, null);
+        try (StandardJavaFileManager fm = comp.getStandardFileManager(null, null, null)) {
 
-        for (TypeKind a1 : TypeKind.values()) {
-            for (TypeKind a2 : TypeKind.values()) {
-                for (TypeKind a3 : TypeKind.values()) {
-                    for (MethodCallKind mck : MethodCallKind.values()) {
-                        new T7086601b(a1, a2, a3, mck).run(comp, fm);
+            for (TypeKind a1 : TypeKind.values()) {
+                for (TypeKind a2 : TypeKind.values()) {
+                    for (TypeKind a3 : TypeKind.values()) {
+                        for (MethodCallKind mck : MethodCallKind.values()) {
+                            new T7086601b(a1, a2, a3, mck).run(comp, fm);
+                        }
                     }
                 }
             }
+            System.out.println("Total check executed: " + checkCount);
         }
-        System.out.println("Total check executed: " + checkCount);
     }
 
     TypeKind a1;

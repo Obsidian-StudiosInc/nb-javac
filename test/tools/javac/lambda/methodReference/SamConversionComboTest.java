@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
  *   Test SAM conversion of method references in combinations of different contexts,
  *           lambda body types(statement/expression), boxing/unboxing etc, to verify
  *           SAM conversion being conducted successfully as expected.
+ * @modules jdk.compiler
  */
 
 import com.sun.source.util.JavacTask;
@@ -250,13 +251,17 @@ public class SamConversionComboTest {
     }
 
     public static void main(String[] args) throws Exception {
-        for(Context ct : Context.values()) {
-            for (FInterface fi : FInterface.values()) {
-                for (MethodDef md: MethodDef.values()) {
-                    new SamConversionComboTest(fi, ct, md).test();
+        try {
+            for(Context ct : Context.values()) {
+                for (FInterface fi : FInterface.values()) {
+                    for (MethodDef md: MethodDef.values()) {
+                        new SamConversionComboTest(fi, ct, md).test();
+                    }
                 }
             }
+            System.out.println("total tests: " + count);
+        } finally {
+            fm.close();
         }
-        System.out.println("total tests: " + count);
     }
 }

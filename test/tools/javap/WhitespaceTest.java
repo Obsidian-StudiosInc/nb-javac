@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
  * @test
  * @bug 8033581 8033798 8033726
  * @summary Check whitespace in generated output
+ * @modules jdk.jdeps
  */
 
 import java.io.*;
@@ -57,8 +58,11 @@ public class WhitespaceTest {
             if (line.endsWith(" "))
                 error("line has trailing whitespace: " + line);
             int comment = line.indexOf(doubleSlash);
-            if (comment > 0 && line.charAt(comment - 1) != ' ')
-                error("no space before comment: " + line);
+            if (comment > 0 && line.charAt(comment - 1) != ' ') {
+                // make allowance for URLs
+                if (!line.matches(".*\\bfile:/{3}.*"))
+                    error("no space before comment: " + line);
+            }
             if (line.matches(" +}"))
                 error("bad indentation: " + line);
         }
@@ -89,3 +93,5 @@ public class WhitespaceTest {
         }
     }
 }
+
+

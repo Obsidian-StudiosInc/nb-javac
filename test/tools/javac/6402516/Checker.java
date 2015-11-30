@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,24 +54,26 @@ abstract class Checker {
         };
 
         JavacTool tool = JavacTool.create();
-        StandardJavaFileManager fm = tool.getStandardFileManager(dl, null, null);
-        Iterable<? extends JavaFileObject> files =
-            fm.getJavaFileObjectsFromFiles(getFiles(testSrc, fileNames));
-        task = tool.getTask(null, fm, dl, null, null, files);
-        Iterable<? extends CompilationUnitTree> units = task.parse();
+        try (StandardJavaFileManager fm = tool.getStandardFileManager(dl, null, null)) {
+            Iterable<? extends JavaFileObject> files =
+                fm.getJavaFileObjectsFromFiles(getFiles(testSrc, fileNames));
+            task = tool.getTask(null, fm, dl, null, null, files);
+            Iterable<? extends CompilationUnitTree> units = task.parse();
 
-        if (errors)
-            throw new AssertionError("errors occurred creating trees");
+            if (errors)
+                throw new AssertionError("errors occurred creating trees");
 
-        ScopeScanner s = new ScopeScanner();
-        for (CompilationUnitTree unit: units) {
-            TreePath p = new TreePath(unit);
-            s.scan(p, getTrees());
+            ScopeScanner s = new ScopeScanner();
+            for (CompilationUnitTree unit: units) {
+                TreePath p = new TreePath(unit);
+                s.scan(p, getTrees());
+                additionalChecks(getTrees(), unit);
+            }
+            task = null;
+
+            if (errors)
+                throw new AssertionError("errors occurred checking scopes");
         }
-        task = null;
-
-        if (errors)
-            throw new AssertionError("errors occurred checking scopes");
     }
 
     // default impl: split ref at ";" and call checkLocal(scope, ref_segment) on scope and its enclosing scopes
@@ -109,6 +111,9 @@ abstract class Checker {
     // override if using default check(Scope,String)
     boolean checkLocal(Scope s, String ref) {
         throw new IllegalStateException();
+    }
+
+    void additionalChecks(Trees trees, CompilationUnitTree topLevel) throws IOException {
     }
 
     void error(Scope s, String ref, String msg) {

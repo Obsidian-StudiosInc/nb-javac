@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@
  * @bug 6930108
  * @summary IllegalArgumentException in AbstractDiagnosticFormatter for tools/javac/api/TestJavacTaskScanner.java
  * @library ./lib
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.code
  * @build ToolTester
  * @run main TestResolveError
  */
@@ -51,7 +53,9 @@ import com.sun.tools.javac.api.JavacTaskImpl;
  */
 public class TestResolveError extends ToolTester {
     public static void main(String... args) throws Exception {
-        new TestResolveError().run();
+        try (TestResolveError t = new TestResolveError()) {
+            t.run();
+        }
     }
 
     void run() throws Exception {
@@ -65,11 +69,7 @@ public class TestResolveError extends ToolTester {
         types = task.getTypes();
 
         Iterable<? extends TypeElement> toplevels;
-        try {
-            toplevels = task.enter(task.parse());
-        } catch (IOException ex) {
-            throw new AssertionError(ex);
-        }
+        toplevels = task.enter(task.parse());
 
         for (TypeElement clazz : toplevels) {
             System.out.format("Testing %s:%n%n", clazz.getSimpleName());
