@@ -2332,7 +2332,7 @@ public class Attr extends JCTree.Visitor {
                 // If we already errored, be careful to avoid a further avalanche. ErrorType answers
                 // false for isInterface call even when the original type is an interface.
                 boolean implementing = clazztype.tsym.isInterface() ||
-                        clazztype.isErroneous() && clazztype.getOriginalType().tsym.isInterface();
+                        clazztype.isErroneous() && !clazztype.getOriginalType().hasTag(NONE) && clazztype.getOriginalType().tsym.isInterface();
 
                 if (implementing) {
                     cdef.implementing = List.of(clazz);
