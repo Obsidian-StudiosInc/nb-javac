@@ -554,7 +554,7 @@ public class TreeMaker implements JCTree.Factory {
         return tree;
     }
 
-    public LetExpr LetExpr(List<JCVariableDecl> defs, JCTree expr) {
+    public LetExpr LetExpr(List<JCVariableDecl> defs, JCExpression expr) {
         LetExpr tree = new LetExpr(defs, expr);
         tree.pos = pos;
         return tree;
@@ -575,7 +575,7 @@ public class TreeMaker implements JCTree.Factory {
                         defs);
     }
 
-    public LetExpr LetExpr(JCVariableDecl def, JCTree expr) {
+    public LetExpr LetExpr(JCVariableDecl def, JCExpression expr) {
         LetExpr tree = new LetExpr(List.of(def), expr);
         tree.pos = pos;
         return tree;
@@ -628,6 +628,12 @@ public class TreeMaker implements JCTree.Factory {
      */
     public JCExpression This(Type t) {
         return Ident(new VarSymbol(FINAL, names._this, t, t.tsym));
+    }
+
+    /** Create a tree representing qualified `this' given its type
+     */
+    public JCExpression QualThis(Type t) {
+        return Select(Type(t), new VarSymbol(FINAL, names._this, t, t.tsym));
     }
 
     /** Create a tree representing a class literal.

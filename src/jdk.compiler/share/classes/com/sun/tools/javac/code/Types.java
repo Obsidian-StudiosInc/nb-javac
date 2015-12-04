@@ -1499,10 +1499,10 @@ public class Types {
                     }
                 }
 
-                if (t.isIntersection() || s.isIntersection()) {
-                    return !t.isIntersection() ?
-                            visitIntersectionType((IntersectionClassType)s, t, true) :
-                            visitIntersectionType((IntersectionClassType)t, s, false);
+                if (t.isCompound() || s.isCompound()) {
+                    return !t.isCompound() ?
+                            visitCompoundType((ClassType)s, t, true) :
+                            visitCompoundType(t, s, false);
                 }
 
                 if (s.hasTag(CLASS) || s.hasTag(ARRAY)) {
@@ -1580,9 +1580,9 @@ public class Types {
                 return false;
             }
 
-            boolean visitIntersectionType(IntersectionClassType ict, Type s, boolean reverse) {
+            boolean visitCompoundType(ClassType ct, Type s, boolean reverse) {
                 Warner warn = noWarnings;
-                for (Type c : ict.getComponents()) {
+                for (Type c : directSupertypes(ct)) {
                     warn.clear();
                     if (reverse ? !isCastable(s, c, warn) : !isCastable(c, s, warn))
                         return false;
@@ -2189,6 +2189,12 @@ public class Types {
             }
 
             @Override
+            public Type visitWildcardType(WildcardType t, Boolean recurse) {
+                Type erased = erasure(wildUpperBound(t), recurse);
+                return combineMetadata(erased, t);
+            }
+
+            @Override
             public Type visitClassType(ClassType t, Boolean recurse) {
                 Type erased = t.tsym.erasure(Types.this);
                 if (recurse) {
@@ -2406,14 +2412,9 @@ public class Types {
                         ? interfaces(type)
                         : interfaces(type).prepend(sup);
                 } else {
-                    return visitIntersectionType((IntersectionClassType) type);
+                    return ((IntersectionClassType)type).getExplicitComponents();
                 }
             }
-
-            private List<Type> visitIntersectionType(final IntersectionClassType it) {
-                return it.getExplicitComponents();
-            }
-
         };
 
     public boolean isDirectSuperInterface(TypeSymbol isym, TypeSymbol origin) {
@@ -2775,7 +2776,7 @@ public class Types {
                 Scope s = c.members();
                 for (Symbol sym : s.getSymbols(NON_RECURSIVE)) {
                     if (sym.kind == MTH &&
-                        (sym.flags() & (ABSTRACT|IPROXY|DEFAULT|PRIVATE)) == ABSTRACT) {
+                        (sym.flags() & (ABSTRACT|DEFAULT|PRIVATE)) == ABSTRACT) {
                         MethodSymbol absmeth = (MethodSymbol)sym;
                         MethodSymbol implmeth = absmeth.implementation(impl, this, true);
                         if (implmeth == null || implmeth == absmeth) {
@@ -3853,7 +3854,7 @@ public class Types {
 
             @Override
             public Integer visitTypeVar(TypeVar t, Void ignored) {
-                return System.identityHashCode(t.tsym);
+                return System.identityHashCode(t);
             }
 
             @Override
@@ -4167,7 +4168,7 @@ public class Types {
 
     private boolean giveWarning(Type from, Type to) {
         List<Type> bounds = to.isCompound() ?
-                ((IntersectionClassType)to).getComponents() : List.of(to);
+                directSupertypes(to) : List.of(to);
         for (Type b : bounds) {
             Type subFrom = asSub(from, b.tsym);
             if (b.isParameterized() &&

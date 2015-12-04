@@ -1163,8 +1163,10 @@ public class ClassWriter extends ClassFile {
         }
         acount += writeMemberAttrs(m);
         acount += writeExtraMemberAttributes(m);
-        acount += writeParameterAttrs(m);
-        acount += writeExtraParameterAttributes(m);
+        if (!m.isLambdaMethod()) {
+            acount += writeParameterAttrs(m);
+            acount += writeExtraParameterAttributes(m);
+        }
         endAttrs(acountIdx, acount);
         m.code = null; // to conserve space
     }
