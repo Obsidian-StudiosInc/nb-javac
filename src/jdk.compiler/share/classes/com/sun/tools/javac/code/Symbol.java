@@ -945,6 +945,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         }
 
         public void completeUsesProvides() {
+            complete();
             if (usesProvidesCompleter != Completer.NULL_COMPLETER) {
                 Completer c = usesProvidesCompleter;
                 usesProvidesCompleter = Completer.NULL_COMPLETER;

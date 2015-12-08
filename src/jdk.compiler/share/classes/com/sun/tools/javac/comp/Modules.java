@@ -577,17 +577,17 @@ public class Modules extends JCTree.Visitor {
         @Override
         public void visitRequires(JCRequires tree) {
             ModuleSymbol msym = lookupModule(tree.moduleName);
+            Set<RequiresFlag> flags = EnumSet.noneOf(RequiresFlag.class);
+            if (tree.isPublic)
+                flags.add(RequiresFlag.PUBLIC);
+            RequiresDirective d = new RequiresDirective(msym, flags);
+            tree.directive = d;
             if (msym.kind != MDL) {
                 log.error(tree.moduleName.pos(), Errors.ModuleNotFound(msym));
             } else if (allRequires.contains(msym)) {
                 log.error(tree.moduleName.pos(), Errors.DuplicateRequires(msym));
             } else {
                 allRequires.add(msym);
-                Set<RequiresFlag> flags = EnumSet.noneOf(RequiresFlag.class);
-                if (tree.isPublic)
-                    flags.add(RequiresFlag.PUBLIC);
-                RequiresDirective d = new RequiresDirective(msym, flags);
-                tree.directive = d;
                 sym.requires = sym.requires.prepend(d);
             }
         }
@@ -1225,6 +1225,8 @@ public class Modules extends JCTree.Visitor {
                 if (!nonSyntheticDeps.add(current))
                     continue;
                 if ((current.flags() & Flags.ACYCLIC) != 0)
+                    continue;
+                if (current.kind != MDL)
                     continue;
                 current.complete();
                 Assert.checkNonNull(current.requires, () -> current.toString());
