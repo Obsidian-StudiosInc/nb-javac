@@ -1123,6 +1123,11 @@ public class Annotate {
             scan(tree.args);
             // the anonymous class instantiation if any will be visited separately.
         }
+
+        @Override
+        public void visitErroneous(JCErroneous tree) {
+            scan(tree.errs);
+        }
     }
 
     /*********************
