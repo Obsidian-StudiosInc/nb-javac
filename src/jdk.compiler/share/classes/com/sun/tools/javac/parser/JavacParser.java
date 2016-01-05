@@ -3102,7 +3102,9 @@ public class JavacParser implements Parser {
                 token.kind == LBRACKET) {
             log.error(token.pos, "varargs.and.old.array.syntax");
         }
-        type = bracketsOpt(type);
+        if (type != null) {
+            type = bracketsOpt(type);
+        }
         return toP(F.at(pos).VarDef(mods, name, type, null));
     }
 
