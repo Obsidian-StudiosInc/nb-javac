@@ -4919,7 +4919,7 @@ public class Attr extends JCTree.Visitor {
         private void validateAnnotatedType(final JCTree errtree, final Type type) {
             //System.err.println("Attr.validateAnnotatedType: " + errtree + " type: " + type);
 
-            if (type.isPrimitiveOrVoid()) {
+            if (type.isPrimitiveOrVoid() || type.isErroneous()) {
                 return;
             }
 
