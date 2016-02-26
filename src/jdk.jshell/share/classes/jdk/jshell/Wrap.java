@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.jshell;
 
 import java.util.ArrayList;
@@ -176,7 +177,7 @@ abstract class Wrap implements GeneralWrap {
         }
 
         void verify(String s) {
-            if (begin < 0 || end <= begin || end > s.length()) {
+            if (begin < 0 || end < begin || end > s.length()) {
                 throw new InternalError("Bad Range: " + s + "[" + begin + "," + end + "]");
             }
         }

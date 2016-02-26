@@ -25,6 +25,8 @@
 
 package jdk.jshell;
 
+import java.util.Map;
+
 import com.sun.jdi.*;
 import static jdk.internal.jshell.debug.InternalDebugControl.DBG_GEN;
 

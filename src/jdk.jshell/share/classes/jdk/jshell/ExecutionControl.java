@@ -33,8 +33,10 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import com.sun.jdi.*;
 import java.io.EOFException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import jdk.jshell.ClassTracker.ClassInfo;
 import static jdk.internal.jshell.debug.InternalDebugControl.DBG_GEN;
 
@@ -52,11 +54,13 @@ class ExecutionControl {
     private ObjectInputStream in;
     private ObjectOutputStream out;
     private final JShell proc;
+    private final Supplier<String> vmArgSupplier;
 
-    ExecutionControl(JDIEnv env, SnippetMaps maps, JShell proc) {
+    ExecutionControl(JDIEnv env, SnippetMaps maps, Supplier<String> vmArgs, JShell proc) {
         this.env = env;
         this.maps = maps;
         this.proc = proc;
+        this.vmArgSupplier = vmArgs;
     }
 
     void launch() throws IOException {
@@ -249,10 +253,8 @@ class ExecutionControl {
 
         String connect = "com.sun.jdi.CommandLineLaunch:";
         String cmdLine = "jdk.internal.jshell.remote.RemoteAgent";
-        String classPath = System.getProperty("java.class.path");
-        String bootclassPath = System.getProperty("sun.boot.class.path");
-        String javaArgs = "-classpath " + classPath + " -Xbootclasspath:" + bootclassPath;
-
+        String javaArgs = vmArgSupplier.get();
+        
         String connectSpec = connect + "main=" + cmdLine + " " + port + ",options=" + javaArgs + ",";
         boolean launchImmediately = true;
         int traceFlags = 0;// VirtualMachine.TRACE_SENDS | VirtualMachine.TRACE_EVENTS;
@@ -307,5 +309,16 @@ class ExecutionControl {
                 vm.resume();
             }
         }
+    }
+
+    ///////////----------------- NetBeans ----------------///////////
+    static Supplier<String> defaultJavaVMParameters() {
+        return () -> {
+            String classPath = System.getProperty("java.class.path");
+            String bootclassPath = System.getProperty("sun.boot.class.path");
+            String javaArgs = "-classpath " + classPath + "-Xbootclasspath:" + bootclassPath;
+            
+            return javaArgs;
+        };
     }
 }
