@@ -82,6 +82,7 @@ public class JShell implements AutoCloseable {
     final PrintStream err;
     final Supplier<String> tempVariableNameGenerator;
     final BiFunction<Snippet, Integer, String> idGenerator;
+    final Supplier<String> javaVMOptionsProvider;
 
     private int nextKeyIndex = 1;
 
@@ -109,6 +110,7 @@ public class JShell implements AutoCloseable {
         this.taskFactory = new TaskFactory(this);
         this.eval = new Eval(this);
         this.classTracker = new ClassTracker(this);
+        this.javaVMOptionsProvider = b.javaVMOptionsProvider;
     }
 
     /**
@@ -135,6 +137,7 @@ public class JShell implements AutoCloseable {
         PrintStream out = System.out;
         PrintStream err = System.err;
         Supplier<String> tempVariableNameGenerator = null;
+        Supplier<String> javaVMOptionsProvider = ExecutionControl.defaultJavaVMParameters();
         BiFunction<Snippet, Integer, String> idGenerator = null;
 
         Builder() { }
@@ -260,6 +263,11 @@ public class JShell implements AutoCloseable {
             return this;
         }
 
+        public Builder javaVMOptionsProvider(Supplier<String> s) {
+            this.javaVMOptionsProvider = s;
+            return this;
+        }
+
         /**
          * Build a JShell state engine. This is the entry-point to all JShell
          * functionality. This creates a remote process for execution. It is
@@ -351,7 +359,7 @@ public class JShell implements AutoCloseable {
         events.forEach(this::notifyKeyStatusEvent);
         return Collections.unmodifiableList(events);
     }
-
+    
     /**
      * Remove a declaration from the state.
      * @param snippet The snippet to remove
@@ -419,7 +427,7 @@ public class JShell implements AutoCloseable {
      * @throws IllegalStateException if this JShell instance is closed.
      */
     public List<Snippet> snippets() throws IllegalStateException {
-        checkIfAlive();
+        //checkIfAlive();
         return Collections.unmodifiableList(maps.snippetList());
     }
 
@@ -608,7 +616,7 @@ public class JShell implements AutoCloseable {
 
     ExecutionControl executionControl() {
         if (executionControl == null) {
-            this.executionControl = new ExecutionControl(new JDIEnv(this), maps, this);
+            this.executionControl = new ExecutionControl(new JDIEnv(this), maps, javaVMOptionsProvider, this);
             try {
                 executionControl.launch();
             } catch (IOException ex) {

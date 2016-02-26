@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.jshell;
 
 import java.util.ArrayList;
@@ -205,7 +206,10 @@ class Eval {
             }
             Range rtype = dis.treeToRange(baseType);
             Range runit = dis.treeToRange(vt);
-            runit = new Range(runit.begin, runit.end - 1);
+            // in an incomplete source, the end may be positioned after the whole source.
+            if (runit.end < compileSource.length()) {
+                runit = new Range(runit.begin, runit.end - 1);
+            }
             ExpressionTree it = vt.getInitializer();
             Range rinit = null;
             int nameMax = runit.end - 1;
@@ -500,7 +504,7 @@ class Eval {
         //System.err.printf("Events: %s\n", events);
         return events;
     }
-
+    
     private Set<Unit> compileAndLoad(Set<Unit> ins) {
         if (ins.isEmpty()) {
             return ins;
