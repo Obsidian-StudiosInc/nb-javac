@@ -404,7 +404,8 @@ public class Modules extends JCTree.Visitor {
             }
 
             for (JCCompilationUnit tree: trees) {
-                tree.modle = defaultModule;
+                JCPackageDecl pkg = tree.getPackage();
+                tree.modle = pkg != null ? syms.lookupPackage(defaultModule, names.fromString(pkg.pid.toString())).modle : defaultModule;
             }
         }
     }
