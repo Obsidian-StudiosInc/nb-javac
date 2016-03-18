@@ -306,6 +306,9 @@ public class Modules extends JCTree.Visitor {
         if (multiModuleMode) {
             checkNoAllModulePath();
             for (JCCompilationUnit tree: trees) {
+                if (tree.modle != null) {
+                    continue;
+                }
                 if (tree.defs.isEmpty()) {
                     tree.modle = syms.unnamedModule;
                     continue;
@@ -404,8 +407,9 @@ public class Modules extends JCTree.Visitor {
             }
 
             for (JCCompilationUnit tree: trees) {
-                JCPackageDecl pkg = tree.getPackage();
-                tree.modle = pkg != null ? syms.lookupPackage(defaultModule, names.fromString(pkg.pid.toString())).modle : defaultModule;
+                if (tree.modle == null) {
+                    tree.modle = defaultModule;
+                }
             }
         }
     }
