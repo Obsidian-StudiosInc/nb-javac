@@ -1134,27 +1134,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             messager.newRound();
             compiler.newRound();
             types.newRound();
-
-            boolean foundError = false;
-
-            for (ClassSymbol cs : symtab.classes.values()) {
-                if (cs.kind == ERR) {
-                    foundError = true;
-                    break;
-                }
-            }
-
-            if (foundError) {
-                for (ClassSymbol cs : symtab.classes.values()) {
-                    if (cs.classfile != null || cs.kind == ERR) {
-                        cs.reset();
-                        cs.type = new ClassType(cs.type.getEnclosingType(), null, cs);
-                        if (cs.isCompleted()) {
-                            cs.completer = initialCompleter;
-                        }
-                    }
-                }
-            }
         }
     }
 
@@ -1229,7 +1208,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
         Set<JavaFileObject> newSourceFiles =
                 new LinkedHashSet<>(filer.getGeneratedSourceFileObjects());
-        roots = cleanTrees(round.roots);
 
         round.finalCompiler();
 
@@ -1407,12 +1385,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 System.err.println(node);
             }
         }
-    }
-
-    private <T extends JCTree> List<T> cleanTrees(List<T> nodes) {
-        for (T node : nodes)
-            treeCleaner.scan(node);
-        return nodes;
     }
 
     private final TreeScanner treeCleaner = new TreeScanner() {
