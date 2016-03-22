@@ -1121,10 +1121,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
          * asks selected services to prepare to a new round of annotation processing.
          */
         private void newRound() {
-            //ensure treesToClean contains all trees, including implicitly parsed ones
-            for (Env<AttrContext> env : enter.getEnvs()) {
-                treesToClean.add(env.toplevel);
-            }
             for (JCCompilationUnit node : treesToClean) {
                 treeCleaner.scan(node);
             }
@@ -1147,11 +1143,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         final Set<JCCompilationUnit> treesToClean =
                 Collections.newSetFromMap(new IdentityHashMap<JCCompilationUnit, Boolean>());
 
-        //fill already attributed implicit trees:
-        for (Env<AttrContext> env : enter.getEnvs()) {
-            treesToClean.add(env.toplevel);
-        }
-
+        treesToClean.addAll(roots);
+        
         Set<PackageSymbol> specifiedPackages = new LinkedHashSet<>();
         for (PackageSymbol psym : pckSymbols)
             specifiedPackages.add(psym);
