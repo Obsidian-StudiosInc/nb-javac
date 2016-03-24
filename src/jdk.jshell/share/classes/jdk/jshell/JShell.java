@@ -29,7 +29,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -42,7 +41,6 @@ import java.util.function.Supplier;
 import jdk.internal.jshell.debug.InternalDebugControl;
 import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.toList;
-import static jdk.internal.jshell.debug.InternalDebugControl.DBG_EVNT;
 import static jdk.jshell.Util.expunge;
 import jdk.jshell.Snippet.Status;
 
@@ -82,7 +80,6 @@ public class JShell implements AutoCloseable {
     final PrintStream err;
     final Supplier<String> tempVariableNameGenerator;
     final BiFunction<Snippet, Integer, String> idGenerator;
-    final Supplier<String> javaVMOptionsProvider;
 
     private int nextKeyIndex = 1;
 
@@ -110,7 +107,6 @@ public class JShell implements AutoCloseable {
         this.taskFactory = new TaskFactory(this);
         this.eval = new Eval(this);
         this.classTracker = new ClassTracker(this);
-        this.javaVMOptionsProvider = b.javaVMOptionsProvider;
     }
 
     /**
@@ -137,7 +133,6 @@ public class JShell implements AutoCloseable {
         PrintStream out = System.out;
         PrintStream err = System.err;
         Supplier<String> tempVariableNameGenerator = null;
-        Supplier<String> javaVMOptionsProvider = ExecutionControl.defaultJavaVMParameters();
         BiFunction<Snippet, Integer, String> idGenerator = null;
 
         Builder() { }
@@ -260,11 +255,6 @@ public class JShell implements AutoCloseable {
          */
         public Builder idGenerator(BiFunction<Snippet, Integer, String> generator) {
             this.idGenerator = generator;
-            return this;
-        }
-
-        public Builder javaVMOptionsProvider(Supplier<String> s) {
-            this.javaVMOptionsProvider = s;
             return this;
         }
 
@@ -613,14 +603,18 @@ public class JShell implements AutoCloseable {
     }
 
     // --- private / package-private implementation support ---
-
+    
+    protected ExecutionControl createExecutionControl() {
+        return new ExecutionControl(new JDIEnv(this), maps, this);
+    }
+    
     ExecutionControl executionControl() {
         if (executionControl == null) {
-            this.executionControl = new ExecutionControl(new JDIEnv(this), maps, javaVMOptionsProvider, this);
+            this.executionControl = createExecutionControl();
             try {
                 executionControl.launch();
             } catch (IOException ex) {
-                throw new InternalError("Launching JDI execution engine threw: " + ex.getMessage(), ex);
+                throw new InternalError("Launching VM engine threw: " + ex);
             }
         }
         return executionControl;
@@ -663,7 +657,7 @@ public class JShell implements AutoCloseable {
     private synchronized void notifyShutdownEvent(JShell state) {
         shutdownListeners.values().forEach(l -> l.accept(state));
     }
-
+    
     void closeDown() {
         if (!closed) {
             // Send only once

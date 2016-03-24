@@ -33,10 +33,14 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import com.sun.jdi.*;
 import java.io.EOFException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jdk.jshell.ClassTracker.ClassInfo;
 import static jdk.internal.jshell.debug.InternalDebugControl.DBG_GEN;
 
@@ -50,20 +54,32 @@ class ExecutionControl {
     private final JDIEnv env;
     private final SnippetMaps maps;
     private JDIEventHandler handler;
-    private Socket socket;
-    private ObjectInputStream in;
-    private ObjectOutputStream out;
+    protected ObjectInputStream in;
+    protected ObjectOutputStream out;
     private final JShell proc;
-    private final Supplier<String> vmArgSupplier;
-
-    ExecutionControl(JDIEnv env, SnippetMaps maps, Supplier<String> vmArgs, JShell proc) {
-        this.env = env;
+    private ExecutionEnv execEnv;
+    
+    ExecutionControl(JDIEnv env, ExecutionEnv execEnv, SnippetMaps maps, JShell proc) {
+        this.execEnv = execEnv;
         this.maps = maps;
         this.proc = proc;
-        this.vmArgSupplier = vmArgs;
+        this.env = env;
     }
 
+    ExecutionControl(JDIEnv env, SnippetMaps maps, JShell proc) {
+        this(env, null, maps, proc);
+    }
+    
     void launch() throws IOException {
+        execEnv.waitConnected(60000);
+        OutputStream os = execEnv.getCommandStream();
+        InputStream is = execEnv.getResponseStream();
+        out = os instanceof ObjectOutputStream ? (ObjectOutputStream)os : 
+                new ObjectOutputStream(execEnv.getCommandStream());
+        in = is instanceof ObjectInputStream ? (ObjectInputStream)is : 
+                new ObjectInputStream(execEnv.getResponseStream());
+
+        /*
         try (ServerSocket listener = new ServerSocket(0)) {
             // timeout after 60 seconds
             listener.setSoTimeout(60000);
@@ -74,6 +90,7 @@ class ExecutionControl {
             out = new ObjectOutputStream(socket.getOutputStream());
             in = new ObjectInputStream(socket.getInputStream());
         }
+        */
     }
 
     void commandExit() {
@@ -82,7 +99,7 @@ class ExecutionControl {
                 out.writeInt(CMD_EXIT);
                 out.flush();
             }
-            JDIConnection c = env.connection();
+            JDIConnection c = env != null ? env.connection() : null;
             if (c != null) {
                 c.disposeVM();
             }
@@ -121,7 +138,11 @@ class ExecutionControl {
                 return result;
             }
         } catch (EOFException ex) {
-            env.shutdown();
+            if (env != null) {
+                env.shutdown();
+            } else {
+                proc.closeDown();
+            }
         } catch (IOException | ClassNotFoundException ex) {
             proc.debug(DBG_GEN, "Exception on remote invoke: %s\n", ex);
             return "Execution failure: " + ex.getMessage();
@@ -144,7 +165,7 @@ class ExecutionControl {
                 return result;
             }
         } catch (EOFException ex) {
-            env.shutdown();
+            execEnv.requestShutdown();
         } catch (IOException ex) {
             proc.debug(DBG_GEN, "Exception on remote var value: %s\n", ex);
             return "Execution failure: " + ex.getMessage();
@@ -163,9 +184,10 @@ class ExecutionControl {
         }
     }
 
-    boolean commandRedefine(Map<ReferenceType, byte[]> mp) {
+    boolean commandRedefine(Map<Object, byte[]> mp) {
         try {
-            env.vm().redefineClasses(mp);
+            execEnv.redefineClasses(mp);
+            // env.vm().redefineClasses(mp);
             return true;
         } catch (UnsupportedOperationException ex) {
             return false;
@@ -175,12 +197,15 @@ class ExecutionControl {
         }
     }
 
-    ReferenceType nameToRef(String name) {
+    Object nameToRef(String name) {
+        return execEnv.getClassHandle(name);
+        /*
         List<ReferenceType> rtl = env.vm().classesByName(name);
         if (rtl.size() != 1) {
             return null;
         }
         return rtl.get(0);
+        */
     }
 
     private boolean readAndReportResult() throws IOException {
@@ -253,7 +278,9 @@ class ExecutionControl {
 
         String connect = "com.sun.jdi.CommandLineLaunch:";
         String cmdLine = "jdk.internal.jshell.remote.RemoteAgent";
-        String javaArgs = vmArgSupplier.get();
+        String javaArgs = execEnv.decorateLaunchArgs(
+                            defaultJavaVMParameters().get()
+        );
         
         String connectSpec = connect + "main=" + cmdLine + " " + port + ",options=" + javaArgs + ",";
         boolean launchImmediately = true;
@@ -278,35 +305,11 @@ class ExecutionControl {
         synchronized (STOP_LOCK) {
             if (!userCodeRunning)
                 return ;
-
-            VirtualMachine vm = handler.env.vm();
-            vm.suspend();
             try {
-                OUTER: for (ThreadReference thread : vm.allThreads()) {
-                    // could also tag the thread (e.g. using name), to find it easier
-                    for (StackFrame frame : thread.frames()) {
-                        String remoteAgentName = "jdk.internal.jshell.remote.RemoteAgent";
-                        if (remoteAgentName.equals(frame.location().declaringType().name()) &&
-                            "commandLoop".equals(frame.location().method().name())) {
-                            ObjectReference thiz = frame.thisObject();
-                            if (((BooleanValue) thiz.getValue(thiz.referenceType().fieldByName("inClientCode"))).value()) {
-                                thiz.setValue(thiz.referenceType().fieldByName("expectingStop"), vm.mirrorOf(true));
-                                ObjectReference stopInstance = (ObjectReference) thiz.getValue(thiz.referenceType().fieldByName("stopException"));
-
-                                vm.resume();
-                                proc.debug(DBG_GEN, "Attempting to stop the client code...\n");
-                                thread.stop(stopInstance);
-                                thiz.setValue(thiz.referenceType().fieldByName("expectingStop"), vm.mirrorOf(false));
-                            }
-
-                            break OUTER;
-                        }
-                    }
-                }
-            } catch (ClassNotLoadedException | IncompatibleThreadStateException | InvalidTypeException  ex) {
-                proc.debug(DBG_GEN, "Exception on remote stop: %s\n", ex);
-            } finally {
-                vm.resume();
+                proc.debug(DBG_GEN, "Attempting to stop the client code...\n");
+                execEnv.sendStopUserCode();
+            } catch (IllegalStateException ex) {
+                proc.debug(DBG_GEN, "Exception on remote stop: %s\n", ex.getCause());
             }
         }
     }
