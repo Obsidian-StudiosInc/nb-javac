@@ -270,7 +270,7 @@ public class MemberEnter extends JCTree.Visitor {
             for (Symbol sym : enclScope.getSymbolsByName(tree.name)) {
                 if (sym.kind == MTH) {
                     boolean sameType = (enclScope.owner.flags_field & APT_CLEANED) != 0 ? isSameMethod(m.type, sym.type) : types.isSameType(m.type, sym.type);
-                    if (sameType || m.name == names.init && (m.owner.name.isEmpty() || m.owner.owner.kind.matches(KindSelector.VAL_MTH))) {
+                    if (sameType) {
                         if ((sym.flags_field & FROMCLASS) != 0) {
                             treeCleaner.scan(tree);
                             tree.sym = (MethodSymbol)sym;
@@ -332,8 +332,10 @@ public class MemberEnter extends JCTree.Visitor {
             }
             if (tree.sym == m) {
                 if ((enclScope.owner.flags_field & APT_CLEANED) == 0) {
-                    ClassSymbol cs = enclScope.owner.outermostClass();
-                    treeLoader.couplingError(cs, tree);
+                    if (m.name != names.init || !m.owner.owner.kind.matches(KindSelector.VAL_MTH)) {
+                        ClassSymbol cs = enclScope.owner.outermostClass();
+                        treeLoader.couplingError(cs, tree);
+                    }
                 } else {
                     localEnv.info.scope.leave();
                     // Set m.params

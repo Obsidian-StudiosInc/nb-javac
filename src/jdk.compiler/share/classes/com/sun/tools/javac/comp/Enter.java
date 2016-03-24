@@ -459,6 +459,7 @@ public class Enter extends JCTree.Visitor {
                     tree.sym.completer = typeEnter;
                     ((ClassType)result).typarams_field = classEnter(tree.typarams, localEnv);
                     if (!tree.sym.isLocal() && uncompleted != null) uncompleted.append(tree.sym);
+                    tree.type = tree.sym.type;
                     return;
                 }
                 if (owner.kind == TYP || owner.kind == ERR) {
@@ -503,7 +504,7 @@ public class Enter extends JCTree.Visitor {
             c.flags_field &= ~FROMCLASS;
             c.kind = TYP;
             c.type = new ClassType(Type.noType, List.<Type>nil(), c);
-        } else if (reattr && c.completer == null) {
+        } else if (reattr && c.completer.isTerminal()) {
             new ElementScanner6<Void, Void>() {
                 @Override
                 public Void visitType(TypeElement te, Void p) {
@@ -619,7 +620,13 @@ public class Enter extends JCTree.Visitor {
                 c.members_field = WriteableScope.create(c);
                 c.flags_field &= ~FROMCLASS;
             }
-        }
+            if (c.owner.kind.matches(KindSelector.VAL_MTH)) {
+                // local or anonymous class
+                for (Symbol ctor : c.members_field.getSymbolsByName(names.init)) {
+                    c.members_field.remove(ctor);
+                }
+            }
+       }
 
         // install further completer for this type.
         c.completer = typeEnter;
@@ -632,7 +639,7 @@ public class Enter extends JCTree.Visitor {
         // Recursively enter all member classes.
         classEnter(tree.defs, localEnv);
 
-        result = c.type;
+        result = tree.type = c.type;
     }
     //where
         /** Does class have the same name as the file it appears in?
