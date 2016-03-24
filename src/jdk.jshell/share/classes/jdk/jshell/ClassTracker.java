@@ -50,7 +50,7 @@ class ClassTracker {
         private final String className;
         private byte[] bytes;
         private byte[] loadedBytes;
-        private ReferenceType rt;
+        private Object rt;
 
         private ClassInfo(String className) {
             this.className = className;
@@ -76,7 +76,7 @@ class ClassTracker {
             return Arrays.equals(loadedBytes, bytes);
         }
 
-        ReferenceType getReferenceTypeOrNull() {
+        Object getReferenceTypeOrNull() {
             if (rt == null) {
                 rt = state.executionControl().nameToRef(className);
             }

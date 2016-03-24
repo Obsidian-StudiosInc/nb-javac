@@ -284,7 +284,7 @@ final class Unit {
          if (toRedefine.isEmpty()) {
             return true;
         }
-        Map<ReferenceType, byte[]> mp = toRedefine.stream()
+        Map<Object, byte[]> mp = toRedefine.stream()
                 .collect(toMap(ci -> ci.getReferenceTypeOrNull(), ci -> ci.getBytes()));
         if (state.executionControl().commandRedefine(mp)) {
             // success, mark as loaded
