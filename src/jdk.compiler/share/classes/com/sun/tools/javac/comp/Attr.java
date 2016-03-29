@@ -700,10 +700,16 @@ public class Attr extends JCTree.Visitor {
     public Type attribStat(JCTree tree, Env<AttrContext> env) {
         Env<AttrContext> analyzeEnv =
                 env.dup(tree, env.info.dup(env.info.scope.dupUnshared(env.info.scope.owner)));
+        boolean baCatched = false;
         try {
             return attribTree(tree, env, statInfo);
+        } catch (BreakAttr ba) {
+            baCatched = true;
+            throw ba;
         } finally {
-            analyzer.analyzeIfNeeded(tree, analyzeEnv);
+            if (!baCatched) {
+                analyzer.analyzeIfNeeded(tree, analyzeEnv);
+            }
         }
     }
 
