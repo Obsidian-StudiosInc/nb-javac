@@ -278,7 +278,7 @@ class ExecutionControl {
     protected final boolean isUserCodeRunning() {
         return userCodeRunning;
     }
-
+    
     void commandStop() {
         synchronized (STOP_LOCK) {
             if (!userCodeRunning)
@@ -299,20 +299,20 @@ class ExecutionControl {
                                 ObjectReference stopInstance = (ObjectReference) thiz.getValue(thiz.referenceType().fieldByName("stopException"));
 
                                 vm.resume();
-                proc.debug(DBG_GEN, "Attempting to stop the client code...\n");
+                                proc.debug(DBG_GEN, "Attempting to stop the client code...\n");
                                 thread.stop(stopInstance);
                                 thiz.setValue(thiz.referenceType().fieldByName("expectingStop"), vm.mirrorOf(false));
-            }
+                            }
 
                             break OUTER;
-        }
-    }
-    }
-            } catch (ClassNotLoadedException | IncompatibleThreadStateException | InvalidTypeException  ex) {
+                        }
+                    }
+                }
+            } catch (ClassNotLoadedException | IncompatibleThreadStateException | InvalidTypeException ex) {
                 proc.debug(DBG_GEN, "Exception on remote stop: %s\n", ex);
             } finally {
                 vm.resume();
-}
+            }
         }
     }
 }
