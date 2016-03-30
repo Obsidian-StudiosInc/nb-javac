@@ -492,7 +492,10 @@ public class Modules extends JCTree.Visitor {
 
     private void completeAutomaticModule(ModuleSymbol msym) throws CompletionFailure {
         try {
+            msym.provides = List.nil();
             msym.requires = List.nil();
+            msym.uses = List.nil();
+            msym.directives = List.nil();
 
             ListBuffer<Directive> directives = new ListBuffer<>();
             ListBuffer<ExportsDirective> exports = new ListBuffer<>();
@@ -507,6 +510,7 @@ public class Modules extends JCTree.Visitor {
                     exports.add(d);
                 }
             }
+            msym.exports = exports.toList();
 
             ListBuffer<RequiresDirective> requires = new ListBuffer<>();
 
@@ -527,10 +531,7 @@ public class Modules extends JCTree.Visitor {
             directives.add(requiresUnnamed);
             requires.add(requiresUnnamed);
 
-            msym.exports = exports.toList();
-            msym.provides = List.nil();
             msym.requires = requires.toList();
-            msym.uses = List.nil();
             msym.directives = directives.toList();
             msym.flags_field |= Flags.ACYCLIC;
         } catch (IOException ex) {
