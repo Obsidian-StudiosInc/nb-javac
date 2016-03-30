@@ -492,6 +492,8 @@ public class Modules extends JCTree.Visitor {
 
     private void completeAutomaticModule(ModuleSymbol msym) throws CompletionFailure {
         try {
+            msym.requires = List.nil();
+
             ListBuffer<Directive> directives = new ListBuffer<>();
             ListBuffer<ExportsDirective> exports = new ListBuffer<>();
             Set<String> seenPackages = new HashSet<>();
