@@ -489,7 +489,7 @@ public class Enter extends JCTree.Visitor {
                         }
                         else {
                             c = syms.enterClass(flatname, tree.name, owner);
-                            if (c.completer == null)
+                            if (c.completer.isTerminal())
                                 reattr = true;
                         }
                     }
@@ -508,7 +508,7 @@ public class Enter extends JCTree.Visitor {
             new ElementScanner6<Void, Void>() {
                 @Override
                 public Void visitType(TypeElement te, Void p) {
-                    if (te instanceof ClassSymbol && ((ClassSymbol) te).completer == null) {
+                    if (te instanceof ClassSymbol && ((ClassSymbol) te).completer.isTerminal()) {
                         ((ClassSymbol) te).flags_field |= FROMCLASS;
                         for (Symbol sym : ((ClassSymbol) te).members().getSymbols()) {
                             try {

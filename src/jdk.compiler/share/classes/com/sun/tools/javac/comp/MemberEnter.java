@@ -331,11 +331,9 @@ public class MemberEnter extends JCTree.Visitor {
                 }
             }
             if (tree.sym == m) {
-                if ((enclScope.owner.flags_field & APT_CLEANED) == 0) {
-                    if (m.name != names.init || !m.owner.owner.kind.matches(KindSelector.VAL_MTH)) {
-                        ClassSymbol cs = enclScope.owner.outermostClass();
-                        treeLoader.couplingError(cs, tree);
-                    }
+                if ((enclScope.owner.flags_field & APT_CLEANED) == 0 && (m.name != names.init || !m.owner.owner.kind.matches(KindSelector.VAL_MTH))) {
+                    ClassSymbol cs = enclScope.owner.outermostClass();
+                    treeLoader.couplingError(cs, tree);
                 } else {
                     localEnv.info.scope.leave();
                     // Set m.params
