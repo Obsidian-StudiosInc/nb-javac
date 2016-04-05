@@ -349,7 +349,7 @@ public class JShell implements AutoCloseable {
         events.forEach(this::notifyKeyStatusEvent);
         return Collections.unmodifiableList(events);
     }
-    
+
     /**
      * Remove a declaration from the state.
      * @param snippet The snippet to remove
@@ -614,7 +614,7 @@ public class JShell implements AutoCloseable {
             try {
                 executionControl.launch();
             } catch (IOException ex) {
-                throw new InternalError("Launching VM engine threw: " + ex);
+                throw new InternalError("Launching JDI execution engine threw: " + ex.getMessage(), ex);
             }
         }
         return executionControl;
@@ -657,7 +657,7 @@ public class JShell implements AutoCloseable {
     private synchronized void notifyShutdownEvent(JShell state) {
         shutdownListeners.values().forEach(l -> l.accept(state));
     }
-    
+
     void closeDown() {
         if (!closed) {
             // Send only once

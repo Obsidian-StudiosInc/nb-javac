@@ -52,7 +52,7 @@ class ExecutionControl {
     protected ObjectInputStream in;
     protected ObjectOutputStream out;
     private final JShell proc;
-    
+
     ExecutionControl(JDIEnv env, SnippetMaps maps, JShell proc) {
         this.env = env;
         this.maps = maps;
@@ -117,7 +117,7 @@ class ExecutionControl {
                 return result;
             }
         } catch (EOFException ex) {
-                env.shutdown();
+            env.shutdown();
         } catch (IOException | ClassNotFoundException ex) {
             proc.debug(DBG_GEN, "Exception on remote invoke: %s\n", ex);
             return "Execution failure: " + ex.getMessage();
@@ -252,7 +252,7 @@ class ExecutionControl {
         String classPath = System.getProperty("java.class.path");
         String bootclassPath = System.getProperty("sun.boot.class.path");
         String javaArgs = "-classpath " + classPath + " -Xbootclasspath:" + bootclassPath;
-        
+
         String connectSpec = connect + "main=" + cmdLine + " " + port + ",options=" + javaArgs + ",";
         boolean launchImmediately = true;
         int traceFlags = 0;// VirtualMachine.TRACE_SENDS | VirtualMachine.TRACE_EVENTS;
@@ -308,7 +308,7 @@ class ExecutionControl {
                         }
                     }
                 }
-            } catch (ClassNotLoadedException | IncompatibleThreadStateException | InvalidTypeException ex) {
+            } catch (ClassNotLoadedException | IncompatibleThreadStateException | InvalidTypeException  ex) {
                 proc.debug(DBG_GEN, "Exception on remote stop: %s\n", ex);
             } finally {
                 vm.resume();
