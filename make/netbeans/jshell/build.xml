@@ -79,6 +79,7 @@
         <jar destfile="${dist.dir}/jshell.jar">
             <fileset dir="${build.classes.dir}">
                 <include name="jdk/internal/jshell/debug/**/*"/>
+		<include name="jdk/internal/jshell/remote/RemoteCodes.class"/>
                 <include name="jdk/jshell/**/*"/>
             </fileset>
         </jar>
