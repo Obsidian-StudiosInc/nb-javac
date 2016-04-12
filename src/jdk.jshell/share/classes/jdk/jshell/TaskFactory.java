@@ -288,7 +288,22 @@ class TaskFactory {
             return task.getTypes();
         }
     }
+    
+    private static String[] DEFAULT_COMPILER_OPTIONS = {
+        "-Xlint:unchecked", "-proc:none"
+    };
 
+    private static String[] args(List<String> compOptions) {
+        if (compOptions.isEmpty()) {
+            return DEFAULT_COMPILER_OPTIONS;
+        } else {
+            String[] all = new String[DEFAULT_COMPILER_OPTIONS.length + compOptions.size()];
+            compOptions.toArray(all);
+            System.arraycopy(DEFAULT_COMPILER_OPTIONS, 0, all, compOptions.size(), DEFAULT_COMPILER_OPTIONS.length);
+            return all;
+        }
+    }
+    
     /**
      * Unit the wrapped snippet to class files.
      */
@@ -296,10 +311,12 @@ class TaskFactory {
 
         private final Map<Unit, List<OutputMemoryJavaFileObject>> classObjs = new HashMap<>();
 
-        CompileTask(Collection<Unit> units) {
+        CompileTask(Collection<Unit> units, List<String> compilerOptions) {
             super(units.stream(), new UnitSourceHandler(),
-                    "-Xlint:unchecked", "-proc:none");
+                    args(compilerOptions)
+            );
         }
+        
 
         boolean compile() {
             fileManager.registerClassFileCreationListener(this::listenForNewClassFile);
