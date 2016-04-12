@@ -694,4 +694,7 @@ public class JShell implements AutoCloseable {
         }
     }
 
+    protected List<String> getCompilerOptions() {
+        return Collections.emptyList();
+    }
 }

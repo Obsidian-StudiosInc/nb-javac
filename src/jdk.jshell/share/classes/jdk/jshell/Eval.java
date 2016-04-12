@@ -539,7 +539,7 @@ class Eval {
                     legit.stream().forEach(u -> u.setWrap(ins, legit));
 
                     // generate class files for those capable
-                    CompileTask ct = state.taskFactory.new CompileTask(legit);
+                    CompileTask ct = state.taskFactory.new CompileTask(legit, state.getCompilerOptions());
                     if (!ct.compile()) {
                         // oy! compile failed because of recursive new unresolved
                         if (legit.stream()
