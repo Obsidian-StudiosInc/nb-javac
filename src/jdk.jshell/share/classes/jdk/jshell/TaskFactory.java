@@ -298,7 +298,9 @@ class TaskFactory {
             return DEFAULT_COMPILER_OPTIONS;
         } else {
             String[] all = new String[DEFAULT_COMPILER_OPTIONS.length + compOptions.size()];
-            compOptions.toArray(all);
+            for (int i = 0; i < compOptions.size(); i++) {
+                all[i] = compOptions.get(i);
+            }
             System.arraycopy(DEFAULT_COMPILER_OPTIONS, 0, all, compOptions.size(), DEFAULT_COMPILER_OPTIONS.length);
             return all;
         }
