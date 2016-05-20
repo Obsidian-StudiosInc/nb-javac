@@ -1139,7 +1139,7 @@ public class TypeAnnotations {
                         separateAnnotationsKinds(tree, null, tree.sym, pos);
                     } else {
                         final TypeAnnotationPosition pos =
-                            TypeAnnotationPosition.methodReturn(tree.restype.pos);
+                            TypeAnnotationPosition.methodReturn(tree.restype != null ? tree.restype.pos : tree.pos);
                         separateAnnotationsKinds(tree.restype,
                                                  tree.sym.type.getReturnType(),
                                                  tree.sym, pos);
