@@ -540,8 +540,10 @@ public class Resolve {
             // which is fine, see JLS 15.12.2.1
         } else if (mt.hasTag(FORALL) && typeargtypes.nonEmpty()) {
             ForAll pmt = (ForAll) mt;
-            if (typeargtypes.length() != pmt.tvars.length())
+            if (typeargtypes.length() != pmt.tvars.length()) {
+                inapplicableMethodException.fillInStackTrace();
                 throw inapplicableMethodException.setMessage("arg.length.mismatch"); // not enough args
+            }
             // Check type arguments are within bounds
             List<Type> formals = pmt.tvars;
             List<Type> actuals = typeargtypes;
@@ -549,8 +551,10 @@ public class Resolve {
                 List<Type> bounds = types.subst(types.getBounds((TypeVar)formals.head),
                                                 pmt.tvars, typeargtypes);
                 for (; bounds.nonEmpty(); bounds = bounds.tail) {
-                    if (!types.isSubtypeUnchecked(actuals.head, bounds.head, warn))
+                    if (!types.isSubtypeUnchecked(actuals.head, bounds.head, warn)) {
+                        inapplicableMethodException.fillInStackTrace();
                         throw inapplicableMethodException.setMessage("explicit.param.do.not.conform.to.bounds",actuals.head, bounds);
+                    }
                 }
                 formals = formals.tail;
                 actuals = actuals.tail;
@@ -978,6 +982,7 @@ public class Resolve {
         }
 
         public void report(DiagnosticPosition pos, JCDiagnostic details) {
+            inapplicableMethodException.fillInStackTrace();
             throw inapplicableMethodException.setMessage(details);
         }
 
