@@ -232,28 +232,34 @@ public class Analyzer {
         @Override
         void process(JCNewClass oldTree, JCNewClass newTree, boolean hasErrors) {
             if (!hasErrors) {
-                List<Type> inferredArgs, explicitArgs;
+                Type oldType = null;
+                Type newType = null;
                 if (oldTree.def != null) {
-                    inferredArgs = newTree.def.implementing.nonEmpty()
-                                      ? newTree.def.implementing.get(0).type.getTypeArguments()
-                                      : newTree.def.extending.type.getTypeArguments();
-                    explicitArgs = oldTree.def.implementing.nonEmpty()
-                                      ? oldTree.def.implementing.get(0).type.getTypeArguments()
-                                      : oldTree.def.extending.type.getTypeArguments();
+                    newType = newTree.def.implementing.nonEmpty()
+                                      ? newTree.def.implementing.get(0).type
+                                      : newTree.def.extending.type;
+                    oldType = oldTree.def.implementing.nonEmpty()
+                                      ? oldTree.def.implementing.get(0).type
+                                      : oldTree.def.extending.type;
                 } else {
-                    inferredArgs = newTree.type.getTypeArguments();
-                    explicitArgs = oldTree.type.getTypeArguments();
+                    newType = newTree.type;
+                    oldType = oldTree.type;
                 }
-                for (Type t : inferredArgs) {
-                    if (!types.isSameType(t, explicitArgs.head)) {
-                        log.warning(oldTree.clazz, "diamond.redundant.args.1",
-                                oldTree.clazz.type, newTree.clazz.type);
-                        return;
+                if (oldType != null && !oldType.isErroneous()
+                        && newType != null && !newType.isErroneous()) {
+                    List<Type> explicitArgs = oldType.getTypeArguments();
+                    List<Type> inferredArgs = newType.getTypeArguments();
+                    for (Type t : inferredArgs) {
+                        if (!types.isSameType(t, explicitArgs.head)) {
+                            log.warning(oldTree.clazz, "diamond.redundant.args.1",
+                                    oldTree.clazz.type, newTree.clazz.type);
+                            return;
+                        }
+                        explicitArgs = explicitArgs.tail;
                     }
-                    explicitArgs = explicitArgs.tail;
+                    //exact match
+                    log.warning(oldTree.clazz, "diamond.redundant.args");
                 }
-                //exact match
-                log.warning(oldTree.clazz, "diamond.redundant.args");
             }
         }
     }
