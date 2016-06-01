@@ -599,7 +599,7 @@ public class JavacTaskImpl extends BasicJavacTask {
                 boolean isPkgInfo = env.toplevel.sourcefile.isNameCompatible("package-info",
                                                                              JavaFileObject.Kind.SOURCE);
                 if (isPkgInfo) {
-                    csym = env.toplevel.packge.package_info;
+                    csym = env.toplevel.packge != null ? env.toplevel.packge.package_info : null;
                 } else {
                     csym = env.enclClass.sym;
                 }
