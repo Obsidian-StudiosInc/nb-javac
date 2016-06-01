@@ -944,6 +944,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
             List<JCCompilationUnit> parsedFiles = compiler.parseFiles(newSourceFiles);
             roots = prev.roots.appendList(parsedFiles);
+            treesToClean.addAll(parsedFiles);
 
             // Check for errors after parsing
             if (unrecoverableError())
@@ -1124,7 +1125,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             for (JCCompilationUnit node : treesToClean) {
                 treeCleaner.scan(node);
             }
-            chk.newRound();
             filer.newRound();
             messager.newRound();
             types.newRound();
@@ -1168,6 +1168,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             round = round.next(
                     new LinkedHashSet<>(filer.getGeneratedSourceFileObjects()),
                     new LinkedHashMap<>(filer.getGeneratedClasses()));
+
+            roots = round.roots;
 
              // Check for errors during setup.
             if (round.unrecoverableError())
