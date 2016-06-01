@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,37 +23,19 @@
  * questions.
  */
 
-package jdk.jshell;
+package jdk.internal.jshell.tool;
 
-import com.sun.tools.javac.parser.JavacParser;
-import com.sun.tools.javac.parser.ParserFactory;
-import com.sun.tools.javac.parser.ScannerFactory;
-import com.sun.tools.javac.util.Context;
 
 /**
+ * User message reporting support
  *
  * @author Robert Field
  */
-class ReplParserFactory extends ParserFactory {
+public interface MessageHandler {
 
-    public static ParserFactory instance(Context context) {
-        ParserFactory instance = context.get(parserFactoryKey);
-        if (instance == null) {
-            instance = new ReplParserFactory(context);
-        }
-        return instance;
-    }
+    void fluff(String format, Object... args);
 
-    private final ScannerFactory scannerFactory;
+    void fluffmsg(String messageKey, Object... args);
 
-    protected ReplParserFactory(Context context) {
-        super(context);
-        this.scannerFactory = ScannerFactory.instance(context);
-    }
-
-    @Override
-    public JavacParser newParser(CharSequence input, boolean keepDocComments, boolean keepEndPos, boolean keepLineMap) {
-        com.sun.tools.javac.parser.Lexer lexer = scannerFactory.newScanner(input, keepDocComments);
-        return new ReplParser(this, lexer, keepDocComments, keepLineMap, keepEndPos);
-    }
+    void errormsg(String messageKey, Object... args);
 }
