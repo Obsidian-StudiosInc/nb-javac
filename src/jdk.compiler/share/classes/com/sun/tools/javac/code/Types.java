@@ -3951,7 +3951,7 @@ public class Types {
      * Return the primitive type corresponding to a boxed type.
      */
     public Type unboxedType(Type t) {
-        if (!t.isErroneous()) {
+        if (t != null && !t.isErroneous()) {
             for (int i=0; i<syms.boxedName.length; i++) {
                 Name box = syms.boxedName[i];
                 Type st = null;
