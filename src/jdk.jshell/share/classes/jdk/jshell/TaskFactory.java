@@ -60,7 +60,7 @@ import java.util.stream.Stream;
 import javax.lang.model.util.Elements;
 import javax.tools.FileObject;
 import jdk.jshell.MemoryFileManager.SourceMemoryJavaFileObject;
-import java.lang.Runtime.Version;
+//import java.lang.Runtime.Version;
 
 /**
  * The primary interface to the compiler API.  Parsing, analysis, and
@@ -73,7 +73,7 @@ class TaskFactory {
     private final MemoryFileManager fileManager;
     private final JShell state;
     private String classpath = System.getProperty("java.class.path");
-    private final static Version INITIAL_SUPPORTED_VER = Version.parse("9");
+//    private final static Version INITIAL_SUPPORTED_VER = Version.parse("9");
 
     TaskFactory(JShell state) {
         this.state = state;
@@ -81,10 +81,10 @@ class TaskFactory {
         if (compiler == null) {
             throw new UnsupportedOperationException("Compiler not available, must be run with full JDK 9.");
         }
-        Version current = Version.parse(System.getProperty("java.specification.version"));
-        if (INITIAL_SUPPORTED_VER.compareToIgnoreOpt(current) > 0)  {
-            throw new UnsupportedOperationException("Wrong compiler, must be run with full JDK 9.");
-        }
+//        Version current = Version.parse(System.getProperty("java.specification.version"));
+//        if (INITIAL_SUPPORTED_VER.compareToIgnoreOpt(current) > 0)  {
+//            throw new UnsupportedOperationException("Wrong compiler, must be run with full JDK 9.");
+//        }
         this.fileManager = new MemoryFileManager(
                 compiler.getStandardFileManager(null, null, null), state);
     }
@@ -207,6 +207,18 @@ class TaskFactory {
         }
     }
 
+   
+    private static String[] args(List<String> compOptions, String... options) {
+        if (compOptions.isEmpty()) {
+            return options;
+        } else {
+            String[] all = new String[options.length + compOptions.size()];
+            compOptions.toArray(all);
+            System.arraycopy(options, 0, all, compOptions.size(), options.length);
+            return all;
+        }
+    }
+    
     /**
      * Run the normal "analyze()" pass of the compiler over the wrapped snippet.
      */
@@ -223,7 +235,7 @@ class TaskFactory {
                     new WrapSourceHandler(),
                     Util.join(new String[] {
                         "-XDshouldStopPolicy=FLOW", "-Xlint:unchecked",
-                        "-XaddExports:jdk.jshell/jdk.internal.jshell.remote=ALL-UNNAMED",
+//                        "-XaddExports:jdk.jshell/jdk.internal.jshell.remote=ALL-UNNAMED",
                         "-proc:none"
                     }, extraArgs));
         }
@@ -267,7 +279,11 @@ class TaskFactory {
 
         CompileTask(final Collection<OuterWrap> wraps) {
             super(wraps.stream(), new WrapSourceHandler(),
-                    "-Xlint:unchecked", "-XaddExports:jdk.jshell/jdk.internal.jshell.remote=ALL-UNNAMED", "-proc:none", "-parameters");
+                    args(state.getCompilerOptions(),
+                    "-Xlint:unchecked", 
+//                    "-XaddExports:jdk.jshell/jdk.internal.jshell.remote=ALL-UNNAMED", 
+                    "-proc:none", "-parameters")
+            );
         }
 
         boolean compile() {

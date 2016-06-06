@@ -103,6 +103,8 @@ public class JShell implements AutoCloseable {
 
     private static final String L10N_RB_NAME    = "jdk.jshell.resources.l10n";
     private static ResourceBundle outputRB  = null;
+    
+    private final List<String> compilerOptions = new ArrayList<>();
 
     JShell(Builder b) {
         this.in = b.in;
@@ -120,6 +122,11 @@ public class JShell implements AutoCloseable {
         this.outerMap = new OuterWrapMap(this);
         this.taskFactory = new TaskFactory(this);
         this.eval = new Eval(this);
+        
+        compilerOptions.add("-source");
+        compilerOptions.add(b.sourceLevel);
+        compilerOptions.add("-target");
+        compilerOptions.add(b.target);
     }
 
     /**
@@ -149,6 +156,8 @@ public class JShell implements AutoCloseable {
         BiFunction<Snippet, Integer, String> idGenerator = null;
         List<String> extraRemoteVMOptions = new ArrayList<>();
         ExecutionControl executionControl;
+        String sourceLevel = "8";
+        String target = "8";
 
         Builder() { }
 
@@ -295,6 +304,16 @@ public class JShell implements AutoCloseable {
          */
         public Builder executionEngine(ExecutionControl execEngine) {
             this.executionControl = execEngine;
+            return this;
+        }
+        
+        public Builder sourceOptions(String source, String target) {
+            if (source != null) {
+                this.sourceLevel = source;
+            }
+            if (target != null) {
+                this.target = target;
+            }
             return this;
         }
 
@@ -814,4 +833,7 @@ public class JShell implements AutoCloseable {
         return MessageFormat.format(s, args);
     }
 
+    List<String> getCompilerOptions() {
+        return compilerOptions;
+    }
 }

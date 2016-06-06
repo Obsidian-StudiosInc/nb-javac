@@ -109,7 +109,7 @@ public class JDIExecutionControl implements ExecutionControl {
     @Override
     public void close() {
         try {
-            JDIConnection c = jdiEnv.connection();
+            JDIConnection c = jdiEnv == null ? null : jdiEnv.connection();
             if (c != null) {
                 c.beginShutdown();
             }
@@ -447,7 +447,7 @@ public class JDIExecutionControl implements ExecutionControl {
                 return;
             }
 
-            VirtualMachine vm = handler.env.vm();
+            VirtualMachine vm = jdiEnv.vm();
             vm.suspend();
             try {
                 OUTER:
