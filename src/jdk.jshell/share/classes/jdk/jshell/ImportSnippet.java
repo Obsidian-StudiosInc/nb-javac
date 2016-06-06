@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.jshell;
 
 import jdk.jshell.Key.ImportKey;
@@ -100,6 +101,6 @@ public class ImportSnippet extends PersistentSnippet {
 
     @Override
     String importLine(JShell state) {
-        return source();
+        return guts().wrapped();
     }
 }
