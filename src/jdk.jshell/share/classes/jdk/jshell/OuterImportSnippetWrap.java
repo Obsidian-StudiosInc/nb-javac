@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,35 +25,37 @@
 
 package jdk.jshell;
 
-import com.sun.tools.javac.parser.JavacParser;
-import com.sun.tools.javac.parser.ParserFactory;
-import com.sun.tools.javac.parser.ScannerFactory;
-import com.sun.tools.javac.util.Context;
+import java.util.IdentityHashMap;
+import java.util.List;
+import javax.tools.Diagnostic;
+import javax.tools.JavaFileObject;
 
 /**
- *
+ * The outer wrap for a set of snippets wrapped in a generated class
  * @author Robert Field
  */
-class ReplParserFactory extends ParserFactory {
+public class OuterImportSnippetWrap extends OuterWrap {
 
-    public static ParserFactory instance(Context context) {
-        ParserFactory instance = context.get(parserFactoryKey);
-        if (instance == null) {
-            instance = new ReplParserFactory(context);
-        }
-        return instance;
-    }
+    private final Snippet snippet;
 
-    private final ScannerFactory scannerFactory;
-
-    protected ReplParserFactory(Context context) {
-        super(context);
-        this.scannerFactory = ScannerFactory.instance(context);
+    OuterImportSnippetWrap(Wrap wrap, Snippet snippet) {
+        super(wrap);
+        this.snippet = snippet;
     }
 
     @Override
-    public JavacParser newParser(CharSequence input, boolean keepDocComments, boolean keepEndPos, boolean keepLineMap) {
-        com.sun.tools.javac.parser.Lexer lexer = scannerFactory.newScanner(input, keepDocComments);
-        return new ReplParser(this, lexer, keepDocComments, keepLineMap, keepEndPos);
+    Diag wrapDiag(Diagnostic<? extends JavaFileObject> d) {
+        return new WrappedDiagnostic(d) {
+
+            @Override
+            Snippet snippetOrNull() {
+                return snippet;
+            }
+        };
+    }
+
+    @Override
+    public String toString() {
+        return "OISW(" + w + ")";
     }
 }

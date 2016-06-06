@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,22 +23,17 @@
  * questions.
  */
 
-package jdk.jshell;
-
-import jdk.jshell.Key.ErroneousKey;
-
 /**
- * A snippet of code that is not valid Java programming language code, and for
- * which the kind of snippet could not be determined.
- * The Kind is {@link jdk.jshell.Snippet.Kind#ERRONEOUS ERRONEOUS}.
+ * Provides support for alternate implementations of the JShell execution
+ * engine.  The JShell core tracks and compiles Snippets then sends them
+ * (represented in a wrapper class) to the execution engine for loading,
+ * and in the case of executable Snippets, execution.  The JShell
+ * implementation includes a default execution engine (currently a remote
+ * process which is JDI controlled).  By implementing the
+ * {@link ExecutionControl} interface and installing it with
+ * {@link jdk.jshell.JShell.Builder#executionEngine(jdk.jshell.spi.ExecutionControl) }
+ * other execution engines can be used.
  * <p>
- * <code>ErroneousSnippet</code> is immutable: an access to
- * any of its methods will always return the same result.
- * and thus is thread-safe.
+ * This is not a part of the JShell API.
  */
-public class ErroneousSnippet extends Snippet {
-
-    ErroneousSnippet(ErroneousKey key, String userSource, Wrap guts, SubKind subkind) {
-        super(key, userSource, guts, null, subkind);
-    }
-}
+package jdk.jshell.spi;
