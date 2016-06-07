@@ -45,7 +45,9 @@ import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.jvm.*;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
+import com.sun.tools.javac.tree.JCTree.Tag;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.Name;
@@ -1369,6 +1371,12 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         {
             setData(new Callable<Object>() {
                 public Object call() {
+                    for (JCTree member : env.enclClass.defs) {
+                        if (member == variable)
+                            break;
+                        if (member.hasTag(Tag.VARDEF))
+                            ((JCVariableDecl) member).sym.getConstValue();
+                    }
                     return attr.attribLazyConstantValue(env, variable, type);
                 }
             });
