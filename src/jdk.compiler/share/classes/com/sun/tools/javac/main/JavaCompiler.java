@@ -799,7 +799,9 @@ public class JavaCompiler {
             taskListener.finished(e);
         }
 
-        toProcessAnnotations = toProcessAnnotations.prepend(tree);
+        if (checkEntered(tree)) {
+            toProcessAnnotations = toProcessAnnotations.prepend(tree);
+        }
 
         if (enter.getEnv(c) == null) {
             boolean isPkgInfo =
@@ -821,6 +823,17 @@ public class JavaCompiler {
         }
 
         implicitSourceFilesRead = true;
+    }
+    
+    private boolean checkEntered(JCCompilationUnit unit) {
+        for (JCTree node : unit.defs) {
+            if (node.hasTag(JCTree.Tag.CLASSDEF)) {
+                if (((JCClassDecl) node).sym == null) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /** Track when the JavaCompiler has been used to compile something. */

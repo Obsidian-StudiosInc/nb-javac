@@ -1251,7 +1251,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             for (JCTree node : unit.defs) {
                 if (node.hasTag(JCTree.Tag.CLASSDEF)) {
                     ClassSymbol sym = ((JCClassDecl) node).sym;
-                    Assert.checkNonNull(sym);
+                    Assert.checkNonNull(sym, "Null sym in class: " + node);
                     classes = classes.prepend(sym);
                 }
             }
