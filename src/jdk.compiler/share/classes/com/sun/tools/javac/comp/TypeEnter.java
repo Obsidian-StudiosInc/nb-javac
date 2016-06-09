@@ -921,6 +921,9 @@ public class TypeEnter implements Completer {
 
             if (tree.sym.isAnnotationType()) {
                 Assert.check(tree.sym.isCompleted());
+                if ((tree.sym.flags_field & FROMCLASS) != 0) {
+                    tree.sym.resetAnnotationTypeMetadata();
+                }
                 tree.sym.setAnnotationTypeMetadata(new AnnotationTypeMetadata(tree.sym, annotate.annotationTypeSourceCompleter()));
             }
         }
