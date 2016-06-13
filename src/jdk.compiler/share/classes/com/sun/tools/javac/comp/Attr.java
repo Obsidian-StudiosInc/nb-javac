@@ -733,22 +733,12 @@ public class Attr extends JCTree.Visitor {
      */
     KindSelector attribArgs(KindSelector initialKind, List<JCExpression> trees, Env<AttrContext> env, ListBuffer<Type> argtypes) {
         KindSelector kind = initialKind;
-        JCTree oldBreakTree = breakTree;
-        try {
-            breakTree = null;
-            for (JCExpression arg : trees) {
-                Type argtype = chk.checkNonVoid(arg, attribTree(arg, env, allowPoly ? methodAttrInfo : unknownExprInfo));
-                if (argtype.hasTag(DEFERRED)) {
-                    kind = KindSelector.of(KindSelector.POLY, kind);
-                }
-                argtypes.append(argtype);
-                if (arg == oldBreakTree &&
-                        resultInfo.checkContext.deferredAttrContext().mode == AttrMode.CHECK) {
-                    throw new BreakAttr(copyEnv(env));
-                }
+        for (JCExpression arg : trees) {
+            Type argtype = chk.checkNonVoid(arg, attribTree(arg, env, allowPoly ? methodAttrInfo : unknownExprInfo));
+            if (argtype.hasTag(DEFERRED)) {
+                kind = KindSelector.of(KindSelector.POLY, kind);
             }
-        } finally {
-            breakTree = oldBreakTree;
+            argtypes.append(argtype);
         }
         return kind;
     }
