@@ -41,14 +41,18 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
-import com.sun.tools.javac.util.JavacMessages;
 import com.sun.tools.javac.util.Name;
 import static jdk.jshell.Util.isDoIt;
+import jdk.jshell.TaskFactory.AnalyzeTask;
 import jdk.jshell.Wrap.Range;
+
 import java.util.List;
 import java.util.Locale;
-import java.util.function.BinaryOperator;
+
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 import javax.lang.model.type.TypeMirror;
+import jdk.jshell.Util.Pair;
 
 /**
  * Utilities for analyzing compiler API parse trees.
@@ -68,23 +72,48 @@ class TreeDissector {
     }
 
     private final TaskFactory.BaseTask bt;
-    private ClassTree firstClass;
+    private final ClassTree targetClass;
+    private final CompilationUnitTree targetCompilationUnit;
     private SourcePositions theSourcePositions = null;
 
-    TreeDissector(TaskFactory.BaseTask bt) {
+    private TreeDissector(TaskFactory.BaseTask bt, CompilationUnitTree targetCompilationUnit, ClassTree targetClass) {
         this.bt = bt;
+        this.targetCompilationUnit = targetCompilationUnit;
+        this.targetClass = targetClass;
     }
 
+    static TreeDissector createByFirstClass(TaskFactory.BaseTask bt) {
+        Pair<CompilationUnitTree, ClassTree> pair = classes(bt.firstCuTree())
+                .findFirst().orElseGet(() -> new Pair<>(bt.firstCuTree(), null));
 
-    ClassTree firstClass() {
-        if (firstClass == null) {
-            firstClass = computeFirstClass();
-        }
-        return firstClass;
+        return new TreeDissector(bt, pair.first, pair.second);
     }
 
-    CompilationUnitTree cuTree() {
-        return bt.cuTree();
+    private static final Predicate<? super Tree> isClassOrInterface =
+            t -> t.getKind() == Tree.Kind.CLASS || t.getKind() == Tree.Kind.INTERFACE;
+
+    private static Stream<Pair<CompilationUnitTree, ClassTree>> classes(CompilationUnitTree cut) {
+        return cut == null
+                ? Stream.empty()
+                : cut.getTypeDecls().stream()
+                        .filter(isClassOrInterface)
+                        .map(decl -> new Pair<>(cut, (ClassTree)decl));
+    }
+
+    private static Stream<Pair<CompilationUnitTree, ClassTree>> classes(Iterable<? extends CompilationUnitTree> cuts) {
+        return Util.stream(cuts)
+                .flatMap(TreeDissector::classes);
+    }
+
+    static TreeDissector createBySnippet(TaskFactory.BaseTask bt, Snippet si) {
+        String name = si.className();
+
+        Pair<CompilationUnitTree, ClassTree> pair = classes(bt.cuTrees())
+                .filter(p -> p.second.getSimpleName().contentEquals(name))
+                .findFirst().orElseThrow(() ->
+                        new IllegalArgumentException("Class " + name + " is not found."));
+
+        return new TreeDissector(bt, pair.first, pair.second);
     }
 
     Types types() {
@@ -103,11 +132,11 @@ class TreeDissector {
     }
 
     int getStartPosition(Tree tree) {
-        return (int) getSourcePositions().getStartPosition(cuTree(), tree);
+        return (int) getSourcePositions().getStartPosition(targetCompilationUnit, tree);
     }
 
     int getEndPosition(Tree tree) {
-        return (int) getSourcePositions().getEndPosition(cuTree(), tree);
+        return (int) getSourcePositions().getEndPosition(targetCompilationUnit, tree);
     }
 
     Range treeToRange(Tree tree) {
@@ -133,18 +162,28 @@ class TreeDissector {
         return new Range(start, end);
     }
 
-    Tree firstClassMember() {
-        if (firstClass() != null) {
-            //TODO: missing classes
-            for (Tree mem : firstClass().getMembers()) {
-                if (mem.getKind() == Tree.Kind.VARIABLE) {
-                    return mem;
-                }
-                if (mem.getKind() == Tree.Kind.METHOD) {
-                    MethodTree mt = (MethodTree) mem;
-                    if (!isDoIt(mt.getName()) && !mt.getName().toString().equals("<init>")) {
+    MethodTree method(MethodSnippet msn) {
+        if (targetClass == null) {
+            return null;
+        }
+        OuterWrap ow = msn.outerWrap();
+        if (!(ow instanceof OuterSnippetsClassWrap)) {
+            return null;
+        }
+        int ordinal = ((OuterSnippetsClassWrap) ow).ordinal(msn);
+        if (ordinal < 0) {
+            return null;
+        }
+        int count = 0;
+        String name = msn.name();
+        for (Tree mem : targetClass.getMembers()) {
+            if (mem.getKind() == Tree.Kind.METHOD) {
+                MethodTree mt = (MethodTree) mem;
+                if (mt.getName().toString().equals(name)) {
+                    if (count == ordinal) {
                         return mt;
                     }
+                    ++count;
                 }
             }
         }
@@ -152,8 +191,8 @@ class TreeDissector {
     }
 
     StatementTree firstStatement() {
-        if (firstClass() != null) {
-            for (Tree mem : firstClass().getMembers()) {
+        if (targetClass != null) {
+            for (Tree mem : targetClass.getMembers()) {
                 if (mem.getKind() == Tree.Kind.METHOD) {
                     MethodTree mt = (MethodTree) mem;
                     if (isDoIt(mt.getName())) {
@@ -169,8 +208,8 @@ class TreeDissector {
     }
 
     VariableTree firstVariable() {
-        if (firstClass() != null) {
-            for (Tree mem : firstClass().getMembers()) {
+        if (targetClass != null) {
+            for (Tree mem : targetClass.getMembers()) {
                 if (mem.getKind() == Tree.Kind.VARIABLE) {
                     VariableTree vt = (VariableTree) mem;
                     return vt;
@@ -180,31 +219,18 @@ class TreeDissector {
         return null;
     }
 
-    private ClassTree computeFirstClass() {
-        if (cuTree() == null) {
-            return null;
-        }
-        for (Tree decl : cuTree().getTypeDecls()) {
-            if (decl.getKind() == Tree.Kind.CLASS || decl.getKind() == Tree.Kind.INTERFACE) {
-                return (ClassTree) decl;
-            }
-        }
-        return null;
-    }
 
-    ExpressionInfo typeOfReturnStatement(JavacMessages messages, BinaryOperator<String> fullClassNameAndPackageToClass) {
+    ExpressionInfo typeOfReturnStatement(AnalyzeTask at, JShell state) {
         ExpressionInfo ei = new ExpressionInfo();
         Tree unitTree = firstStatement();
         if (unitTree instanceof ReturnTree) {
             ei.tree = ((ReturnTree) unitTree).getExpression();
             if (ei.tree != null) {
-                TreePath viPath = trees().getPath(cuTree(), ei.tree);
+                TreePath viPath = trees().getPath(targetCompilationUnit, ei.tree);
                 if (viPath != null) {
                     TypeMirror tm = trees().getTypeMirror(viPath);
                     if (tm != null) {
-                        Type type = (Type)tm;
-                        TypePrinter tp = new TypePrinter(messages, fullClassNameAndPackageToClass, type);
-                        ei.typeName = tp.visit(type, Locale.getDefault());
+                        ei.typeName = printType(at, state, tm);
                         switch (tm.getKind()) {
                             case VOID:
                             case NONE:
@@ -228,8 +254,8 @@ class TreeDissector {
         return ei;
     }
 
-    String typeOfMethod() {
-        Tree unitTree = firstClassMember();
+    String typeOfMethod(MethodSnippet msn) {
+        Tree unitTree = method(msn);
         if (unitTree instanceof JCMethodDecl) {
             JCMethodDecl mtree = (JCMethodDecl) unitTree;
             Type mt = types().erasure(mtree.type);
@@ -244,6 +270,12 @@ class TreeDissector {
         TDSignatureGenerator sg = new TDSignatureGenerator(types);
         sg.assembleSig(mt);
         return sg.toString();
+    }
+
+    public static String printType(AnalyzeTask at, JShell state, TypeMirror type) {
+        Type typeImpl = (Type) type;
+        TypePrinter tp = new TypePrinter(at.messages(), state.maps::fullClassNameAndPackageToClass, typeImpl);
+        return tp.visit(typeImpl, Locale.getDefault());
     }
 
     /**

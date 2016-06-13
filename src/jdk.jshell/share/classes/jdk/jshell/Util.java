@@ -1,5 +1,5 @@
- /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/*
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,20 +25,46 @@
 
 package jdk.jshell;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.lang.model.element.Name;
-import static jdk.internal.jshell.remote.RemoteCodes.DOIT_METHOD_NAME;
-import static jdk.internal.jshell.remote.RemoteCodes.prefixPattern;
 
 /**
- * Assorted shared utilities.
- * @author Robert Field
+ * Assorted shared utilities and constants.
  */
 class Util {
 
-    static final String REPL_CLASS_PREFIX = "$REPL";
-    static final String REPL_DOESNOTMATTER_CLASS_NAME = REPL_CLASS_PREFIX+"00DOESNOTMATTER";
+    /**
+     * The package name of all wrapper classes.
+     */
+    static final String REPL_PACKAGE = "REPL";
+
+    /**
+     * The prefix for all wrapper class names.
+     */
+    static final String REPL_CLASS_PREFIX = "$JShell$";
+
+    /**
+     * The name of the invoke method.
+     */
+    static final String DOIT_METHOD_NAME = "do_it$";
+
+    /**
+     * A pattern matching the full or simple class name of a wrapper class.
+     */
+    static final Pattern PREFIX_PATTERN = Pattern.compile(
+            "(" + REPL_PACKAGE + "\\.)?"
+            + "(?<class>" + Pattern.quote(REPL_CLASS_PREFIX)
+            + "\\w+" + ")" + "[\\$\\.]?");
+
+    static final String REPL_DOESNOTMATTER_CLASS_NAME = REPL_CLASS_PREFIX + "DOESNOTMATTER";
+
+    static final Locale PARSED_LOCALE = Locale.ROOT;
 
     static boolean isDoIt(Name name) {
         return isDoIt(name.toString());
@@ -50,7 +76,7 @@ class Util {
 
     static String expunge(String s) {
         StringBuilder sb = new StringBuilder();
-        for (String comp : prefixPattern.split(s)) {
+        for (String comp : PREFIX_PATTERN.split(s)) {
             sb.append(comp);
         }
         return sb.toString();
@@ -90,5 +116,24 @@ class Util {
 
     static <T> Stream<T> stream(Iterable<T> iterable) {
         return StreamSupport.stream(iterable.spliterator(), false);
+    }
+
+    static String[] join(String[] a1, String[] a2) {
+        List<String> result = new ArrayList<>();
+
+        result.addAll(Arrays.asList(a1));
+        result.addAll(Arrays.asList(a2));
+
+        return result.toArray(new String[0]);
+    }
+
+    static class Pair<T, U> {
+        final T first;
+        final U second;
+
+        Pair(T first, U second) {
+            this.first = first;
+            this.second = second;
+        }
     }
 }
