@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.jshell;
 
 import java.util.Collection;
@@ -83,6 +84,6 @@ public abstract class DeclarationSnippet extends PersistentSnippet {
 
     @Override
     String importLine(JShell state) {
-        return "import static " + state.maps.classFullName(this) + "." + name() + ";\n";
+        return "import static " + classFullName() + "." + name() + ";\n";
     }
 }

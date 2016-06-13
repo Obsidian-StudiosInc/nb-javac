@@ -23,10 +23,7 @@
  * questions.
  */
 
-
 package jdk.internal.jshell.remote;
-
-import java.util.regex.Pattern;
 
 /**
  * Communication constants shared between the main process and the remote
@@ -47,9 +44,4 @@ public class RemoteCodes {
     public static final int RESULT_EXCEPTION = 102;
     public static final int RESULT_CORRALLED = 103;
     public static final int RESULT_KILLED    = 104;
-
-    public static final String DOIT_METHOD_NAME = "do_it$";
-    public static final String replClass = "\\$REPL(?<num>\\d+)[A-Z]*";
-    public static final Pattern prefixPattern = Pattern.compile("(REPL\\.)?" + replClass + "[\\$\\.]?");
-
 }

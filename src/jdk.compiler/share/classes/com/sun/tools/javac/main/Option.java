@@ -552,7 +552,23 @@ public enum Option {
             }
             return false;
         }
-    };
+    },
+    
+    // Stub processors, just ignore JDK9 module options.
+    XADDEXPORTS("-XaddExports:", "opt.arg.addExports", "opt.addExports", EXTENDED, BASIC) {
+        @Override
+        public boolean process(OptionHelper helper, String option) {
+            return false;
+        }
+    },
+
+    XADDREADS("-XaddReads:", "opt.arg.addReads", "opt.addReads", EXTENDED, BASIC) {
+        @Override
+        public boolean process(OptionHelper helper, String option) {
+            return false;
+        }
+    },
+    ;
 
     /** The kind of an Option. This is used by the -help and -X options. */
     public enum OptionKind {
