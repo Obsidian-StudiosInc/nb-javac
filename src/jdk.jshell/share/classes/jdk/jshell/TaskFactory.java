@@ -208,17 +208,6 @@ class TaskFactory {
     }
 
    
-    private static String[] args(List<String> compOptions, String... options) {
-        if (compOptions.isEmpty()) {
-            return options;
-        } else {
-            String[] all = new String[options.length + compOptions.size()];
-            compOptions.toArray(all);
-            System.arraycopy(options, 0, all, compOptions.size(), options.length);
-            return all;
-        }
-    }
-    
     /**
      * Run the normal "analyze()" pass of the compiler over the wrapped snippet.
      */
@@ -233,11 +222,15 @@ class TaskFactory {
         AnalyzeTask(final Collection<OuterWrap> wraps, String... extraArgs) {
             this(wraps.stream(),
                     new WrapSourceHandler(),
-                    Util.join(new String[] {
-                        "-XDshouldStopPolicy=FLOW", "-Xlint:unchecked",
-//                        "-XaddExports:jdk.jshell/jdk.internal.jshell.remote=ALL-UNNAMED",
-                        "-proc:none"
-                    }, extraArgs));
+                    Util.join(
+                        Util.join(new String[] {
+                            "-XDshouldStopPolicy=FLOW", "-Xlint:unchecked",
+                            "-XaddExports:jdk.jshell/jdk.internal.jshell.remote=ALL-UNNAMED",
+                            "-proc:none"
+                        }, extraArgs),
+                        state.getCompilerOptions()
+                    )
+            );
         }
 
         private <T>AnalyzeTask(final Stream<T> stream, SourceHandler<T> sourceHandler,
@@ -279,10 +272,11 @@ class TaskFactory {
 
         CompileTask(final Collection<OuterWrap> wraps) {
             super(wraps.stream(), new WrapSourceHandler(),
-                    args(state.getCompilerOptions(),
-                    "-Xlint:unchecked", 
-//                    "-XaddExports:jdk.jshell/jdk.internal.jshell.remote=ALL-UNNAMED", 
-                    "-proc:none", "-parameters")
+                    Util.join(new String[] {
+                        "-Xlint:unchecked", 
+                        "-XaddExports:jdk.jshell/jdk.internal.jshell.remote=ALL-UNNAMED", 
+                        "-proc:none", "-parameters"},
+                        state.getCompilerOptions())
             );
         }
 

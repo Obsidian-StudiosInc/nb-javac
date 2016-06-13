@@ -486,7 +486,7 @@ public class JShell implements AutoCloseable {
      * @throws IllegalStateException if this JShell instance is closed.
      */
     public List<Snippet> snippets() throws IllegalStateException {
-        checkIfAlive();
+        //checkIfAlive();
         return Collections.unmodifiableList(maps.snippetList());
     }
 
@@ -833,7 +833,7 @@ public class JShell implements AutoCloseable {
         return MessageFormat.format(s, args);
     }
 
-    List<String> getCompilerOptions() {
-        return compilerOptions;
+    String[] getCompilerOptions() {
+        return (String[])compilerOptions.toArray(new String[compilerOptions.size()]);
     }
 }

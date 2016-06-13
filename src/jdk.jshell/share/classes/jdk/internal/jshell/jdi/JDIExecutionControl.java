@@ -109,7 +109,7 @@ public class JDIExecutionControl implements ExecutionControl {
     @Override
     public void close() {
         try {
-            JDIConnection c = jdiEnv == null ? null : jdiEnv.connection();
+            JDIConnection c = jdiEnv.connection();
             if (c != null) {
                 c.beginShutdown();
             }
@@ -408,7 +408,7 @@ public class JDIExecutionControl implements ExecutionControl {
      *
      * @param port the socket port for (non-JDI) commands
      */
-    private void jdiGo(int port) {
+    protected void jdiGo(int port) {
         //MessageOutput.textResources = ResourceBundle.getBundle("impl.TTYResources",
         //        Locale.getDefault());
 
