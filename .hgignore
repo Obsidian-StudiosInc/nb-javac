@@ -1,0 +1,11 @@
+^make/netbeans/nb-javac/build/
+^make/netbeans/nb-javac/dist/
+^make/netbeans/nb-javac/nbproject/private/
+^make/netbeans/hudson/cache/
+^build/
+^dist/
+^webrev
+^.idea
+/nbproject/private/
+^.hgtip
+.DS_Store

@@ -1,0 +1,47 @@
+#!/bin/bash
+load_into_cache() {
+mkdir -p cache
+NAME=`basename $2`;
+if [ ! -f cache/$NAME ] ; then
+    cd cache;
+    wget $2;
+    cp $NAME $1
+    cd ..;
+fi;
+}
+
+unpack_jar() {
+    cp $1 $2
+    cd $2
+    jar=`ls *.jar`;
+    jar xf $jar
+    rm $jar
+    cd -
+}
+
+diff_jars() {
+    rm -rf jardiff
+    mkdir -p jardiff/1 jardiff/2
+    unpack_jar $1 jardiff/1
+    unpack_jar $2 jardiff/2
+    diff -r jardiff/1 jardiff/2 >$3
+    rm -rf jardiff
+}
+
+load_into_cache junit-4.10.jar http://hg.netbeans.org/binaries/E4F1766CE7404A08F45D859FB9C226FC9E41A861-junit-4.10.jar
+API_JAR_NAME=`wget -q -O - http://hg.netbeans.org/main/raw-file/tip/libs.javacapi/external/binaries-list | tr ' ' '-'`
+load_into_cache javac-api-nb-7.0-b07.jar http://hg.netbeans.org/binaries/$API_JAR_NAME
+IMPL_JAR_NAME=`wget -q -O - http://hg.netbeans.org/main/raw-file/tip/libs.javacimpl/external/binaries-list | tr ' ' '-'`
+load_into_cache javac-impl-nb-7.0-b07.jar http://hg.netbeans.org/binaries/$IMPL_JAR_NAME
+
+JUNIT_CP=$PWD/cache/junit-4.10.jar
+
+cd ../nb-javac
+ant clean || exit 1
+ant -Dlibs.junit.classpath=$JUNIT_CP || exit 1
+cd -
+
+diff_jars $PWD/cache/javac-api-nb-7.0-b07.jar $PWD/../nb-javac/dist/javac-api.jar $PWD/../nb-javac/dist/javac-api.diff
+diff_jars $PWD/cache/javac-impl-nb-7.0-b07.jar $PWD/../nb-javac/dist/javac-impl.jar $PWD/../nb-javac/dist/javac-impl.diff
+
+(cd ../../../; hg diff -r last_langtools -r tip src/ >make/netbeans/nb-javac/dist/nb-javac-langtools.diff)
