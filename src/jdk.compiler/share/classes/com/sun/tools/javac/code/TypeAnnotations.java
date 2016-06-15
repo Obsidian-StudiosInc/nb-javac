@@ -245,9 +245,7 @@ public class TypeAnnotations {
             // Type annotations and declaration annotations on an
             // Element
         } else {
-            Assert.error("annotationTargetType(): unrecognized Attribute name " + e.value.name +
-                    " (" + e.value.name.getClass() + ")");
-            return AnnotationType.DECLARATION;
+            return AnnotationType.NONE;
         }
         return AnnotationType.NONE;
     }
