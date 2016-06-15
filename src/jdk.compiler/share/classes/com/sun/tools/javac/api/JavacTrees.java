@@ -49,7 +49,6 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import javax.tools.FileObject;
 import javax.tools.ForwardingFileObject;
-import javax.tools.ForwardingJavaFileObject;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
@@ -62,6 +61,7 @@ import com.sun.source.tree.CatchTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Scope;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
 import com.sun.source.util.DocSourcePositions;
 import com.sun.source.util.DocTreePath;
 import com.sun.source.util.DocTreeScanner;
@@ -141,6 +141,7 @@ import com.sun.tools.javac.util.Position;
 
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 import static com.sun.tools.javac.code.TypeTag.*;
+import com.sun.tools.javac.comp.ArgumentAttr;
 import com.sun.tools.javac.comp.TypeEnter;
 
 /**
@@ -162,6 +163,7 @@ public class JavacTrees extends DocTrees {
     private TypeEnter typeEnter;
     private MemberEnter memberEnter;
     private Attr attr;
+    private ArgumentAttr argumentAttr;
     private TreeMaker treeMaker;
     private JavacElements elements;
     private JavacTaskImpl javacTaskImpl;
@@ -208,6 +210,7 @@ public class JavacTrees extends DocTrees {
         //Need ensure ClassReader is initialized before Symtab:
         ClassReader.instance(context);
         attr = Attr.instance(context);
+        argumentAttr = ArgumentAttr.instance(context);
         enter = Enter.instance(context);
         elements = JavacElements.instance(context);
         log = Log.instance(context);
@@ -971,12 +974,14 @@ public class JavacTrees extends DocTrees {
         Log.DeferredDiagnosticHandler deferredHandler = compiler.deferredDiagnosticHandler;
         compiler.deferredDiagnosticHandler = null;
         enter.shadowTypeEnvs(true);
+        ArgumentAttr.LocalCacheContext cacheContext = argumentAttr.withLocalCacheContext();
         try {
             Env<AttrContext> ret = attr.attribStatToTree(stat, env, tree);
             if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
                 compiler.processAnnotations(List.<JCCompilationUnit>nil());
             return ret;
         } finally {
+            cacheContext.leave();
             enter.shadowTypeEnvs(false);
             compiler.deferredDiagnosticHandler = deferredHandler;
             log.popDiagnosticHandler(discardHandler);
@@ -990,12 +995,14 @@ public class JavacTrees extends DocTrees {
         Log.DeferredDiagnosticHandler deferredHandler = compiler.deferredDiagnosticHandler;
         compiler.deferredDiagnosticHandler = null;
         enter.shadowTypeEnvs(true);
+        ArgumentAttr.LocalCacheContext cacheContext = argumentAttr.withLocalCacheContext();
         try {
             Env<AttrContext> ret = attr.attribExprToTree(expr, env, tree);
             if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
                 compiler.processAnnotations(List.<JCCompilationUnit>nil());
             return ret;
         } finally {
+            cacheContext.leave();
             enter.shadowTypeEnvs(false);
             compiler.deferredDiagnosticHandler = deferredHandler;
             log.popDiagnosticHandler(discardHandler);
@@ -1122,6 +1129,15 @@ public class JavacTrees extends DocTrees {
             if (t == leaf)
                 leafCopy = t2;
             return t2;
+        }
+
+        @Override
+        public JCTree visitVariable(VariableTree node, JCTree p) {
+            JCTree var = super.visitVariable(node, p);
+            if (node instanceof JCVariableDecl && ((JCVariableDecl)node).sym != null) {
+                ((JCVariableDecl)var).mods.flags |= ((JCVariableDecl)node).sym.flags_field & Flags.EFFECTIVELY_FINAL;
+            }
+            return var;
         }
     }
 

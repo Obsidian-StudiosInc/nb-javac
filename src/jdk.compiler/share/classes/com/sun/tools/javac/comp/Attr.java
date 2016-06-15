@@ -428,9 +428,11 @@ public class Attr extends JCTree.Visitor {
 
     public static class BreakAttr extends RuntimeException {
         static final long serialVersionUID = -6924771130405446405L;
-        private Env<AttrContext> env;
-        private BreakAttr(Env<AttrContext> env) {
+        private final Env<AttrContext> env;
+        private final Type result;
+        private BreakAttr(Env<AttrContext> env, Type result) {
             this.env = env;
+            this.result = result;
         }
     }
 
@@ -635,7 +637,7 @@ public class Attr extends JCTree.Visitor {
             resultInfo.attr(tree, env);
             if (tree == breakTree &&
                     resultInfo.checkContext.deferredAttrContext().mode == AttrMode.CHECK) {
-                throw new BreakAttr(copyEnv(env));
+                throw new BreakAttr(copyEnv(env), result);
             }
             return result;
         } catch (CompletionFailure ex) {
@@ -734,11 +736,18 @@ public class Attr extends JCTree.Visitor {
     KindSelector attribArgs(KindSelector initialKind, List<JCExpression> trees, Env<AttrContext> env, ListBuffer<Type> argtypes) {
         KindSelector kind = initialKind;
         for (JCExpression arg : trees) {
-            Type argtype = chk.checkNonVoid(arg, attribTree(arg, env, allowPoly ? methodAttrInfo : unknownExprInfo));
-            if (argtype.hasTag(DEFERRED)) {
-                kind = KindSelector.of(KindSelector.POLY, kind);
+            try {
+                Type argtype = chk.checkNonVoid(arg, attribTree(arg, env, allowPoly ? methodAttrInfo : unknownExprInfo));
+                if (argtype.hasTag(DEFERRED)) {
+                    kind = KindSelector.of(KindSelector.POLY, kind);
+                }
+                argtypes.append(argtype);
+            } catch (BreakAttr ba) {
+                if (ba.result != null) {
+                    argtypes.append(chk.checkNonVoid(arg, ba.result));
+                }
+                throw ba;
             }
-            argtypes.append(argtype);
         }
         return kind;
     }
@@ -1341,7 +1350,7 @@ public class Attr extends JCTree.Visitor {
                 }
                 if (c == breakTree &&
                         resultInfo.checkContext.deferredAttrContext().mode == AttrMode.CHECK)
-                    throw new BreakAttr(env);
+                    throw new BreakAttr(env, null);
                 Env<AttrContext> caseEnv =
                     switchEnv.dup(c, env.info.dup(switchEnv.info.scope.dup()));
                 boolean baCatched = false;
@@ -2573,7 +2582,7 @@ public class Attr extends JCTree.Visitor {
                 JCBlock body = (JCBlock)that.body;
                 if (body == breakTree &&
                         resultInfo.checkContext.deferredAttrContext().mode == AttrMode.CHECK) {
-                    throw new BreakAttr(copyEnv(localEnv));
+                    throw new BreakAttr(copyEnv(localEnv), null);
                 }
                 attribStats(body.stats, localEnv);
             }

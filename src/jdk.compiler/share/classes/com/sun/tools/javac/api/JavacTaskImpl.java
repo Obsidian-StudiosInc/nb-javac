@@ -746,6 +746,8 @@ public class JavacTaskImpl extends BasicJavacTask {
         compiler.deferredDiagnosticHandler = null;
         Enter enter = Enter.instance(context);
         enter.shadowTypeEnvs(true);
+        ArgumentAttr argumentAttr = ArgumentAttr.instance(context);
+        ArgumentAttr.LocalCacheContext cacheContext = argumentAttr.withLocalCacheContext();
         try {
             Type type = tree instanceof JCExpression
                     ? attr.attribExpr(tree, env, Type.noType)
@@ -754,6 +756,7 @@ public class JavacTaskImpl extends BasicJavacTask {
                 compiler.processAnnotations(List.<JCCompilationUnit>nil());
             return type;
         } finally {
+            cacheContext.leave();
             enter.shadowTypeEnvs(false);
             compiler.deferredDiagnosticHandler = deferredHandler;
             log.popDiagnosticHandler(discardHandler);
@@ -770,12 +773,15 @@ public class JavacTaskImpl extends BasicJavacTask {
         compiler.deferredDiagnosticHandler = null;
         Enter enter = Enter.instance(context);
         enter.shadowTypeEnvs(true);
+        ArgumentAttr argumentAttr = ArgumentAttr.instance(context);
+        ArgumentAttr.LocalCacheContext cacheContext = argumentAttr.withLocalCacheContext();
         try {
             Env<AttrContext> ret = tree instanceof JCExpression ? attr.attribExprToTree(tree, env, to) : attr.attribStatToTree(tree, env, to);
             if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
                 compiler.processAnnotations(List.<JCCompilationUnit>nil());
             return new JavacScope(ret);
         } finally {
+            cacheContext.leave();
             enter.shadowTypeEnvs(false);
             compiler.deferredDiagnosticHandler = deferredHandler;
             log.popDiagnosticHandler(discardHandler);
