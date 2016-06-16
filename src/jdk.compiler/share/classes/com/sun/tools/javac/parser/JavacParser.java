@@ -3059,7 +3059,7 @@ public class JavacParser implements Parser {
         else if (reqInit) syntaxError(token.pos, "expected", EQ);
         JCVariableDecl result;
         if (newType.hasTag(ERRONEOUS)) {
-            result = F.at(pos).VarDef(mods, name, type, init);
+            result = toP(F.at(pos).VarDef(mods, name, type, init));
         } else {
             result = toP(F.at(pos).VarDef(mods, name, newType, init));
         }
