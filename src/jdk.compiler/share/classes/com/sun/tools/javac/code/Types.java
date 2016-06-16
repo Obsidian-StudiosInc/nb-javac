@@ -185,6 +185,172 @@ public class Types {
     }
     // </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="projections">
+    class TypeProjection extends TypeMapping<Boolean> {
+
+        List<Type> vars;
+        Set<Type> seen = new HashSet<>();
+
+        public TypeProjection(List<Type> vars) {
+            this.vars = vars;
+        }
+
+        @Override
+        public Type visitClassType(ClassType t, Boolean upward) {
+            if (upward && !t.isCompound() && t.tsym.name.isEmpty()) {
+                //lift anonymous class type to first supertype (class or interface)
+                return directSupertypes(t).last();
+            } else if (t.isCompound()) {
+                List<Type> components = directSupertypes(t);
+                List<Type> components1 = components.stream()
+                        .map(c -> c.map(this, upward))
+                        .collect(List.collector());
+                if (components == components1) return t;
+                else return makeIntersectionType(components1);
+            } else {
+                Type outer = t.getEnclosingType();
+                Type outer1 = visit(outer, upward);
+                List<Type> typarams = t.getTypeArguments();
+                List<Type> typarams1 = typarams.stream()
+                        .map(ta -> mapTypeArgument(ta, upward))
+                        .collect(List.collector());
+                if (typarams1.stream().anyMatch(ta -> ta.hasTag(BOT))) {
+                    //not defined
+                    return syms.botType;
+                }
+                if (outer1 == outer && typarams1 == typarams) return t;
+                else return new ClassType(outer1, typarams1, t.tsym, t.metadata) {
+                    @Override
+                    protected boolean needsStripping() {
+                        return true;
+                    }
+                };
+            }
+        }
+
+        protected Type makeWildcard(Type upper, Type lower) {
+            BoundKind bk;
+            Type bound;
+            if (upper.hasTag(BOT)) {
+                upper = syms.objectType;
+            }
+            boolean isUpperObject = isSameType(upper, syms.objectType);
+            if (!lower.hasTag(BOT) && isUpperObject) {
+                bound = lower;
+                bk = SUPER;
+            } else {
+                bound = upper;
+                bk = isUpperObject ? UNBOUND : EXTENDS;
+            }
+            return new WildcardType(bound, bk, syms.boundClass);
+        }
+
+        @Override
+        public Type visitTypeVar(TypeVar t, Boolean upward) {
+            if (vars.contains(t)) {
+                try {
+                    if (seen.add(t)) {
+                        return upward ?
+                                t.getUpperBound().map(this, upward) :
+                                t.getLowerBound().map(this, upward);
+                    } else {
+                        //cycle
+                        return syms.objectType;
+                    }
+                } finally {
+                    seen.remove(t);
+                }
+            } else {
+                return t;
+            }
+        }
+
+        @Override
+        public Type visitWildcardType(WildcardType wt, Boolean upward) {
+            if (upward) {
+                return wt.isExtendsBound() ?
+                        wt.type.map(this, upward) :
+                        syms.objectType;
+            } else {
+                return wt.isSuperBound() ?
+                        wt.type.map(this, upward) :
+                        syms.botType;
+            }
+        }
+
+        private Type mapTypeArgument(Type t, boolean upward) {
+            if (!t.containsAny(vars)) {
+                return t;
+            } else if (!t.hasTag(WILDCARD) && !upward) {
+                //not defined
+                return syms.botType;
+            } else {
+                Type upper = t.map(this, upward);
+                Type lower = t.map(this, !upward);
+                return makeWildcard(upper, lower);
+            }
+        }
+    }
+
+    public Type upward(Type t, List<Type> vars) {
+        return t.map(new TypeProjection(vars), true);
+    }
+    
+    public List<Type> captures(Type t) {
+        CaptureScanner cs = new CaptureScanner();
+        Set<Type> captures = new HashSet<>();
+        cs.visit(t, captures);
+        return List.from(captures);
+    }
+
+    class CaptureScanner extends SimpleVisitor<Void, Set<Type>> {
+
+        @Override
+        public Void visitType(Type t, Set<Type> types) {
+            return null;
+        }
+
+        @Override
+        public Void visitClassType(ClassType t, Set<Type> seen) {
+            if (t.isCompound()) {
+                directSupertypes(t).forEach(s -> visit(s, seen));
+            } else {
+                t.allparams().forEach(ta -> visit(ta, seen));
+            }
+            return null;
+        }
+
+        @Override
+        public Void visitArrayType(ArrayType t, Set<Type> seen) {
+            return visit(t.elemtype, seen);
+        }
+
+        @Override
+        public Void visitWildcardType(WildcardType t, Set<Type> seen) {
+            visit(t.type, seen);
+            return null;
+        }
+
+        @Override
+        public Void visitTypeVar(TypeVar t, Set<Type> seen) {
+            if ((t.tsym.flags() & SYNTHETIC) != 0 && seen.add(t)) {
+                visit(t.getUpperBound(), seen);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visitCapturedType(CapturedType t, Set<Type> seen) {
+            if (seen.add(t)) {
+                visit(t.getUpperBound(), seen);
+                visit(t.getLowerBound(), seen);
+            }
+            return null;
+        }
+    }
+
+    // </editor-fold>
+
     // <editor-fold defaultstate="collapsed" desc="isUnbounded">
     /**
      * Checks that all the arguments to a class are unbounded
