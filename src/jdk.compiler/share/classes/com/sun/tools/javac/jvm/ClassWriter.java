@@ -903,8 +903,13 @@ public class ClassWriter extends ClassFile {
         }
         public void visitArray(Attribute.Array array) {
             databuf.appendByte('[');
-            databuf.appendChar(array.values.length);
+            int count = array.values.length;
             for (Attribute a : array.values) {
+                if (a instanceof Attribute.Error) count--;
+            }
+            databuf.appendChar(count);
+            for (Attribute a : array.values) {
+                if (a instanceof Attribute.Error) continue;
                 a.accept(this);
             }
         }
