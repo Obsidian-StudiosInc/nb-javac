@@ -791,7 +791,7 @@ public class TreeMaker implements JCTree.Factory {
             result = Literal(LONG, value).
                 setType(syms.longType.constType(value));
         } else if (value instanceof Byte) {
-            result = Literal(BYTE, value).
+            result = Literal(INT, ((Byte) value).intValue()).
                 setType(syms.byteType.constType(value));
         } else if (value instanceof Character) {
             int v = (int) (((Character) value).toString().charAt(0));
@@ -804,7 +804,7 @@ public class TreeMaker implements JCTree.Factory {
             result = Literal(FLOAT, value).
                 setType(syms.floatType.constType(value));
         } else if (value instanceof Short) {
-            result = Literal(SHORT, value).
+            result = Literal(INT, ((Short) value).intValue()).
                 setType(syms.shortType.constType(value));
         } else if (value instanceof Boolean) {
             int v = ((Boolean) value) ? 1 : 0;
