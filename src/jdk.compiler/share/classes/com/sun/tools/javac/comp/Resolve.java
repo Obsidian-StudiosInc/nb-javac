@@ -1385,7 +1385,7 @@ public class Resolve {
         Symbol bestSoFar = varNotFound;
         Env<AttrContext> env1 = env;
         boolean staticOnly = false;
-        while (env1.outer != null) {
+        while (env1.outer != null && env1.enclClass.sym != null) {
             Symbol sym = null;
             if (isStatic(env1)) staticOnly = true;
             for (Symbol s : env1.info.scope.getSymbolsByName(name)) {
