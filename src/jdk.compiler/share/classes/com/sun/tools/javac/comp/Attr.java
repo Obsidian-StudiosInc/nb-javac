@@ -824,6 +824,9 @@ public class Attr extends JCTree.Visitor {
                 = deferredLintHandler.setPos(variable.pos());
 
         try {
+            if (variable.init == null) {
+                return null;
+            }
             Type itype = attribExpr(variable.init, env, type);
             if (itype.constValue() != null) {
                 return coerce(itype, type).constValue();
