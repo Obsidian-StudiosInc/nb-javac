@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,9 @@
 
 package com.sun.tools.javac.file;
 
-import java.io.File;
-import java.nio.file.FileSystems;
+import java.nio.file.FileSystem;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -57,14 +55,15 @@ public abstract class RelativePath implements Comparable<RelativePath> {
 
     public abstract String basename();
 
-    public Path getFile(Path directory) throws /*unchecked*/ InvalidPathException {
-        if (directory == null) {
-            String sep = FileSystems.getDefault().getSeparator();
-            return Paths.get(path.replace("/", sep));
-        } else {
-            String sep = directory.getFileSystem().getSeparator();
-            return directory.resolve(path.replace("/", sep));
-        }
+    public Path resolveAgainst(Path directory) throws /*unchecked*/ InvalidPathException {
+        String sep = directory.getFileSystem().getSeparator();
+        return directory.resolve(path.replace("/", sep));
+    }
+
+    public Path resolveAgainst(FileSystem fs) throws /*unchecked*/ InvalidPathException {
+        String sep = fs.getSeparator();
+        Path root = fs.getRootDirectories().iterator().next();
+        return root.resolve(path.replace("/", sep));
     }
 
     @Override

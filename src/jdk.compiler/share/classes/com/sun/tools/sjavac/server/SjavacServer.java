@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +22,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package com.sun.tools.sjavac.server;
 
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -38,6 +40,9 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.sun.tools.javac.main.Main;
+import com.sun.tools.javac.main.Main.Result;
+import com.sun.tools.sjavac.Log;
 import com.sun.tools.sjavac.Util;
 import com.sun.tools.sjavac.client.PortFileInaccessibleException;
 import com.sun.tools.sjavac.comp.PooledSjavac;
@@ -53,17 +58,12 @@ import com.sun.tools.sjavac.comp.SjavacImpl;
  */
 public class SjavacServer implements Terminable {
 
-    // Used in protocol to tell the content of each line
+    // Prefix of line containing return code.
     public final static String LINE_TYPE_RC = "RC";
-    public final static String LINE_TYPE_STDOUT = "STDOUT";
-    public final static String LINE_TYPE_STDERR = "STDERR";
 
     final private String portfilename;
-    final private String logfile;
-    final private String stdouterrfile;
     final private int poolsize;
     final private int keepalive;
-    final private PrintStream err;
 
     // The secret cookie shared between server and client through the port file.
     // Used to prevent clients from believing that they are communicating with
@@ -73,9 +73,6 @@ public class SjavacServer implements Terminable {
 
     // Accumulated build time, not counting idle time, used for logging purposes
     private long totalBuildTime;
-
-    // The javac server specific log file.
-    PrintWriter theLog;
 
     // The sjavac implementation to delegate requests to
     Sjavac sjavac;
@@ -91,40 +88,28 @@ public class SjavacServer implements Terminable {
     // For the client, all port files fetched, one per started javac server.
     // Though usually only one javac server is started by a client.
     private static Map<String, PortFile> allPortFiles;
-    private static Map<String, Long> maxServerMemory;
 
-    public SjavacServer(String settings, PrintStream err) throws FileNotFoundException {
+    public SjavacServer(String settings) throws FileNotFoundException {
         this(Util.extractStringOption("portfile", settings),
-             Util.extractStringOption("logfile", settings),
-             Util.extractStringOption("stdouterrfile", settings),
              Util.extractIntOption("poolsize", settings, Runtime.getRuntime().availableProcessors()),
-             Util.extractIntOption("keepalive", settings, 120),
-             err);
+             Util.extractIntOption("keepalive", settings, 120));
     }
 
     public SjavacServer(String portfilename,
-                        String logfile,
-                        String stdouterrfile,
                         int poolsize,
-                        int keepalive,
-                        PrintStream err)
+                        int keepalive)
                                 throws FileNotFoundException {
         this.portfilename = portfilename;
-        this.logfile = logfile;
-        this.stdouterrfile = stdouterrfile;
         this.poolsize = poolsize;
         this.keepalive = keepalive;
-        this.err = err;
-
-        myCookie = new Random().nextLong();
-        theLog = new PrintWriter(logfile);
+        this.myCookie = new Random().nextLong();
     }
 
 
     /**
      * Acquire the port file. Synchronized since several threads inside an smart javac wrapper client acquires the same port file at the same time.
      */
-    public static synchronized PortFile getPortFile(String filename) throws PortFileInaccessibleException {
+    public static synchronized PortFile getPortFile(String filename) {
         if (allPortFiles == null) {
             allPortFiles = new HashMap<>();
         }
@@ -169,26 +154,6 @@ public class SjavacServer implements Terminable {
     }
 
     /**
-     * Log this message.
-     */
-    public void log(String msg) {
-        if (theLog != null) {
-            theLog.println(msg);
-        } else {
-            System.err.println(msg);
-        }
-    }
-
-    /**
-     * Make sure the log is flushed.
-     */
-    public void flushLog() {
-        if (theLog != null) {
-            theLog.flush();
-        }
-    }
-
-    /**
      * Start a server using a settings string. Typically: "--startserver:portfile=/tmp/myserver,poolsize=3" and the string "portfile=/tmp/myserver,poolsize=3"
      * is sent as the settings parameter. Returns 0 on success, -1 on failure.
      */
@@ -202,9 +167,9 @@ public class SjavacServer implements Terminable {
             portFile.lock();
             portFile.getValues();
             if (portFile.containsPortInfo()) {
-                err.println("Javac server not started because portfile exists!");
+                Log.debug("Javac server not started because portfile exists!");
                 portFile.unlock();
-                return -1;
+                return Result.ERROR.exitCode;
             }
 
             //           .-----------.   .--------.   .------.
@@ -229,23 +194,23 @@ public class SjavacServer implements Terminable {
         portFileMonitor = new PortFileMonitor(portFile, this);
         portFileMonitor.start();
 
-        log("Sjavac server started. Accepting connections...");
-        log("    port: " + getPort());
-        log("    time: " + new java.util.Date());
-        log("    poolsize: " + poolsize);
-        flushLog();
+        Log.debug("Sjavac server started. Accepting connections...");
+        Log.debug("    port: " + getPort());
+        Log.debug("    time: " + new java.util.Date());
+        Log.debug("    poolsize: " + poolsize);
+
 
         keepAcceptingRequests.set(true);
         do {
             try {
                 Socket socket = serverSocket.accept();
-                new Thread(new RequestHandler(socket, sjavac)).start();
+                new RequestHandler(socket, sjavac).start();
             } catch (SocketException se) {
                 // Caused by serverSocket.close() and indicates shutdown
             }
         } while (keepAcceptingRequests.get());
 
-        log("Shutting down.");
+        Log.debug("Shutting down.");
 
         // No more connections accepted. If any client managed to connect after
         // the accept() was interrupted but before the server socket is closed
@@ -253,13 +218,12 @@ public class SjavacServer implements Terminable {
         // IOException on the client side.
 
         long realTime = System.currentTimeMillis() - serverStart;
-        log("Total wall clock time " + realTime + "ms build time " + totalBuildTime + "ms");
-        flushLog();
+        Log.debug("Total wall clock time " + realTime + "ms build time " + totalBuildTime + "ms");
 
         // Shut down
         sjavac.shutdown();
 
-        return 0;
+        return Result.OK.exitCode;
     }
 
     @Override
@@ -269,8 +233,7 @@ public class SjavacServer implements Terminable {
             return;
         }
 
-        log("Quitting: " + quitMsg);
-        flushLog();
+        Log.debug("Quitting: " + quitMsg);
 
         portFileMonitor.shutdown(); // No longer any need to monitor port file
 
@@ -278,13 +241,13 @@ public class SjavacServer implements Terminable {
         // failed connection attempts
         try {
             portFile.delete();
-        } catch (IOException e) {
-            e.printStackTrace(theLog);
+        } catch (IOException | InterruptedException e) {
+            Log.error(e);
         }
         try {
             serverSocket.close();
         } catch (IOException e) {
-            e.printStackTrace(theLog);
+            Log.error(e);
         }
     }
 }

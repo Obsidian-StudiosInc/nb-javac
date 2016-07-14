@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,16 @@
 
 /*
  * @test
+ * @bug 8143037 8142447 8144095 8140265 8144906 8146138 8147887 8147886 8148316 8148317 8143955 8157953
  * @summary Tests for Basic tests for REPL tool
- * @ignore 8139873
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.jdeps/com.sun.tools.javap
+ *          jdk.jshell/jdk.internal.jshell.tool
  * @library /tools/lib
- * @build KullaTesting TestingInputStream ToolBox Compiler
- * @run testng ToolBasicTest
+ * @build toolbox.ToolBox toolbox.JarTask toolbox.JavacTask
+ * @build KullaTesting TestingInputStream Compiler
+ * @run testng/timeout=600 ToolBasicTest
  */
 
 import java.io.IOException;
@@ -39,8 +44,11 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Scanner;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
@@ -55,38 +63,9 @@ import static org.testng.Assert.fail;
 @Test
 public class ToolBasicTest extends ReplToolTesting {
 
-    public void defineVar() {
-        test(
-                (a) -> assertCommand(a, "int x = 72", "|  Added variable x of type int with initial value 72\n"),
-                (a) -> assertCommand(a, "x", "|  Variable x of type int has value 72\n"),
-                (a) -> assertCommand(a, "/vars", "|    int x = 72\n")
-        );
-    }
-
-    public void defineUnresolvedVar() {
-        test(
-                (a) -> assertCommand(a, "undefined x",
-                        "|  Added variable x, however, it cannot be referenced until class undefined is declared\n"),
-                (a) -> assertCommand(a, "/vars", "|    undefined x = (not-active)\n")
-        );
-    }
-
-    public void testUnresolved() {
-        test(
-                (a) -> assertCommand(a, "int f() { return g() + x + new A().a; }",
-                        "|  Added method f(), however, it cannot be invoked until method g(), variable x, and class A are declared\n"),
-                (a) -> assertCommand(a, "f()",
-                        "|  Attempted to call f which cannot be invoked until method g(), variable x, and class A are declared\n"),
-                (a) -> assertCommand(a, "int g() { return x; }",
-                        "|  Added method g(), however, it cannot be invoked until variable x is declared\n"),
-                (a) -> assertCommand(a, "g()", "|  Attempted to call g which cannot be invoked until variable x is declared\n")
-        );
-    }
-
     public void elideStartUpFromList() {
         test(
-                (a) -> assertCommandCheckOutput(a, "123", (s) ->
-                        assertTrue(s.contains("type int"), s)),
+                (a) -> assertCommandOutputContains(a, "123", "==> 123"),
                 (a) -> assertCommandCheckOutput(a, "/list", (s) -> {
                     int cnt;
                     try (Scanner scanner = new Scanner(s)) {
@@ -107,8 +86,7 @@ public class ToolBasicTest extends ReplToolTesting {
         Compiler compiler = new Compiler();
         Path path = compiler.getPath("myfile");
         test(
-                (a) -> assertCommandCheckOutput(a, "123",
-                        (s) -> assertTrue(s.contains("type int"), s)),
+                (a) -> assertCommandOutputContains(a, "123", "==> 123"),
                 (a) -> assertCommand(a, "/save " + path.toString(), "")
         );
         try (Stream<String> lines = Files.lines(path)) {
@@ -124,28 +102,28 @@ public class ToolBasicTest extends ReplToolTesting {
                     interrupt,
                     (a) -> assertCommand(a, "int a\u0003", ""),
                     (a) -> assertCommand(a, "int a = 2 + 2\u0003", ""),
-                    (a) -> assertCommandCheckOutput(a, "/v", assertVariables()),
+                    (a) -> assertCommandCheckOutput(a, "/vars", assertVariables()),
                     (a) -> evaluateExpression(a, "int", "2", "2"),
-                    (a) -> assertCommandCheckOutput(a, "/v", assertVariables()),
+                    (a) -> assertCommandCheckOutput(a, "/vars", assertVariables()),
                     (a) -> assertCommand(a, "void f() {", ""),
                     (a) -> assertCommand(a, "int q = 10;" + s, ""),
                     interrupt,
                     (a) -> assertCommand(a, "void f() {}\u0003", ""),
-                    (a) -> assertCommandCheckOutput(a, "/m", assertMethods()),
+                    (a) -> assertCommandCheckOutput(a, "/methods", assertMethods()),
                     (a) -> assertMethod(a, "int f() { return 0; }", "()int", "f"),
-                    (a) -> assertCommandCheckOutput(a, "/m", assertMethods()),
+                    (a) -> assertCommandCheckOutput(a, "/methods", assertMethods()),
                     (a) -> assertCommand(a, "class A {" + s, ""),
                     interrupt,
                     (a) -> assertCommand(a, "class A {}\u0003", ""),
-                    (a) -> assertCommandCheckOutput(a, "/c", assertClasses()),
+                    (a) -> assertCommandCheckOutput(a, "/types", assertClasses()),
                     (a) -> assertClass(a, "interface A {}", "interface", "A"),
-                    (a) -> assertCommandCheckOutput(a, "/c", assertClasses()),
+                    (a) -> assertCommandCheckOutput(a, "/types", assertClasses()),
                     (a) -> assertCommand(a, "import java.util.stream." + s, ""),
                     interrupt,
                     (a) -> assertCommand(a, "import java.util.stream.\u0003", ""),
-                    (a) -> assertCommandCheckOutput(a, "/i", assertImports()),
+                    (a) -> assertCommandCheckOutput(a, "/imports", assertImports()),
                     (a) -> assertImport(a, "import java.util.stream.Stream", "", "java.util.stream.Stream"),
-                    (a) -> assertCommandCheckOutput(a, "/i", assertImports())
+                    (a) -> assertCommandCheckOutput(a, "/imports", assertImports())
             );
         }
     }
@@ -199,23 +177,22 @@ public class ToolBasicTest extends ReplToolTesting {
             }
             assertOutput(getCommandOutput(), "", "command");
             assertOutput(getCommandErrorOutput(), "", "command error");
-            assertOutput(getUserOutput(), output, "user");
+            assertOutput(getUserOutput().trim(), output, "user");
             assertOutput(getUserErrorOutput(), "", "user error");
         }
     }
 
     public void testStop() {
         test(
-                (a) -> assertStop(a, "while (true) {}", "Killed.\n"),
-                (a) -> assertStop(a, "while (true) { try { Thread.sleep(100); } catch (InterruptedException ex) { } }", "Killed.\n")
+                (a) -> assertStop(a, "while (true) {}", ""),
+                (a) -> assertStop(a, "while (true) { try { Thread.sleep(100); } catch (InterruptedException ex) { } }", "")
         );
     }
 
-    @Test(enabled = false) // TODO 8130450
     public void testRerun() {
         test(false, new String[] {"-nostartup"},
-                (a) -> assertCommand(a, "/0", "|  Cannot find snippet 0\n"),
-                (a) -> assertCommand(a, "/5", "|  Cannot find snippet 5\n")
+                (a) -> assertCommand(a, "/0", "|  No such command or snippet id: /0\n|  Type /help for help."),
+                (a) -> assertCommand(a, "/5", "|  No such command or snippet id: /5\n|  Type /help for help.")
         );
         String[] codes = new String[] {
                 "int a = 0;", // var
@@ -228,6 +205,7 @@ public class ToolBasicTest extends ReplToolTesting {
         for (String s : codes) {
             tests.add((a) -> assertCommand(a, s, null));
         }
+        // Test /1 through /5 -- assure references are correct
         for (int i = 0; i < codes.length; ++i) {
             final int finalI = i;
             Consumer<String> check = (s) -> {
@@ -237,6 +215,7 @@ public class ToolBasicTest extends ReplToolTesting {
             };
             tests.add((a) -> assertCommandCheckOutput(a, "/" + (finalI + 1), check));
         }
+        // Test /-1 ... note that the snippets added by history must be stepped over
         for (int i = 0; i < codes.length; ++i) {
             final int finalI = i;
             Consumer<String> check = (s) -> {
@@ -244,158 +223,39 @@ public class ToolBasicTest extends ReplToolTesting {
                 assertEquals(ss[0], codes[codes.length - finalI - 1]);
                 assertTrue(ss.length > 1, s);
             };
-            tests.add((a) -> assertCommandCheckOutput(a, "/-" + (finalI + 1), check));
+            tests.add((a) -> assertCommandCheckOutput(a, "/-" + (2 * finalI + 1), check));
         }
-        tests.add((a) -> assertCommandCheckOutput(a, "/!", assertStartsWith("void g() { h(); }")));
+        tests.add((a) -> assertCommandCheckOutput(a, "/!", assertStartsWith("int a = 0;")));
         test(false, new String[]{"-nostartup"},
                 tests.toArray(new ReplTest[tests.size()]));
     }
 
-    public void testRemaining() {
-        test(
-                (a) -> assertCommand(a, "int z; z =", "|  Added variable z of type int\n"),
-                (a) -> assertCommand(a, "5", "|  Variable z has been assigned the value 5\n"),
-                (a) -> assertCommand(a, "/*nada*/; int q =", ""),
-                (a) -> assertCommand(a, "77", "|  Added variable q of type int with initial value 77\n"),
-                (a) -> assertCommand(a, "//comment;", ""),
-                (a) -> assertCommand(a, "int v;", "|  Added variable v of type int\n"),
-                (a) -> assertCommand(a, "int v; int c", "|  Added variable c of type int\n")
-        );
-    }
+    public void test8142447() {
+        Function<String, BiFunction<String, Integer, ReplTest>> assertRerun = cmd -> (code, assertionCount) ->
+                (a) -> assertCommandCheckOutput(a, cmd, s -> {
+                            String[] ss = s.split("\n");
+                            assertEquals(ss[0], code);
+                            loadVariable(a, "int", "assertionCount", Integer.toString(assertionCount), Integer.toString(assertionCount));
+                        });
+        ReplTest assertVariables = (a) -> assertCommandCheckOutput(a, "/v", assertVariables());
 
-    public void testDebug() {
-        test(
-                (a) -> assertCommand(a, "/db", "|  Debugging on\n"),
-                (a) -> assertCommand(a, "/debug", "|  Debugging off\n"),
-                (a) -> assertCommand(a, "/debug", "|  Debugging on\n"),
-                (a) -> assertCommand(a, "/db", "|  Debugging off\n")
+        Compiler compiler = new Compiler();
+        Path startup = compiler.getPath("StartupFileOption/startup.txt");
+        compiler.writeToFile(startup, "int assertionCount = 0;\n" + // id: s1
+                "void add(int n) { assertionCount += n; }");
+        test(new String[]{"-startup", startup.toString()},
+                (a) -> assertCommand(a, "add(1)", ""), // id: 1
+                (a) -> assertCommandCheckOutput(a, "add(ONE)", s -> assertEquals(s.split("\n")[0], "|  Error:")), // id: e1
+                (a) -> assertVariable(a, "int", "ONE", "1", "1"),
+                assertRerun.apply("/1").apply("add(1)", 2), assertVariables,
+                assertRerun.apply("/e1").apply("add(ONE)", 3), assertVariables,
+                assertRerun.apply("/s1").apply("int assertionCount = 0;", 0), assertVariables
         );
-    }
 
-    public void testHelp() {
-        Consumer<String> testOutput = (s) -> {
-            List<String> ss = Stream.of(s.split("\n"))
-                    .filter(l -> !l.isEmpty())
-                    .collect(Collectors.toList());
-            assertTrue(ss.size() >= 5, "Help does not print enough lines:\n" + s);
-        };
-        test(
-                (a) -> assertCommandCheckOutput(a, "/?", testOutput),
-                (a) -> assertCommandCheckOutput(a, "/help", testOutput)
-        );
-    }
-
-    public void oneLineOfError() {
-        test(
-                (a) -> assertCommand(a, "12+", null),
-                (a) -> assertCommandCheckOutput(a, "  true", (s) ->
-                        assertTrue(s.contains("12+") && !s.contains("true"), "Output: '" + s + "'"))
-        );
-    }
-
-    public void defineVariables() {
-        test(
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/v", assertVariables()),
-                (a) -> assertCommandCheckOutput(a, "/vars", assertVariables()),
-                (a) -> assertVariable(a, "int", "a"),
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/v", assertVariables()),
-                (a) -> assertCommandCheckOutput(a, "/vars", assertVariables()),
-                (a) -> assertVariable(a, "double", "a", "1", "1.0"),
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/v", assertVariables()),
-                (a) -> assertCommandCheckOutput(a, "/vars", assertVariables()),
-                (a) -> evaluateExpression(a, "double", "2 * a", "2.0"),
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/v", assertVariables()),
-                (a) -> assertCommandCheckOutput(a, "/vars", assertVariables())
-        );
-    }
-
-    public void defineMethods() {
-        test(
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/m", assertMethods()),
-                (a) -> assertCommandCheckOutput(a, "/methods", assertMethods()),
-                (a) -> assertMethod(a, "int f() { return 0; }", "()int", "f"),
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/m", assertMethods()),
-                (a) -> assertCommandCheckOutput(a, "/methods", assertMethods()),
-                (a) -> assertMethod(a, "void f(int a) { g(); }", "(int)void", "f"),
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/m", assertMethods()),
-                (a) -> assertCommandCheckOutput(a, "/methods", assertMethods()),
-                (a) -> assertMethod(a, "void g() {}", "()void", "g"),
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/m", assertMethods()),
-                (a) -> assertCommandCheckOutput(a, "/methods", assertMethods())
-        );
-    }
-
-    public void defineClasses() {
-        test(
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/c", assertClasses()),
-                (a) -> assertCommandCheckOutput(a, "/classes", assertClasses()),
-                (a) -> assertClass(a, "class A { }", "class", "A"),
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/c", assertClasses()),
-                (a) -> assertCommandCheckOutput(a, "/classes", assertClasses()),
-                (a) -> assertClass(a, "interface A { }", "interface", "A"),
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/c", assertClasses()),
-                (a) -> assertCommandCheckOutput(a, "/classes", assertClasses()),
-                (a) -> assertClass(a, "enum A { }", "enum", "A"),
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/c", assertClasses()),
-                (a) -> assertCommandCheckOutput(a, "/classes", assertClasses()),
-                (a) -> assertClass(a, "@interface A { }", "@interface", "A"),
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/c", assertClasses()),
-                (a) -> assertCommandCheckOutput(a, "/classes", assertClasses())
-        );
-    }
-
-    public void defineImports() {
-        test(
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/i", assertImports()),
-                (a) -> assertCommandCheckOutput(a, "/imports", assertImports()),
-                (a) -> assertImport(a, "import java.util.stream.Stream;", "", "java.util.stream.Stream"),
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/i", assertImports()),
-                (a) -> assertCommandCheckOutput(a, "/imports", assertImports()),
-                (a) -> assertImport(a, "import java.util.stream.*;", "", "java.util.stream.*"),
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/i", assertImports()),
-                (a) -> assertCommandCheckOutput(a, "/imports", assertImports()),
-                (a) -> assertImport(a, "import static java.lang.Math.PI;", "static", "java.lang.Math.PI"),
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/i", assertImports()),
-                (a) -> assertCommandCheckOutput(a, "/imports", assertImports()),
-                (a) -> assertImport(a, "import static java.lang.Math.*;", "static", "java.lang.Math.*"),
-                (a) -> assertCommandCheckOutput(a, "/l", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/list", assertList()),
-                (a) -> assertCommandCheckOutput(a, "/i", assertImports()),
-                (a) -> assertCommandCheckOutput(a, "/imports", assertImports())
+        test(false, new String[] {"-nostartup"},
+                (a) -> assertCommand(a, "/s1", "|  No such command or snippet id: /s1\n|  Type /help for help."),
+                (a) -> assertCommand(a, "/1", "|  No such command or snippet id: /1\n|  Type /help for help."),
+                (a) -> assertCommand(a, "/e1", "|  No such command or snippet id: /e1\n|  Type /help for help.")
         );
     }
 
@@ -405,14 +265,14 @@ public class ToolBasicTest extends ReplToolTesting {
         compiler.compile(outDir, "package pkg; public class A { public String toString() { return \"A\"; } }");
         Path classpath = compiler.getPath(outDir);
         test(
-                (a) -> assertCommand(a, "/cp " + classpath, String.format("|  Path %s added to classpath\n", classpath)),
-                (a) -> evaluateExpression(a, "pkg.A", "new pkg.A();", "\"A\"")
+                (a) -> assertCommand(a, "/classpath " + classpath, String.format("|  Path '%s' added to classpath", classpath)),
+                (a) -> evaluateExpression(a, "pkg.A", "new pkg.A();", "A")
         );
         test(new String[] { "-cp", classpath.toString() },
-                (a) -> evaluateExpression(a, "pkg.A", "new pkg.A();", "\"A\"")
+                (a) -> evaluateExpression(a, "pkg.A", "new pkg.A();", "A")
         );
         test(new String[] { "-classpath", classpath.toString() },
-                (a) -> evaluateExpression(a, "pkg.A", "new pkg.A();", "\"A\"")
+                (a) -> evaluateExpression(a, "pkg.A", "new pkg.A();", "A")
         );
     }
 
@@ -424,14 +284,14 @@ public class ToolBasicTest extends ReplToolTesting {
         compiler.jar(outDir, jarName, "pkg/A.class");
         Path jarPath = compiler.getPath(outDir).resolve(jarName);
         test(
-                (a) -> assertCommand(a, "/classpath " + jarPath, String.format("|  Path %s added to classpath\n", jarPath)),
-                (a) -> evaluateExpression(a, "pkg.A", "new pkg.A();", "\"A\"")
+                (a) -> assertCommand(a, "/classpath " + jarPath, String.format("|  Path '%s' added to classpath", jarPath)),
+                (a) -> evaluateExpression(a, "pkg.A", "new pkg.A();", "A")
         );
         test(new String[] { "-cp", jarPath.toString() },
-                (a) -> evaluateExpression(a, "pkg.A", "new pkg.A();", "\"A\"")
+                (a) -> evaluateExpression(a, "pkg.A", "new pkg.A();", "A")
         );
         test(new String[] { "-classpath", jarPath.toString() },
-                (a) -> evaluateExpression(a, "pkg.A", "new pkg.A();", "\"A\"")
+                (a) -> evaluateExpression(a, "pkg.A", "new pkg.A();", "A")
         );
     }
 
@@ -441,13 +301,14 @@ public class ToolBasicTest extends ReplToolTesting {
             Path startup = compiler.getPath("StartupFileOption/startup.txt");
             compiler.writeToFile(startup, "class A { public String toString() { return \"A\"; } }");
             test(new String[]{"-startup", startup.toString()},
-                    (a) -> evaluateExpression(a, "A", "new A()", "\"A\"\n")
+                    (a) -> evaluateExpression(a, "A", "new A()", "A")
             );
             test(new String[]{"-nostartup"},
                     (a) -> assertCommandCheckOutput(a, "printf(\"\")", assertStartsWith("|  Error:\n|  cannot find symbol"))
             );
-            test((a) -> assertCommand(a, "printf(\"A\")", "", "", null, "A", ""));
-            test(false, new String[]{"-startup", "UNKNOWN"}, "|  File 'UNKNOWN' for start-up is not found.");
+            test(
+                    (a) -> assertCommand(a, "printf(\"A\")", "", "", null, "A", "")
+            );
         } finally {
             removeStartup();
         }
@@ -458,33 +319,32 @@ public class ToolBasicTest extends ReplToolTesting {
         Path path = compiler.getPath("loading.repl");
         compiler.writeToFile(path, "int a = 10; double x = 20; double a = 10;");
         test(new String[] { path.toString() },
-                (a) -> assertCommand(a, "x", "|  Variable x of type double has value 20.0\n"),
-                (a) -> assertCommand(a, "a", "|  Variable a of type double has value 10.0\n")
+                (a) -> assertCommand(a, "x", "x ==> 20.0"),
+                (a) -> assertCommand(a, "a", "a ==> 10.0")
         );
         Path unknown = compiler.getPath("UNKNOWN.jar");
-        test(true, new String[]{unknown.toString()},
+        test(Locale.ROOT, true, new String[]{unknown.toString()},
                 "|  File '" + unknown
-                + "' is not found: " + unknown
-                + " (No such file or directory)\n");
+                + "' for 'jshell' is not found.");
     }
 
     public void testReset() {
         test(
-                (a) -> assertReset(a, "/r"),
-                (a) -> assertCommandCheckOutput(a, "/m", assertMethods()),
+                (a) -> assertReset(a, "/res"),
+                (a) -> assertCommandCheckOutput(a, "/methods", assertMethods()),
                 (a) -> assertVariable(a, "int", "x"),
-                (a) -> assertCommandCheckOutput(a, "/v", assertVariables()),
+                (a) -> assertCommandCheckOutput(a, "/vars", assertVariables()),
                 (a) -> assertMethod(a, "void f() { }", "()void", "f"),
-                (a) -> assertCommandCheckOutput(a, "/m", assertMethods()),
+                (a) -> assertCommandCheckOutput(a, "/methods", assertMethods()),
                 (a) -> assertClass(a, "class A { }", "class", "A"),
-                (a) -> assertCommandCheckOutput(a, "/c", assertClasses()),
+                (a) -> assertCommandCheckOutput(a, "/types", assertClasses()),
                 (a) -> assertImport(a, "import java.util.stream.*;", "", "java.util.stream.*"),
-                (a) -> assertCommandCheckOutput(a, "/i", assertImports()),
+                (a) -> assertCommandCheckOutput(a, "/imports", assertImports()),
                 (a) -> assertReset(a, "/reset"),
-                (a) -> assertCommandCheckOutput(a, "/v", assertVariables()),
-                (a) -> assertCommandCheckOutput(a, "/m", assertMethods()),
-                (a) -> assertCommandCheckOutput(a, "/c", assertClasses()),
-                (a) -> assertCommandCheckOutput(a, "/i", assertImports())
+                (a) -> assertCommandCheckOutput(a, "/vars", assertVariables()),
+                (a) -> assertCommandCheckOutput(a, "/methods", assertMethods()),
+                (a) -> assertCommandCheckOutput(a, "/types", assertClasses()),
+                (a) -> assertCommandCheckOutput(a, "/imports", assertImports())
         );
     }
 
@@ -497,8 +357,8 @@ public class ToolBasicTest extends ReplToolTesting {
         for (String s : new String[]{"/o", "/open"}) {
             test(
                     (a) -> assertCommand(a, s + " " + path.toString(), ""),
-                    (a) -> assertCommand(a, "a", "|  Variable a of type double has value 10.0\n"),
-                    (a) -> evaluateExpression(a, "A", "new A();", "\"A\""),
+                    (a) -> assertCommand(a, "a", "a ==> 10.0"),
+                    (a) -> evaluateExpression(a, "A", "new A();", "A"),
                     (a) -> evaluateExpression(a, "long", "Stream.of(\"A\").count();", "1"),
                     (a) -> {
                         loadVariable(a, "double", "x", "20.0", "20.0");
@@ -508,18 +368,16 @@ public class ToolBasicTest extends ReplToolTesting {
                         loadClass(a, "class A { public String toString() { return \"A\"; } }",
                                 "class", "A");
                         loadImport(a, "import java.util.stream.*;", "", "java.util.stream.*");
-                        assertCommandCheckOutput(a, "/c", assertClasses());
+                        assertCommandCheckOutput(a, "/types", assertClasses());
                     },
-                    (a) -> assertCommandCheckOutput(a, "/m", assertMethods()),
-                    (a) -> assertCommandCheckOutput(a, "/v", assertVariables()),
-                    (a) -> assertCommandCheckOutput(a, "/i", assertImports())
+                    (a) -> assertCommandCheckOutput(a, "/methods", assertMethods()),
+                    (a) -> assertCommandCheckOutput(a, "/vars", assertVariables()),
+                    (a) -> assertCommandCheckOutput(a, "/imports", assertImports())
             );
             Path unknown = compiler.getPath("UNKNOWN.repl");
             test(
                     (a) -> assertCommand(a, s + " " + unknown,
-                            "|  File '" + unknown
-                                    + "' is not found: " + unknown
-                                    + " (No such file or directory)\n")
+                            "|  File '" + unknown + "' for '/open' is not found.")
             );
         }
     }
@@ -531,46 +389,45 @@ public class ToolBasicTest extends ReplToolTesting {
                 "int a;",
                 "class A { public String toString() { return \"A\"; } }"
         );
-        for (String s : new String[]{"/s", "/save"}) {
-            test(
-                    (a) -> assertVariable(a, "int", "a"),
-                    (a) -> assertClass(a, "class A { public String toString() { return \"A\"; } }", "class", "A"),
-                    (a) -> assertCommand(a, s + " " + path.toString(), "")
-            );
-            assertEquals(Files.readAllLines(path), list);
-        }
-        for (String s : new String[]{"/s", "/save"}) {
+        test(
+                (a) -> assertVariable(a, "int", "a"),
+                (a) -> assertCommand(a, "()", null, null, null, "", ""),
+                (a) -> assertClass(a, "class A { public String toString() { return \"A\"; } }", "class", "A"),
+                (a) -> assertCommand(a, "/save " + path.toString(), "")
+        );
+        assertEquals(Files.readAllLines(path), list);
+        {
             List<String> output = new ArrayList<>();
             test(
                     (a) -> assertCommand(a, "int a;", null),
+                    (a) -> assertCommand(a, "()", null, null, null, "", ""),
                     (a) -> assertClass(a, "class A { public String toString() { return \"A\"; } }", "class", "A"),
-                    (a) -> assertCommandCheckOutput(a, "/list all", (out) ->
+                    (a) -> assertCommandCheckOutput(a, "/list -all", (out) ->
                             output.addAll(Stream.of(out.split("\n"))
                                     .filter(str -> !str.isEmpty())
                                     .map(str -> str.substring(str.indexOf(':') + 2))
                                     .filter(str -> !str.startsWith("/"))
                                     .collect(Collectors.toList()))),
-                    (a) -> assertCommand(a, s + " all " + path.toString(), "")
+                    (a) -> assertCommand(a, "/save -all " + path.toString(), "")
             );
             assertEquals(Files.readAllLines(path), output);
         }
-        for (String s : new String[]{"/s", "/save"}) {
-            List<String> output = new ArrayList<>();
-            test(
-                    (a) -> assertVariable(a, "int", "a"),
-                    (a) -> assertClass(a, "class A { public String toString() { return \"A\"; } }", "class", "A"),
-                    (a) -> assertCommandCheckOutput(a, "/h", (out) ->
-                            output.addAll(Stream.of(out.split("\n"))
-                                    .filter(str -> !str.isEmpty())
-                                    .collect(Collectors.toList()))),
-                    (a) -> assertCommand(a, s + " history " + path.toString(), "")
-            );
-            output.add(s + " history " + path.toString());
-            assertEquals(Files.readAllLines(path), output);
-        }
+        List<String> output = new ArrayList<>();
+        test(
+                (a) -> assertVariable(a, "int", "a"),
+                (a) -> assertCommand(a, "()", null, null, null, "", ""),
+                (a) -> assertClass(a, "class A { public String toString() { return \"A\"; } }", "class", "A"),
+                (a) -> assertCommandCheckOutput(a, "/history", (out) ->
+                        output.addAll(Stream.of(out.split("\n"))
+                                .filter(str -> !str.isEmpty())
+                                .collect(Collectors.toList()))),
+                (a) -> assertCommand(a, "/save -history " + path.toString(), "")
+        );
+        output.add("/save -history " + path.toString());
+        assertEquals(Files.readAllLines(path), output);
     }
 
-    public void testStartSet() throws BackingStoreException {
+    public void testStartRetain() throws BackingStoreException {
         try {
             Compiler compiler = new Compiler();
             Path startUpFile = compiler.getPath("startUp.txt");
@@ -579,13 +436,13 @@ public class ToolBasicTest extends ReplToolTesting {
                     (a) -> assertVariable(a, "double", "b", "10", "10.0"),
                     (a) -> assertMethod(a, "void f() {}", "()V", "f"),
                     (a) -> assertImport(a, "import java.util.stream.*;", "", "java.util.stream.*"),
-                    (a) -> assertCommand(a, "/s " + startUpFile.toString(), null),
-                    (a) -> assertCommand(a, "/setstart " + startUpFile.toString(), null)
+                    (a) -> assertCommand(a, "/save " + startUpFile.toString(), null),
+                    (a) -> assertCommand(a, "/retain start " + startUpFile.toString(), null)
             );
             Path unknown = compiler.getPath("UNKNOWN");
             test(
-                    (a) -> assertCommand(a, "/setstart " + unknown.toString(),
-                            "|  File '" + unknown + "' for /setstart is not found.\n")
+                    (a) -> assertCommandOutputStartsWith(a, "/retain start " + unknown.toString(),
+                            "|  File '" + unknown + "' for '/retain start' is not found.")
             );
             test(false, new String[0],
                     (a) -> {
@@ -593,11 +450,11 @@ public class ToolBasicTest extends ReplToolTesting {
                         loadVariable(a, "double", "b", "10.0", "10.0");
                         loadMethod(a, "void f() {}", "()void", "f");
                         loadImport(a, "import java.util.stream.*;", "", "java.util.stream.*");
-                        assertCommandCheckOutput(a, "/c", assertClasses());
+                        assertCommandCheckOutput(a, "/types", assertClasses());
                     },
-                    (a) -> assertCommandCheckOutput(a, "/v", assertVariables()),
-                    (a) -> assertCommandCheckOutput(a, "/m", assertMethods()),
-                    (a) -> assertCommandCheckOutput(a, "/i", assertImports())
+                    (a) -> assertCommandCheckOutput(a, "/vars", assertVariables()),
+                    (a) -> assertCommandCheckOutput(a, "/methods", assertMethods()),
+                    (a) -> assertCommandCheckOutput(a, "/imports", assertImports())
             );
         } finally {
             removeStartup();
@@ -605,60 +462,20 @@ public class ToolBasicTest extends ReplToolTesting {
     }
 
     private void removeStartup() {
-        Preferences preferences = Preferences.userRoot().node("tool/REPL");
+        Preferences preferences = Preferences.userRoot().node("tool/JShell");
         if (preferences != null) {
             preferences.remove("STARTUP");
         }
     }
 
-    public void testUnknownCommand() {
-        test((a) -> assertCommand(a, "/unknown",
-                "|  No such command: /unknown\n" +
-                "|  Type /help for help.\n"));
-    }
-
-    public void testEmptyClassPath() {
-        String[] commands = {"/cp", "/classpath"};
-        test(Stream.of(commands)
-                .map(cmd -> (ReplTest) after -> assertCommand(after, cmd, "|  /classpath requires a path argument\n"))
-                .toArray(ReplTest[]::new));
-
-    }
-
-    public void testNoArgument() {
-        String[] commands = {"/s", "/save", "/o", "/open", "/setstart", "/savestart"};
-        test(Stream.of(commands)
-                .map(cmd -> {
-                    String c = cmd;
-                    if ("/s".equals(cmd)) {
-                        c = "/save";
-                    }
-                    if ("/o".equals(cmd)) {
-                        c = "/open";
-                    }
-                    final String finalC = c;
-                    return (ReplTest) after -> assertCommand(after, cmd,
-                            "|  The " + finalC + " command requires a filename argument.\n");
-                })
-                .toArray(ReplTest[]::new));
-    }
-
     public void testStartSave() throws IOException {
         Compiler compiler = new Compiler();
         Path startSave = compiler.getPath("startSave.txt");
-        test(a -> assertCommand(a, "/savestart " + startSave.toString(), null));
+        test(a -> assertCommand(a, "/save -start " + startSave.toString(), null));
         List<String> lines = Files.lines(startSave)
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());
-        assertEquals(lines, Arrays.asList(
-                "import java.util.*;",
-                "import java.io.*;",
-                "import java.math.*;",
-                "import java.net.*;",
-                "import java.util.concurrent.*;",
-                "import java.util.prefs.*;",
-                "import java.util.regex.*;",
-                "void printf(String format, Object... args) { System.out.printf(format, args); }"));
+        assertEquals(lines, START_UP);
     }
 
     public void testConstrainedUpdates() {
@@ -673,68 +490,29 @@ public class ToolBasicTest extends ReplToolTesting {
     public void testRemoteExit() {
         test(
                 a -> assertVariable(a, "int", "x"),
-                a -> assertCommandCheckOutput(a, "/v", assertVariables()),
-                a -> assertCommandCheckOutput(a, "System.exit(5);",  s ->
-                        assertTrue(s.contains("terminated"), s)),
-                a -> assertCommandCheckOutput(a, "/v", s ->
+                a -> assertCommandCheckOutput(a, "/vars", assertVariables()),
+                a -> assertCommandOutputContains(a, "System.exit(5);", "terminated"),
+                a -> assertCommandCheckOutput(a, "/vars", s ->
                         assertTrue(s.trim().isEmpty(), s)),
                 a -> assertMethod(a, "void f() { }", "()void", "f"),
-                a -> assertCommandCheckOutput(a, "/m", assertMethods())
-        );
-    }
-
-    public void testListArgs() {
-        Consumer<String> assertList = s -> assertTrue(s.split("\n").length >= 7, s);
-        String arg = "qqqq";
-        Consumer<String> assertError = s -> assertEquals(s, "|  Invalid /list argument: " + arg + "\n");
-        test(
-                a -> assertCommandCheckOutput(a, "/l all", assertList),
-                a -> assertCommandCheckOutput(a, "/list all", assertList),
-                a -> assertCommandCheckOutput(a, "/l " + arg, assertError),
-                a -> assertCommandCheckOutput(a, "/list " + arg, assertError),
-                a -> assertVariable(a, "int", "a"),
-                a -> assertCommandCheckOutput(a, "/l history", assertList),
-                a -> assertCommandCheckOutput(a, "/list history", assertList)
+                a -> assertCommandCheckOutput(a, "/methods", assertMethods())
         );
     }
 
     public void testFeedbackNegative() {
-        for (String feedback : new String[]{"/f", "/feedback"}) {
-            test(a -> assertCommandCheckOutput(a, feedback + " aaaa",
-                    assertStartsWith("|  Follow /feedback with of the following")));
-        }
+        test(a -> assertCommandCheckOutput(a, "/set feedback aaaa",
+                assertStartsWith("|  Does not match any current feedback mode")));
     }
 
-    public void testFeedbackOff() {
-        for (String feedback : new String[]{"/f", "/feedback"}) {
-            for (String off : new String[]{"o", "off"}) {
-                test(
-                        a -> assertCommand(a, feedback + " " + off, ""),
-                        a -> assertCommand(a, "int a", ""),
-                        a -> assertCommand(a, "void f() {}", ""),
-                        a -> assertCommandCheckOutput(a, "aaaa", assertStartsWith("|  Error:")),
-                        a -> assertCommandCheckOutput(a, "public void f() {}", assertStartsWith("|  Warning:"))
-                );
-            }
-        }
-    }
-
-    public void testFeedbackConcise() {
-        Compiler compiler = new Compiler();
-        Path testConciseFile = compiler.getPath("testConciseFeedback");
-        String[] sources = new String[] {"int a", "void f() {}", "class A {}", "a = 10"};
-        compiler.writeToFile(testConciseFile, sources);
-        for (String feedback : new String[]{"/f", "/feedback"}) {
-            for (String concise : new String[]{"c", "concise"}) {
-                test(
-                        a -> assertCommand(a, feedback + " " + concise, ""),
-                        a -> assertCommand(a, sources[0], ""),
-                        a -> assertCommand(a, sources[1], ""),
-                        a -> assertCommand(a, sources[2], ""),
-                        a -> assertCommand(a, sources[3], "|  a : 10\n"),
-                        a -> assertCommand(a, "/o " + testConciseFile.toString(), "|  a : 10\n")
-                );
-            }
+    public void testFeedbackSilent() {
+        for (String off : new String[]{"s", "silent"}) {
+            test(
+                    a -> assertCommand(a, "/set feedback " + off, ""),
+                    a -> assertCommand(a, "int a", ""),
+                    a -> assertCommand(a, "void f() {}", ""),
+                    a -> assertCommandCheckOutput(a, "aaaa", assertStartsWith("|  Error:")),
+                    a -> assertCommandCheckOutput(a, "public void f() {}", assertStartsWith("|  Warning:"))
+            );
         }
     }
 
@@ -744,135 +522,23 @@ public class ToolBasicTest extends ReplToolTesting {
         String[] sources = new String[] {"int a", "void f() {}", "class A {}", "a = 10"};
         String[] sources2 = new String[] {"int a //again", "void f() {int y = 4;}", "class A {} //again", "a = 10"};
         String[] output = new String[] {
-                "|  Added variable a of type int\n",
-                "|  Added method f()\n",
-                "|  Added class A\n",
-                "|  Variable a has been assigned the value 10\n"
+                "a ==> 0",
+                "|  created method f()",
+                "|  created class A",
+                "a ==> 10"
         };
         compiler.writeToFile(testNormalFile, sources2);
-        for (String feedback : new String[]{"/f", "/feedback"}) {
-            for (String feedbackState : new String[]{"n", "normal", "v", "verbose"}) {
-                String f = null;
-                if (feedbackState.startsWith("n")) {
-                    f = "normal";
-                } else if (feedbackState.startsWith("v")) {
-                    f = "verbose";
-                }
-                final String finalF = f;
+        for (String feedback : new String[]{"/set fe", "/set feedback"}) {
+            for (String feedbackState : new String[]{"n", "normal"}) {
                 test(
-                        a -> assertCommand(a, feedback + " " + feedbackState, "|  Feedback mode: " + finalF +"\n"),
+                        a -> assertCommand(a, feedback + " " + feedbackState, "|  Feedback mode: normal"),
                         a -> assertCommand(a, sources[0], output[0]),
                         a -> assertCommand(a, sources[1], output[1]),
                         a -> assertCommand(a, sources[2], output[2]),
                         a -> assertCommand(a, sources[3], output[3]),
-                        a -> assertCommand(a, "/o " + testNormalFile.toString(),
-                                "|  Modified variable a of type int\n" +
-                                "|  Modified method f()\n" +
-                                "|    Update overwrote method f()\n" +
-                                "|  Modified class A\n" +
-                                "|    Update overwrote class A\n" +
-                                "|  Variable a has been assigned the value 10\n")
+                        a -> assertCommand(a, "/o " + testNormalFile.toString(), "")
                 );
             }
-        }
-    }
-
-    public void testFeedbackDefault() {
-        Compiler compiler = new Compiler();
-        Path testDefaultFile = compiler.getPath("testDefaultFeedback");
-        String[] sources = new String[] {"int a", "void f() {}", "class A {}", "a = 10"};
-        String[] output = new String[] {
-                "|  Added variable a of type int\n",
-                "|  Added method f()\n",
-                "|  Added class A\n",
-                "|  Variable a has been assigned the value 10\n"
-        };
-        compiler.writeToFile(testDefaultFile, sources);
-        for (String feedback : new String[]{"/f", "/feedback"}) {
-            for (String defaultFeedback : new String[]{"", "d", "default"}) {
-                test(
-                        a -> assertCommand(a, "/f o", ""),
-                        a -> assertCommand(a, "int x", ""),
-                        a -> assertCommand(a, feedback + " " + defaultFeedback, "|  Feedback mode: default\n"),
-                        a -> assertCommand(a, sources[0], output[0]),
-                        a -> assertCommand(a, sources[1], output[1]),
-                        a -> assertCommand(a, sources[2], output[2]),
-                        a -> assertCommand(a, sources[3], output[3]),
-                        a -> assertCommand(a, "/o " + testDefaultFile.toString(), "")
-                );
-            }
-        }
-    }
-
-    public void testDrop() {
-        for (String drop : new String[]{"/d", "/drop"}) {
-            test(false, new String[]{"-nostartup"},
-                    a -> assertVariable(a, "int", "a"),
-                    a -> dropVariable(a, drop + " 1", "int a = 0"),
-                    a -> assertMethod(a, "int b() { return 0; }", "()I", "b"),
-                    a -> dropMethod(a, drop + " 2", "b ()I"),
-                    a -> assertClass(a, "class A {}", "class", "A"),
-                    a -> dropClass(a, drop + " 3", "class A"),
-                    a -> assertImport(a, "import java.util.stream.*;", "", "java.util.stream.*"),
-                    a -> dropImport(a, drop + " 4", "import java.util.stream.*"),
-                    a -> assertCommandCheckOutput(a, "/v", assertVariables()),
-                    a -> assertCommandCheckOutput(a, "/m", assertMethods()),
-                    a -> assertCommandCheckOutput(a, "/c", assertClasses()),
-                    a -> assertCommandCheckOutput(a, "/i", assertImports())
-            );
-            test(false, new String[]{"-nostartup"},
-                    a -> assertVariable(a, "int", "a"),
-                    a -> dropVariable(a, drop + " a", "int a = 0"),
-                    a -> assertMethod(a, "int b() { return 0; }", "()I", "b"),
-                    a -> dropMethod(a, drop + " b", "b ()I"),
-                    a -> assertClass(a, "class A {}", "class", "A"),
-                    a -> dropClass(a, drop + " A", "class A"),
-                    a -> assertCommandCheckOutput(a, "/v", assertVariables()),
-                    a -> assertCommandCheckOutput(a, "/m", assertMethods()),
-                    a -> assertCommandCheckOutput(a, "/c", assertClasses()),
-                    a -> assertCommandCheckOutput(a, "/i", assertImports())
-            );
-        }
-    }
-
-    public void testDropNegative() {
-        for (String drop : new String[]{"/d", "/drop"}) {
-            test(false, new String[]{"-nostartup"},
-                    a -> assertCommand(a, drop + " 0", "|  No definition or id named 0 found.  See /classes /methods /vars or /list\n"),
-                    a -> assertCommand(a, drop + " a", "|  No definition or id named a found.  See /classes /methods /vars or /list\n"),
-                    a -> assertCommandCheckOutput(a, drop,
-                            assertStartsWith("|  In the /drop argument, please specify an import, variable, method, or class to drop.")),
-                    a -> assertVariable(a, "int", "a"),
-                    a -> assertCommand(a, "a", "|  Variable a of type int has value 0\n"),
-                    a -> assertCommand(a, drop + " 2", "|  The argument did not specify an import, variable, method, or class to drop.\n")
-            );
-        }
-    }
-
-    public void testAmbiguousDrop() {
-        Consumer<String> check = s -> {
-            assertTrue(s.startsWith("|  The argument references more than one import, variable, method, or class"), s);
-            int lines = s.split("\n").length;
-            assertEquals(lines, 5, "Expected 3 ambiguous keys, but found: " + (lines - 2) + "\n" + s);
-        };
-        for (String drop : new String[]{"/d", "/drop"}) {
-            test(
-                    a -> assertVariable(a, "int", "a"),
-                    a -> assertMethod(a, "int a() { return 0; }", "()int", "a"),
-                    a -> assertClass(a, "class a {}", "class", "a"),
-                    a -> assertCommandCheckOutput(a, drop + " a", check),
-                    a -> assertCommandCheckOutput(a, "/v", assertVariables()),
-                    a -> assertCommandCheckOutput(a, "/m", assertMethods()),
-                    a -> assertCommandCheckOutput(a, "/c", assertClasses()),
-                    a -> assertCommandCheckOutput(a, "/i", assertImports())
-            );
-            test(
-                    a -> assertMethod(a, "int a() { return 0; }", "()int", "a"),
-                    a -> assertMethod(a, "double a(int a) { return 0; }", "(int)double", "a"),
-                    a -> assertMethod(a, "double a(double a) { return 0; }", "(double)double", "a"),
-                    a -> assertCommandCheckOutput(a, drop + " a", check),
-                    a -> assertCommandCheckOutput(a, "/m", assertMethods())
-            );
         }
     }
 
@@ -880,17 +546,31 @@ public class ToolBasicTest extends ReplToolTesting {
         test(false, new String[]{"-nostartup"},
                 a -> assertCommand(a, "System.err.println(1)", "", "", null, "", "1\n"),
                 a -> assertCommand(a, "System.err.println(2)", "", "", null, "", "2\n"),
-                a -> assertCommand(a, "/-2", "System.err.println(1)\n", "", null, "", "1\n"),
-                a -> assertCommand(a, "/history", "\n" +
+                a -> assertCommand(a, "/-2", "System.err.println(1)", "", null, "", "1\n"),
+                a -> assertCommand(a, "/history",
                                                     "/debug 0\n" +
                                                     "System.err.println(1)\n" +
                                                     "System.err.println(2)\n" +
                                                     "System.err.println(1)\n" +
                                                     "/history\n"),
-                a -> assertCommand(a, "/-2", "System.err.println(2)\n", "", null, "", "2\n"),
-                a -> assertCommand(a, "/!", "System.err.println(2)\n", "", null, "", "2\n"),
-                a -> assertCommand(a, "/2", "System.err.println(2)\n", "", null, "", "2\n"),
-                a -> assertCommand(a, "/1", "System.err.println(1)\n", "", null, "", "1\n")
+                a -> assertCommand(a, "/-2", "System.err.println(2)", "", null, "", "2\n"),
+                a -> assertCommand(a, "/!", "System.err.println(2)", "", null, "", "2\n"),
+                a -> assertCommand(a, "/2", "System.err.println(2)", "", null, "", "2\n"),
+                a -> assertCommand(a, "/1", "System.err.println(1)", "", null, "", "1\n")
         );
     }
+
+    @Test(enabled = false) // TODO 8158197
+    public void testHeadlessEditPad() {
+        String prevHeadless = System.getProperty("java.awt.headless");
+        try {
+            System.setProperty("java.awt.headless", "true");
+            test(
+                (a) -> assertCommandOutputStartsWith(a, "/edit printf", "|  Cannot launch editor -- unexpected exception:")
+            );
+        } finally {
+            System.setProperty("java.awt.headless", prevHeadless==null? "false" : prevHeadless);
+        }
+    }
+
 }

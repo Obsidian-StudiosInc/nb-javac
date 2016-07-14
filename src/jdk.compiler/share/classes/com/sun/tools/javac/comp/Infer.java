@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,18 +44,19 @@ import com.sun.tools.javac.comp.Infer.GraphSolver.InferenceGraph.Node;
 import com.sun.tools.javac.comp.Resolve.InapplicableMethodException;
 import com.sun.tools.javac.comp.Resolve.VerboseResolutionMode;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.BiFunction;
@@ -196,7 +197,7 @@ public class Infer {
                 //inject return constraints earlier
                 doIncorporation(inferenceContext, warn); //propagation
 
-                boolean shouldPropagate = resultInfo.checkContext.inferenceContext().free(resultInfo.pt);
+                boolean shouldPropagate = shouldPropagate(mt.getReturnType(), resultInfo, inferenceContext);
 
                 InferenceContext minContext = shouldPropagate ?
                         inferenceContext.min(roots(mt, deferredAttrContext), true, warn) :
@@ -257,6 +258,13 @@ public class Infer {
         }
     }
     //where
+        private boolean shouldPropagate(Type restype, Attr.ResultInfo target, InferenceContext inferenceContext) {
+            return target.checkContext.inferenceContext() != emptyContext && //enclosing context is a generic method
+                        inferenceContext.free(restype) && //return type contains inference vars
+                        (!inferenceContext.inferencevars.contains(restype) || //no eager instantiation is required (as per 18.5.2)
+                                !needsEagerInstantiation((UndetVar)inferenceContext.asUndetVar(restype), target.pt, inferenceContext));
+        }
+
         private List<Type> roots(MethodType mt, DeferredAttrContext deferredAttrContext) {
             ListBuffer<Type> roots = new ListBuffer<>();
             roots.add(mt.getReturnType());
@@ -311,7 +319,7 @@ public class Infer {
                  */
                 saved_undet = inferenceContext.save();
                 if (allowGraphInference && !warn.hasNonSilentLint(Lint.LintCategory.UNCHECKED)) {
-                    boolean shouldPropagate = resultInfo.checkContext.inferenceContext().free(resultInfo.pt);
+                    boolean shouldPropagate = shouldPropagate(getReturnType(), resultInfo, inferenceContext);
 
                     InferenceContext minContext = shouldPropagate ?
                             inferenceContext.min(roots(asMethodType(), null), false, warn) :
@@ -355,9 +363,9 @@ public class Infer {
                         rsContext.attrMode(),
                         rsContext.step,
                         round);
-                File dotFile = new File(dependenciesFolder, filename);
-                try (FileWriter fw = new FileWriter(dotFile)) {
-                    fw.append(graph);
+                Path dotFile = Paths.get(dependenciesFolder, filename);
+                try (Writer w = Files.newBufferedWriter(dotFile)) {
+                    w.append(graph);
                 }
                 round++;
             }
@@ -396,8 +404,9 @@ public class Infer {
             to = from.isPrimitive() ? from : syms.objectType;
         } else if (qtype.hasTag(UNDETVAR)) {
             if (resultInfo.pt.isReference()) {
-                to = generateReturnConstraintsUndetVarToReference(
-                        tree, (UndetVar)qtype, to, resultInfo, inferenceContext);
+                if (needsEagerInstantiation((UndetVar)qtype, to, inferenceContext)) {
+                    to = generateReferenceToTargetConstraint(tree, (UndetVar)qtype, to, resultInfo, inferenceContext);
+                }
             } else {
                 if (to.isPrimitive()) {
                     to = generateReturnConstraintsPrimitive(tree, (UndetVar)qtype, to,
@@ -441,9 +450,7 @@ public class Infer {
         return types.boxedClass(to).type;
     }
 
-    private Type generateReturnConstraintsUndetVarToReference(JCTree tree,
-            UndetVar from, Type to, Attr.ResultInfo resultInfo,
-            InferenceContext inferenceContext) {
+    private boolean needsEagerInstantiation(UndetVar from, Type to, InferenceContext inferenceContext) {
         Type captureOfTo = types.capture(to);
         /* T is a reference type, but is not a wildcard-parameterized type, and either
          */
@@ -454,8 +461,7 @@ public class Infer {
             for (Type t : from.getBounds(InferenceBound.EQ, InferenceBound.LOWER)) {
                 Type captureOfBound = types.capture(t);
                 if (captureOfBound != t) {
-                    return generateReferenceToTargetConstraint(tree, from, to,
-                            resultInfo, inferenceContext);
+                    return true;
                 }
             }
 
@@ -469,8 +475,7 @@ public class Infer {
                             !inferenceContext.free(aLowerBound) &&
                             !inferenceContext.free(anotherLowerBound) &&
                             commonSuperWithDiffParameterization(aLowerBound, anotherLowerBound)) {
-                        return generateReferenceToTargetConstraint(tree, from, to,
-                            resultInfo, inferenceContext);
+                        return true;
                     }
                 }
             }
@@ -485,12 +490,11 @@ public class Infer {
             for (Type t : from.getBounds(InferenceBound.EQ, InferenceBound.LOWER)) {
                 Type sup = types.asSuper(t, to.tsym);
                 if (sup != null && sup.isRaw()) {
-                    return generateReferenceToTargetConstraint(tree, from, to,
-                            resultInfo, inferenceContext);
+                    return true;
                 }
             }
         }
-        return to;
+        return false;
     }
 
     private boolean commonSuperWithDiffParameterization(Type t, Type s) {
@@ -560,30 +564,37 @@ public class Infer {
                                             List<Type> argtypes) {
         final Type restype;
 
-        //The return type for a polymorphic signature call is computed from
-        //the enclosing tree E, as follows: if E is a cast, then use the
-        //target type of the cast expression as a return type; if E is an
-        //expression statement, the return type is 'void' - otherwise the
-        //return type is simply 'Object'. A correctness check ensures that
-        //env.next refers to the lexically enclosing environment in which
-        //the polymorphic signature call environment is nested.
+        if (spMethod == null || types.isSameType(spMethod.getReturnType(), syms.objectType, true)) {
+            // The return type of the polymorphic signature is polymorphic,
+            // and is computed from the enclosing tree E, as follows:
+            // if E is a cast, then use the target type of the cast expression
+            // as a return type; if E is an expression statement, the return
+            // type is 'void'; otherwise
+            // the return type is simply 'Object'. A correctness check ensures
+            // that env.next refers to the lexically enclosing environment in
+            // which the polymorphic signature call environment is nested.
 
-        switch (env.next.tree.getTag()) {
-            case TYPECAST:
-                JCTypeCast castTree = (JCTypeCast)env.next.tree;
-                restype = (TreeInfo.skipParens(castTree.expr) == env.tree) ?
-                    castTree.clazz.type :
-                    syms.objectType;
-                break;
-            case EXEC:
-                JCTree.JCExpressionStatement execTree =
-                        (JCTree.JCExpressionStatement)env.next.tree;
-                restype = (TreeInfo.skipParens(execTree.expr) == env.tree) ?
-                    syms.voidType :
-                    syms.objectType;
-                break;
-            default:
-                restype = syms.objectType;
+            switch (env.next.tree.getTag()) {
+                case TYPECAST:
+                    JCTypeCast castTree = (JCTypeCast)env.next.tree;
+                    restype = (TreeInfo.skipParens(castTree.expr) == env.tree) ?
+                              castTree.clazz.type :
+                              syms.objectType;
+                    break;
+                case EXEC:
+                    JCTree.JCExpressionStatement execTree =
+                            (JCTree.JCExpressionStatement)env.next.tree;
+                    restype = (TreeInfo.skipParens(execTree.expr) == env.tree) ?
+                              syms.voidType :
+                              syms.objectType;
+                    break;
+                default:
+                    restype = syms.objectType;
+            }
+        } else {
+            // The return type of the polymorphic signature is fixed
+            // (not polymorphic)
+            restype = spMethod.getReturnType();
         }
 
         List<Type> paramtypes = argtypes.map(new ImplicitArgType(spMethod, resolveContext.step));
@@ -667,18 +678,12 @@ public class Infer {
                 paramTypes = paramTypes.tail;
             }
 
-            try {
-                funcInterfaceContext.solve(funcInterfaceContext.boundedVars(), types.noWarnings);
-            } catch (InferenceException ex) {
-                checkContext.report(pos, diags.fragment("no.suitable.functional.intf.inst", funcInterface));
-            }
-
             List<Type> actualTypeargs = funcInterface.getTypeArguments();
             for (Type t : funcInterfaceContext.undetvars) {
                 UndetVar uv = (UndetVar)t;
-                if (uv.getInst() == null) {
-                    uv.setInst(actualTypeargs.head);
-                }
+                Optional<Type> inst = uv.getBounds(InferenceBound.EQ).stream()
+                        .filter(b -> !b.containsAny(formalInterface.getTypeArguments())).findFirst();
+                uv.setInst(inst.orElse(actualTypeargs.head));
                 actualTypeargs = actualTypeargs.tail;
             }
 
@@ -708,6 +713,8 @@ public class Infer {
             this.uv = uv;
             this.t = t;
         }
+
+        public abstract IncorporationAction dup(UndetVar that);
 
         /**
          * Incorporation action entry-point. Subclasses should define the logic associated with
@@ -755,6 +762,11 @@ public class Infer {
             this.from = from;
             this.typeFunc = typeFunc;
             this.optFilter = typeFilter;
+        }
+
+        @Override
+        public IncorporationAction dup(UndetVar that) {
+            return new CheckBounds(that, t, typeFunc, optFilter, from);
         }
 
         @Override
@@ -825,6 +837,11 @@ public class Infer {
         }
 
         @Override
+        public IncorporationAction dup(UndetVar that) {
+            return new EqCheckLegacy(that, t, from);
+        }
+
+        @Override
         EnumSet<InferenceBound> boundsToCheck() {
             return (from == InferenceBound.EQ) ?
                             EnumSet.allOf(InferenceBound.class) :
@@ -840,8 +857,17 @@ public class Infer {
         EnumSet<InferenceBound> to;
 
         CheckInst(UndetVar uv, InferenceBound ib, InferenceBound... rest) {
+            this(uv, EnumSet.of(ib, rest));
+        }
+
+        CheckInst(UndetVar uv, EnumSet<InferenceBound> to) {
             super(uv, uv.getInst(), InferenceBound.EQ);
-            this.to = EnumSet.of(ib, rest);
+            this.to = to;
+        }
+
+        @Override
+        public IncorporationAction dup(UndetVar that) {
+            return new CheckInst(that, to);
         }
 
         @Override
@@ -861,6 +887,11 @@ public class Infer {
     class SubstBounds extends CheckInst {
         SubstBounds(UndetVar uv) {
             super(uv, InferenceBound.LOWER, InferenceBound.EQ, InferenceBound.UPPER);
+        }
+
+        @Override
+        public IncorporationAction dup(UndetVar that) {
+            return new SubstBounds(that);
         }
 
         @Override
@@ -900,6 +931,11 @@ public class Infer {
 
         public CheckUpperBounds(UndetVar uv, Type t) {
             super(uv, t);
+        }
+
+        @Override
+        public IncorporationAction dup(UndetVar that) {
+            return new CheckUpperBounds(that, t);
         }
 
         @Override
@@ -949,6 +985,11 @@ public class Infer {
         public PropagateBounds(UndetVar uv, Type t, InferenceBound ib) {
             super(uv, t);
             this.ib = ib;
+        }
+
+        @Override
+        public IncorporationAction dup(UndetVar that) {
+            return new PropagateBounds(that, t, ib);
         }
 
         void apply(InferenceContext inferenceContext, Warner warner) {
@@ -1433,21 +1474,16 @@ public class Infer {
                     //not a throws undet var
                     return false;
                 }
-                if (t.getBounds(InferenceBound.EQ, InferenceBound.LOWER, InferenceBound.UPPER)
-                            .diff(t.getDeclaredBounds()).nonEmpty()) {
-                    //not an unbounded undet var
-                    return false;
-                }
                 Infer infer = inferenceContext.infer;
-                for (Type db : t.getDeclaredBounds()) {
+                for (Type db : t.getBounds(InferenceBound.UPPER)) {
                     if (t.isInterface()) continue;
-                    if (infer.types.asSuper(infer.syms.runtimeExceptionType, db.tsym) != null) {
-                        //declared bound is a supertype of RuntimeException
-                        return true;
+                    if (infer.types.asSuper(infer.syms.runtimeExceptionType, db.tsym) == null) {
+                        //upper bound is not a supertype of RuntimeException - give up
+                        return false;
                     }
                 }
-                //declared bound is more specific then RuntimeException - give up
-                return false;
+
+                return true;
             }
 
             @Override
@@ -1610,12 +1646,10 @@ public class Infer {
     class GraphSolver {
 
         InferenceContext inferenceContext;
-        Map<Type, Set<Type>> stuckDeps;
         Warner warn;
 
-        GraphSolver(InferenceContext inferenceContext, Map<Type, Set<Type>> stuckDeps, Warner warn) {
+        GraphSolver(InferenceContext inferenceContext, Warner warn) {
             this.inferenceContext = inferenceContext;
-            this.stuckDeps = stuckDeps;
             this.warn = warn;
         }
 
@@ -1626,7 +1660,7 @@ public class Infer {
          */
         void solve(GraphStrategy sstrategy) {
             doIncorporation(inferenceContext, warn); //initial propagation of bounds
-            InferenceGraph inferenceGraph = new InferenceGraph(stuckDeps);
+            InferenceGraph inferenceGraph = new InferenceGraph();
             while (!sstrategy.done()) {
                 if (dependenciesFolder != null) {
                     //add this graph to the pending queue
@@ -1675,90 +1709,67 @@ public class Infer {
              */
             class Node extends GraphUtils.TarjanNode<ListBuffer<Type>, Node> implements DottableNode<ListBuffer<Type>, Node> {
 
-                /** map listing all dependencies (grouped by kind) */
-                EnumMap<DependencyKind, Set<Node>> deps;
+                /** node dependencies */
+                Set<Node> deps;
 
                 Node(Type ivar) {
                     super(ListBuffer.of(ivar));
-                    this.deps = new EnumMap<>(DependencyKind.class);
+                    this.deps = new HashSet<>();
                 }
 
                 @Override
                 public GraphUtils.DependencyKind[] getSupportedDependencyKinds() {
-                    return DependencyKind.values();
+                    return new GraphUtils.DependencyKind[] { DependencyKind.BOUND };
                 }
 
                 public Iterable<? extends Node> getAllDependencies() {
-                    return getDependencies(DependencyKind.values());
+                    return deps;
                 }
 
                 @Override
                 public Collection<? extends Node> getDependenciesByKind(GraphUtils.DependencyKind dk) {
-                    return getDependencies((DependencyKind)dk);
-                }
-
-                /**
-                 * Retrieves all dependencies with given kind(s).
-                 */
-                protected Set<Node> getDependencies(DependencyKind... depKinds) {
-                    Set<Node> buf = new LinkedHashSet<>();
-                    for (DependencyKind dk : depKinds) {
-                        Set<Node> depsByKind = deps.get(dk);
-                        if (depsByKind != null) {
-                            buf.addAll(depsByKind);
-                        }
+                    if (dk == DependencyKind.BOUND) {
+                        return deps;
+                    } else {
+                        throw new IllegalStateException();
                     }
-                    return buf;
                 }
 
                 /**
                  * Adds dependency with given kind.
                  */
-                protected void addDependency(DependencyKind dk, Node depToAdd) {
-                    Set<Node> depsByKind = deps.get(dk);
-                    if (depsByKind == null) {
-                        depsByKind = new LinkedHashSet<>();
-                        deps.put(dk, depsByKind);
-                    }
-                    depsByKind.add(depToAdd);
+                protected void addDependency(Node depToAdd) {
+                    deps.add(depToAdd);
                 }
 
                 /**
                  * Add multiple dependencies of same given kind.
                  */
-                protected void addDependencies(DependencyKind dk, Set<Node> depsToAdd) {
+                protected void addDependencies(Set<Node> depsToAdd) {
                     for (Node n : depsToAdd) {
-                        addDependency(dk, n);
+                        addDependency(n);
                     }
                 }
 
                 /**
                  * Remove a dependency, regardless of its kind.
                  */
-                protected Set<DependencyKind> removeDependency(Node n) {
-                    Set<DependencyKind> removedKinds = new HashSet<>();
-                    for (DependencyKind dk : DependencyKind.values()) {
-                        Set<Node> depsByKind = deps.get(dk);
-                        if (depsByKind == null) continue;
-                        if (depsByKind.remove(n)) {
-                            removedKinds.add(dk);
-                        }
-                    }
-                    return removedKinds;
+                protected boolean removeDependency(Node n) {
+                    return deps.remove(n);
                 }
 
                 /**
                  * Compute closure of a give node, by recursively walking
                  * through all its dependencies (of given kinds)
                  */
-                protected Set<Node> closure(DependencyKind... depKinds) {
+                protected Set<Node> closure() {
                     boolean progress = true;
                     Set<Node> closure = new HashSet<>();
                     closure.add(this);
                     while (progress) {
                         progress = false;
                         for (Node n1 : new HashSet<>(closure)) {
-                            progress = closure.addAll(n1.getDependencies(depKinds));
+                            progress = closure.addAll(n1.deps);
                         }
                     }
                     return closure;
@@ -1770,9 +1781,8 @@ public class Infer {
                  */
                 protected boolean isLeaf() {
                     //no deps, or only one self dep
-                    Set<Node> allDeps = getDependencies(DependencyKind.BOUND, DependencyKind.STUCK);
-                    if (allDeps.isEmpty()) return true;
-                    for (Node n : allDeps) {
+                    if (deps.isEmpty()) return true;
+                    for (Node n : deps) {
                         if (n != this) {
                             return false;
                         }
@@ -1789,24 +1799,15 @@ public class Infer {
                     for (Node n : nodes) {
                         Assert.check(n.data.length() == 1, "Attempt to merge a compound node!");
                         data.appendList(n.data);
-                        for (DependencyKind dk : DependencyKind.values()) {
-                            addDependencies(dk, n.getDependencies(dk));
-                        }
+                        addDependencies(n.deps);
                     }
                     //update deps
-                    EnumMap<DependencyKind, Set<Node>> deps2 = new EnumMap<>(DependencyKind.class);
-                    for (DependencyKind dk : DependencyKind.values()) {
-                        for (Node d : getDependencies(dk)) {
-                            Set<Node> depsByKind = deps2.get(dk);
-                            if (depsByKind == null) {
-                                depsByKind = new LinkedHashSet<>();
-                                deps2.put(dk, depsByKind);
-                            }
-                            if (data.contains(d.data.first())) {
-                                depsByKind.add(this);
-                            } else {
-                                depsByKind.add(d);
-                            }
+                    Set<Node> deps2 = new HashSet<>();
+                    for (Node d : deps) {
+                        if (data.contains(d.data.first())) {
+                            deps2.add(this);
+                        } else {
+                            deps2.add(d);
                         }
                     }
                     deps = deps2;
@@ -1817,9 +1818,9 @@ public class Infer {
                  * topology.
                  */
                 private void graphChanged(Node from, Node to) {
-                    for (DependencyKind dk : removeDependency(from)) {
+                    if (removeDependency(from)) {
                         if (to != null) {
-                            addDependency(dk, to);
+                            addDependency(to);
                         }
                     }
                 }
@@ -1835,22 +1836,19 @@ public class Infer {
                 public Properties dependencyAttributes(Node sink, GraphUtils.DependencyKind dk) {
                     Properties p = new Properties();
                     p.put("style", ((DependencyKind)dk).dotSyle);
-                    if (dk == DependencyKind.STUCK) return p;
-                    else {
-                        StringBuilder buf = new StringBuilder();
-                        String sep = "";
-                        for (Type from : data) {
-                            UndetVar uv = (UndetVar)inferenceContext.asUndetVar(from);
-                            for (Type bound : uv.getBounds(InferenceBound.values())) {
-                                if (bound.containsAny(List.from(sink.data))) {
-                                    buf.append(sep);
-                                    buf.append(bound);
-                                    sep = ",";
-                                }
+                    StringBuilder buf = new StringBuilder();
+                    String sep = "";
+                    for (Type from : data) {
+                        UndetVar uv = (UndetVar)inferenceContext.asUndetVar(from);
+                        for (Type bound : uv.getBounds(InferenceBound.values())) {
+                            if (bound.containsAny(List.from(sink.data))) {
+                                buf.append(sep);
+                                buf.append(bound);
+                                sep = ",";
                             }
                         }
-                        p.put("label", "\"" + buf.toString() + "\"");
                     }
+                    p.put("label", "\"" + buf.toString() + "\"");
                     return p;
                 }
             }
@@ -1858,8 +1856,8 @@ public class Infer {
             /** the nodes in the inference graph */
             ArrayList<Node> nodes;
 
-            InferenceGraph(Map<Type, Set<Type>> optDeps) {
-                initNodes(optDeps);
+            InferenceGraph() {
+                initNodes();
             }
 
             /**
@@ -1901,7 +1899,7 @@ public class Infer {
              * in the graph. For each component containing more than one node, a super node is
              * created, effectively replacing the original cyclic nodes.
              */
-            void initNodes(Map<Type, Set<Type>> stuckDeps) {
+            void initNodes() {
                 //add nodes
                 nodes = new ArrayList<>();
                 for (Type t : inferenceContext.restvars()) {
@@ -1910,17 +1908,12 @@ public class Infer {
                 //add dependencies
                 for (Node n_i : nodes) {
                     Type i = n_i.data.first();
-                    Set<Type> optDepsByNode = stuckDeps.get(i);
                     for (Node n_j : nodes) {
                         Type j = n_j.data.first();
                         UndetVar uv_i = (UndetVar)inferenceContext.asUndetVar(i);
                         if (Type.containsAny(uv_i.getBounds(InferenceBound.values()), List.of(j))) {
                             //update i's bound dependencies
-                            n_i.addDependency(DependencyKind.BOUND, n_j);
-                        }
-                        if (optDepsByNode != null && optDepsByNode.contains(j)) {
-                            //update i's stuck dependencies
-                            n_i.addDependency(DependencyKind.STUCK, n_j);
+                            n_i.addDependency(n_j);
                         }
                     }
                 }

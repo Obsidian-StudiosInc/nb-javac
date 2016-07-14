@@ -170,6 +170,8 @@ public class TypeEnter implements Completer {
         // if there remain any unimported toplevels (these must have
         // no classes at all), process their import statements as well.
         for (JCCompilationUnit tree : trees) {
+            if (tree.defs.nonEmpty() && tree.defs.head.hasTag(MODULEDEF))
+                continue;
             if (!tree.starImportScope.isFilled()) {
                 Env<AttrContext> topEnv = enter.topLevelEnv(tree);
                 finishImports(tree, () -> {
@@ -253,7 +255,14 @@ public class TypeEnter implements Completer {
         public final List<Env<AttrContext>> completeEnvs(List<Env<AttrContext>> envs) {
             boolean firstToComplete = queue.isEmpty();
 
-            doCompleteEnvs(envs);
+            Phase prevTopLevelPhase = topLevelPhase;
+
+            try {
+                topLevelPhase = this;
+                doCompleteEnvs(envs);
+            } finally {
+                topLevelPhase = prevTopLevelPhase;
+            }
 
             if (firstToComplete) {
                 List<Env<AttrContext>> out = queue.toList();
@@ -293,6 +302,7 @@ public class TypeEnter implements Completer {
     }
 
     private final ImportsPhase completeClass = new ImportsPhase();
+    private Phase topLevelPhase;
 
     /**Analyze import clauses.
      */
@@ -350,7 +360,7 @@ public class TypeEnter implements Completer {
                                          chk.importAccessible(sym, packge);
 
                 // Import-on-demand java.lang.
-                PackageSymbol javaLang = syms.enterPackage(names.java_lang);
+                PackageSymbol javaLang = syms.enterPackage(syms.java_base, names.java_lang);
                 if (javaLang.members().isEmpty() && !javaLang.exists()) {
                     JCDiagnostic msg = diags.fragment("fatal.err.no.java.lang");
                     if (ignoreNoLang) {                    
@@ -385,7 +395,9 @@ public class TypeEnter implements Completer {
                 Symbol p = env.toplevel.packge;
                 while (p.owner != syms.rootPackage) {
                     p.owner.complete(); // enter all class members of p
-                    if (syms.classes.get(p.getQualifiedName()) != null) {
+                    //need to lookup the owning module/package:
+                    PackageSymbol pack = syms.lookupPackage(env.toplevel.modle, p.owner.getQualifiedName());
+                    if (syms.getClass(pack.modle, p.getQualifiedName()) != null) {
                         log.error(tree.pos,
                                   "pkg.clashes.with.class.of.same.name",
                                   p);
@@ -520,7 +532,7 @@ public class TypeEnter implements Completer {
             return result;
         }
 
-        protected Type modelMissingTypes(Type t, final JCExpression tree, final boolean interfaceExpected) {
+        protected Type modelMissingTypes(Env<AttrContext> env, Type t, final JCExpression tree, final boolean interfaceExpected) {
             if (!t.hasTag(ERROR))
                 return t;
 
@@ -530,19 +542,21 @@ public class TypeEnter implements Completer {
                 @Override
                 public Type getModelType() {
                     if (modelType == null)
-                        modelType = new Synthesizer(getOriginalType(), interfaceExpected).visit(tree);
+                        modelType = new Synthesizer(env.toplevel.modle, getOriginalType(), interfaceExpected).visit(tree);
                     return modelType;
                 }
             };
         }
             // where:
             private class Synthesizer extends JCTree.Visitor {
+                ModuleSymbol msym;
                 Type originalType;
                 boolean interfaceExpected;
                 List<ClassSymbol> synthesizedSymbols = List.nil();
                 Type result;
 
-                Synthesizer(Type originalType, boolean interfaceExpected) {
+                Synthesizer(ModuleSymbol msym, Type originalType, boolean interfaceExpected) {
+                    this.msym = msym;
                     this.originalType = originalType;
                     this.interfaceExpected = interfaceExpected;
                 }
@@ -569,7 +583,7 @@ public class TypeEnter implements Completer {
                     if (tree.type != null && !tree.type.hasTag(ERROR)) {
                         result = tree.type;
                     } else {
-                        result = synthesizeClass(tree.name, syms.unnamedPackage).type;
+                        result = synthesizeClass(tree.name, msym.unnamedPackage).type;
                     }
                 }
 
@@ -659,7 +673,7 @@ public class TypeEnter implements Completer {
                 ? Type.noType
                 : syms.objectType;
             }
-            ct.supertype_field = modelMissingTypes(supertype, extending, false);
+            ct.supertype_field = modelMissingTypes(baseEnv, supertype, extending, false);
 
             // Determine interfaces.
             ListBuffer<Type> interfaces = new ListBuffer<>();
@@ -674,7 +688,7 @@ public class TypeEnter implements Completer {
                 } else {
                     if (all_interfaces == null)
                         all_interfaces = new ListBuffer<Type>().appendList(interfaces);
-                    all_interfaces.append(modelMissingTypes(it, iface, true));
+                    all_interfaces.append(modelMissingTypes(baseEnv, it, iface, true));
                 }
             }
 
@@ -772,6 +786,15 @@ public class TypeEnter implements Completer {
 
         @Override
         public void complete(Symbol sym) throws CompletionFailure {
+            Assert.check((topLevelPhase instanceof ImportsPhase) ||
+                         (topLevelPhase == this));
+
+            if (topLevelPhase != this) {
+                //only do the processing based on dependencies in the HierarchyPhase:
+                sym.completer = this;
+                return ;
+            }
+
             Env<AttrContext> env = typeEnvs.get((ClassSymbol) sym);
 
             super.doCompleteEnvs(List.of(env));
@@ -821,8 +844,8 @@ public class TypeEnter implements Completer {
             // but admit classes in the unnamed package which have the same
             // name as a top-level package.
             if (checkClash &&
-                sym.owner.kind == PCK && sym.owner != syms.unnamedPackage &&
-                syms.packageExists(sym.fullname)) {
+                sym.owner.kind == PCK && sym.owner != env.toplevel.modle.unnamedPackage &&
+                syms.packageExists(env.toplevel.modle, sym.fullname)) {
                 log.error(tree.pos, "clash.with.pkg.of.same.name", Kinds.kindName(sym), sym);
             }
             if (sym.owner.kind == PCK && (sym.flags_field & PUBLIC) == 0 &&
@@ -838,6 +861,28 @@ public class TypeEnter implements Completer {
 
         public MembersPhase() {
             super(CompletionCause.MEMBERS_PHASE, null);
+        }
+
+        private boolean completing;
+        private List<Env<AttrContext>> todo = List.nil();
+
+        @Override
+        protected void doCompleteEnvs(List<Env<AttrContext>> envs) {
+            todo = todo.prependList(envs);
+            if (completing) {
+                return ; //the top-level invocation will handle all envs
+            }
+            boolean prevCompleting = completing;
+            completing = true;
+            try {
+                while (todo.nonEmpty()) {
+                    Env<AttrContext> head = todo.head;
+                    todo = todo.tail;
+                    super.doCompleteEnvs(List.of(head));
+                }
+            } finally {
+                completing = prevCompleting;
+            }
         }
 
         @Override
@@ -922,7 +967,7 @@ public class TypeEnter implements Completer {
             if (tree.sym.isAnnotationType()) {
                 Assert.check(tree.sym.isCompleted());
                 if ((tree.sym.flags_field & FROMCLASS) != 0) {
-                    tree.sym.resetAnnotationTypeMetadata();
+                    tree.sym.clearAnnotationTypeMetadata();
                 }
                 tree.sym.setAnnotationTypeMetadata(new AnnotationTypeMetadata(tree.sym, annotate.annotationTypeSourceCompleter()));
             }

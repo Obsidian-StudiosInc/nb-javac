@@ -32,7 +32,9 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Set;
-import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.PackageElement;
 import javax.tools.ForwardingJavaFileManager;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileManager;
@@ -42,6 +44,8 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 import junit.framework.TestCase;
+import static junit.framework.TestCase.assertEquals;
+import static junit.framework.TestCase.assertFalse;
 
 public class PackageInfoTest extends TestCase {
 
@@ -63,6 +67,7 @@ public class PackageInfoTest extends TestCase {
 
     public void testPositionForSuperConstructorCalls() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
@@ -72,16 +77,18 @@ public class PackageInfoTest extends TestCase {
 
         assertNotNull(jfo);
         
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null,fm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(jfo));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null,fm, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(jfo));
 
         Iterable<? extends CompilationUnitTree> trees = ct.parse();
-        Iterable<? extends TypeElement> types = ct.enter(trees);
+        Iterable<? extends Element> types = ct.enter(trees);
         boolean seenType = false;
 
-        for (TypeElement te : types) {
-            assertEquals("test.package-info", te.getQualifiedName().toString());
-            assertFalse(seenType);
-            seenType = true;
+        for (Element te : types) {
+            if (te.getKind() == ElementKind.PACKAGE) {
+                assertEquals("test", ((PackageElement)te).getQualifiedName().toString());
+                assertFalse(seenType);
+                seenType = true;
+            }
         }
 
         assertTrue(seenType);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,17 +27,28 @@ package com.sun.tools.javac.code;
 
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Inherited;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
-import javax.lang.model.element.*;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ElementVisitor;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.ModuleElement;
+import javax.lang.model.element.NestingKind;
+import javax.lang.model.element.PackageElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.util.ElementScanner6;
+import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 
-import com.sun.tools.javac.code.Attribute.Compound;
-import com.sun.tools.javac.code.TypeAnnotations.AnnotationType;
-import com.sun.tools.javac.code.TypeMetadata.Entry;
-import com.sun.tools.javac.comp.Annotate.AnnotationTypeCompleter;
+import com.sun.tools.javac.code.ClassFinder.BadEnclosingMethodAttr;
+import com.sun.tools.javac.code.Kinds.Kind;
 import com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Type.*;
@@ -51,6 +62,7 @@ import com.sun.tools.javac.tree.JCTree.Tag;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.Name;
+
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
@@ -429,6 +441,9 @@ public abstract class Symbol extends AnnoConstruct implements Element {
     }
 
     /** The closest enclosing class of this symbol's declaration.
+     *  Warning: this (misnamed) method returns the receiver itself
+     *  when the receiver is a class (as opposed to its enclosing
+     *  class as one may be misled to believe.)
      */
     public ClassSymbol enclClass() {
         Symbol c = this;
@@ -756,8 +771,11 @@ public abstract class Symbol extends AnnoConstruct implements Element {
             }
             for (Symbol sym : members().getSymbols(NON_RECURSIVE)) {
                 try {
-                    if (sym != null && (sym.flags() & SYNTHETIC) == 0 && sym.owner == this)
+                    if (sym != null && (sym.flags() & SYNTHETIC) == 0 && sym.owner == this) {
                         list = list.prepend(sym);
+                    }
+                } catch (BadEnclosingMethodAttr badEnclosingMethod) {
+                    // ignore the exception
                 } catch (CompletionFailure cf) {}
             }
             return list;
@@ -849,7 +867,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
             boolean isCurrentSymbolsAnnotation(Attribute.TypeCompound anno, int index) {
                 return (anno.position.type == TargetType.CLASS_TYPE_PARAMETER ||
                         anno.position.type == TargetType.METHOD_TYPE_PARAMETER) &&
-                       anno.position.parameter_index == index;
+                        anno.position.parameter_index == index;
             }
 
 
@@ -857,6 +875,122 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         public <R, P> R accept(ElementVisitor<R, P> v, P p) {
             return v.visitTypeParameter(this, p);
         }
+    }
+    /** A class for module symbols.
+     */
+    public static class ModuleSymbol extends TypeSymbol
+            implements ModuleElement {
+
+        public Name version;
+        public JavaFileManager.Location sourceLocation;
+        public JavaFileManager.Location classLocation;
+
+        /** All directives, in natural order. */
+        public List<com.sun.tools.javac.code.Directive> directives;
+        public List<com.sun.tools.javac.code.Directive.RequiresDirective> requires;
+        public List<com.sun.tools.javac.code.Directive.ExportsDirective> exports;
+        public List<com.sun.tools.javac.code.Directive.ProvidesDirective> provides;
+        public List<com.sun.tools.javac.code.Directive.UsesDirective> uses;
+
+        public ClassSymbol module_info;
+
+        public PackageSymbol unnamedPackage;
+        public Map<Name, PackageSymbol> visiblePackages;
+        public List<Symbol> enclosedPackages = List.nil();
+
+        public Completer usesProvidesCompleter = Completer.NULL_COMPLETER;
+
+        /**
+         * Create a ModuleSymbol with an associated module-info ClassSymbol.
+         * The name of the module may be null, if it is not known yet.
+         */
+        public static ModuleSymbol create(Name name, Name module_info) {
+            ModuleSymbol msym = new ModuleSymbol(name, null);
+            ClassSymbol info = new ClassSymbol(Flags.MODULE, module_info, msym);
+            info.fullname = formFullName(module_info, msym);
+            info.flatname = info.fullname;
+            info.members_field = WriteableScope.create(info);
+            msym.module_info = info;
+            return msym;
+        }
+
+        public ModuleSymbol() {
+            super(MDL, 0, null, null, null);
+            this.type = new ModuleType(this);
+        }
+
+        public ModuleSymbol(Name name, Symbol owner) {
+            super(MDL, 0, name, null, owner);
+            this.type = new ModuleType(this);
+        }
+
+        @Override @DefinedBy(Api.LANGUAGE_MODEL)
+        public boolean isUnnamed() {
+            return name.isEmpty() && owner == null;
+        }
+
+        public boolean isNoModule() {
+            return false;
+        }
+
+        @Override @DefinedBy(Api.LANGUAGE_MODEL)
+        public ElementKind getKind() {
+            return ElementKind.MODULE;
+        }
+
+        @Override @DefinedBy(Api.LANGUAGE_MODEL)
+        public java.util.List<Directive> getDirectives() {
+            completeUsesProvides();
+            return Collections.unmodifiableList(directives);
+        }
+
+        public void completeUsesProvides() {
+            if (usesProvidesCompleter != Completer.NULL_COMPLETER) {
+                Completer c = usesProvidesCompleter;
+                usesProvidesCompleter = Completer.NULL_COMPLETER;
+                c.complete(this);
+            }
+        }
+
+        @Override
+        public ClassSymbol outermostClass() {
+            return null;
+        }
+
+        @Override
+        public String toString() {
+            // TODO: the following strings should be localized
+            // Do this with custom anon subtypes in Symtab
+            String n = (name == null) ? "<unknown>"
+                    : (name.isEmpty()) ? "<unnamed>"
+                    : String.valueOf(name);
+            return n;
+        }
+
+        @Override @DefinedBy(Api.LANGUAGE_MODEL)
+        public <R, P> R accept(ElementVisitor<R, P> v, P p) {
+            return v.visitModule(this, p);
+        }
+
+        @Override @DefinedBy(Api.LANGUAGE_MODEL)
+        public List<Symbol> getEnclosedElements() {
+            List<Symbol> list = List.nil();
+            for (Symbol sym : enclosedPackages) {
+                if (sym.members().anyMatch(m -> m.kind == TYP))
+                    list = list.prepend(sym);
+            }
+            return list;
+        }
+
+        public void reset() {
+            this.directives = null;
+            this.requires = null;
+            this.exports = null;
+            this.provides = null;
+            this.uses = null;
+            this.visiblePackages = null;
+        }
+
     }
 
     /** A class for package symbols
@@ -867,6 +1001,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         public WriteableScope members_field;
         public Name fullname;
         public ClassSymbol package_info; // see bug 6443073
+        public ModuleSymbol modle;
 
         public PackageSymbol(Name name, Type type, Symbol owner) {
             super(PCK, 0, name, type, owner);
@@ -941,7 +1076,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
 
         @DefinedBy(Api.LANGUAGE_MODEL)
         public Symbol getEnclosingElement() {
-            return null;
+            return modle != null && !modle.isNoModule() ? modle : null;
         }
 
         @DefinedBy(Api.LANGUAGE_MODEL)
@@ -1261,15 +1396,15 @@ public abstract class Symbol extends AnnoConstruct implements Element {
                 t.interfaces_field = null;
                 t.all_interfaces_field = null;
             }
-            resetMetadata();
+            clearAnnotationMetadata();
         }
 
-        public void resetMetadata() {
+        public void clearAnnotationMetadata() {
             metadata = null;
-            resetAnnotationTypeMetadata();
+            clearAnnotationTypeMetadata();
         }
         
-        public void resetAnnotationTypeMetadata() {
+        public void clearAnnotationTypeMetadata() {
             annotationTypeMetadata = AnnotationTypeMetadata.notAnAnnotationType();
         }
 

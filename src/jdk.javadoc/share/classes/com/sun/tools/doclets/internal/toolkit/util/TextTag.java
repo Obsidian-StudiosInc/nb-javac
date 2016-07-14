@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package com.sun.tools.doclets.internal.toolkit.util;
 import com.sun.javadoc.*;
 
@@ -38,6 +39,7 @@ import com.sun.javadoc.*;
  * @author Jamie Ho
  * @since 1.5
  */
+@Deprecated
 public class TextTag implements Tag {
     protected final String text;
     protected final String name = "Text";

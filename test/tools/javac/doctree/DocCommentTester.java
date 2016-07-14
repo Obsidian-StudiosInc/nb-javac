@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -439,8 +439,30 @@ public class DocCommentTester {
                 return null;
             }
 
+            public Void visitHidden(HiddenTree node, Void p) {
+                header(node);
+                indent(+1);
+                print("body", node.getBody());
+                indent(-1);
+                indent();
+                out.println("]");
+                return null;
+            }
+
             public Void visitIdentifier(IdentifierTree node, Void p) {
                 header(node, compress(node.getName().toString()));
+                return null;
+            }
+
+            @Override
+            public Void visitIndex(IndexTree node, Void p) {
+                header(node);
+                indent(+1);
+                print("term", node.getSearchTerm());
+                print("description", node.getDescription());
+                indent(-1);
+                indent();
+                out.println("]");
                 return null;
             }
 
@@ -619,11 +641,19 @@ public class DocCommentTester {
                 throw new UnsupportedOperationException("Not supported yet.");
             }
 
+            /*
+             * Use this method to start printing a multi-line representation of a
+             * DocTree node. The representation should be termintated by calling
+             * out.println("]").
+             */
             void header(DocTree node) {
                 indent();
                 out.println(simpleClassName(node) + "[" + node.getKind() + ", pos:" + ((DCTree) node).pos);
             }
 
+            /*
+             * Use this method to print a single-line representation of a DocTree node.
+             */
             void header(DocTree node, String rest) {
                 indent();
                 out.println(simpleClassName(node) + "[" + node.getKind() + ", pos:" + ((DCTree) node).pos

@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package com.sun.source.doctree;
 
 import java.util.List;
@@ -35,7 +36,6 @@ import java.util.List;
  * @since 1.8
  *
  */
-@jdk.Exported
 public interface UnknownInlineTagTree extends InlineTagTree {
     /**
      * Returns the content of an unrecognized inline tag.

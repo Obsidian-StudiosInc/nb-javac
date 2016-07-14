@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @bug 8144903
  * @summary Tests for EvaluationState.variables
  * @build KullaTesting TestingInputStream ExpectedDiagnostic
  * @run testng VariablesTest
@@ -82,7 +83,7 @@ public class VariablesTest extends KullaTesting {
     public void testVarValue2() {
         VarSnippet v1 = (VarSnippet) assertDeclareFail("int a = 0.0;", "compiler.err.prob.found.req");
         badVarValue(v1);
-        VarSnippet v2 = varKey(assertEval("int a = 0;", ste(v1, REJECTED, VALID, true, null)));
+        VarSnippet v2 = varKey(assertEval("int a = 0;", added(VALID)));
         assertDrop(v2, ste(MAIN_SNIPPET, VALID, DROPPED, true, null));
         badVarValue(v2);
     }
@@ -110,7 +111,7 @@ public class VariablesTest extends KullaTesting {
         VarSnippet v1 = (VarSnippet) assertDeclareFail("int a = 0.0;", "compiler.err.prob.found.req");
         assertVariableDeclSnippet(v1, "a", "int", REJECTED, SubKind.VAR_DECLARATION_WITH_INITIALIZER_SUBKIND, 0, 1);
         VarSnippet v2 = varKey(assertEval("int a = 0;",
-                ste(v1, REJECTED, VALID, true, null)));
+                added(VALID)));
         assertVariableDeclSnippet(v2, "a", "int", VALID, SubKind.VAR_DECLARATION_WITH_INITIALIZER_SUBKIND, 0, 0);
         assertDrop(v2, ste(MAIN_SNIPPET, VALID, DROPPED, true, null));
         assertVariableDeclSnippet(v2, "a", "int", DROPPED, SubKind.VAR_DECLARATION_WITH_INITIALIZER_SUBKIND, 0, 0);
@@ -181,6 +182,16 @@ public class VariablesTest extends KullaTesting {
                 variable("Object", "$1"),
                 variable("String", "$2"),
                 variable("String", "$3"));
+        assertActiveKeys();
+    }
+
+    public void variablesTemporaryArrayOfCapturedType() {
+        assertEval("class Test<T> { T[][] get() { return null; } }", added(VALID));
+        assertEval("Test<? extends String> test() { return new Test<>(); }", added(VALID));
+        assertEval("test().get()", added(VALID));
+        assertVariables(variable("String[][]", "$1"));
+        assertEval("\"\".getClass().getEnumConstants()", added(VALID));
+        assertVariables(variable("String[][]", "$1"), variable("String[]", "$2"));
         assertActiveKeys();
     }
 

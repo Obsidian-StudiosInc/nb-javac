@@ -67,30 +67,33 @@ public class FlowTest extends TestCase {
 
     public void test152088() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; public class Test {public void test() {java.util.List<String> l = null;for (String s : !l.isEmpty()) {}}}";
 
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         ct.analyze();
     }
 
     public void test152334() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; public class Test {private void test(final int x) {int x = 0; int y = x;}}";
 
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         ct.analyze();
     }
 
     public void test153488a() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
@@ -102,7 +105,7 @@ public class FlowTest extends TestCase {
                       "}";
 
         DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         
         ct.analyze();
@@ -128,6 +131,7 @@ public class FlowTest extends TestCase {
 
     public void test153488b() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
@@ -138,7 +142,7 @@ public class FlowTest extends TestCase {
                       "}";
 
         DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         ct.analyze();
@@ -164,6 +168,7 @@ public class FlowTest extends TestCase {
     
     public void test194658() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
@@ -176,7 +181,7 @@ public class FlowTest extends TestCase {
                       "}";
 
         DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         ct.analyze();
@@ -186,12 +191,13 @@ public class FlowTest extends TestCase {
      */
     public void XtestErrorAndAutoCloseable() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; public class Test { { try (InputStream in = new FileInputStream(\"\")) {} }}";
 
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         assertNotNull("Must run on JDK7 with ARM", ct.getElements().getTypeElement("java.lang.AutoCloseable"));
         ct.analyze();
@@ -199,6 +205,7 @@ public class FlowTest extends TestCase {
 
     public void testReturnInInitializer() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
@@ -210,7 +217,7 @@ public class FlowTest extends TestCase {
                       "}";
 
         DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         ct.analyze();
@@ -218,6 +225,7 @@ public class FlowTest extends TestCase {
     
     public void testBreakContinueUnresolvedTarget() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
@@ -231,7 +239,7 @@ public class FlowTest extends TestCase {
                       "}";
 
         DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         ct.analyze();

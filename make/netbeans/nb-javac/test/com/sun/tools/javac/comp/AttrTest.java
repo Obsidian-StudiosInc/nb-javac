@@ -97,12 +97,13 @@ public class AttrTest extends TestCase {
 
     public void testExceptionParameterCorrectKind() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; public class Test { { try { } catch (NullPointerException ex) {} } }";
 
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         ct.analyze();
@@ -122,24 +123,26 @@ public class AttrTest extends TestCase {
 
     public void testNPEFromNCTWithUnboundWildcard() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; public class Test { { new java.util.ArrayList<java.util.List<?>>() {}; } }";
 
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();
     }
     
     public void testErrorReturnType1() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String api = "package test; public class API { public static Undef call() { return null; } }";
         String use = "package test; public class Use { public void t() { Object str = API.call(); } }";
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
         
         ct.analyze();
         
@@ -154,13 +157,14 @@ public class AttrTest extends TestCase {
     
     public void testErrorReturnType2() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String api = "package test; public class API { public static String call() { return null; } }";
         String use = "package test; public class Use { public void t() { Object str = API.; } }";
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
         
         ct.analyze();
         
@@ -175,13 +179,14 @@ public class AttrTest extends TestCase {
     
     public void testErrorReturnType3() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String api = "package test; public class API { public static String call() { return null; } }";
         String use = "package test; public class Use { public void t() { Object str = API.undef(1); } }";
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
         
         ct.analyze();
         
@@ -196,13 +201,14 @@ public class AttrTest extends TestCase {
 
     public void testErrorReturnType4() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String api = "package test; public class API { public static Undef call() { return null; } }";
         String use = "package test; import static test.API.*; public class Use { public void t() { Object str = call(); } }";
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
         
         ct.analyze();
         
@@ -217,12 +223,13 @@ public class AttrTest extends TestCase {
 
     public void testErrorReturnType5() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String use = "package test; public class Use { public static Undef call() { return null; } public void t() { Object str = call(); } }";
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("Use", use)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject("Use", use)));
         
         ct.analyze();
         
@@ -237,13 +244,14 @@ public class AttrTest extends TestCase {
     
     public void testErrorReturnType6() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String api = "package test; public class API { public static Undef VAR; }";
         String use = "package test; public class Use { public void t() { Object str = API.VAR; } }";
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
         
         ct.analyze();
         
@@ -258,13 +266,14 @@ public class AttrTest extends TestCase {
     
     public void testErrorReturnType7() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String api = "package test; public class API { public static Undef VAR; }";
         String use = "package test; public class Use { public void t() { Object str = API.UNDEF; } }";
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
         
         ct.analyze();
         
@@ -279,12 +288,13 @@ public class AttrTest extends TestCase {
     
     public void testErrorReturnType8() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String use = "package test; public class Use { public void t() { Object str = Undef.UNDEF; } }";
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("Use", use)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject("Use", use)));
         
         ct.analyze();
         
@@ -320,13 +330,14 @@ public class AttrTest extends TestCase {
 
     public void testErrorConstructor1() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String api = "package test; public class API { public API(Undef p) { } }";
         String use = "package test; public class Use { public void t() { Object str = new API(null); } }";
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject("API", api), new MyFileObject("Use", use)));
         
         ct.analyze();
         
@@ -341,13 +352,14 @@ public class AttrTest extends TestCase {
 
     public void testLambda1() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; public class Test { public static void main(String[] args) { Task<String> t = (String c) -> { System.err.println(\"Lambda!\"); return ; }; } public interface Task<C> { public void run(C c); } }";
 
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();
 
         assertEquals(dc.getDiagnostics().toString(), 0, dc.getDiagnostics().size());
@@ -355,13 +367,14 @@ public class AttrTest extends TestCase {
 
     public void testLambda2() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; public class Test { Task<String> t = (String c) -> { System.err.println(\"Lambda!\"); return ; }; public interface Task<C> { public void run(C c); } }";
 
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();
 
         assertEquals(dc.getDiagnostics().toString(), 0, dc.getDiagnostics().size());
@@ -369,13 +382,14 @@ public class AttrTest extends TestCase {
     
     public void testNonVoidReturnType() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; public class Test { private void t() { r(() -> { return 1; }); } private int r(Task t) { return t.run(); } public interface Task { public int run(); } }";
 
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();
 
         assertEquals(dc.getDiagnostics().toString(), 0, dc.getDiagnostics().size());
@@ -383,13 +397,14 @@ public class AttrTest extends TestCase {
     
     public void testBreakAttrDuringLambdaAttribution() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; public class Test { public void t(Comparable c) { } }";
 
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         
         ct.analyze();
@@ -429,11 +444,12 @@ public class AttrTest extends TestCase {
     public void testCheckMethodNPE() throws Exception {
         String code = "public class Test { class Inner { Inner(int i) {} } public static void main(String[] args) { int i = 1; Test c = null; c.new Inner(i++) {}; } }";
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
         
         JavaFileManager fm = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         
         ct.analyze();
@@ -452,11 +468,12 @@ public class AttrTest extends TestCase {
     public void test208454() throws Exception {
         String code = "public class Test { public static void main(String[] args) { String.new Runnable() { public void run() {} }; } }";
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
         
         JavaFileManager fm = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         
         ct.analyze();
@@ -478,11 +495,12 @@ public class AttrTest extends TestCase {
     public void testNewClassWithEnclosingNoAnonymous() throws Exception {
         String code = "public class Test { class Inner { Inner(int i) {} } public static void main(String[] args) { int i = 1; Test c = null; c.new Inner(i++); } }";
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
         
         JavaFileManager fm = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         
         ct.analyze();
@@ -501,11 +519,12 @@ public class AttrTest extends TestCase {
     public void testNewClassWithoutEnclosingAnonymous() throws Exception {
         String code = "public class Test { class Inner { Inner(int i) {} } public static void main(String[] args) { int i = 1; new Inner(i++) {}; } }";
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
         
         JavaFileManager fm = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         
         ct.analyze();
@@ -524,11 +543,12 @@ public class AttrTest extends TestCase {
     public void testNewClassWithoutEnclosingNoAnonymous() throws Exception {
         String code = "public class Test { class Inner { Inner(int i) {} } public static void main(String[] args) { int i = 1; new Inner(i++); } }";
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
         
         JavaFileManager fm = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         
         ct.analyze();
@@ -547,10 +567,11 @@ public class AttrTest extends TestCase {
     public void testNPEForEmptyTargetOfTypeAnnotation() throws Exception {
         String code = "class Test { private void t(@NonNull String a) {} } @java.lang.annotation.Target() @interface NonNull { }";
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
         
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new MyFileObject(code)));
         
         ct.analyze();
     }
@@ -558,11 +579,12 @@ public class AttrTest extends TestCase {
     public void testAssignmentToError() throws Exception {
         String code = "public class Test { public static void main(String[] args) { bbb = 0; } }";
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
         
         JavaFileManager fm = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, fm, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         final Trees trees = Trees.instance(ct);
         CompilationUnitTree cut = ct.parse().iterator().next();
         

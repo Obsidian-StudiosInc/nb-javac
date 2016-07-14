@@ -4,7 +4,7 @@
  * @summary Add lambda tests
  *  complex case of cyclic type inference (lambda returned where inference var expected)
  * @compile/fail/ref=TargetType27.out -XDrawDiagnostics TargetType27.java
- * @compile/fail/ref=TargetType27.out -XDrawDiagnostics -XDcomplexinference TargetType27.java
+ * @compile/fail/ref=TargetType27.out -XDrawDiagnostics TargetType27.java
  */
 
 class TargetType27 {
@@ -15,6 +15,6 @@ class TargetType27 {
     <A, R> F<A, R> m(F<A, R>  f) { return null; }
 
     void test() {
-        m((String s1) ->  (String s2) ->  new Integer(1));
+        m((String s1) ->  (String s2) -> Integer.valueOf(1));
     }
 }

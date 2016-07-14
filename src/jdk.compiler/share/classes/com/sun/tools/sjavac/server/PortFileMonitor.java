@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package com.sun.tools.sjavac.server;
+
+import com.sun.tools.sjavac.Log;
 
 import java.io.IOException;
 import java.util.Timer;
@@ -55,8 +58,11 @@ public class PortFileMonitor {
     }
 
     public void start() {
+        Log log = Log.get();
         TimerTask shutdownCheck = new TimerTask() {
             public void run() {
+                Log.setLogForCurrentThread(log);
+                Log.debug("Checking port file status...");
                 try {
                     if (!portFile.exists()) {
                         // Time to quit because the portfile was deleted by another
@@ -73,12 +79,11 @@ public class PortFileMonitor {
                         server.shutdown("Quitting because portfile is now owned by another javac server!");
                     }
                 } catch (IOException e) {
-                    e.printStackTrace(server.theLog);
-                    server.flushLog();
+                    Log.error("IOException caught in PortFileMonitor.");
+                    Log.debug(e);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    e.printStackTrace(server.theLog);
-                    server.flushLog();
+                    Log.error(e);
                 }
             }
         };

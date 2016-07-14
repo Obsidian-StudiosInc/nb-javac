@@ -38,6 +38,7 @@ import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.DefinedBy.Api;
+import com.sun.tools.javac.util.GraphUtils.DependencyKind;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.comp.Attr.ResultInfo;
@@ -47,9 +48,10 @@ import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
 import com.sun.tools.javac.util.Log.DeferredDiagnosticHandler;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -177,6 +179,7 @@ public class DeferredAttr extends JCTree.Visitor {
         public JCExpression tree;
         Env<AttrContext> env;
         AttrMode mode;
+        boolean pertinentToApplicability = true;
         SpeculativeCache speculativeCache;
 
         DeferredType(JCExpression tree, Env<AttrContext> env) {
@@ -295,6 +298,7 @@ public class DeferredAttr extends JCTree.Visitor {
                     resultInfo.checkContext.deferredAttrContext();
             Assert.check(deferredAttrContext != emptyDeferredAttrContext);
             if (deferredStuckPolicy.isStuck()) {
+                pertinentToApplicability = false;
                 deferredAttrContext.addDeferredAttrNode(this, resultInfo, deferredStuckPolicy);
                 return Type.noType;
             } else {
@@ -459,18 +463,22 @@ public class DeferredAttr extends JCTree.Visitor {
         try {
             compiler.skipAnnotationProcessing = true;
             attr.attribTree(newTree, speculativeEnv, resultInfo);
-            unenterScanner.scan(newTree);
             return newTree;
         } finally {
+            new UnenterScanner(env.toplevel.modle).scan(newTree);
             compiler.skipAnnotationProcessing = oldSkipAP;
-            unenterScanner.scan(newTree);
             log.popDiagnosticHandler(deferredDiagnosticHandler);
         }
     }
     //where
-        protected UnenterScanner unenterScanner = new UnenterScanner();
 
         class UnenterScanner extends TreeScanner {
+            private final ModuleSymbol msym;
+
+            public UnenterScanner(ModuleSymbol msym) {
+                this.msym = msym;
+            }
+
             @Override
             public void visitClassDef(JCClassDecl tree) {
                 ClassSymbol csym = tree.sym;
@@ -479,9 +487,9 @@ public class DeferredAttr extends JCTree.Visitor {
                 //are left unchecked - in such cases there's nothing to clean up.
                 if (csym == null) return;
                 typeEnvs.remove(csym);
-                chk.compiled.remove(csym.flatname);
+                chk.removeCompiled(csym);
                 chk.clearLocalClassNameIndexes(csym);
-                syms.classes.remove(csym.flatname);
+                syms.removeClass(msym, csym.flatname);
                 super.visitClassDef(tree);
             }
         }
@@ -578,28 +586,11 @@ public class DeferredAttr extends JCTree.Visitor {
          */
         void complete() {
             while (!deferredAttrNodes.isEmpty()) {
-                Map<Type, Set<Type>> depVarsMap = new LinkedHashMap<>();
-                List<Type> stuckVars = List.nil();
                 boolean progress = false;
                 //scan a defensive copy of the node list - this is because a deferred
                 //attribution round can add new nodes to the list
                 for (DeferredAttrNode deferredAttrNode : List.from(deferredAttrNodes)) {
-                    if (!deferredAttrNode.process(this)) {
-                        List<Type> restStuckVars =
-                                List.from(deferredAttrNode.deferredStuckPolicy.stuckVars())
-                                .intersect(inferenceContext.restvars());
-                        stuckVars = stuckVars.prependList(restStuckVars);
-                        //update dependency map
-                        for (Type t : List.from(deferredAttrNode.deferredStuckPolicy.depVars())
-                                .intersect(inferenceContext.restvars())) {
-                            Set<Type> prevDeps = depVarsMap.get(t);
-                            if (prevDeps == null) {
-                                prevDeps = new LinkedHashSet<>();
-                                depVarsMap.put(t, prevDeps);
-                            }
-                            prevDeps.addAll(restStuckVars);
-                        }
-                    } else {
+                    if (deferredAttrNode.process(this)) {
                         deferredAttrNodes.remove(deferredAttrNode);
                         progress = true;
                     }
@@ -614,7 +605,9 @@ public class DeferredAttr extends JCTree.Visitor {
                     //remove all variables that have already been instantiated
                     //from the list of stuck variables
                     try {
-                        inferenceContext.solveAny(stuckVars, depVarsMap, warn);
+                        //find stuck expression to unstuck
+                        DeferredAttrNode toUnstuck = pickDeferredNode();
+                        inferenceContext.solveAny(List.from(toUnstuck.deferredStuckPolicy.stuckVars()), warn);
                         inferenceContext.notifyChange();
                     } catch (Infer.GraphStrategy.NodeNotFoundException ex) {
                         //this means that we are in speculative mode and the
@@ -635,6 +628,59 @@ public class DeferredAttr extends JCTree.Visitor {
                 return true;
             }
             return dac.parent.insideOverloadPhase();
+        }
+
+        /**
+         * Pick the deferred node to be unstuck. The chosen node is the first strongly connected
+         * component containing exactly one node found in the dependency graph induced by deferred nodes.
+         * If no such component is found, the first deferred node is returned.
+         */
+        DeferredAttrNode pickDeferredNode() {
+            List<StuckNode> nodes = deferredAttrNodes.stream()
+                    .map(StuckNode::new)
+                    .collect(List.collector());
+            //init stuck expression graph; a deferred node A depends on a deferred node B iff
+            //the intersection between A's input variable and B's output variable is non-empty.
+            for (StuckNode sn1 : nodes) {
+                for (Type t : sn1.data.deferredStuckPolicy.stuckVars()) {
+                    for (StuckNode sn2 : nodes) {
+                        if (sn1 != sn2 && sn2.data.deferredStuckPolicy.depVars().contains(t)) {
+                            sn1.deps.add(sn2);
+                        }
+                    }
+                }
+            }
+            //compute tarjan on the stuck graph
+            List<? extends StuckNode> csn = GraphUtils.tarjan(nodes).get(0);
+            return csn.length() == 1 ? csn.get(0).data : deferredAttrNodes.get(0);
+        }
+
+        class StuckNode extends GraphUtils.TarjanNode<DeferredAttrNode, StuckNode> {
+
+            Set<StuckNode> deps = new HashSet<>();
+
+            StuckNode(DeferredAttrNode data) {
+                super(data);
+            }
+
+            @Override
+            public DependencyKind[] getSupportedDependencyKinds() {
+                return new DependencyKind[] { Infer.DependencyKind.STUCK };
+            }
+
+            @Override
+            public Collection<? extends StuckNode> getDependenciesByKind(DependencyKind dk) {
+                if (dk == Infer.DependencyKind.STUCK) {
+                    return deps;
+                } else {
+                    throw new IllegalStateException();
+                }
+            }
+
+            @Override
+            public Iterable<? extends StuckNode> getAllDependencies() {
+                return deps;
+            }
         }
     }
 

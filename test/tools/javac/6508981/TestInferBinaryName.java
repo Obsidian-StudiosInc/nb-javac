@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,10 +28,8 @@
  * (This test is specifically to test the new impl of inferBinaryName)
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.main
- *          jdk.compiler/com.sun.tools.javac.util
- * @build ToolBox p.A
+ * @build toolbox.ToolBox toolbox.JarTask p.A
  * @run main TestInferBinaryName
  */
 
@@ -39,13 +37,11 @@ import java.io.*;
 import java.util.*;
 import javax.tools.*;
 
-import com.sun.tools.javac.file.JavacFileManager;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.Options;
-
 import static javax.tools.JavaFileObject.Kind.*;
 import static javax.tools.StandardLocation.*;
 
+import toolbox.JarTask;
+import toolbox.ToolBox;
 
 /**
  * Verify the various implementations of inferBinaryName, but configuring
@@ -53,9 +49,6 @@ import static javax.tools.StandardLocation.*;
  * the impl of inferBinaryName for that file object.
  */
 public class TestInferBinaryName {
-    static final boolean DONT_USE_ZIP_FILE_INDEX = false;
-    static final boolean USE_ZIP_FILE_INDEX = true;
-
     public static void main(String... args) throws Exception {
         new TestInferBinaryName().run();
     }
@@ -64,10 +57,7 @@ public class TestInferBinaryName {
         testDirectory();
 
         File testJar = createJar();
-
         testZipArchive(testJar);
-        testZipFileIndexArchive(testJar);
-        testZipFileIndexArchive2(testJar);
 
         if (errors > 0)
             throw new Exception(errors + " error found");
@@ -75,9 +65,10 @@ public class TestInferBinaryName {
 
     File createJar() throws IOException {
         File f = new File("test.jar");
-        try (JavaFileManager fm = new JavacFileManager(new Context(), false, null)) {
+        try (JavaFileManager fm = ToolProvider.getSystemJavaCompiler()
+                .getStandardFileManager(null, null, null)) {
             ToolBox tb = new ToolBox();
-            tb.new JarTask(f.getPath())
+            new JarTask(tb, f.getPath())
                 .files(fm, StandardLocation.PLATFORM_CLASS_PATH, "java.lang.*")
                 .run();
         }
@@ -87,40 +78,18 @@ public class TestInferBinaryName {
     void testDirectory() throws IOException {
         String testClassName = "p.A";
         List<File> testClasses = Arrays.asList(new File(System.getProperty("test.classes")));
-        try (JavaFileManager fm =
-                getFileManager(testClasses, USE_ZIP_FILE_INDEX)) {
+        try (JavaFileManager fm = getFileManager(testClasses)) {
             test("testDirectory",
-                fm, testClassName, "com.sun.tools.javac.file.RegularFileObject");
+                fm, testClassName, "SimpleFileObject");
         }
     }
 
     void testZipArchive(File testJar) throws IOException {
         String testClassName = "java.lang.String";
         List<File> path = Arrays.asList(testJar);
-        try (JavaFileManager fm =
-                getFileManager(path, DONT_USE_ZIP_FILE_INDEX)) {
+        try (JavaFileManager fm = getFileManager(path)) {
             test("testZipArchive",
-                 fm, testClassName, "com.sun.tools.javac.file.ZipArchive$ZipFileObject");
-        }
-    }
-
-    void testZipFileIndexArchive(File testJar) throws IOException {
-        String testClassName = "java.lang.String";
-        List<File> path = Arrays.asList(testJar);
-        try (JavaFileManager fm =
-                getFileManager(path, USE_ZIP_FILE_INDEX)) {
-            test("testZipFileIndexArchive",
-                 fm, testClassName, "com.sun.tools.javac.file.ZipFileIndexArchive$ZipFileIndexFileObject");
-        }
-    }
-
-    void testZipFileIndexArchive2(File testJar) throws IOException {
-        String testClassName = "java.lang.String";
-        List<File> path = Arrays.asList(testJar);
-        try (JavaFileManager fm =
-                getFileManager(path, USE_ZIP_FILE_INDEX)) {
-            test("testZipFileIndexArchive2",
-                 fm, testClassName, "com.sun.tools.javac.file.ZipFileIndexArchive$ZipFileIndexFileObject");
+                 fm, testClassName, "JarFileObject");
         }
     }
 
@@ -141,29 +110,24 @@ public class TestInferBinaryName {
             return;
         }
 
-        String cn = fo.getClass().getName();
+        String cn = fo.getClass().getSimpleName();
         String bn = fm.inferBinaryName(CLASS_PATH, fo);
         System.err.println(testName + " " + cn + " " + bn);
-        check(cn, implClassName);
-        check(bn, testClassName);
+        checkEqual(cn, implClassName);
+        checkEqual(bn, testClassName);
         System.err.println("OK");
     }
 
-    JavaFileManager getFileManager(List<File> path,
-                                   boolean zipFileIndexKind)
+    JavaFileManager getFileManager(List<File> path)
             throws IOException {
-        Context ctx = new Context();
-        Options options = Options.instance(ctx);
-        options.put("useOptimizedZip",
-                Boolean.toString(zipFileIndexKind == USE_ZIP_FILE_INDEX));
-
-        JavacFileManager fm = new JavacFileManager(ctx, false, null);
+        StandardJavaFileManager fm = ToolProvider.getSystemJavaCompiler()
+                .getStandardFileManager(null, null, null);
         fm.setLocation(CLASS_PATH, path);
         return fm;
     }
 
     List<File> getPath(String s) {
-        List<File> path = new ArrayList<File>();
+        List<File> path = new ArrayList<>();
         for (String f: s.split(File.pathSeparator)) {
             if (f.length() > 0)
                 path.add(new File(f));
@@ -172,7 +136,7 @@ public class TestInferBinaryName {
         return path;
     }
 
-    void check(String found, String expect) {
+    void checkEqual(String found, String expect) {
         if (!found.equals(expect)) {
             System.err.println("Expected: " + expect);
             System.err.println("   Found: " + found);

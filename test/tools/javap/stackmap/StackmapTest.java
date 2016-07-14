@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,14 +27,19 @@
  * @summary Verify that javap prints StackMapTable attribute contents
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.main
- * @build ToolBox
+ *          jdk.jdeps/com.sun.tools.javap
+ * @build toolbox.ToolBox toolbox.JavacTask toolbox.JavapTask
  * @run main StackmapTest
  */
 
 import java.util.ArrayList;
 import java.util.List;
+
+import toolbox.JavacTask;
+import toolbox.JavapTask;
+import toolbox.Task;
+import toolbox.ToolBox;
 
 // Original test: test/tools/javap/stackmap/T6271292.sh
 public class StackmapTest {
@@ -79,15 +84,15 @@ public class StackmapTest {
     public static void main(String[] args) throws Exception {
         ToolBox tb = new ToolBox();
 
-        tb.new JavacTask()
+        new JavacTask(tb)
                 .sources(TestSrc)
                 .run();
 
-        List<String> out = tb.new JavapTask()
+        List<String> out = new JavapTask(tb)
                 .options("-v")
                 .classes("Test.class")
                 .run()
-                .getOutputLines(ToolBox.OutputKind.DIRECT);
+                .getOutputLines(Task.OutputKind.DIRECT);
 
         List<String> grepResult = new ArrayList<>();
         grepResult.addAll(tb.grep("frame_type",   out));

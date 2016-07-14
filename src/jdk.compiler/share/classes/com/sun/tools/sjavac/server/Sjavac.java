@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,10 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package com.sun.tools.sjavac.server;
+
+import com.sun.tools.javac.main.Main.Result;
 
 import java.io.Writer;
 
@@ -37,10 +40,6 @@ import java.io.Writer;
  *  deletion without notice.</b>
  */
 public interface Sjavac {
-
-    final static int RC_FATAL = -1;
-    final static int RC_OK = 0;
-
-    int compile(String[] args, Writer stdout, Writer stderr);
+    Result compile(String[] args);
     void shutdown();
 }

@@ -21,7 +21,6 @@
  * questions.
  */
 
-
 /*
  * @test
  * @bug     6557752
@@ -39,7 +38,6 @@ import com.sun.source.util.JavacTask;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
-import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.tools.javac.util.List;
 import java.io.IOException;
 import java.net.URI;

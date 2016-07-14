@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -66,7 +67,7 @@ import com.sun.tools.javac.util.Warner;
  * This code and its internal interfaces are subject to change or
  * deletion without notice.</b>
  */
-class InferenceContext {
+public class InferenceContext {
 
     /** list of inference vars as undet vars */
     List<Type> undetvars;
@@ -78,7 +79,7 @@ class InferenceContext {
     /** list of inference vars in this context */
     List<Type> inferencevars;
 
-    Map<FreeTypeListener, List<Type>> freeTypeListeners = new HashMap<>();
+    Map<FreeTypeListener, List<Type>> freeTypeListeners = new LinkedHashMap<>();
 
     Types types;
     Infer infer;
@@ -108,6 +109,13 @@ class InferenceContext {
      */
     List<Type> inferenceVars() {
         return inferencevars;
+    }
+
+    /**
+     * returns the list of undetermined variables in this inference context
+     */
+    public List<Type> undetVars() {
+        return undetvars;
     }
 
     /**
@@ -207,7 +215,7 @@ class InferenceContext {
      * undet vars (used ahead of subtyping/compatibility checks to allow propagation
      * of inference constraints).
      */
-    final Type asUndetVar(Type t) {
+    public final Type asUndetVar(Type t) {
         return types.subst(t, inferencevars, undetvars);
     }
 
@@ -263,7 +271,7 @@ class InferenceContext {
     void notifyChange(List<Type> inferredVars) {
         InferenceException thrownEx = null;
         for (Map.Entry<FreeTypeListener, List<Type>> entry :
-                new HashMap<>(freeTypeListeners).entrySet()) {
+                new LinkedHashMap<>(freeTypeListeners).entrySet()) {
             if (!Type.containsAny(entry.getValue(), inferencevars.diff(inferredVars))) {
                 try {
                     entry.getKey().typesInferred(this);
@@ -285,7 +293,7 @@ class InferenceContext {
     /**
      * Save the state of this inference context
      */
-    List<Type> save() {
+    public List<Type> save() {
         ListBuffer<Type> buf = new ListBuffer<>();
         for (Type t : undetvars) {
             buf.add(((UndetVar)t).dup(infer.types));
@@ -297,7 +305,7 @@ class InferenceContext {
     *  Consider that the number of saved undetermined variables can be different to the current
     *  amount. This is because new captured variables could have been added.
     */
-    void rollback(List<Type> saved_undet) {
+    public void rollback(List<Type> saved_undet) {
         Assert.check(saved_undet != null);
         //restore bounds (note: we need to preserve the old instances)
         ListBuffer<Type> newUndetVars = new ListBuffer<>();
@@ -355,6 +363,7 @@ class InferenceContext {
         ListBuffer<Type> minUndetVars = new ListBuffer<>();
         for (Type minVar : minVars) {
             UndetVar uv = (UndetVar)asUndetVar(minVar);
+            Assert.check(uv.incorporationActions.size() == 0);
             UndetVar uv2 = new UndetVar((TypeVar)minVar, infer.incorporationEngine(), types);
             for (InferenceBound ib : InferenceBound.values()) {
                 List<Type> newBounds = uv.getBounds(ib).stream()
@@ -402,15 +411,17 @@ class InferenceContext {
         public Void visitUndetVar(UndetVar t, Void _unused) {
             if (min.add(t.qtype)) {
                 Set<Type> deps = minMap.getOrDefault(t.qtype, new HashSet<>(Collections.singleton(t.qtype)));
-                for (Type b : t.getBounds(InferenceBound.values())) {
-                    Type undet = asUndetVar(b);
-                    if (!undet.hasTag(TypeTag.UNDETVAR)) {
-                        visit(undet);
-                    } else if (isEquiv((UndetVar)undet, b)){
-                        deps.add(b);
-                        equiv.add(b);
-                    } else {
-                        visit(undet);
+                for (InferenceBound boundKind : InferenceBound.values()) {
+                    for (Type b : t.getBounds(boundKind)) {
+                        Type undet = asUndetVar(b);
+                        if (!undet.hasTag(TypeTag.UNDETVAR)) {
+                            visit(undet);
+                        } else if (isEquiv(t, b, boundKind)) {
+                            deps.add(b);
+                            equiv.add(b);
+                        } else {
+                            visit(undet);
+                        }
                     }
                 }
                 minMap.put(t.qtype, deps);
@@ -446,11 +457,17 @@ class InferenceContext {
             return null;
         }
 
-        boolean isEquiv(UndetVar from, Type t) {
+        boolean isEquiv(UndetVar from, Type t, InferenceBound boundKind) {
             UndetVar uv = (UndetVar)asUndetVar(t);
             for (InferenceBound ib : InferenceBound.values()) {
-                List<Type> b1 = uv.getBounds(ib);
-                List<Type> b2 = from.getBounds(ib);
+                List<Type> b1 = from.getBounds(ib);
+                if (ib == boundKind) {
+                    b1 = b1.diff(List.of(t));
+                }
+                List<Type> b2 = uv.getBounds(ib);
+                if (ib == boundKind.complement()) {
+                    b2 = b2.diff(List.of(from.qtype));
+                }
                 if (!b1.containsAll(b2) || !b2.containsAll(b1)) {
                     return false;
                 }
@@ -459,15 +476,11 @@ class InferenceContext {
         }
     }
 
-    private void solve(GraphStrategy ss, Warner warn) {
-        solve(ss, new HashMap<Type, Set<Type>>(), warn);
-    }
-
     /**
      * Solve with given graph strategy.
      */
-    private void solve(GraphStrategy ss, Map<Type, Set<Type>> stuckDeps, Warner warn) {
-        GraphSolver s = infer.new GraphSolver(this, stuckDeps, warn);
+    private void solve(GraphStrategy ss, Warner warn) {
+        GraphSolver s = infer.new GraphSolver(this, warn);
         s.solve(ss);
     }
 
@@ -496,12 +509,12 @@ class InferenceContext {
     /**
      * Solve at least one variable in given list.
      */
-    public void solveAny(List<Type> varsToSolve, Map<Type, Set<Type>> optDeps, Warner warn) {
+    public void solveAny(List<Type> varsToSolve, Warner warn) {
         solve(infer.new BestLeafSolver(varsToSolve.intersect(restvars())) {
             public boolean done() {
                 return instvars().intersect(varsToSolve).nonEmpty();
             }
-        }, optDeps, warn);
+        }, warn);
     }
 
     /**

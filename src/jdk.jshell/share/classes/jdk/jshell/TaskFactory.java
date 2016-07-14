@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,6 @@ import com.sun.tools.javac.api.JavacTool;
 import com.sun.tools.javac.util.Context;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
@@ -56,11 +55,12 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
+import static java.util.stream.Collectors.toList;
 import java.util.stream.Stream;
 import javax.lang.model.util.Elements;
 import javax.tools.FileObject;
 import jdk.jshell.MemoryFileManager.SourceMemoryJavaFileObject;
-import jdk.jshell.ClassTracker.ClassInfo;
+import java.lang.Runtime.Version;
 
 /**
  * The primary interface to the compiler API.  Parsing, analysis, and
@@ -73,6 +73,7 @@ class TaskFactory {
     private final MemoryFileManager fileManager;
     private final JShell state;
     private String classpath = System.getProperty("java.class.path");
+    private final static Version INITIAL_SUPPORTED_VER = Version.parse("9");
 
     TaskFactory(JShell state) {
         this.state = state;
@@ -80,7 +81,8 @@ class TaskFactory {
         if (compiler == null) {
             throw new UnsupportedOperationException("Compiler not available, must be run with full JDK 9.");
         }
-        if (!System.getProperty("java.specification.version").equals("9"))  {
+        Version current = Version.parse(System.getProperty("java.specification.version"));
+        if (INITIAL_SUPPORTED_VER.compareToIgnoreOpt(current) > 0)  {
             throw new UnsupportedOperationException("Wrong compiler, must be run with full JDK 9.");
         }
         this.fileManager = new MemoryFileManager(
@@ -145,22 +147,11 @@ class TaskFactory {
                 public String getMessage(Locale locale) {
                     return expunge(d.getMessage(locale));
                 }
-
-                @Override
-                Unit unitOrNull() {
-                    return null;
-                }
             };
         }
     }
 
     private class WrapSourceHandler implements SourceHandler<OuterWrap> {
-
-        final OuterWrap wrap;
-
-        WrapSourceHandler(OuterWrap wrap) {
-            this.wrap = wrap;
-        }
 
         @Override
         public JavaFileObject sourceToFileObject(MemoryFileManager fm, OuterWrap w) {
@@ -169,24 +160,9 @@ class TaskFactory {
 
         @Override
         public Diag diag(Diagnostic<? extends JavaFileObject> d) {
-            return wrap.wrapDiag(d);
-        }
-    }
-
-    private class UnitSourceHandler implements SourceHandler<Unit> {
-
-        @Override
-        public JavaFileObject sourceToFileObject(MemoryFileManager fm, Unit u) {
-            return fm.createSourceFileObject(u,
-                    state.maps.classFullName(u.snippet()),
-                    u.snippet().outerWrap().wrapped());
-        }
-
-        @Override
-        public Diag diag(Diagnostic<? extends JavaFileObject> d) {
             SourceMemoryJavaFileObject smjfo = (SourceMemoryJavaFileObject) d.getSource();
-            Unit u = (Unit) smjfo.getOrigin();
-            return u.snippet().outerWrap().wrapDiag(d);
+            OuterWrap w = (OuterWrap) smjfo.getOrigin();
+            return w.wrapDiag(d);
         }
     }
 
@@ -196,7 +172,7 @@ class TaskFactory {
      */
     class ParseTask extends BaseTask {
 
-        private final CompilationUnitTree cut;
+        private final Iterable<? extends CompilationUnitTree> cuts;
         private final List<? extends Tree> units;
 
         ParseTask(final String source) {
@@ -204,16 +180,13 @@ class TaskFactory {
                     new StringSourceHandler(),
                     "-XDallowStringFolding=false", "-proc:none");
             ReplParserFactory.instance(getContext());
-            Iterable<? extends CompilationUnitTree> asts = parse();
-            Iterator<? extends CompilationUnitTree> it = asts.iterator();
-            if (it.hasNext()) {
-                this.cut = it.next();
-                List<? extends ImportTree> imps = cut.getImports();
-                this.units = !imps.isEmpty() ? imps : cut.getTypeDecls();
-            } else {
-                this.cut = null;
-                this.units = Collections.emptyList();
-            }
+            cuts = parse();
+            units = Util.stream(cuts)
+                    .flatMap(cut -> {
+                        List<? extends ImportTree> imps = cut.getImports();
+                        return (!imps.isEmpty() ? imps : cut.getTypeDecls()).stream();
+                    })
+                    .collect(toList());
         }
 
         private Iterable<? extends CompilationUnitTree> parse() {
@@ -229,8 +202,8 @@ class TaskFactory {
         }
 
         @Override
-        CompilationUnitTree cuTree() {
-            return cut;
+        Iterable<? extends CompilationUnitTree> cuTrees() {
+            return cuts;
         }
     }
 
@@ -239,30 +212,26 @@ class TaskFactory {
      */
     class AnalyzeTask extends BaseTask {
 
-        private final CompilationUnitTree cut;
+        private final Iterable<? extends CompilationUnitTree> cuts;
 
-        AnalyzeTask(final OuterWrap wrap) {
-            this(Stream.of(wrap),
-                    new WrapSourceHandler(wrap),
-                    "-XDshouldStopPolicy=FLOW", "-proc:none");
+        AnalyzeTask(final OuterWrap wrap, String... extraArgs) {
+            this(Collections.singletonList(wrap), extraArgs);
         }
 
-        AnalyzeTask(final Collection<Unit> units) {
-            this(units.stream(), new UnitSourceHandler(),
-                    "-XDshouldStopPolicy=FLOW", "-Xlint:unchecked", "-proc:none");
+        AnalyzeTask(final Collection<OuterWrap> wraps, String... extraArgs) {
+            this(wraps.stream(),
+                    new WrapSourceHandler(),
+                    Util.join(new String[] {
+                        "-XDshouldStopPolicy=FLOW", "-Xlint:unchecked",
+                        "-XaddExports:jdk.jshell/jdk.internal.jshell.remote=ALL-UNNAMED",
+                        "-proc:none"
+                    }, extraArgs));
         }
 
-        <T>AnalyzeTask(final Stream<T> stream, SourceHandler<T> sourceHandler,
+        private <T>AnalyzeTask(final Stream<T> stream, SourceHandler<T> sourceHandler,
                 String... extraOptions) {
             super(stream, sourceHandler, extraOptions);
-            Iterator<? extends CompilationUnitTree> cuts = analyze().iterator();
-            if (cuts.hasNext()) {
-                this.cut = cuts.next();
-                //proc.debug("AnalyzeTask element=%s  cutp=%s  cut=%s\n", e, cutp, cut);
-            } else {
-                this.cut = null;
-                //proc.debug("AnalyzeTask -- no elements -- %s\n", getDiagnostics());
-            }
+            cuts = analyze();
         }
 
         private Iterable<? extends CompilationUnitTree> analyze() {
@@ -276,8 +245,8 @@ class TaskFactory {
         }
 
         @Override
-        CompilationUnitTree cuTree() {
-            return cut;
+        Iterable<? extends CompilationUnitTree> cuTrees() {
+            return cuts;
         }
 
         Elements getElements() {
@@ -294,11 +263,11 @@ class TaskFactory {
      */
     class CompileTask extends BaseTask {
 
-        private final Map<Unit, List<OutputMemoryJavaFileObject>> classObjs = new HashMap<>();
+        private final Map<OuterWrap, List<OutputMemoryJavaFileObject>> classObjs = new HashMap<>();
 
-        CompileTask(Collection<Unit> units) {
-            super(units.stream(), new UnitSourceHandler(),
-                    "-Xlint:unchecked", "-proc:none");
+        CompileTask(final Collection<OuterWrap> wraps) {
+            super(wraps.stream(), new WrapSourceHandler(),
+                    "-Xlint:unchecked", "-XaddExports:jdk.jshell/jdk.internal.jshell.remote=ALL-UNNAMED", "-proc:none", "-parameters");
         }
 
         boolean compile() {
@@ -308,13 +277,19 @@ class TaskFactory {
             return result;
         }
 
-
-        List<ClassInfo> classInfoList(Unit u) {
-            List<OutputMemoryJavaFileObject> l = classObjs.get(u);
-            if (l == null) return Collections.emptyList();
-            return l.stream()
-                    .map(fo -> state.classTracker.classInfo(fo.getName(), fo.getBytes()))
-                    .collect(Collectors.toList());
+        // Returns the list of classes generated during this compile.
+        // Stores the mapping between class name and current compiled bytes.
+        List<String> classList(OuterWrap w) {
+            List<OutputMemoryJavaFileObject> l = classObjs.get(w);
+            if (l == null) {
+                return Collections.emptyList();
+            }
+            List<String> list = new ArrayList<>();
+            for (OutputMemoryJavaFileObject fo : l) {
+                state.setClassnameToBytes(fo.getName(), fo.getBytes());
+                list.add(fo.getName());
+            }
+            return list;
         }
 
         private void listenForNewClassFile(OutputMemoryJavaFileObject jfo, JavaFileManager.Location location,
@@ -322,17 +297,17 @@ class TaskFactory {
             //debug("listenForNewClassFile %s loc=%s kind=%s\n", className, location, kind);
             if (location == CLASS_OUTPUT) {
                 state.debug(DBG_GEN, "Compiler generating class %s\n", className);
-                Unit u = ((sibling instanceof SourceMemoryJavaFileObject)
-                        && (((SourceMemoryJavaFileObject) sibling).getOrigin() instanceof Unit))
-                        ? (Unit) ((SourceMemoryJavaFileObject) sibling).getOrigin()
+                OuterWrap w = ((sibling instanceof SourceMemoryJavaFileObject)
+                        && (((SourceMemoryJavaFileObject) sibling).getOrigin() instanceof OuterWrap))
+                        ? (OuterWrap) ((SourceMemoryJavaFileObject) sibling).getOrigin()
                         : null;
-                classObjs.compute(u, (k, v) -> (v == null)? new ArrayList<>() : v)
+                classObjs.compute(w, (k, v) -> (v == null)? new ArrayList<>() : v)
                         .add(jfo);
             }
         }
 
         @Override
-        CompilationUnitTree cuTree() {
+        Iterable<? extends CompilationUnitTree> cuTrees() {
             throw new UnsupportedOperationException("Not supported.");
         }
     }
@@ -353,7 +328,9 @@ class TaskFactory {
                 SourceHandler<T> sh,
                 String... extraOptions) {
             this.sourceHandler = sh;
-            List<String> options = Arrays.asList(extraOptions);
+            List<String> options = new ArrayList<>(extraOptions.length + state.extraCompilerOptions.size());
+            options.addAll(Arrays.asList(extraOptions));
+            options.addAll(state.extraCompilerOptions);
             Iterable<? extends JavaFileObject> compilationUnits = inputs
                             .map(in -> sh.sourceToFileObject(fileManager, in))
                             .collect(Collectors.toList());
@@ -362,7 +339,11 @@ class TaskFactory {
                     compilationUnits, context);
         }
 
-        abstract CompilationUnitTree cuTree();
+        abstract Iterable<? extends CompilationUnitTree> cuTrees();
+
+        CompilationUnitTree firstCuTree() {
+            return cuTrees().iterator().next();
+        }
 
         Diag diag(Diagnostic<? extends JavaFileObject> diag) {
             return sourceHandler.diag(diag);
@@ -400,7 +381,7 @@ class TaskFactory {
                 LinkedHashMap<String, Diag> diagMap = new LinkedHashMap<>();
                 for (Diagnostic<? extends JavaFileObject> in : diagnostics.getDiagnostics()) {
                     Diag d = diag(in);
-                    String uniqueKey = d.getCode() + ":" + d.getPosition() + ":" + d.getMessage(null);
+                    String uniqueKey = d.getCode() + ":" + d.getPosition() + ":" + d.getMessage(PARSED_LOCALE);
                     diagMap.put(uniqueKey, d);
                 }
                 diags = new DiagList(diagMap.values());
@@ -415,7 +396,7 @@ class TaskFactory {
         String shortErrorMessage() {
             StringBuilder sb = new StringBuilder();
             for (Diag diag : getDiagnostics()) {
-                for (String line : diag.getMessage(null).split("\\r?\\n")) {
+                for (String line : diag.getMessage(PARSED_LOCALE).split("\\r?\\n")) {
                     if (!line.trim().startsWith("location:")) {
                         sb.append(line);
                     }
@@ -427,7 +408,7 @@ class TaskFactory {
         void debugPrintDiagnostics(String src) {
             for (Diag diag : getDiagnostics()) {
                 state.debug(DBG_GEN, "ERROR --\n");
-                for (String line : diag.getMessage(null).split("\\r?\\n")) {
+                for (String line : diag.getMessage(PARSED_LOCALE).split("\\r?\\n")) {
                     if (!line.trim().startsWith("location:")) {
                         state.debug(DBG_GEN, "%s\n", line);
                     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package com.sun.source.util;
 
 import com.sun.source.doctree.*;
+import com.sun.tools.javac.tree.DCTree.DCIndex;
 
 
 /**
@@ -67,7 +68,6 @@ import com.sun.source.doctree.*;
  *
  * @since 1.8
  */
-@jdk.Exported
 public class DocTreeScanner<R,P> implements DocTreeVisitor<R,P> {
 
     /**
@@ -236,6 +236,18 @@ public class DocTreeScanner<R,P> implements DocTreeVisitor<R,P> {
     }
 
     /**
+     * {@inheritDoc} This implementation scans the children in left to right order.
+     *
+     * @param node  {@inheritDoc}
+     * @param p  {@inheritDoc}
+     * @return the result of scanning
+     */
+    @Override
+    public R visitHidden(HiddenTree node, P p) {
+        return scan(node.getBody(), p);
+    }
+
+    /**
      * {@inheritDoc} This implementation returns {@code null}.
      *
      * @param node  {@inheritDoc}
@@ -245,6 +257,20 @@ public class DocTreeScanner<R,P> implements DocTreeVisitor<R,P> {
     @Override
     public R visitIdentifier(IdentifierTree node, P p) {
         return null;
+    }
+
+    /**
+     * {@inheritDoc} This implementation returns {@code null}.
+     *
+     * @param node  {@inheritDoc}
+     * @param p  {@inheritDoc}
+     * @return the result of scanning
+     */
+    @Override
+    public R visitIndex(IndexTree node, P p) {
+        R r = scan(node.getSearchTerm(), p);
+        r = scanAndReduce(node.getDescription(), p, r);
+        return r;
     }
 
     /**

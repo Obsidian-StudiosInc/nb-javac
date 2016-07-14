@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,21 +27,25 @@
  * @summary In Windows, javap doesn't load classes from rt.jar
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.main
- * @build ToolBox
+ *          jdk.jdeps/com.sun.tools.javap
+ * @build toolbox.ToolBox toolbox.JavapTask
  * @run main JavapShouldLoadClassesFromRTJarTest
  */
+
+import toolbox.JavapTask;
+import toolbox.Task;
+import toolbox.ToolBox;
 
 public class JavapShouldLoadClassesFromRTJarTest {
 
     public static void main(String[] args) throws Exception {
         ToolBox tb = new ToolBox();
-        String out = tb.new JavapTask()
+        String out = new JavapTask(tb)
                 .options("-v")
                 .classes("java.lang.String")
                 .run()
-                .getOutput(ToolBox.OutputKind.DIRECT);
+                .getOutput(Task.OutputKind.DIRECT);
 
         if (out.isEmpty())
             throw new AssertionError("javap generated no output");

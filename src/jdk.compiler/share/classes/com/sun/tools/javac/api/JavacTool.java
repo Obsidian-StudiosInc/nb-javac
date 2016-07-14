@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,10 +45,13 @@ import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.main.Arguments;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.file.BaseFileManager;
+import com.sun.tools.javac.file.CacheFSInfo;
+import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.util.ClientCodeException;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
+import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.PropagatedException;
 
@@ -95,6 +98,7 @@ public final class JavacTool implements JavaCompiler {
                 ? new PrintWriter(System.err, true)
                 : new PrintWriter(new OutputStreamWriter(System.err, charset), true);
         context.put(Log.outKey, pw);
+        CacheFSInfo.preRegister(context);
         return new JavacFileManager(context, true, charset);
     }
 
@@ -129,9 +133,17 @@ public final class JavacTool implements JavaCompiler {
             }
 
             if (classes != null) {
-                for (String cls : classes)
-                    if (!SourceVersion.isName(cls)) // implicit null check
+                for (String cls : classes) {
+                    int sep = cls.indexOf('/'); // implicit null check
+                    if (sep > 0) {
+                        String mod = cls.substring(0, sep);
+                        if (!SourceVersion.isName(mod))
+                            throw new IllegalArgumentException("Not a valid module name: " + mod);
+                        cls = cls.substring(sep + 1);
+                    }
+                    if (!SourceVersion.isName(cls))
                         throw new IllegalArgumentException("Not a valid class name: " + cls);
+                }
             }
 
             if (compilationUnits != null) {
@@ -165,6 +177,14 @@ public final class JavacTool implements JavaCompiler {
 
             Arguments args = Arguments.instance(context);
             args.init("javac", options, classes, compilationUnits);
+
+            // init multi-release jar handling
+            if (fileManager.isSupportedOption(Option.MULTIRELEASE.text) == 1) {
+                Target target = Target.instance(context);
+                List<String> list = List.of(target.multiReleaseValue());
+                fileManager.handleOption(Option.MULTIRELEASE.text, list.iterator());
+            }
+
             return new JavacTaskImpl(context);
         } catch (PropagatedException ex) {
             throw ex.getCause();

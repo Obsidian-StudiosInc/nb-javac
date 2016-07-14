@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,8 @@ import java.net.*;
 import java.util.*;
 
 import javax.tools.JavaFileManager;
+import javax.tools.JavaFileManager.Location;
+import javax.tools.StandardLocation;
 
 import com.sun.javadoc.*;
 import com.sun.tools.doclets.formats.html.markup.*;
@@ -38,7 +40,7 @@ import com.sun.tools.doclint.DocLint;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.StringUtils;
-import com.sun.tools.javadoc.RootDocImpl;
+import com.sun.tools.javadoc.main.RootDocImpl;
 
 /**
  * Configure the output based on the command line options.
@@ -63,6 +65,7 @@ import com.sun.tools.javadoc.RootDocImpl;
  * @author Jamie Ho
  * @author Bhavesh Patel (Modified)
  */
+@Deprecated
 public class ConfigurationImpl extends Configuration {
 
     /**
@@ -639,6 +642,12 @@ public class ConfigurationImpl extends Configuration {
     @Override
     public Content newContent() {
         return new ContentBuilder();
+    }
+
+    @Override
+    public Location getLocationForPackage(PackageDoc pd) {
+        JavaFileManager fm = getFileManager();
+        return StandardLocation.SOURCE_PATH;
     }
 
     protected void buildSearchTagIndex() {

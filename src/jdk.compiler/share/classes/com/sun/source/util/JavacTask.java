@@ -47,7 +47,6 @@ import java.lang.reflect.Method;
  * @author Jonathan Gibbons
  * @since 1.6
  */
-@jdk.Exported
 public abstract class JavacTask implements CompilationTask {
 
     /**

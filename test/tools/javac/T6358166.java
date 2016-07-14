@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,8 +42,7 @@ import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.tools.javac.api.JavacTool;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.main.JavaCompiler;
-import com.sun.tools.javac.util.*;
-import com.sun.tools.javac.util.List; // disambiguate
+import com.sun.tools.javac.util.Context;
 
 
 @SupportedAnnotationTypes("*")
@@ -54,18 +53,28 @@ public class T6358166 extends AbstractProcessor {
         String testSrc = System.getProperty("test.src");
 
         JavacFileManager fm = new JavacFileManager(new Context(), false, null);
-        JavaFileObject f = fm.getFileForInput(testSrc + File.separatorChar + self + ".java");
+        JavaFileObject f = fm.getJavaFileObject(testSrc + File.separatorChar + self + ".java");
 
-        test(fm, f, "-verbose", "-d", ".");
+        List<String> addExports = Arrays.asList(
+                "-XaddExports:jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+                "-XaddExports:jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+                "-XaddExports:jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+                "-XaddExports:jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED");
 
-        test(fm, f, "-verbose", "-d", ".", "-XprintRounds", "-processorpath", ".", "-processor", self);
+        test(fm, f, addExports, "-verbose", "-d", ".");
+
+        test(fm, f, addExports, "-verbose", "-d", ".", "-XprintRounds", "-processorpath", ".", "-processor", self);
     }
 
-    static void test(JavacFileManager fm, JavaFileObject f, String... args) throws Throwable {
+    static void test(JavacFileManager fm, JavaFileObject f, List<String> addExports, String... args) throws Throwable {
+        List<String> allArgs = new ArrayList<>();
+        allArgs.addAll(addExports);
+        allArgs.addAll(Arrays.asList(args));
+
         Context context = new Context();
 
         JavacTool tool = JavacTool.create();
-        JavacTaskImpl task = (JavacTaskImpl) tool.getTask(null, fm, null, Arrays.asList(args), null, List.of(f), context);
+        JavacTaskImpl task = (JavacTaskImpl) tool.getTask(null, fm, null, allArgs, null, List.of(f), context);
         task.call();
 
         JavaCompiler c = JavaCompiler.instance(context);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,13 @@
 
 /*
  * @test
+ * @bug 8141415
  * @summary Test imports
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.jdeps/com.sun.tools.javap
  * @library /tools/lib
- * @build KullaTesting TestingInputStream ToolBox ExpectedDiagnostic
+ * @build KullaTesting TestingInputStream toolbox.Task.ExpectedDiagnostic
  * @run testng ImportTest
  */
 
@@ -158,5 +162,10 @@ public class ImportTest extends KullaTesting {
         assertImportKeyMatch("import static util.A.field;", "field", SINGLE_STATIC_IMPORT_SUBKIND, added(VALID));
         assertEval("field;", "\"A\"");
         assertEval("method();", "\"A\"");
+    }
+
+    public void testImportWithComment() {
+        assertImportKeyMatch("import java.util.List;//comment", "List", SINGLE_TYPE_IMPORT_SUBKIND, added(VALID));
+        assertEval("List l = null;");
     }
 }

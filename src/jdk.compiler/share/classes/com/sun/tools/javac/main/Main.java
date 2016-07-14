@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package com.sun.tools.javac.main;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.nio.file.NoSuchFileException;
@@ -41,6 +42,7 @@ import com.sun.tools.javac.api.BasicJavacTask;
 import com.sun.tools.javac.file.CacheFSInfo;
 import com.sun.tools.javac.file.BaseFileManager;
 import com.sun.tools.javac.file.JavacFileManager;
+import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.platform.PlatformDescription;
 import com.sun.tools.javac.processing.AnnotationProcessingError;
 import com.sun.tools.javac.util.*;
@@ -141,8 +143,12 @@ public class Main {
         JavacFileManager.preRegister(context); // can't create it until Log has been set up
         Result result = compile(args, context);
         if (fileManager instanceof JavacFileManager) {
-            // A fresh context was created above, so jfm must be a JavacFileManager
-            ((JavacFileManager)fileManager).close();
+            try {
+                // A fresh context was created above, so jfm must be a JavacFileManager
+                ((JavacFileManager)fileManager).close();
+            } catch (IOException ex) {
+                bugMessage(ex);
+            }
         }
         return result;
     }
@@ -168,6 +174,17 @@ public class Main {
             return Result.CMDERR;
         }
 
+        // prefix argv with contents of _JAVAC_OPTIONS if set
+        String envOpt = System.getenv("_JAVAC_OPTIONS");
+        if (envOpt != null && !envOpt.trim().isEmpty()) {
+            String[] envv = envOpt.split("\\s+");
+            String[] result = new String[envv.length + argv.length];
+            System.arraycopy(envv, 0, result, 0, envv.length);
+            System.arraycopy(argv, 0, result, envv.length, argv.length);
+            argv = result;
+        }
+
+        // expand @-files
         try {
             argv = CommandLine.parse(argv);
         } catch (FileNotFoundException | NoSuchFileException e) {
@@ -201,11 +218,13 @@ public class Main {
         if (batchMode)
             CacheFSInfo.preRegister(context);
 
+        boolean ok = true;
+
         // init file manager
         fileManager = context.get(JavaFileManager.class);
         if (fileManager instanceof BaseFileManager) {
             ((BaseFileManager) fileManager).setContext(context); // reinit with options
-            ((BaseFileManager) fileManager).handleOptions(args.getDeferredFileManagerOptions());
+            ok &= ((BaseFileManager) fileManager).handleOptions(args.getDeferredFileManagerOptions());
         }
 
         // handle this here so it works even if no other options given
@@ -216,14 +235,14 @@ public class Main {
             showClass(showClass);
         }
 
-        boolean ok = args.validate();
+        ok &= args.validate();
         if (!ok || log.nerrors > 0)
             return Result.CMDERR;
 
         if (args.isEmpty())
             return Result.OK;
 
-        // init Depeendencies
+        // init Dependencies
         if (options.isSet("completionDeps")) {
             Dependencies.GraphDependencies.preRegister(context);
         }
@@ -233,6 +252,13 @@ public class Main {
         if (!pluginOpts.isEmpty() || context.get(PlatformDescription.class) != null) {
             BasicJavacTask t = (BasicJavacTask) BasicJavacTask.instance(context);
             t.initPlugins(pluginOpts);
+        }
+
+        // init multi-release jar handling
+        if (fileManager.isSupportedOption(Option.MULTIRELEASE.text) == 1) {
+            Target target = Target.instance(context);
+            List<String> list = List.of(target.multiReleaseValue());
+            fileManager.handleOption(Option.MULTIRELEASE.text, list.iterator());
         }
 
         // init JavaCompiler
@@ -345,28 +371,28 @@ public class Main {
     void showClass(String className) {
         PrintWriter pw = log.getWriter(WriterKind.NOTICE);
         pw.println("javac: show class: " + className);
+
         URL url = getClass().getResource('/' + className.replace('.', '/') + ".class");
-        if (url == null)
-            pw.println("  class not found");
-        else {
+        if (url != null) {
             pw.println("  " + url);
-            try {
-                final String algorithm = "MD5";
-                byte[] digest;
-                MessageDigest md = MessageDigest.getInstance(algorithm);
-                try (DigestInputStream in = new DigestInputStream(url.openStream(), md)) {
-                    byte[] buf = new byte[8192];
-                    int n;
-                    do { n = in.read(buf); } while (n > 0);
-                    digest = md.digest();
-                }
-                StringBuilder sb = new StringBuilder();
-                for (byte b: digest)
-                    sb.append(String.format("%02x", b));
-                pw.println("  " + algorithm + " checksum: " + sb);
-            } catch (NoSuchAlgorithmException | IOException e) {
-                pw.println("  cannot compute digest: " + e);
+        }
+
+        try (InputStream in = getClass().getResourceAsStream('/' + className.replace('.', '/') + ".class")) {
+            final String algorithm = "MD5";
+            byte[] digest;
+            MessageDigest md = MessageDigest.getInstance(algorithm);
+            try (DigestInputStream din = new DigestInputStream(in, md)) {
+                byte[] buf = new byte[8192];
+                int n;
+                do { n = din.read(buf); } while (n > 0);
+                digest = md.digest();
             }
+            StringBuilder sb = new StringBuilder();
+            for (byte b: digest)
+                sb.append(String.format("%02x", b));
+            pw.println("  " + algorithm + " checksum: " + sb);
+        } catch (NoSuchAlgorithmException | IOException e) {
+            pw.println("  cannot compute digest: " + e);
         }
     }
 

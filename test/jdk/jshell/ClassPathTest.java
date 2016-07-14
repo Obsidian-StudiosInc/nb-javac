@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,12 @@
 /*
  * @test
  * @summary Tests for EvalState#addToClasspath
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.jdeps/com.sun.tools.javap
  * @library /tools/lib
- * @build KullaTesting TestingInputStream ToolBox Compiler
+ * @build toolbox.ToolBox toolbox.JarTask toolbox.JavacTask
+ * @build KullaTesting TestingInputStream Compiler
  * @run testng ClassPathTest
  */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,18 +30,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
-import com.sun.jdi.ReferenceType;
 import jdk.jshell.Snippet.Kind;
 import jdk.jshell.Snippet.Status;
 import jdk.jshell.Snippet.SubKind;
 import jdk.jshell.TaskFactory.AnalyzeTask;
-import jdk.jshell.ClassTracker.ClassInfo;
 import jdk.jshell.TaskFactory.CompileTask;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 import static jdk.internal.jshell.debug.InternalDebugControl.DBG_EVNT;
 import static jdk.internal.jshell.debug.InternalDebugControl.DBG_GEN;
@@ -50,6 +46,7 @@ import static jdk.jshell.Snippet.Status.RECOVERABLE_DEFINED;
 import static jdk.jshell.Snippet.Status.RECOVERABLE_NOT_DEFINED;
 import static jdk.jshell.Snippet.Status.REJECTED;
 import static jdk.jshell.Snippet.Status.VALID;
+import static jdk.jshell.Util.PARSED_LOCALE;
 import static jdk.jshell.Util.expunge;
 
 /**
@@ -67,7 +64,7 @@ final class Unit {
     private final DiagList generatedDiagnostics;
 
     private int seq;
-    private int seqInitial;
+    private String classNameInitial;
     private Wrap activeGuts;
     private Status status;
     private Status prevStatus;
@@ -78,7 +75,7 @@ final class Unit {
     private SnippetEvent replaceOldEvent;
     private List<SnippetEvent> secondaryEvents;
     private boolean isAttemptingCorral;
-    private List<ClassInfo> toRedefine;
+    private List<String> toRedefine;
     private boolean dependenciesNeeded;
 
     Unit(JShell state, Snippet si, Snippet causalSnippet,
@@ -94,7 +91,7 @@ final class Unit {
         this.generatedDiagnostics = generatedDiagnostics;
 
         this.seq = isNew? 0 : siOld.sequenceNumber();
-        this.seqInitial = seq;
+        this.classNameInitial = isNew? "<none>" : siOld.className();
         this.prevStatus = (isNew || isDependency)
                 ? si.status()
                 : siOld.status();
@@ -135,34 +132,50 @@ final class Unit {
         return isDependency;
     }
 
-    boolean isNew() {
-        return isNew;
-    }
-
-    boolean isRedundant() {
-        return !isNew && !isDependency() && !si.isExecutable() &&
-                prevStatus.isDefined &&
-                siOld.source().equals(si.source());
-    }
-
-    void initialize(Collection<Unit> working) {
+    void initialize() {
         isAttemptingCorral = false;
         dependenciesNeeded = false;
         toRedefine = null; // assure NPE if classToLoad not called
         activeGuts = si.guts();
         markOldDeclarationOverwritten();
-        setWrap(working, working);
     }
 
-    void setWrap(Collection<Unit> except, Collection<Unit> plus) {
-        si.setOuterWrap(isImport()
-                ? OuterWrap.wrapImport(si.source(), activeGuts)
-                : state.eval.wrapInClass(si,
-                        except.stream().map(u -> u.snippet().key()).collect(toSet()),
-                        activeGuts,
-                        plus.stream().map(u -> u.snippet())
-                                .filter(sn -> sn != si)
-                                .collect(toList())));
+    // Set the outer wrap of our Snippet
+    void setWrap(Collection<Unit> exceptUnit, Collection<Unit> plusUnfiltered) {
+        if (isImport()) {
+            si.setOuterWrap(state.outerMap.wrapImport(activeGuts, si));
+        } else {
+            // Collect Units for be wrapped together.  Just this except for overloaded methods
+            List<Unit> units;
+            if (snippet().kind() == Kind.METHOD) {
+                String name = ((MethodSnippet) snippet()).name();
+                units = plusUnfiltered.stream()
+                        .filter(u -> u.snippet().kind() == Kind.METHOD &&
+                                 ((MethodSnippet) u.snippet()).name().equals(name))
+                        .collect(toList());
+            } else {
+                units = Collections.singletonList(this);
+            }
+            // Keys to exclude from imports
+            Set<Key> except = exceptUnit.stream()
+                    .map(u -> u.snippet().key())
+                    .collect(toSet());
+            // Snippets to add to imports
+            Collection<Snippet> plus = plusUnfiltered.stream()
+                    .filter(u -> !units.contains(u))
+                    .map(u -> u.snippet())
+                    .collect(toList());
+            // Snippets to wrap in an outer
+            List<Snippet> snippets = units.stream()
+                    .map(u -> u.snippet())
+                    .collect(toList());
+            // Snippet wraps to wrap in an outer
+            List<Wrap> wraps = units.stream()
+                    .map(u -> u.activeGuts)
+                    .collect(toList());
+            // Set the outer wrap for this snippet
+            si.setOuterWrap(state.outerMap.wrapInClass(except, plus, snippets, wraps));
+        }
     }
 
     void setDiagnostics(AnalyzeTask ct) {
@@ -225,7 +238,7 @@ final class Unit {
         return false;
     }
 
-    void setStatus() {
+    void setStatus(AnalyzeTask at) {
         if (!compilationDiagnostics.hasErrors()) {
             status = VALID;
         } else if (isRecoverable()) {
@@ -237,18 +250,14 @@ final class Unit {
         } else {
             status = REJECTED;
         }
-        checkForOverwrite();
+        checkForOverwrite(at);
 
         state.debug(DBG_GEN, "setStatus() %s - status: %s\n",
                 si, status);
     }
 
-    /**
-     * Must be called for each unit
-     * @return
-     */
     boolean isDefined() {
-        return status.isDefined;
+        return status.isDefined();
     }
 
     /**
@@ -256,21 +265,28 @@ final class Unit {
      * Requires loading of returned list.
      * @return the list of classes to load
      */
-    Stream<ClassInfo> classesToLoad(List<ClassInfo> cil) {
+    Stream<String> classesToLoad(List<String> classnames) {
         toRedefine = new ArrayList<>();
-        List<ClassInfo> toLoad = new ArrayList<>();
-        if (status.isDefined && !isImport()) {
-            cil.stream().forEach(ci -> {
-                if (!ci.isLoaded()) {
-                    if (ci.getReferenceTypeOrNull() == null) {
-                        toLoad.add(ci);
-                        ci.setLoaded();
+        List<String> toLoad = new ArrayList<>();
+        if (status.isDefined() && !isImport()) {
+            // Classes should only be loaded/redefined if the compile left them
+            // in a defined state.  Imports do not have code and are not loaded.
+            for (String cn : classnames) {
+                switch (state.executionControl().getClassStatus(cn)) {
+                    case UNKNOWN:
+                        // If not loaded, add to the list of classes to load.
+                        toLoad.add(cn);
                         dependenciesNeeded = true;
-                    } else {
-                        toRedefine.add(ci);
-                    }
+                        break;
+                    case NOT_CURRENT:
+                        // If loaded but out of date, add to the list of classes to attempt redefine.
+                        toRedefine.add(cn);
+                        break;
+                    case CURRENT:
+                        // Loaded and current, so nothing to do
+                        break;
                 }
-            });
+            }
         }
         return toLoad.stream();
     }
@@ -281,19 +297,9 @@ final class Unit {
      * @return true if all redefines succeeded (can be vacuously true)
      */
     boolean doRedefines() {
-         if (toRedefine.isEmpty()) {
-            return true;
-        }
-        Map<ReferenceType, byte[]> mp = toRedefine.stream()
-                .collect(toMap(ci -> ci.getReferenceTypeOrNull(), ci -> ci.getBytes()));
-        if (state.executionControl().commandRedefine(mp)) {
-            // success, mark as loaded
-            toRedefine.stream().forEach(ci -> ci.setLoaded());
-            return true;
-        } else {
-            // failed to redefine
-            return false;
-        }
+        return toRedefine.isEmpty()
+                ? true
+                : state.executionControl().redefine(toRedefine);
     }
 
     void markForReplacement() {
@@ -306,12 +312,14 @@ final class Unit {
     }
 
     private boolean sigChanged() {
-        return (status.isDefined != prevStatus.isDefined)
-                || (seq != seqInitial && status.isDefined)
+        return (status.isDefined() != prevStatus.isDefined())
+                || (status.isDefined() && !si.className().equals(classNameInitial))
                 || signatureChanged;
     }
 
     Stream<Unit> effectedDependents() {
+        //System.err.printf("effectedDependents sigChanged=%b  dependenciesNeeded=%b   status=%s\n",
+        //       sigChanged(), dependenciesNeeded, status);
         return sigChanged() || dependenciesNeeded || status == RECOVERABLE_NOT_DEFINED
                 ? dependents()
                 : Stream.empty();
@@ -320,7 +328,7 @@ final class Unit {
     Stream<Unit> dependents() {
         return state.maps.getDependents(si)
                     .stream()
-                    .filter(xsi -> xsi != si && xsi.status().isActive)
+                    .filter(xsi -> xsi != si && xsi.status().isActive())
                     .map(xsi -> new Unit(state, xsi, si, new DiagList()));
     }
 
@@ -330,7 +338,7 @@ final class Unit {
     }
 
     private void markOldDeclarationOverwritten() {
-        if (si != siOld && siOld != null && siOld.status().isActive) {
+        if (si != siOld && siOld != null && siOld.status().isActive()) {
             // Mark the old declaraion as replaced
             replaceOldEvent = new SnippetEvent(siOld,
                     siOld.status(), OVERWRITTEN,
@@ -361,17 +369,18 @@ final class Unit {
                 si, status, unresolved);
     }
 
-    private void checkForOverwrite() {
+    private void checkForOverwrite(AnalyzeTask at) {
         secondaryEvents = new ArrayList<>();
         if (replaceOldEvent != null) secondaryEvents.add(replaceOldEvent);
 
         // Defined methods can overwrite methods of other (equivalent) snippets
-        if (si.kind() == Kind.METHOD && status.isDefined) {
-            String oqpt = ((MethodSnippet) si).qualifiedParameterTypes();
-            String nqpt = computeQualifiedParameterTypes(si);
+        if (isNew && si.kind() == Kind.METHOD && status.isDefined()) {
+            MethodSnippet msi = (MethodSnippet)si;
+            String oqpt = msi.qualifiedParameterTypes();
+            String nqpt = computeQualifiedParameterTypes(at, msi);
             if (!nqpt.equals(oqpt)) {
-                ((MethodSnippet) si).setQualifiedParamaterTypes(nqpt);
-                Status overwrittenStatus = overwriteMatchingMethod(si);
+                msi.setQualifiedParamaterTypes(nqpt);
+                Status overwrittenStatus = overwriteMatchingMethod(msi);
                 if (overwrittenStatus != null) {
                     prevStatus = overwrittenStatus;
                     signatureChanged = true;
@@ -383,19 +392,19 @@ final class Unit {
     // Check if there is a method whose user-declared parameter types are
     // different (and thus has a different snippet) but whose compiled parameter
     // types are the same. if so, consider it an overwrite replacement.
-    private Status overwriteMatchingMethod(Snippet si) {
-        String qpt = ((MethodSnippet) si).qualifiedParameterTypes();
+    private Status overwriteMatchingMethod(MethodSnippet msi) {
+        String qpt = msi.qualifiedParameterTypes();
 
         // Look through all methods for a method of the same name, with the
         // same computed qualified parameter types
         Status overwrittenStatus = null;
         for (MethodSnippet sn : state.methods()) {
-            if (sn != null && sn != si && sn.status().isActive && sn.name().equals(si.name())) {
+            if (sn != null && sn != msi && sn.status().isActive() && sn.name().equals(msi.name())) {
                 if (qpt.equals(sn.qualifiedParameterTypes())) {
                     overwrittenStatus = sn.status();
                     SnippetEvent se = new SnippetEvent(
                             sn, overwrittenStatus, OVERWRITTEN,
-                            false, si, null, null);
+                            false, msi, null, null);
                     sn.setOverwritten();
                     secondaryEvents.add(se);
                     state.debug(DBG_EVNT,
@@ -408,23 +417,19 @@ final class Unit {
         return overwrittenStatus;
     }
 
-    private String computeQualifiedParameterTypes(Snippet si) {
-        MethodSnippet msi = (MethodSnippet) si;
-        String qpt;
-        AnalyzeTask at = state.taskFactory.new AnalyzeTask(msi.outerWrap());
-        String rawSig = new TreeDissector(at).typeOfMethod();
+    private String computeQualifiedParameterTypes(AnalyzeTask at, MethodSnippet msi) {
+        String rawSig = TreeDissector.createBySnippet(at, msi).typeOfMethod(msi);
         String signature = expunge(rawSig);
         int paren = signature.lastIndexOf(')');
-        if (paren < 0) {
-            // Uncompilable snippet, punt with user parameter types
-            qpt = msi.parameterTypes();
-        } else {
-            qpt = signature.substring(0, paren + 1);
-        }
-        return qpt;
+
+        // Extract the parameter type string from the method signature,
+        // if method did not compile use the user-supplied parameter types
+        return paren >= 0
+                ? signature.substring(0, paren + 1)
+                : msi.parameterTypes();
     }
 
-    SnippetEvent event(String value, Exception exception) {
+    SnippetEvent event(String value, JShellException exception) {
         boolean wasSignatureChanged = sigChanged();
         state.debug(DBG_EVNT, "Snippet: %s id: %s before: %s status: %s sig: %b cause: %s\n",
                 si, si.id(), prevStatus, si.status(), wasSignatureChanged, causalSnippet);
@@ -433,7 +438,9 @@ final class Unit {
     }
 
     List<SnippetEvent> secondaryEvents() {
-        return secondaryEvents;
+        return secondaryEvents==null
+                ? Collections.emptyList()
+                : secondaryEvents;
     }
 
     @Override
@@ -459,7 +466,7 @@ final class Unit {
             for (Diag diag : diags) {
                 if (diag.isError()) {
                     if (diag.isResolutionError()) {
-                        String m = diag.getMessage(null);
+                        String m = diag.getMessage(PARSED_LOCALE);
                         int symPos = m.indexOf(RESOLVE_ERROR_SYMBOL);
                         if (symPos >= 0) {
                             m = m.substring(symPos + RESOLVE_ERROR_SYMBOL.length());

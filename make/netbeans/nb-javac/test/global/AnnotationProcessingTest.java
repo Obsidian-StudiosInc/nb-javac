@@ -136,12 +136,13 @@ public class AnnotationProcessingTest extends TestCase {
         assertTrue(sourceOutput.mkdirs());
 
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
         DiagnosticCollector<JavaFileObject> diagnostic = new DiagnosticCollector<JavaFileObject>();
-        List<String> options = new ArrayList<String>(Arrays.asList("-bootclasspath",  bootPath, "-source", "1.7", "-classpath", myself.toExternalForm(), "-processor", AP.class.getName(), "-s", sourceOutput.getAbsolutePath(), "-XDbackgroundCompilation"));
+        List<String> options = new ArrayList<String>(Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-classpath", myself.toExternalForm(), "-processor", AP.class.getName(), "-s", sourceOutput.getAbsolutePath(), "-XDbackgroundCompilation"));
         options.addAll(extraOptions);
         JavacTask ct = (JavacTask)tool.getTask(null, null, diagnostic, options, null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();
@@ -178,13 +179,14 @@ public class AnnotationProcessingTest extends TestCase {
         }
 
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
         DiagnosticCollector<JavaFileObject> diagnostic = new DiagnosticCollector<JavaFileObject>();
         List<String> options = new LinkedList<String>();
-        options.addAll(Arrays.asList("-bootclasspath",  bootPath, "-source", "1.7", "-classpath", myself.toExternalForm()));
+        options.addAll(Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-classpath", myself.toExternalForm()));
         if (apName != null) {
             options.addAll(Arrays.asList("-processor", apName));
         } else {
@@ -213,11 +215,13 @@ public class AnnotationProcessingTest extends TestCase {
         assertTrue(sourceOutput.mkdirs());
 
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
         
         Main.compile(new String[] {
             "-bootclasspath",  bootPath,
-            "-source", "1.6",
+            "-source", version,
+            "-target", version,
             "-classpath", myself.toExternalForm(),
             "-processor", ClassBasedAP.class.getName(),
             "-s", sourceOutput.getAbsolutePath(),
@@ -251,12 +255,13 @@ public class AnnotationProcessingTest extends TestCase {
 
     public void testKeepBrokenAttributes228628() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; @Test(NonExistent.class) public @interface Test { public Class<?> value(); }";
 
-        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new global.Test116436.MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov", "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new global.Test116436.MyFileObject(code)));
         Iterable<? extends Element> classes = ct.enter();
         TypeElement test = (TypeElement) classes.iterator().next();
         

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,6 +61,7 @@ import java.util.function.BiPredicate;
 import java.util.stream.Stream;
 
 import javax.lang.model.element.ElementVisitor;
+import javax.lang.model.type.TypeKind;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Flags.BLOCK;
@@ -70,7 +71,6 @@ import static com.sun.tools.javac.code.Kinds.Kind.*;
 import static com.sun.tools.javac.code.TypeTag.*;
 import static com.sun.tools.javac.comp.Resolve.MethodResolutionPhase.*;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
-import javax.lang.model.type.TypeKind;
 
 /** Helper class for name resolution, used mostly by the attribution phase.
  *
@@ -94,11 +94,13 @@ public class Resolve {
     JCDiagnostic.Factory diags;
     public final boolean allowMethodHandles;
     public final boolean allowFunctionalInterfaceMostSpecific;
+    public final boolean allowModules;
     public final boolean checkVarargsAccessAfterResolution;
-    private final boolean debugResolve;
     private final boolean compactMethodDiags;
     final EnumSet<VerboseResolutionMode> verboseResolutionMode;
     private final boolean ideMode;
+
+    private final boolean checkModuleAccess;
 
     WriteableScope polymorphicSignatureScope;
 
@@ -122,7 +124,6 @@ public class Resolve {
         diags = JCDiagnostic.Factory.instance(context);
         Source source = Source.instance(context);
         Options options = Options.instance(context);
-        debugResolve = options.isSet("debugresolve");
         compactMethodDiags = options.isSet(Option.XDIAGS, "compact") ||
                 options.isUnset(Option.XDIAGS) && options.isUnset("rawDiagnostics");
         verboseResolutionMode = VerboseResolutionMode.getVerboseResolutionMode(options);
@@ -134,6 +135,12 @@ public class Resolve {
         polymorphicSignatureScope = WriteableScope.create(syms.noSymbol);
 
         inapplicableMethodException = new InapplicableMethodException(diags);
+
+        allowModules = source.allowModules();
+
+        // The following is required, for now, to support building
+        // Swing beaninfo via javadoc.
+        checkModuleAccess = !options.isSet("noModules");
         this.ideMode = options.get("ide") != null;
     }
 
@@ -316,8 +323,19 @@ public class Resolve {
                     env.toplevel.packge == c.packge();
                 break;
             default: // error recovery
+                isAccessible = true;
+                break;
             case PUBLIC:
                 isAccessible = true;
+                if (allowModules && checkModuleAccess) {
+                    ModuleSymbol currModule = env.toplevel.modle;
+                    currModule.complete();
+                    PackageSymbol p = c.packge();
+                    isAccessible =
+                        (currModule == p.modle) || currModule.visiblePackages.get(p.fullname) == p || p == syms.rootPackage;
+                } else {
+                    isAccessible = true;
+                }
                 break;
             case PROTECTED:
                 isAccessible =
@@ -731,7 +749,8 @@ public class Resolve {
                                     Warner warn) {
             //should we expand formals?
             boolean useVarargs = deferredAttrContext.phase != null && deferredAttrContext.phase.isVarargsRequired();
-            List<JCExpression> trees = TreeInfo.args(env.tree);
+            JCTree callTree = treeForDiagnostics(env);
+            List<JCExpression> trees = TreeInfo.args(callTree);
 
             //inference context used during this method check
             InferenceContext inferenceContext = deferredAttrContext.inferenceContext;
@@ -740,7 +759,7 @@ public class Resolve {
 
             if (varargsFormal == null &&
                     argtypes.size() != formals.size()) {
-                reportMC(env.tree, MethodCheckDiag.ARITY_MISMATCH, inferenceContext); // not enough args
+                reportMC(callTree, MethodCheckDiag.ARITY_MISMATCH, inferenceContext); // not enough args
             }
 
             while (argtypes.nonEmpty() && formals.nonEmpty() && formals.head != varargsFormal) {
@@ -752,7 +771,7 @@ public class Resolve {
             }
 
             if (formals.head != varargsFormal) {
-                reportMC(env.tree, MethodCheckDiag.ARITY_MISMATCH, inferenceContext); // not enough args
+                reportMC(callTree, MethodCheckDiag.ARITY_MISMATCH, inferenceContext); // not enough args
             }
 
             if (useVarargs) {
@@ -767,6 +786,11 @@ public class Resolve {
                 }
             }
         }
+
+            // where
+            private JCTree treeForDiagnostics(Env<AttrContext> env) {
+                return env.info.preferredTreeForDiagnostics != null ? env.info.preferredTreeForDiagnostics : env.tree;
+            }
 
         /**
          * Does the actual argument conforms to the corresponding formal?
@@ -1135,13 +1159,94 @@ public class Resolve {
             private boolean unrelatedFunctionalInterfaces(Type t, Type s) {
                 return types.isFunctionalInterface(t.tsym) &&
                        types.isFunctionalInterface(s.tsym) &&
-                       types.asSuper(t, s.tsym) == null &&
-                       types.asSuper(s, t.tsym) == null;
+                       unrelatedInterfaces(t, s);
+            }
+
+            /** Whether {@code t} and {@code s} are unrelated interface types; recurs on intersections. **/
+            private boolean unrelatedInterfaces(Type t, Type s) {
+                if (t.isCompound()) {
+                    for (Type ti : types.interfaces(t)) {
+                        if (!unrelatedInterfaces(ti, s)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                } else if (s.isCompound()) {
+                    for (Type si : types.interfaces(s)) {
+                        if (!unrelatedInterfaces(t, si)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                } else {
+                    return types.asSuper(t, s.tsym) == null && types.asSuper(s, t.tsym) == null;
+                }
             }
 
             /** Parameters {@code t} and {@code s} are unrelated functional interface types. */
             private boolean functionalInterfaceMostSpecific(Type t, Type s, JCTree tree) {
-                FunctionalInterfaceMostSpecificChecker msc = new FunctionalInterfaceMostSpecificChecker(t, s);
+                Type tDesc = types.findDescriptorType(types.capture(t));
+                Type tDescNoCapture = types.findDescriptorType(t);
+                Type sDesc = types.findDescriptorType(s);
+                final List<Type> tTypeParams = tDesc.getTypeArguments();
+                final List<Type> tTypeParamsNoCapture = tDescNoCapture.getTypeArguments();
+                final List<Type> sTypeParams = sDesc.getTypeArguments();
+
+                // compare type parameters
+                if (tDesc.hasTag(FORALL) && !types.hasSameBounds((ForAll) tDesc, (ForAll) tDescNoCapture)) {
+                    return false;
+                }
+                // can't use Types.hasSameBounds on sDesc because bounds may have ivars
+                List<Type> tIter = tTypeParams;
+                List<Type> sIter = sTypeParams;
+                while (tIter.nonEmpty() && sIter.nonEmpty()) {
+                    Type tBound = tIter.head.getUpperBound();
+                    Type sBound = types.subst(sIter.head.getUpperBound(), sTypeParams, tTypeParams);
+                    if (tBound.containsAny(tTypeParams) && inferenceContext().free(sBound)) {
+                        return false;
+                    }
+                    if (!types.isSameType(tBound, inferenceContext().asUndetVar(sBound))) {
+                        return false;
+                    }
+                    tIter = tIter.tail;
+                    sIter = sIter.tail;
+                }
+                if (!tIter.isEmpty() || !sIter.isEmpty()) {
+                    return false;
+                }
+
+                // compare parameters
+                List<Type> tParams = tDesc.getParameterTypes();
+                List<Type> tParamsNoCapture = tDescNoCapture.getParameterTypes();
+                List<Type> sParams = sDesc.getParameterTypes();
+                while (tParams.nonEmpty() && tParamsNoCapture.nonEmpty() && sParams.nonEmpty()) {
+                    Type tParam = tParams.head;
+                    Type tParamNoCapture = types.subst(tParamsNoCapture.head, tTypeParamsNoCapture, tTypeParams);
+                    Type sParam = types.subst(sParams.head, sTypeParams, tTypeParams);
+                    if (tParam.containsAny(tTypeParams) && inferenceContext().free(sParam)) {
+                        return false;
+                    }
+                    if (!types.isSubtype(inferenceContext().asUndetVar(sParam), tParam)) {
+                        return false;
+                    }
+                    if (!types.isSameType(tParamNoCapture, inferenceContext().asUndetVar(sParam))) {
+                        return false;
+                    }
+                    tParams = tParams.tail;
+                    tParamsNoCapture = tParamsNoCapture.tail;
+                    sParams = sParams.tail;
+                }
+                if (!tParams.isEmpty() || !tParamsNoCapture.isEmpty() || !sParams.isEmpty()) {
+                    return false;
+                }
+
+                // compare returns
+                Type tRet = tDesc.getReturnType();
+                Type sRet = types.subst(sDesc.getReturnType(), sTypeParams, tTypeParams);
+                if (tRet.containsAny(tTypeParams) && inferenceContext().free(sRet)) {
+                    return false;
+                }
+                MostSpecificFunctionReturnChecker msc = new MostSpecificFunctionReturnChecker(tRet, sRet);
                 msc.scan(tree);
                 return msc.result;
             }
@@ -1150,16 +1255,16 @@ public class Resolve {
              * Tests whether one functional interface type can be considered more specific
              * than another unrelated functional interface type for the scanned expression.
              */
-            class FunctionalInterfaceMostSpecificChecker extends DeferredAttr.PolyScanner {
+            class MostSpecificFunctionReturnChecker extends DeferredAttr.PolyScanner {
 
-                final Type t;
-                final Type s;
+                final Type tRet;
+                final Type sRet;
                 boolean result;
 
                 /** Parameters {@code t} and {@code s} are unrelated functional interface types. */
-                FunctionalInterfaceMostSpecificChecker(Type t, Type s) {
-                    this.t = t;
-                    this.s = s;
+                MostSpecificFunctionReturnChecker(Type tRet, Type sRet) {
+                    this.tRet = tRet;
+                    this.sRet = sRet;
                     result = true;
                 }
 
@@ -1176,29 +1281,18 @@ public class Resolve {
 
                 @Override
                 public void visitReference(JCMemberReference tree) {
-                    Type desc_t = types.findDescriptorType(t);
-                    Type desc_s = types.findDescriptorType(s);
-                    // use inference variables here for more-specific inference (18.5.4)
-                    if (!types.isSameTypes(desc_t.getParameterTypes(),
-                            inferenceContext().asUndetVars(desc_s.getParameterTypes()))) {
+                    if (sRet.hasTag(VOID)) {
+                        result &= true;
+                    } else if (tRet.hasTag(VOID)) {
                         result &= false;
+                    } else if (tRet.isPrimitive() != sRet.isPrimitive()) {
+                        boolean retValIsPrimitive =
+                                tree.refPolyKind == PolyKind.STANDALONE &&
+                                tree.sym.type.getReturnType().isPrimitive();
+                        result &= (retValIsPrimitive == tRet.isPrimitive()) &&
+                                  (retValIsPrimitive != sRet.isPrimitive());
                     } else {
-                        // compare return types
-                        Type ret_t = desc_t.getReturnType();
-                        Type ret_s = desc_s.getReturnType();
-                        if (ret_s.hasTag(VOID)) {
-                            result &= true;
-                        } else if (ret_t.hasTag(VOID)) {
-                            result &= false;
-                        } else if (ret_t.isPrimitive() != ret_s.isPrimitive()) {
-                            boolean retValIsPrimitive =
-                                    tree.refPolyKind == PolyKind.STANDALONE &&
-                                    tree.sym.type.getReturnType().isPrimitive();
-                            result &= (retValIsPrimitive == ret_t.isPrimitive()) &&
-                                      (retValIsPrimitive != ret_s.isPrimitive());
-                        } else {
-                            result &= compatibleBySubtyping(ret_t, ret_s);
-                        }
+                        result &= compatibleBySubtyping(tRet, sRet);
                     }
                 }
 
@@ -1209,32 +1303,24 @@ public class Resolve {
 
                 @Override
                 public void visitLambda(JCLambda tree) {
-                    Type desc_t = types.findDescriptorType(t);
-                    Type desc_s = types.findDescriptorType(s);
-                    // use inference variables here for more-specific inference (18.5.4)
-                    if (!types.isSameTypes(desc_t.getParameterTypes(),
-                            inferenceContext().asUndetVars(desc_s.getParameterTypes()))) {
+                    if (sRet.hasTag(VOID)) {
+                        result &= true;
+                    } else if (tRet.hasTag(VOID)) {
                         result &= false;
                     } else {
-                        // compare return types
-                        Type ret_t = desc_t.getReturnType();
-                        Type ret_s = desc_s.getReturnType();
-                        if (ret_s.hasTag(VOID)) {
-                            result &= true;
-                        } else if (ret_t.hasTag(VOID)) {
-                            result &= false;
-                        } else if (unrelatedFunctionalInterfaces(ret_t, ret_s)) {
-                            for (JCExpression expr : lambdaResults(tree)) {
-                                result &= functionalInterfaceMostSpecific(ret_t, ret_s, expr);
+                        List<JCExpression> lambdaResults = lambdaResults(tree);
+                        if (!lambdaResults.isEmpty() && unrelatedFunctionalInterfaces(tRet, sRet)) {
+                            for (JCExpression expr : lambdaResults) {
+                                result &= functionalInterfaceMostSpecific(tRet, sRet, expr);
                             }
-                        } else if (ret_t.isPrimitive() != ret_s.isPrimitive()) {
-                            for (JCExpression expr : lambdaResults(tree)) {
+                        } else if (!lambdaResults.isEmpty() && tRet.isPrimitive() != sRet.isPrimitive()) {
+                            for (JCExpression expr : lambdaResults) {
                                 boolean retValIsPrimitive = expr.isStandalone() && expr.type.isPrimitive();
-                                result &= (retValIsPrimitive == ret_t.isPrimitive()) &&
-                                          (retValIsPrimitive != ret_s.isPrimitive());
+                                result &= (retValIsPrimitive == tRet.isPrimitive()) &&
+                                        (retValIsPrimitive != sRet.isPrimitive());
                             }
                         } else {
-                            result &= compatibleBySubtyping(ret_t, ret_s);
+                            result &= compatibleBySubtyping(tRet, sRet);
                         }
                     }
                 }
@@ -1857,17 +1943,23 @@ public class Resolve {
         boolean staticOnly = false;
         while (env1.outer != null) {
             if (isStatic(env1)) staticOnly = true;
-            Symbol sym = findMethod(
-                env1, env1.enclClass.sym.type, name, argtypes, typeargtypes,
-                allowBoxing, useVarargs);
-            if (sym.exists()) {
-                if (staticOnly &&
-                    sym.kind == MTH &&
-                    sym.owner.kind == TYP &&
-                    (sym.flags() & STATIC) == 0) return new StaticError(sym);
-                else return sym;
-            } else {
-                bestSoFar = bestOf(bestSoFar, sym);
+            Assert.check(env1.info.preferredTreeForDiagnostics == null);
+            env1.info.preferredTreeForDiagnostics = env.tree;
+            try {
+                Symbol sym = findMethod(
+                    env1, env1.enclClass.sym.type, name, argtypes, typeargtypes,
+                    allowBoxing, useVarargs);
+                if (sym.exists()) {
+                    if (staticOnly &&
+                        sym.kind == MTH &&
+                        sym.owner.kind == TYP &&
+                        (sym.flags() & STATIC) == 0) return new StaticError(sym);
+                    else return sym;
+                } else {
+                    bestSoFar = bestOf(bestSoFar, sym);
+                }
+            } finally {
+                env1.info.preferredTreeForDiagnostics = null;
             }
             if ((env1.enclClass.sym.flags() & STATIC) != 0) staticOnly = true;
             env1 = env1.outer;
@@ -1917,7 +2009,7 @@ public class Resolve {
      */
     Symbol loadClass(Env<AttrContext> env, Name name) {
         try {
-            ClassSymbol c = finder.loadClass(name);
+            ClassSymbol c = finder.loadClass(env.toplevel.modle, name);
             if (c.type.isErroneous())
                 return typeNotFound;
             return isAccessible(env, c) ? c : new AccessError(c);
@@ -1929,10 +2021,21 @@ public class Resolve {
                 throw err;
             }
         } catch (CompletionFailure ex) {
+            //even if a class cannot be found in the current module and packages in modules it depends on that
+            //are exported for any or this module, the class may exist internally in some of these modules,
+            //or may exist in a module on which this module does not depend. Provide better diagnostic in
+            //such cases by looking for the class in any module:
+            for (ModuleSymbol ms : syms.getAllModules()) {
+                //do not load currently unloaded classes, to avoid too eager completion of random things in other modules:
+                ClassSymbol clazz = syms.getClass(ms, name);
+
+                if (clazz != null) {
+                    return new AccessError(clazz);
+                }
+            }
             return typeNotFound;
         }
     }
-
 
     /**
      * Find a type declared in a scope (not inherited).  Return null
@@ -2134,7 +2237,7 @@ public class Resolve {
         }
 
         if (kind.contains(KindSelector.PCK))
-            return syms.enterPackage(name);
+            return syms.lookupPackage(env.toplevel.modle, name);
         else return bestSoFar;
     }
 
@@ -2150,7 +2253,7 @@ public class Resolve {
         Symbol bestSoFar = typeNotFound;
         PackageSymbol pack = null;
         if (kind.contains(KindSelector.PCK)) {
-            pack = syms.enterPackage(fullname);
+            pack = syms.lookupPackage(env.toplevel.modle, fullname);
             if (pack.exists()) return pack;
         }
         if (kind.contains(KindSelector.TYP)) {
@@ -2438,13 +2541,19 @@ public class Resolve {
         Type mtype = infer.instantiatePolymorphicSignatureInstance(env,
                 (MethodSymbol)spMethod, currentResolutionContext, argtypes);
         for (Symbol sym : polymorphicSignatureScope.getSymbolsByName(spMethod.name)) {
-            if (types.isSameType(mtype, sym.type)) {
-               return sym;
+            // Check that there is already a method symbol for the method
+            // type and owner
+            if (types.isSameType(mtype, sym.type) &&
+                spMethod.owner == sym.owner) {
+                return sym;
             }
         }
 
-        // create the desired method
-        long flags = ABSTRACT | HYPOTHETICAL | spMethod.flags() & Flags.AccessFlags;
+        // Create the desired method
+        // Retain static modifier is to support invocations to
+        // MethodHandle.linkTo* methods
+        long flags = ABSTRACT | HYPOTHETICAL |
+                     spMethod.flags() & (Flags.AccessFlags | Flags.STATIC);
         Symbol msym = new MethodSymbol(flags, spMethod.name, mtype, spMethod.owner) {
             @Override
             public Symbol baseSymbol() {
@@ -2801,8 +2910,6 @@ public class Resolve {
                             .map(c -> StaticKind.from(c.sym))
                             .reduce(StaticKind::reduce)
                             .orElse(StaticKind.UNDEFINED);
-                case HIDDEN:
-                    return StaticKind.from(((AccessError)sym).sym);
                 default:
                     return StaticKind.UNDEFINED;
             }
@@ -3327,8 +3434,8 @@ public class Resolve {
                             types.asSuper(env.enclClass.sym.type, c), env.enclClass.sym);
                 }
             }
-            //find a direct superinterface that is a subtype of 'c'
-            for (Type i : types.interfaces(env.enclClass.sym.type)) {
+            //find a direct super type that is a subtype of 'c'
+            for (Type i : types.directSupertypes(env.enclClass.sym.type)) {
                 if (i.tsym.isSubClass(c, types) && i.tsym != c) {
                     log.error(pos, "illegal.default.super.call", c,
                             diags.fragment("redundant.supertype", c, i));
@@ -3345,7 +3452,7 @@ public class Resolve {
         ListBuffer<Type> result = new ListBuffer<>();
         for (Type t1 : types.interfaces(t)) {
             boolean shouldAdd = true;
-            for (Type t2 : types.interfaces(t)) {
+            for (Type t2 : types.directSupertypes(t)) {
                 if (t1 != t2 && types.isSubtypeNoCapture(t2, t1)) {
                     shouldAdd = false;
                 }
@@ -3395,7 +3502,7 @@ public class Resolve {
         if (env1 != null) {
             while (env1 != null && env1.outer != null) {
                 if (isStatic(env1)) staticOnly = true;
-                if (env1.enclClass.sym.isSubClass(member.owner, types)) {
+                if (env1.enclClass.sym.isSubClass(member.owner.enclClass(), types)) {
                     Symbol sym = env1.info.scope.findFirst(name);
                     if (sym != null) {
                         if (staticOnly) sym = new StaticError(sym);
@@ -3900,8 +4007,6 @@ public class Resolve {
             super(HIDDEN, sym, "access error");
             this.env = env;
             this.site = site;
-            if (debugResolve)
-                log.error("proc.messager", sym + " @ " + site + " is inaccessible.");
         }
 
         @Override
@@ -3927,9 +4032,15 @@ public class Resolve {
             else if ((sym.flags() & PUBLIC) != 0
                 || (env != null && this.site != null
                     && !isAccessible(env, this.site))) {
-                return diags.create(dkind, log.currentSource(),
-                        pos, "not.def.access.class.intf.cant.access",
-                    sym, sym.location());
+                if (sym.owner.kind == PCK) {
+                    return diags.create(dkind, log.currentSource(),
+                            pos, "not.def.access.package.cant.access",
+                        sym, sym.location());
+                } else {
+                    return diags.create(dkind, log.currentSource(),
+                            pos, "not.def.access.class.intf.cant.access",
+                        sym, sym.location());
+                }
             }
             else if ((sym.flags() & (PRIVATE | PROTECTED)) != 0) {
                 return diags.create(dkind, log.currentSource(),
@@ -3941,6 +4052,18 @@ public class Resolve {
                 return diags.create(dkind, log.currentSource(),
                         pos, "not.def.public.cant.access", sym, sym.location());
             }
+        }
+
+        private String toString(Type type) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(type);
+            if (type != null) {
+                sb.append("[tsym:").append(type.tsym);
+                if (type.tsym != null)
+                    sb.append("packge:").append(type.tsym.packge());
+                sb.append("]");
+            }
+            return sb.toString();
         }
     }
 
@@ -4050,7 +4173,12 @@ public class Resolve {
                         found = false;
                         break;
                     }
-                    allThrown = chk.intersect(allThrown, mt2.getThrownTypes());
+                    List<Type> thrownTypes2 = mt2.getThrownTypes();
+                    if (mt.hasTag(FORALL) && mt2.hasTag(FORALL)) {
+                        // if both are generic methods, adjust thrown types ahead of intersection computation
+                        thrownTypes2 = types.subst(thrownTypes2, mt2.getTypeArguments(), mt.getTypeArguments());
+                    }
+                    allThrown = chk.intersect(allThrown, thrownTypes2);
                 }
                 if (found) {
                     //all ambiguous methods were abstract and one method had
@@ -4232,7 +4360,11 @@ public class Resolve {
                     DiagnosticPosition preferedPos, DiagnosticSource preferredSource,
                     DiagnosticType preferredKind, JCDiagnostic d) {
                 JCDiagnostic cause = (JCDiagnostic)d.getArgs()[causeIndex];
-                return diags.create(preferredKind, preferredSource, d.getDiagnosticPosition(),
+                DiagnosticPosition pos = d.getDiagnosticPosition();
+                if (pos == null) {
+                    pos = preferedPos;
+                }
+                return diags.create(preferredKind, preferredSource, pos,
                         "prob.found.req", cause);
             }
         }

@@ -68,6 +68,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static com.sun.tools.javac.code.TypeTag.ARRAY;
 import static com.sun.tools.javac.code.TypeTag.DEFERRED;
 import static com.sun.tools.javac.code.TypeTag.FORALL;
 import static com.sun.tools.javac.code.TypeTag.METHOD;
@@ -275,7 +276,7 @@ public class ArgumentAttr extends JCTree.Visitor {
                 res.type != null && res.type.hasTag(FORALL) ||
                 (res.flags() & Flags.VARARGS) != 0 ||
                 (TreeInfo.isStaticSelector(exprTree, tree.name.table.names) &&
-                exprTree.type.isRaw())) {
+                exprTree.type.isRaw() && !exprTree.type.hasTag(ARRAY))) {
             tree.overloadKind = JCMemberReference.OverloadKind.OVERLOADED;
         } else {
             tree.overloadKind = JCMemberReference.OverloadKind.UNOVERLOADED;
@@ -364,18 +365,22 @@ public class ArgumentAttr extends JCTree.Visitor {
 
         @Override
         Type speculativeType(Symbol msym, MethodResolutionPhase phase) {
-            for (Map.Entry<ResultInfo, Type> _entry : speculativeTypes.entrySet()) {
-                DeferredAttrContext deferredAttrContext = _entry.getKey().checkContext.deferredAttrContext();
-                if (deferredAttrContext.phase == phase && deferredAttrContext.msym == msym) {
-                    return _entry.getValue();
+            if (pertinentToApplicability) {
+                for (Map.Entry<ResultInfo, Type> _entry : speculativeTypes.entrySet()) {
+                    DeferredAttrContext deferredAttrContext = _entry.getKey().checkContext.deferredAttrContext();
+                    if (deferredAttrContext.phase == phase && deferredAttrContext.msym == msym) {
+                        return _entry.getValue();
+                    }
                 }
+                return Type.noType;
+            } else {
+                return super.speculativeType(msym, phase);
             }
-            return Type.noType;
         }
 
         @Override
         JCTree speculativeTree(DeferredAttrContext deferredAttrContext) {
-            return speculativeTree;
+            return pertinentToApplicability ? speculativeTree : super.speculativeTree(deferredAttrContext);
         }
 
         /**

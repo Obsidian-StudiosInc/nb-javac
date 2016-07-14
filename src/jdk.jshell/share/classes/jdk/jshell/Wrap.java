@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,12 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.jshell;
 
-import java.util.ArrayList;
-import java.util.List;
-import static jdk.internal.jshell.remote.RemoteCodes.DOIT_METHOD_NAME;
+import java.util.Arrays;
+import static java.util.stream.Collectors.joining;
+import static jdk.jshell.Util.DOIT_METHOD_NAME;
 
 /**
  * Wrapping of source into Java methods, fields, etc.  All but outer layer
@@ -57,30 +58,12 @@ abstract class Wrap implements GeneralWrap {
         return methodWrap("", source, "");
     }
 
-    public static Wrap corralledMethod(String source, Range modRange, Range tpRange, Range typeRange, String name, Range paramRange, Range throwsRange, int id) {
-        List<Object> l = new ArrayList<>();
-        l.add("    public static\n    ");
-        if (!modRange.isEmpty()) {
-            l.add(new RangeWrap(source, modRange));
-            l.add(" ");
-        }
-        if (tpRange != null) {
-            l.add("<");
-            l.add(new RangeWrap(source, tpRange));
-            l.add("> ");
-        }
-        l.add(new RangeWrap(source, typeRange));
-        l.add(" " + name + "(\n        ");
-        if (paramRange != null) {
-            l.add(new RangeWrap(source, paramRange));
-        }
-        l.add(") ");
-        if (throwsRange != null) {
-            l.add("throws ");
-            l.add(new RangeWrap(source, throwsRange));
-        }
-        l.add(" {\n        throw new jdk.internal.jshell.remote.RemoteResolutionException(" + id + ");\n}\n");
-        return new CompoundWrap(l.toArray());
+    private static String indent(int n) {
+        return "                              ".substring(0, n * 4);
+    }
+
+    private static String nlindent(int n) {
+        return "\n" + indent(n);
     }
 
     /**
@@ -125,7 +108,7 @@ abstract class Wrap implements GeneralWrap {
         return new CompoundWrap(varDecl, wInitMeth);
     }
 
-    public static Wrap importWrap(String source) {
+    public static Wrap simpleWrap(String source) {
         return new NoWrap(source);
     }
 
@@ -256,6 +239,27 @@ abstract class Wrap implements GeneralWrap {
             return 0;
         }
 
+        Wrap wrapIndexToWrap(long wi) {
+            int before = 0;
+            Wrap w = null;
+            for (Object o : os) {
+                if (o instanceof String) {
+                    String s = (String) o;
+                    before += s.length();
+                } else if (o instanceof Wrap) {
+                    w = (Wrap) o;
+                    int len = w.wrapped().length();
+                    if ((wi - before) <= len) {
+                        //System.err.printf("Defer to wrap %s - wi: %d. before; %d   -- %s  >>> %s\n",
+                        //        w, wi, before, w.debugPos(wi - before), w.wrapped());
+                        return w;
+                    }
+                    before += len;
+                }
+            }
+            return w;
+        }
+
         @Override
         public int wrapIndexToSnippetIndex(int wi) {
             int before = 0;
@@ -305,6 +309,25 @@ abstract class Wrap implements GeneralWrap {
             return 0;
         }
 
+        Wrap wrapLineToWrap(int wline) {
+            int before = 0;
+            Wrap w = null;
+            for (Object o : os) {
+                if (o instanceof String) {
+                    String s = (String) o;
+                    before += countLines(s);
+                } else if (o instanceof Wrap) {
+                    w = (Wrap) o;
+                    int lns = countLines(w.wrapped());
+                    if ((wline - before) < lns) {
+                        return w;
+                    }
+                    before += lns;
+                }
+            }
+            return w;
+        }
+
         @Override
         public int wrapLineToSnippetLine(int wline) {
             int before = 0;
@@ -334,7 +357,10 @@ abstract class Wrap implements GeneralWrap {
             return snlineLast;
         }
 
-
+        @Override
+        public String toString() {
+            return "CompoundWrap(" + Arrays.stream(os).map(u -> u.toString()).collect(joining(",")) + ")";
+        }
     }
 
     private static class RangeWrap extends Wrap {
@@ -423,6 +449,10 @@ abstract class Wrap implements GeneralWrap {
             return lastSnline;
         }
 
+        @Override
+        public String toString() {
+            return "RangeWrap(" + range + ")";
+        }
     }
 
     private static class NoWrap extends RangeWrap {

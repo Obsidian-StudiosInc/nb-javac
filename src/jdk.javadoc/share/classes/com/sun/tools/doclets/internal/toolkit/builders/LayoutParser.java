@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package com.sun.tools.doclets.internal.toolkit.builders;
 
 import java.io.*;
@@ -48,6 +49,7 @@ import com.sun.tools.doclets.internal.toolkit.util.*;
  * @since 1.5
  * @see SAXParser
  */
+@Deprecated
 public class LayoutParser extends DefaultHandler {
 
     /**

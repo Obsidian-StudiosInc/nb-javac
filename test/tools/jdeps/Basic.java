@@ -27,7 +27,7 @@
  * @summary Basic tests for jdeps tool
  * @modules java.management
  *          jdk.jdeps/com.sun.tools.jdeps
- * @build Test p.Foo p.Bar p.C p.SubClass q.Gee javax.activity.NotCompactProfile
+ * @build Test p.Foo p.Bar p.C p.SubClass q.Gee
  * @run main Basic
  */
 
@@ -37,9 +37,10 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.*;
+import java.util.stream.Collectors;
+
 import static java.nio.file.StandardCopyOption.*;
 
 public class Basic {
@@ -57,10 +58,9 @@ public class Basic {
              new String[] {"java.lang", "p"},
              new String[] {"compact1", "not found"});
         // test a directory
-        // also test non-SE javax.activity class dependency
         test(new File(testDir, "p"),
-             new String[] {"java.lang", "java.util", "java.lang.management", "javax.activity", "javax.crypto"},
-             new String[] {"compact1", "compact1", "compact3", testDir.getName(), "compact1"},
+             new String[] {"java.lang", "java.util", "java.lang.management", "javax.crypto"},
+             new String[] {"compact1", "compact1", "compact3", "compact1"},
              new String[] {"-classpath", testDir.getPath()});
         // test class-level dependency output
         test(new File(testDir, "Test.class"),
@@ -69,13 +69,13 @@ public class Basic {
              new String[] {"-verbose:class"});
         // test -filter:none option
         test(new File(testDir, "p"),
-             new String[] {"java.lang", "java.util", "java.lang.management", "javax.activity", "javax.crypto", "p"},
-             new String[] {"compact1", "compact1", "compact3", testDir.getName(), "compact1", "p"},
+             new String[] {"java.lang", "java.util", "java.lang.management", "javax.crypto", "p"},
+             new String[] {"compact1", "compact1", "compact3", "compact1", "p"},
              new String[] {"-classpath", testDir.getPath(), "-verbose:package", "-filter:none"});
         // test -filter:archive option
         test(new File(testDir, "p"),
-             new String[] {"java.lang", "java.util", "java.lang.management", "javax.activity", "javax.crypto"},
-             new String[] {"compact1", "compact1", "compact3", testDir.getName(), "compact1"},
+             new String[] {"java.lang", "java.util", "java.lang.management", "javax.crypto"},
+             new String[] {"compact1", "compact1", "compact3", "compact1"},
              new String[] {"-classpath", testDir.getPath(), "-verbose:package", "-filter:archive"});
         // test -p option
         test(new File(testDir, "Test.class"),
@@ -107,8 +107,8 @@ public class Basic {
         // test -classpath and -include options
         test(null,
              new String[] {"java.lang", "java.util", "java.lang.management",
-                           "javax.activity", "javax.crypto"},
-             new String[] {"compact1", "compact1", "compact3", testDir.getName(), "compact1"},
+                           "javax.crypto"},
+             new String[] {"compact1", "compact1", "compact3", "compact1"},
              new String[] {"-classpath", testDir.getPath(), "-include", "p.+|Test.class"});
         test(new File(testDir, "Test.class"),
              new String[] {"java.lang.Object", "java.lang.String", "p.Foo", "p.Bar"},
@@ -159,7 +159,7 @@ public class Basic {
     Map<String,String> jdeps(String... args) {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
-        System.err.println("jdeps " + Arrays.toString(args));
+        System.err.println("jdeps " + Arrays.stream(args).collect(Collectors.joining(" ")));
         int rc = com.sun.tools.jdeps.Main.run(args, pw);
         pw.close();
         String out = sw.toString();

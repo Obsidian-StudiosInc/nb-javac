@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @bug 8080357
  * @summary Tests for EvaluationState.methods
  * @build KullaTesting TestingInputStream ExpectedDiagnostic
  * @run testng MethodsTest
@@ -36,7 +37,6 @@ import jdk.jshell.Snippet.Status;
 import org.testng.annotations.Test;
 
 import static jdk.jshell.Snippet.Status.*;
-import static jdk.jshell.Snippet.SubKind.*;
 
 @Test
 public class MethodsTest extends KullaTesting {
@@ -58,7 +58,7 @@ public class MethodsTest extends KullaTesting {
         MethodSnippet m1 = (MethodSnippet) assertDeclareFail("void f() { return g(); }", "compiler.err.prob.found.req");
         assertMethodDeclSnippet(m1, "f", "()void", REJECTED, 0, 2);
         MethodSnippet m2 = methodKey(assertEval("int f() { return g(); }",
-                ste(m1, REJECTED, RECOVERABLE_DEFINED, true, null)));
+                added(RECOVERABLE_DEFINED)));
         assertMethodDeclSnippet(m1, "f", "()void", REJECTED, 0, 2);
         assertMethodDeclSnippet(m2, "f", "()int", RECOVERABLE_DEFINED, 1, 0);
     }
@@ -72,6 +72,15 @@ public class MethodsTest extends KullaTesting {
         assertMethodDeclSnippet(m2, "f", "(A.Bar)void", RECOVERABLE_NOT_DEFINED, 1, 0);
         assertDrop(m1, ste(m1, RECOVERABLE_NOT_DEFINED, DROPPED, false, null));
         assertMethodDeclSnippet(m1, "f", "(Bar)void", DROPPED, 1, 0);
+    }
+
+    // 8080357
+    public void testNonReplUnresolved() {
+        // internal case
+        assertEval("class CCC {}", added(VALID));
+        assertEval("void f1() { CCC.xxxx(); }", added(RECOVERABLE_DEFINED));
+        // external case, not recoverable
+        assertDeclareFail("void f2() { System.xxxx(); }", "compiler.err.cant.resolve.location.args");
     }
 
     public void methods() {
@@ -105,6 +114,26 @@ public class MethodsTest extends KullaTesting {
         assertEval("m(7, \"eight\", 9L);", "6");
         assertActiveKeys();
     }
+
+    /***
+    public void methodOverloadDependent() {
+        assertEval("String m(String s) { return s + s; }");
+        assertEval("String m(double d) { return m(\"#\" + d); }");
+        assertEval("String m(int x) { return m(2.25 * x); }");
+        assertEval("String m() { return m(3); }");
+        assertMethods(
+                method("(String)String", "m"),
+                method("(double)String", "m"),
+                method("(int)String", "m"),
+                method("()String", "m")
+        );
+        assertEval("m();", "\"#6.75#6.75\"");
+        assertEval("m(2);", "\"#4.5#4.5\"");
+        assertEval("m(3.14);", "\"#3.14#3.14\"");
+        assertEval("m(\"hi\");", "\"hihi\"");
+        assertActiveKeys();
+    }
+    ***/
 
     public void methodsRedeclaration1() {
         Snippet x = methodKey(assertEval("int x() { return 10; }"));
@@ -140,8 +169,7 @@ public class MethodsTest extends KullaTesting {
 
         assertEval("double b() { return 3.14159; }",
                 ste(MAIN_SNIPPET, VALID, VALID, true, null),
-                ste(b, VALID, OVERWRITTEN, false, MAIN_SNIPPET),
-                ste(c, VALID, VALID, false, MAIN_SNIPPET));
+                ste(b, VALID, OVERWRITTEN, false, MAIN_SNIPPET));
         assertMethods(method("()int", "a"), method("()double", "b"), method("()double", "c"));
         assertEval("c();", "3.14159");
         assertActiveKeys();
@@ -193,7 +221,7 @@ public class MethodsTest extends KullaTesting {
         assertActiveKeys();
 
         assertDeclareFail("int f() {}", "compiler.err.missing.ret.stmt",
-                ste(MAIN_SNIPPET, REJECTED, REJECTED, false, null));
+                added(REJECTED));
         assertNumberOfActiveMethods(0);
         assertActiveKeys();
 

@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package com.sun.source.util;
 
 import java.util.ServiceLoader;
@@ -48,7 +49,6 @@ import javax.tools.StandardLocation;
  *
  * @since 1.8
  */
-@jdk.Exported
 public interface Plugin {
     /**
      * Returns the user-friendly name of this plug-in.

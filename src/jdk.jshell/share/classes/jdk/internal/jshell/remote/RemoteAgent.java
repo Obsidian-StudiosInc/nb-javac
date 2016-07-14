@@ -24,10 +24,14 @@
  */
 
 package jdk.internal.jshell.remote;
+import jdk.jshell.spi.SPIResolutionException;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -35,7 +39,9 @@ import java.net.Socket;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import static jdk.internal.jshell.remote.RemoteCodes.*;
+
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -59,7 +65,10 @@ class RemoteAgent {
     void commandLoop(Socket socket) throws IOException {
         // in before out -- so we don't hang the controlling process
         ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-        ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+        OutputStream socketOut = socket.getOutputStream();
+        System.setOut(new PrintStream(new MultiplexingOutputStream("out", socketOut), true));
+        System.setErr(new PrintStream(new MultiplexingOutputStream("err", socketOut), true));
+        ObjectOutputStream out = new ObjectOutputStream(new MultiplexingOutputStream("command", socketOut));
         while (true) {
             int cmd = in.readInt();
             switch (cmd) {
@@ -103,9 +112,11 @@ class RemoteAgent {
                         out.flush();
                         break;
                     }
+                    String methodName = in.readUTF();
                     Method doitMethod;
                     try {
-                        doitMethod = klass.getDeclaredMethod(DOIT_METHOD_NAME, new Class<?>[0]);
+                        this.getClass().getModule().addExports(SPIResolutionException.class.getPackage().getName(), klass.getModule());
+                        doitMethod = klass.getDeclaredMethod(methodName, new Class<?>[0]);
                         doitMethod.setAccessible(true);
                         Object res;
                         try {
@@ -129,9 +140,9 @@ class RemoteAgent {
                     } catch (InvocationTargetException ex) {
                         Throwable cause = ex.getCause();
                         StackTraceElement[] elems = cause.getStackTrace();
-                        if (cause instanceof RemoteResolutionException) {
+                        if (cause instanceof SPIResolutionException) {
                             out.writeInt(RESULT_CORRALLED);
-                            out.writeInt(((RemoteResolutionException) cause).id);
+                            out.writeInt(((SPIResolutionException) cause).id());
                         } else {
                             out.writeInt(RESULT_EXCEPTION);
                             out.writeUTF(cause.getClass().getName());
@@ -245,19 +256,71 @@ class RemoteAgent {
         if (value == null) {
             return "null";
         } else if (value instanceof String) {
-            return "\"" + expunge((String)value) + "\"";
+            return "\"" + (String)value + "\"";
         } else if (value instanceof Character) {
             return "'" + value + "'";
         } else {
-            return expunge(value.toString());
+            return value.toString();
         }
     }
 
-    static String expunge(String s) {
-        StringBuilder sb = new StringBuilder();
-        for (String comp : prefixPattern.split(s)) {
-            sb.append(comp);
+    private static final class MultiplexingOutputStream extends OutputStream {
+
+        private static final int PACKET_SIZE = 127;
+
+        private final byte[] name;
+        private final OutputStream delegate;
+
+        public MultiplexingOutputStream(String name, OutputStream delegate) {
+            try {
+                this.name = name.getBytes("UTF-8");
+                this.delegate = delegate;
+            } catch (UnsupportedEncodingException ex) {
+                throw new IllegalStateException(ex); //should not happen
+            }
         }
-        return sb.toString();
+
+        @Override
+        public void write(int b) throws IOException {
+            synchronized (delegate) {
+                delegate.write(name.length); //assuming the len is small enough to fit into byte
+                delegate.write(name);
+                delegate.write(1);
+                delegate.write(b);
+                delegate.flush();
+            }
+        }
+
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+            synchronized (delegate) {
+                int i = 0;
+                while (len > 0) {
+                    int size = Math.min(PACKET_SIZE, len);
+
+                    delegate.write(name.length); //assuming the len is small enough to fit into byte
+                    delegate.write(name);
+                    delegate.write(size);
+                    delegate.write(b, off + i, size);
+                    i += size;
+                    len -= size;
+                }
+
+                delegate.flush();
+            }
+        }
+
+        @Override
+        public void flush() throws IOException {
+            super.flush();
+            delegate.flush();
+        }
+
+        @Override
+        public void close() throws IOException {
+            super.close();
+            delegate.close();
+        }
+
     }
 }

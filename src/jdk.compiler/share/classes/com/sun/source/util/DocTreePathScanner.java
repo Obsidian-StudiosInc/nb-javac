@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package com.sun.source.util;
 
 import com.sun.source.doctree.DocTree;
@@ -36,7 +37,6 @@ import com.sun.source.doctree.DocTree;
  *
  * @since 1.8
  */
-@jdk.Exported
 public class DocTreePathScanner<R, P> extends DocTreeScanner<R, P> {
     /**
      * Scans a tree from a position identified by a tree path.

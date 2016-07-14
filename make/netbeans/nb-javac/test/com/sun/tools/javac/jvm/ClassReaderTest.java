@@ -102,11 +102,13 @@ public class ClassReaderTest extends TestCase {
 
     public void testOrderOnClassPathIsSignificant() throws Exception {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         JFM fileManager = new JFM(tool.getStandardFileManager(null, null, null), ClassJFO.create("Test1", "Test", 1000), ClassJFO.create("Test2", "Test", 2000));
-        JavacTask ct = (JavacTask)tool.getTask(null, fileManager, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.<JavaFileObject>asList());
+        JavacTask ct = (JavacTask)tool.getTask(null, fileManager, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.<JavaFileObject>asList());
+        ct.analyze();
 
         TypeElement pack = ct.getElements().getTypeElement("Test");
 
@@ -118,11 +120,13 @@ public class ClassReaderTest extends TestCase {
 
     public void testV48ClassFileWithGenericInfo() throws Exception {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         JFM fileManager = new JFM(tool.getStandardFileManager(null, null, null), ClassJFO.create("V48gen", "V48gen", 1000));
-        JavacTask ct = (JavacTask)tool.getTask(null, fileManager, null, Arrays.asList("-bootclasspath",  bootPath, "-XDide"), null, Arrays.<JavaFileObject>asList());
+        JavacTask ct = (JavacTask)tool.getTask(null, fileManager, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-XDide"), null, Arrays.<JavaFileObject>asList());
+        ct.analyze();
 
         TypeElement v48gen = ct.getElements().getTypeElement("V48gen");
 
@@ -132,16 +136,19 @@ public class ClassReaderTest extends TestCase {
     
     public void testMethodParamAnnotations() throws Exception {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         JFM fileManager = new JFM(tool.getStandardFileManager(null, null, null));
-        JavacTask ct = (JavacTask)tool.getTask(null, fileManager, null, Arrays.asList("-bootclasspath",  bootPath, "-XDide"), null, Arrays.<JavaFileObject>asList(new SourceFileObject("public class Test { public static void t(@Deprecated int p) { } }")));
+        JavacTask ct = (JavacTask)tool.getTask(null, fileManager, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-XDide"), null, Arrays.<JavaFileObject>asList(new SourceFileObject("public class Test { public static void t(@Deprecated int p) { } }")));
 
         ct.generate();
         
         JFM readingFileManager = new JFM(tool.getStandardFileManager(null, null, null), new ClassJFO(new URI("mem://Test.class"), "Test", 0, fileManager.writtenClasses.get("Test")));
-        JavacTask readCT = (JavacTask)tool.getTask(null, readingFileManager, null, Arrays.asList("-bootclasspath",  bootPath, "-XDide"), null, null);
+        JavacTask readCT = (JavacTask)tool.getTask(null, readingFileManager, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-XDide"), null, null);
+        readCT.analyze();
+        
         TypeElement test = readCT.getElements().getTypeElement("Test");
         
         assertNotNull(ElementFilter.methodsIn(test.getEnclosedElements()).get(0).getParameters().get(0).getAnnotation(Deprecated.class));

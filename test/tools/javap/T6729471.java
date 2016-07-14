@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,16 +21,15 @@
  * questions.
  */
 
-
 /*
  * @test
  * @bug 6729471
  * @summary javap does not output inner interfaces of an interface
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.main
- * @build ToolBox
+ *          jdk.jdeps/com.sun.tools.javap
+ * @build toolbox.ToolBox toolbox.JarTask
  * @run main T6729471
  */
 
@@ -38,6 +37,9 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 import javax.tools.*;
+
+import toolbox.JarTask;
+import toolbox.ToolBox;
 
 public class T6729471
 {
@@ -82,7 +84,7 @@ public class T6729471
         try (JavaFileManager fm = comp.getStandardFileManager(null, null, null)) {
             File f = new File(name);
             ToolBox tb = new ToolBox();
-            tb.new JarTask(f.getPath())
+            new JarTask(tb, f.getPath())
                 .files(fm, StandardLocation.PLATFORM_CLASS_PATH, paths)
                 .run();
             return f;

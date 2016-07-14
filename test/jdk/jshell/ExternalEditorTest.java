@@ -24,8 +24,8 @@
 /*
  * @test
  * @summary Testing external editor.
- * @bug 8080843
- * @ignore 8080843
+ * @bug 8143955 8080843
+ * @modules jdk.jshell/jdk.internal.jshell.tool
  * @build ReplToolTesting CustomEditor EditorTestBase
  * @run testng ExternalEditorTest
  */
@@ -113,7 +113,7 @@ public class ExternalEditorTest extends EditorTestBase {
     @Override
     public void testEditor(boolean defaultStartup, String[] args, ReplTest... tests) {
         ReplTest[] t = new ReplTest[tests.length + 1];
-        t[0] = a -> assertCommandCheckOutput(a, "/seteditor " + executionScript,
+        t[0] = a -> assertCommandCheckOutput(a, "/set editor " + executionScript,
                 assertStartsWith("|  Editor set to: " + executionScript));
         System.arraycopy(tests, 0, t, 1, tests.length);
         super.testEditor(defaultStartup, args, t);
@@ -124,7 +124,7 @@ public class ExternalEditorTest extends EditorTestBase {
     }
 
     @BeforeClass
-    public static void setUp() throws IOException {
+    public static void setUpExternalEditorTest() throws IOException {
         listener = new ServerSocket(0);
         listener.setSoTimeout(30000);
         int localPort = listener.getLocalPort();
@@ -193,25 +193,25 @@ public class ExternalEditorTest extends EditorTestBase {
     @Test
     public void setUnknownEditor() {
         test(
-                a -> assertCommand(a, "/seteditor", "|  /seteditor requires a path argument\n"),
-                a -> assertCommand(a, "/seteditor UNKNOWN", "|  Editor set to: UNKNOWN\n"),
+                a -> assertCommand(a, "/set editor", "|  The '/set editor' command requires a path argument"),
+                a -> assertCommand(a, "/set editor UNKNOWN", "|  Editor set to: UNKNOWN"),
                 a -> assertCommand(a, "int a;", null),
-                a -> assertCommand(a, "/e 1",
-                        "|  Edit Error: process IO failure: Cannot run program \"UNKNOWN\": error=2, No such file or directory\n")
+                a -> assertCommandOutputStartsWith(a, "/ed 1",
+                        "|  Edit Error:")
         );
     }
 
-    @Test(enabled = false)
+    @Test
     public void testRemoveTempFile() {
         test(new String[]{"-nostartup"},
-                a -> assertCommandCheckOutput(a, "/seteditor " + executionScript,
+                a -> assertCommandCheckOutput(a, "/set editor " + executionScript,
                         assertStartsWith("|  Editor set to: " + executionScript)),
                 a -> assertVariable(a, "int", "a", "0", "0"),
-                a -> assertEditOutput(a, "/e 1", assertStartsWith("|  Edit Error: Failure read edit file:"), () -> {
+                a -> assertEditOutput(a, "/ed 1", assertStartsWith("|  Edit Error: Failure in read edit file:"), () -> {
                     sendCode(CustomEditor.REMOVE_CODE);
                     exit();
                 }),
-                a -> assertCommandCheckOutput(a, "/v", assertVariables())
+                a -> assertCommandCheckOutput(a, "/vars", assertVariables())
         );
     }
 

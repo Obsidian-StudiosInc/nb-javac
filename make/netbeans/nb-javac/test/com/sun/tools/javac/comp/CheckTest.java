@@ -70,12 +70,13 @@ public class CheckTest extends TestCase {
         String code = "public class Test extends ArrayList {\n" +
                       "}\n";
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
         
         MemoryOutputJFM m = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
 
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, m, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, m, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov", "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new MyFileObject(code)));
         
         ct.generate();
         

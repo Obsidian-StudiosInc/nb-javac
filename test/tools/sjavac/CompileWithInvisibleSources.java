@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,10 +29,10 @@
  * @author sogoel (rewrite)
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.compiler/com.sun.tools.sjavac
- * @build Wrapper ToolBox
+ *          jdk.jdeps/com.sun.tools.javap
+ * @build Wrapper toolbox.ToolBox
  * @run main Wrapper CompileWithInvisibleSources
  */
 
@@ -49,9 +49,7 @@ public class CompileWithInvisibleSources extends SJavacTester {
     // gensrc2 contains broken code in beta.B, thus exclude that package
     // gensrc3 contains a proper beta.B
     void test() throws Exception {
-        clean(TEST_ROOT);
         Files.createDirectories(BIN);
-        clean(GENSRC, GENSRC2, GENSRC3, BIN);
 
         Map<String,Long> previous_bin_state = collectState(BIN);
 
@@ -66,14 +64,13 @@ public class CompileWithInvisibleSources extends SJavacTester {
                      "package beta; public class B { }");
 
         compile(GENSRC.toString(),
-                "-x", "beta",
+                "-x", "beta/*",
                 "-sourcepath", GENSRC2.toString(),
                 "-sourcepath", GENSRC3.toString(),
                 "-d", BIN.toString(),
                 "--state-dir=" + BIN,
                 "-h", HEADERS.toString(),
-                "-j", "1",
-                SERVER_ARG);
+                "-j", "1");
 
         System.out.println("The first compile went well!");
         Map<String,Long> new_bin_state = collectState(BIN);
@@ -82,17 +79,15 @@ public class CompileWithInvisibleSources extends SJavacTester {
                                      BIN + "/javac_state");
 
         System.out.println("----- Compile with exluded beta went well!");
-        clean(BIN);
+        tb.cleanDirectory(BIN);
         compileExpectFailure(GENSRC.toString(),
                              "-sourcepath", GENSRC2.toString(),
                              "-sourcepath", GENSRC3.toString(),
                              "-d", BIN.toString(),
                              "--state-dir=" + BIN,
                              "-h", HEADERS.toString(),
-                             "-j", "1",
-                             SERVER_ARG);
+                             "-j", "1");
 
         System.out.println("----- Compile without exluded beta failed, as expected! Good!");
-        clean(GENSRC, BIN);
     }
 }

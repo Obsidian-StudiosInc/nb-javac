@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,9 +38,7 @@ import javax.lang.model.element.*;
 import javax.tools.*;
 import com.sun.source.util.*;
 import com.sun.tools.javac.api.*;
-import com.sun.tools.javac.file.*;
 import com.sun.tools.javac.file.JavacFileManager;
-import com.sun.tools.javac.main.*;
 import com.sun.tools.javac.util.*;
 
 
@@ -53,7 +51,7 @@ public class T6358024 extends AbstractProcessor {
         String testSrc = System.getProperty("test.src");
 
         fm = new JavacFileManager(new Context(), false, null);
-        JavaFileObject f = fm.getFileForInput(testSrc + File.separatorChar + self + ".java");
+        JavaFileObject f = fm.getJavaFileObject(testSrc + File.separatorChar + self + ".java");
 
         test(fm, f,
              new Option[] { new Option("-d", ".")},
@@ -71,6 +69,10 @@ public class T6358024 extends AbstractProcessor {
 
         JavacTool tool = JavacTool.create();
         List<String> flags = new ArrayList<String>();
+        flags.addAll(Arrays.asList(
+                "-XaddExports:jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+                "-XaddExports:jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+                "-XaddExports:jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"));
         for (Option opt: opts) {
             flags.add(opt.name);
             for (Object arg : opt.args)

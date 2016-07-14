@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,10 +29,10 @@
  * @author sogoel (rewrite)
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.compiler/com.sun.tools.sjavac
- * @build Wrapper ToolBox
+ *          jdk.jdeps/com.sun.tools.javap
+ * @build Wrapper toolbox.ToolBox
  * @run main Wrapper StateDir
  */
 
@@ -46,7 +46,6 @@ public class StateDir extends SJavacTester {
     }
 
     void test() throws Exception {
-        clean(TEST_ROOT);
         Path BAR = TEST_ROOT.resolve("bar");
         Files.createDirectories(BAR);
         Files.createDirectories(BIN);
@@ -60,8 +59,7 @@ public class StateDir extends SJavacTester {
 
         compile("--state-dir=" + BAR,
                 "-src", GENSRC.toString(),
-                "-d", BIN.toString(),
-                SJavacTester.SERVER_ARG);
+                "-d", BIN.toString());
 
         Map<String,Long> new_bin_state = collectState(BIN);
         verifyThatFilesHaveBeenAdded(previous_bin_state, new_bin_state,
@@ -69,6 +67,5 @@ public class StateDir extends SJavacTester {
         Map<String,Long> new_bar_state = collectState(BAR);
         verifyThatFilesHaveBeenAdded(previous_bar_state, new_bar_state,
                                      BAR + "/javac_state");
-        clean(GENSRC, BIN, BAR);
     }
 }

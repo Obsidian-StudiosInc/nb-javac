@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -165,12 +165,6 @@ public class JavahTask implements NativeHeaderTool.NativeHeaderTask {
         },
 
         new HiddenOption(true, "-td") {
-            void process(JavahTask task, String opt, String arg) {
-                 // ignored; for backwards compatibility
-            }
-        },
-
-        new HiddenOption(false, "-stubs") {
             void process(JavahTask task, String opt, String arg) {
                  // ignored; for backwards compatibility
             }
@@ -435,6 +429,10 @@ public class JavahTask implements NativeHeaderTool.NativeHeaderTask {
 
     public boolean run() throws Util.Exit {
 
+        if (!javac_extras.contains("-XDsuppress-tool-removal-message")) {
+            log.println(getMessage("javah.misc.Deprecation"));
+        }
+
         Util util = new Util(log, diagnosticListener);
 
         if (noArgs || help) {
@@ -454,8 +452,6 @@ public class JavahTask implements NativeHeaderTool.NativeHeaderTask {
         if (llni)
             g = new LLNI(doubleAlign, util);
         else {
-//            if (stubs)
-//                throw new BadArgs("jni.no.stubs");
             g = new JNI(util);
         }
 
@@ -505,7 +501,15 @@ public class JavahTask implements NativeHeaderTool.NativeHeaderTask {
         List<String> opts = new ArrayList<>();
         opts.add("-proc:only");
         opts.addAll(javac_extras);
-        CompilationTask t = c.getTask(log, fileManager, diagnosticListener, opts, classes, null);
+
+        CompilationTask t;
+        try {
+            t = c.getTask(log, fileManager, diagnosticListener, opts, classes, null);
+        } catch (IllegalArgumentException e) {
+            util.error("bad.arg", e.getMessage());
+            return false;
+        }
+
         JavahProcessor p = new JavahProcessor(g);
         t.setProcessors(Collections.singleton(p));
 
@@ -513,15 +517,7 @@ public class JavahTask implements NativeHeaderTool.NativeHeaderTask {
         if (p.exit != null)
             throw new Util.Exit(p.exit);
         return ok;
-    }
 
-    private List<File> pathToFiles(String path) {
-        List<File> files = new ArrayList<>();
-        for (String f: path.split(File.pathSeparator)) {
-            if (f.length() > 0)
-                files.add(new File(f));
-        }
-        return files;
     }
 
     static StandardJavaFileManager getDefaultFileManager(final DiagnosticListener<? super JavaFileObject> dl, PrintWriter log) {

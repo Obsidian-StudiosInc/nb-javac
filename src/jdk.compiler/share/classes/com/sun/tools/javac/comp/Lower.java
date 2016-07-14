@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -86,6 +86,7 @@ public class Lower extends TreeTranslator {
     private final TypeEnvs typeEnvs;
     private final Name dollarAssertionsDisabled;
     private final Name classDollar;
+    private final Name dollarCloseResource;
     private final Types types;
     private final boolean debugLower;
     private final PkgInfo pkginfoOpt;
@@ -109,6 +110,8 @@ public class Lower extends TreeTranslator {
             fromString(target.syntheticNameChar() + "assertionsDisabled");
         classDollar = names.
             fromString("class" + target.syntheticNameChar());
+        dollarCloseResource = names.
+            fromString(target.syntheticNameChar() + "closeResource");
 
         types = Types.instance(context);
         Options options = Options.instance(context);
@@ -655,7 +658,7 @@ public class Lower extends TreeTranslator {
         // Enter class symbol in owner scope and compiled table.
         if (odef != null)
             enterSynthetic(odef.pos(), c, owner.members());
-        chk.compiled.put(c.flatname, c);
+        chk.putCompiled(c);
 
         // Create class definition tree.
         JCClassDecl cdef = make.ClassDef(
@@ -1277,10 +1280,11 @@ public class Lower extends TreeTranslator {
      */
     ClassSymbol accessConstructorTag() {
         ClassSymbol topClass = currentClass.outermostClass();
+        ModuleSymbol topModle = topClass.packge().modle;
         Name flatname = names.fromString("" + topClass.getQualifiedName() +
                                          target.syntheticNameChar() +
                                          "1");
-        ClassSymbol ctag = chk.compiled.get(flatname);
+        ClassSymbol ctag = chk.getCompiled(topModle, flatname);
         if (ctag != null && !isTranslatedClassAvailable(ctag)) {
             ctag = null;
         }
@@ -1642,9 +1646,11 @@ public class Lower extends TreeTranslator {
         ListBuffer<JCStatement> stats = new ListBuffer<>();
         JCTree resource = resources.head;
         JCExpression expr = null;
+        boolean resourceNonNull;
         if (resource instanceof JCVariableDecl) {
             JCVariableDecl var = (JCVariableDecl) resource;
             expr = make.Ident(var.sym).setType(resource.type);
+            resourceNonNull = var.init != null && TreeInfo.skipParens(var.init).hasTag(NEWCLASS);
             stats.add(var);
         } else {
             Assert.check(resource instanceof JCExpression);
@@ -1659,6 +1665,7 @@ public class Lower extends TreeTranslator {
             JCVariableDecl syntheticTwrVarDecl =
                 make.VarDef(syntheticTwrVar, (JCExpression)resource);
             expr = (JCExpression)make.Ident(syntheticTwrVar);
+            resourceNonNull = TreeInfo.skipParens(resource).hasTag(NEWCLASS);
             stats.add(syntheticTwrVarDecl);
         }
 
@@ -1688,7 +1695,7 @@ public class Lower extends TreeTranslator {
 
         int oldPos = make.pos;
         make.at(TreeInfo.endPos(block));
-        JCBlock finallyClause = makeTwrFinallyClause(primaryException, expr);
+        JCBlock finallyClause = makeTwrFinallyClause(primaryException, expr, resourceNonNull);
         make.at(oldPos);
         JCTry outerTry = make.Try(makeTwrBlock(resources.tail, block,
                                     finallyCanCompleteNormally, depth + 1),
@@ -1700,7 +1707,96 @@ public class Lower extends TreeTranslator {
         return newBlock;
     }
 
-    private JCBlock makeTwrFinallyClause(Symbol primaryException, JCExpression resource) {
+    /**If the estimated number of copies the close resource code in a single class is above this
+     * threshold, generate and use a method for the close resource code, leading to smaller code.
+     * As generating a method has overhead on its own, generating the method for cases below the
+     * threshold could lead to an increase in code size.
+     */
+    public static final int USE_CLOSE_RESOURCE_METHOD_THRESHOLD = 4;
+
+    private JCBlock makeTwrFinallyClause(Symbol primaryException, JCExpression resource,
+            boolean resourceNonNull) {
+        MethodSymbol closeResource = (MethodSymbol)lookupSynthetic(dollarCloseResource,
+                                                                   currentClass.members());
+
+        if (closeResource == null && shouldUseCloseResourceMethod()) {
+            closeResource = new MethodSymbol(
+                PRIVATE | STATIC | SYNTHETIC,
+                dollarCloseResource,
+                new MethodType(
+                    List.of(syms.throwableType, syms.autoCloseableType),
+                    syms.voidType,
+                    List.<Type>nil(),
+                    syms.methodClass),
+                currentClass);
+            enterSynthetic(resource.pos(), closeResource, currentClass.members());
+
+            JCMethodDecl md = make.MethodDef(closeResource, null);
+            List<JCVariableDecl> params = md.getParameters();
+            md.body = make.Block(0, List.<JCStatement>of(makeTwrCloseStatement(params.get(0).sym,
+                                                                               make.Ident(params.get(1)))));
+
+            JCClassDecl currentClassDecl = classDef(currentClass);
+            currentClassDecl.defs = currentClassDecl.defs.prepend(md);
+        }
+
+        JCStatement closeStatement;
+
+        if (closeResource != null) {
+            //$closeResource(#primaryException, #resource)
+            closeStatement = make.Exec(make.Apply(List.<JCExpression>nil(),
+                                                  make.Ident(closeResource),
+                                                  List.of(make.Ident(primaryException),
+                                                          resource)
+                                                 ).setType(syms.voidType));
+        } else {
+            closeStatement = makeTwrCloseStatement(primaryException, resource);
+        }
+
+        JCStatement finallyStatement;
+
+        if (resourceNonNull) {
+            finallyStatement = closeStatement;
+        } else {
+            // if (#resource != null) { $closeResource(...); }
+            finallyStatement = make.If(makeNonNullCheck(resource),
+                                       closeStatement,
+                                       null);
+        }
+
+        return make.Block(0L,
+                          List.<JCStatement>of(finallyStatement));
+    }
+        //where:
+        private boolean shouldUseCloseResourceMethod() {
+            class TryFinder extends TreeScanner {
+                int closeCount;
+                @Override
+                public void visitTry(JCTry tree) {
+                    boolean empty = tree.body.stats.isEmpty();
+
+                    for (JCTree r : tree.resources) {
+                        closeCount += empty ? 1 : 2;
+                        empty = false; //with multiple resources, only the innermost try can be empty.
+                    }
+                    super.visitTry(tree);
+                }
+                @Override
+                public void scan(JCTree tree) {
+                    if (useCloseResourceMethod())
+                        return;
+                    super.scan(tree);
+                }
+                boolean useCloseResourceMethod() {
+                    return closeCount >= USE_CLOSE_RESOURCE_METHOD_THRESHOLD;
+                }
+            }
+            TryFinder tryFinder = new TryFinder();
+            tryFinder.scan(classDef(currentClass));
+            return tryFinder.useCloseResourceMethod();
+        }
+
+    private JCStatement makeTwrCloseStatement(Symbol primaryException, JCExpression resource) {
         // primaryException.addSuppressed(catchException);
         VarSymbol catchException =
             new VarSymbol(SYNTHETIC, make.paramName(2),
@@ -1725,11 +1821,7 @@ public class Lower extends TreeTranslator {
                                         tryTree,
                                         makeResourceCloseInvocation(resource));
 
-        // if (#resource != null) { if (primaryException ...  }
-        return make.Block(0L,
-                          List.<JCStatement>of(make.If(makeNonNullCheck(resource),
-                                                       closeIfStatement,
-                                                       null)));
+        return closeIfStatement;
     }
 
     private JCStatement makeResourceCloseInvocation(JCExpression resource) {
@@ -2197,6 +2289,9 @@ public class Lower extends TreeTranslator {
             if ((id.sym.flags() & FINAL) != 0 && id.sym.owner.kind == MTH)
                 return builder.build(rval);
         }
+        Name name = TreeInfo.name(rval);
+        if (name == names._super)
+            return builder.build(rval);
         VarSymbol var =
             new VarSymbol(FINAL|SYNTHETIC,
                           names.fromString(
@@ -2329,25 +2424,18 @@ public class Lower extends TreeTranslator {
 
     public void visitPackageDef(JCPackageDecl tree) {
         if (!needPackageInfoClass(tree))
-            return;
+                        return;
 
-        Name name = names.package_info;
         long flags = Flags.ABSTRACT | Flags.INTERFACE;
         // package-info is marked SYNTHETIC in JDK 1.6 and later releases
         flags = flags | Flags.SYNTHETIC;
-        JCClassDecl packageAnnotationsClass
-            = make.ClassDef(make.Modifiers(flags, tree.getAnnotations()),
-                            name, List.<JCTypeParameter>nil(),
-                            null, List.<JCExpression>nil(), List.<JCTree>nil());
         ClassSymbol c = tree.packge.package_info;
-        c.flags_field |= flags;
         c.setAttributes(tree.packge);
+        c.flags_field |= flags;
         ClassType ctype = (ClassType) c.type;
         ctype.supertype_field = syms.objectType;
         ctype.interfaces_field = List.nil();
-        packageAnnotationsClass.sym = c;
-
-        translated.append(packageAnnotationsClass);
+        createInfoClass(tree.annotations, c);
     }
     // where
     private boolean needPackageInfoClass(JCPackageDecl pd) {
@@ -2366,6 +2454,23 @@ public class Lower extends TreeTranslator {
                 return false;
         }
         throw new AssertionError();
+    }
+
+    public void visitModuleDef(JCModuleDecl tree) {
+        ModuleSymbol msym = tree.sym;
+        ClassSymbol c = msym.module_info;
+        c.flags_field |= Flags.MODULE;
+        createInfoClass(List.<JCAnnotation>nil(), tree.sym.module_info);
+    }
+
+    private void createInfoClass(List<JCAnnotation> annots, ClassSymbol c) {
+        long flags = Flags.ABSTRACT | Flags.INTERFACE;
+        JCClassDecl infoClass =
+                make.ClassDef(make.Modifiers(flags, annots),
+                    c.name, List.<JCTypeParameter>nil(),
+                    null, List.<JCExpression>nil(), List.<JCTree>nil());
+        infoClass.sym = c;
+        translated.append(infoClass);
     }
 
     public void visitClassDef(JCClassDecl tree) {
@@ -2700,11 +2805,11 @@ public class Lower extends TreeTranslator {
             if (fvs.nonEmpty()) {
                 List<Type> addedargtypes = List.nil();
                 for (List<VarSymbol> l = fvs; l.nonEmpty(); l = l.tail) {
+                    final Name pName = proxyName(l.head.name);
+                    m.capturedLocals =
+                        m.capturedLocals.prepend((VarSymbol)
+                                                (proxies.findFirst(pName)));
                     if (TreeInfo.isInitialConstructor(tree)) {
-                        final Name pName = proxyName(l.head.name);
-                        m.capturedLocals =
-                            m.capturedLocals.append((VarSymbol)
-                                                    (proxies.findFirst(pName)));
                         added = added.prepend(
                           initField(tree.body.pos, pName));
                     }

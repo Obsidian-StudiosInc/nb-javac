@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,16 +26,12 @@
  * @bug 8042251
  * @summary Test that inner classes have in its inner classes attribute enclosing classes and its immediate members.
  * @library /tools/lib /tools/javac/lib ../lib
- * @modules jdk.jdeps/com.sun.tools.classfile
- *          jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
+ * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
- * @build TestResult TestBase InMemoryFileManager ToolBox
+ *          jdk.jdeps/com.sun.tools.classfile
+ * @build toolbox.ToolBox InMemoryFileManager TestResult TestBase
  * @run main InnerClassesHierarchyTest
  */
-
-import com.sun.tools.classfile.*;
-import com.sun.tools.classfile.InnerClasses_attribute.Info;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -43,6 +39,9 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import com.sun.tools.classfile.*;
+import com.sun.tools.classfile.InnerClasses_attribute.Info;
 
 public class InnerClassesHierarchyTest extends TestResult {
 

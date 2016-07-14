@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,8 +60,8 @@ public enum Target {
     /** JDK 8. */
     JDK1_8("1.8", 52, 0),
 
-    /** JDK 9, initially an alias for 8. */
-    JDK1_9("1.9", 52, 0);
+    /** JDK 9. */
+    JDK1_9("1.9", 53, 0);
 
     private static final Context.Key<Target> targetKey = new Context.Key<>();
 
@@ -133,6 +133,18 @@ public enum Target {
      */
     public boolean hasMethodHandles() {
         return hasInvokedynamic();
+    }
+
+    /** Does the target JDK contain StringConcatFactory class?
+     */
+    public boolean hasStringConcatFactory() {
+        return compareTo(JDK1_9) >= 0;
+    }
+
+    /** Value of platform release used to access multi-release jar files
+     */
+    public String multiReleaseValue() {
+        return Integer.toString(this.ordinal() - Target.JDK1_1.ordinal() + 1);
     }
 
 }

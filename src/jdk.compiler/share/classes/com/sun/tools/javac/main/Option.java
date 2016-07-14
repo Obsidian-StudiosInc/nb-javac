@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,11 @@
 
 package com.sun.tools.javac.main;
 
-import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -182,6 +184,23 @@ public enum Option {
 
     SOURCEPATH("-sourcepath", "opt.arg.path", "opt.sourcepath", STANDARD, FILEMANAGER),
 
+    MODULESOURCEPATH("-modulesourcepath", "opt.arg.mspath", "opt.modulesourcepath", STANDARD, FILEMANAGER),
+
+    MODULEPATH("-modulepath", "opt.arg.path", "opt.modulepath", STANDARD, FILEMANAGER),
+
+    MP("-mp", "opt.arg.path", "opt.modulepath", STANDARD, FILEMANAGER) {
+        @Override
+        public boolean process(OptionHelper helper, String option, String arg) {
+            return super.process(helper, "-modulepath", arg);
+        }
+    },
+
+    UPGRADEMODULEPATH("-upgrademodulepath", "opt.arg.path", "opt.upgrademodulepath", STANDARD, FILEMANAGER),
+
+    SYSTEM("-system", "opt.arg.jdk", "opt.system", STANDARD, FILEMANAGER),
+
+    XPATCH("-Xpatch:", "opt.arg.patch", "opt.patch", EXTENDED, FILEMANAGER),
+
     BOOTCLASSPATH("-bootclasspath", "opt.arg.path", "opt.bootclasspath", STANDARD, FILEMANAGER) {
         @Override
         public boolean process(OptionHelper helper, String option, String arg) {
@@ -228,6 +247,8 @@ public enum Option {
 
     PROCESSORPATH("-processorpath", "opt.arg.path", "opt.processorpath", STANDARD, FILEMANAGER),
 
+    PROCESSORMODULEPATH("-processormodulepath", "opt.arg.path", "opt.processormodulepath", STANDARD, FILEMANAGER),
+
     PARAMETERS("-parameters","opt.parameters", STANDARD, BASIC),
 
     D("-d", "opt.arg.directory", "opt.d", STANDARD, FILEMANAGER),
@@ -238,13 +259,7 @@ public enum Option {
 
     IMPLICIT("-implicit:", "opt.implicit", STANDARD, BASIC, ONEOF, "none", "class"),
 
-    ENCODING("-encoding", "opt.arg.encoding", "opt.encoding", STANDARD, FILEMANAGER) {
-        @Override
-        public boolean process(OptionHelper helper, String option, String operand) {
-            return super.process(helper, option, operand);
-        }
-
-    },
+    ENCODING("-encoding", "opt.arg.encoding", "opt.encoding", STANDARD, FILEMANAGER),
 
     SOURCE("-source", "opt.arg.release", "opt.source", STANDARD, BASIC) {
         @Override
@@ -482,9 +497,9 @@ public enum Option {
     PLUGIN("-Xplugin:", "opt.arg.plugin", "opt.plugin", EXTENDED, BASIC) {
         @Override
         public boolean process(OptionHelper helper, String option) {
-            String p = option.substring(option.indexOf(':') + 1);
+            String p = option.substring(option.indexOf(':') + 1).trim();
             String prev = helper.get(PLUGIN);
-            helper.put(PLUGIN.text, (prev == null) ? p : prev + '\0' + p.trim());
+            helper.put(PLUGIN.text, (prev == null) ? p : prev + '\0' + p);
             return false;
         }
     },
@@ -511,6 +526,44 @@ public enum Option {
         }
     },
 
+    XADDEXPORTS("-XaddExports:", "opt.arg.addExports", "opt.addExports", EXTENDED, BASIC) {
+        @Override
+        public boolean process(OptionHelper helper, String option) {
+            String p = option.substring(option.indexOf(':') + 1).trim();
+            String prev = helper.get(XADDEXPORTS);
+            helper.put(XADDEXPORTS.text, (prev == null) ? p : prev + '\0' + p);
+            return false;
+        }
+    },
+
+    XADDREADS("-XaddReads:", "opt.arg.addReads", "opt.addReads", EXTENDED, BASIC) {
+        @Override
+        public boolean process(OptionHelper helper, String option) {
+            String p = option.substring(option.indexOf(':') + 1).trim();
+            String prev = helper.get(XADDREADS);
+            helper.put(XADDREADS.text, (prev == null) ? p : prev + '\0' + p);
+            return false;
+        }
+    },
+
+    XMODULE("-Xmodule:", "opt.arg.module", "opt.module", EXTENDED, BASIC) {
+        @Override
+        public boolean process(OptionHelper helper, String option) {
+            String prev = helper.get(XMODULE);
+            if (prev != null) {
+                helper.error("err.option.too.many", XMODULE.text);
+            }
+            String p = option.substring(option.indexOf(':') + 1);
+            helper.put(XMODULE.text, p);
+            return false;
+        }
+    },
+
+    M("-m", "opt.arg.m", "opt.m", STANDARD, BASIC),
+
+    ADDMODS("-addmods", "opt.arg.addmods", "opt.addmods", STANDARD, BASIC),
+    LIMITMODS("-limitmods", "opt.arg.limitmods", "opt.limitmods", STANDARD, BASIC),
+
     // This option exists only for the purpose of documenting itself.
     // It's actually implemented by the CommandLine class.
     AT("@", "opt.arg.file", "opt.AT", STANDARD, INFO, true) {
@@ -520,39 +573,41 @@ public enum Option {
         }
     },
 
-    /*
-     * TODO: With apt, the matches method accepts anything if
-     * -XclassAsDecls is used; code elsewhere does the lookup to
-     * see if the class name is both legal and found.
-     *
-     * In apt, the process method adds the candidate class file
-     * name to a separate list.
-     */
+    // Standalone positional argument: source file or type name.
     SOURCEFILE("sourcefile", null, HIDDEN, INFO) {
         @Override
         public boolean matches(String s) {
-            return s.endsWith(".java")  // Java source file
-                || SourceVersion.isName(s);   // Legal type name
+            if (s.endsWith(".java"))  // Java source file
+                return true;
+            int sep = s.indexOf('/');
+            if (sep != -1) {
+                return SourceVersion.isName(s.substring(0, sep))
+                        && SourceVersion.isName(s.substring(sep + 1));
+            } else {
+                return SourceVersion.isName(s);   // Legal type name
+            }
         }
         @Override
         public boolean process(OptionHelper helper, String option) {
             if (option.endsWith(".java") ) {
-                File f = new File(option);
-                if (!f.exists()) {
-                    helper.error("err.file.not.found", f);
+                Path p = Paths.get(option);
+                if (!Files.exists(p)) {
+                    helper.error("err.file.not.found", p);
                     return true;
                 }
-                if (!f.isFile()) {
-                    helper.error("err.file.not.file", f);
+                if (!Files.isRegularFile(p)) {
+                    helper.error("err.file.not.file", p);
                     return true;
                 }
-                helper.addFile(f);
+                helper.addFile(p);
             } else {
                 helper.addClassName(option);
             }
             return false;
         }
-    };
+    },
+
+    MULTIRELEASE("-multi-release", "opt.arg.multi-release", "opt.multi-release", HIDDEN, FILEMANAGER);
 
     /** The kind of an Option. This is used by the -help and -X options. */
     public enum OptionKind {

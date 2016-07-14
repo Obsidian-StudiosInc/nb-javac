@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,17 +21,16 @@
  * questions.
  */
 
-
 /*
  * @test
  * @bug 8042251
  * @summary Testing InnerClasses_attribute of inner enums in inner annotation.
  * @library /tools/lib /tools/javac/lib ../lib
- * @modules jdk.jdeps/com.sun.tools.classfile
- *          jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
+ * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
- * @build InnerClassesInInnerClassTestBase InnerClassesTestBase TestBase TestResult InMemoryFileManager ToolBox
+ *          jdk.jdeps/com.sun.tools.classfile
+ * @build toolbox.ToolBox InMemoryFileManager TestResult TestBase
+ * @build InnerClassesInInnerClassTestBase InnerClassesTestBase
  * @run main InnerEnumInInnerAnnotationTest
  */
 

@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package com.sun.source.doctree;
 
 import javax.tools.Diagnostic;
@@ -32,7 +33,6 @@ import javax.tools.JavaFileObject;
  *
  * @since 1.8
  */
-@jdk.Exported
 public interface ErroneousTree extends TextTree {
     /**
      * Returns a diagnostic object giving details about

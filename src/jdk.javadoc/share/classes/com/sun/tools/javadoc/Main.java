@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@ package com.sun.tools.javadoc;
 
 import java.io.PrintWriter;
 
+import com.sun.tools.javadoc.main.Start;
+
 /**
  * Provides external entry points (tool and programmatic)
  * for the javadoc program.
@@ -36,8 +38,17 @@ import java.io.PrintWriter;
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  *
+ * @deprecated
+ * This class is now deprecated and may be removed in a future release.
+ * See
+ * {@code javax.tools.ToolProvider::getSystemDocumentationTool}
+ * and
+ * {@code javax.tools.DocumentationTool}
+ * for replacement functionality.
+ *
  * @since 1.4
  */
+@Deprecated
 public class Main {
 
     /**

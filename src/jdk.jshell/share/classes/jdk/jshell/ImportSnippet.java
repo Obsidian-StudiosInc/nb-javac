@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.jshell;
 
 import jdk.jshell.Key.ImportKey;
@@ -30,7 +31,7 @@ import jdk.jshell.Key.ImportKey;
  * Snippet for an import declaration.
  * The Kind is {@link jdk.jshell.Snippet.Kind#IMPORT}.
  * <p>
- * <code>ImportSnippet</code> is immutable: an access to
+ * {@code ImportSnippet} is immutable: an access to
  * any of its methods will always return the same result.
  * and thus is thread-safe.
  * @jls 8.3: importDeclaration.
@@ -45,7 +46,7 @@ public class ImportSnippet extends PersistentSnippet {
     ImportSnippet(ImportKey key, String userSource, Wrap guts,
             String fullname, String name, SubKind subkind, String fullkey,
             boolean isStatic, boolean isStar) {
-        super(key, userSource, guts, name, subkind);
+        super(key, userSource, guts, name, subkind, null);
         this.fullname = fullname;
         this.fullkey = fullkey;
         this.isStatic = isStatic;
@@ -84,8 +85,10 @@ public class ImportSnippet extends PersistentSnippet {
     }
 
     /**
-     * When this snippet represent static import, this method returns true.
-     * @return true when this snippet represent static import, otherwise false
+     * Indicates whether this snippet represents a static import.
+     *
+     * @return {@code true} if this snippet represents a static import;
+     * otherwise {@code false}
      */
     public boolean isStatic() {
         return isStatic;
@@ -100,6 +103,6 @@ public class ImportSnippet extends PersistentSnippet {
 
     @Override
     String importLine(JShell state) {
-        return source();
+        return guts().wrapped();
     }
 }

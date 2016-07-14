@@ -76,9 +76,10 @@ public class TreesTest extends TestCase {
 
     public void testElementToTreeForTypeVariable() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
-        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath), null, Arrays.asList(new MyFileObject()));
+        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version), null, Arrays.asList(new MyFileObject()));
 
         CompilationUnitTree cut = ct.parse().iterator().next();
 
@@ -91,9 +92,10 @@ public class TreesTest extends TestCase {
 
     public void XtestIsAccessible99346() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
-        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath), null, Arrays.asList(new MyFileObject()));
+        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version), null, Arrays.asList(new MyFileObject()));
 
         CompilationUnitTree cut = ct.parse().iterator().next();
         TreePath tp = new TreePath(new TreePath(cut), cut.getTypeDecls().get(0));
@@ -117,9 +119,10 @@ public class TreesTest extends TestCase {
                   "\n" +
                   "}\n";
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
-        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version), null, Arrays.asList(new MyFileObject(code)));
 
         CompilationUnitTree cut = ct.parse().iterator().next();
 
@@ -198,9 +201,10 @@ public class TreesTest extends TestCase {
                   "    protected void method\n\n" +
                   "}\n";
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
-        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-XDide"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-source", version, "-XDide"), null, Arrays.asList(new MyFileObject(code)));
 
         CompilationUnitTree cut = ct.parse().iterator().next();
 
@@ -240,9 +244,10 @@ public class TreesTest extends TestCase {
                   "    }\n" +
                   "}\n";
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
-        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-XDide"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-source", version, "-XDide"), null, Arrays.asList(new MyFileObject(code)));
 
         final CompilationUnitTree cut = ct.parse().iterator().next();
 
@@ -272,9 +277,10 @@ public class TreesTest extends TestCase {
                   "    }\n" +
                   "}\n";
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
-        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", "1.8"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version), null, Arrays.asList(new MyFileObject(code)));
 
         final CompilationUnitTree cut = ct.parse().iterator().next();
 

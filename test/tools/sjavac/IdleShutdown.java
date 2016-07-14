@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,9 +29,9 @@
  * @build Wrapper
  * @run main Wrapper IdleShutdown
  */
-import java.io.Writer;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.sun.tools.javac.main.Main.Result;
 import com.sun.tools.sjavac.server.IdleResetSjavac;
 import com.sun.tools.sjavac.server.Sjavac;
 import com.sun.tools.sjavac.server.Terminable;
@@ -65,11 +65,11 @@ public class IdleShutdown {
         // Use Sjavac object and wait less than TIMEOUT_MS in between calls
         Thread.sleep(TIMEOUT_MS - 1000);
         log("Compiling");
-        service.compile(new String[0], null, null);
+        service.compile(new String[0]);
 
         Thread.sleep(TIMEOUT_MS - 1000);
         log("Compiling");
-        service.compile(new String[0], null, null);
+        service.compile(new String[0]);
 
         if (timeoutTimestamp.get() != -1)
             throw new AssertionError("Premature timeout detected.");
@@ -103,13 +103,13 @@ public class IdleShutdown {
         public void shutdown() {
         }
         @Override
-        public int compile(String[] args, Writer out, Writer err) {
+        public Result compile(String[] args) {
             // Attempt to trigger idle timeout during a call by sleeping
             try {
                 Thread.sleep(TIMEOUT_MS + 1000);
             } catch (InterruptedException e) {
             }
-            return 0;
+            return Result.OK;
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,16 @@
  * @summary Test that '.jar' files in -extdirs are found.
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.main
- * @build ToolBox
+ * @build toolbox.ToolBox toolbox.JarTask toolbox.JavacTask
  * @run main ExtDirTest
  */
 
 import java.io.File;
+
+import toolbox.JarTask;
+import toolbox.JavacTask;
+import toolbox.ToolBox;
 
 // Original test: test/tools/javac/ExtDirs/ExtDirs.sh
 public class ExtDirTest {
@@ -111,22 +114,22 @@ public class ExtDirTest {
     }
 
     void createJars() throws Exception {
-        tb.new JavacTask()
+        new JavacTask(tb)
                 .outdir(".")
                 .sources(ExtDirTestClass1Src)
                 .run();
 
-        tb.new JarTask("pkg1.jar")
+        new JarTask(tb, "pkg1.jar")
                 .manifest(jar1Manifest)
                 .files("pkg1/ExtDirTestClass1.class")
                 .run();
 
-        tb.new JavacTask()
+        new JavacTask(tb)
                 .outdir(".")
                 .sources(ExtDirTestClass2Src)
                 .run();
 
-        tb.new JarTask("pkg2.jar")
+        new JarTask(tb, "pkg2.jar")
                 .manifest(jar2Manifest)
                 .files("pkg2/ExtDirTestClass2.class")
                 .run();
@@ -148,24 +151,29 @@ public class ExtDirTest {
     }
 
     void compileWithExtDirs() throws Exception {
-        tb.new JavacTask()
+        new JavacTask(tb)
                 .outdir(".")
-                .options("-extdirs", "ext1")
+                .options("-source", "8",
+                        "-extdirs", "ext1")
                 .sources(ExtDirTest_1Src)
                 .run()
                 .writeAll();
 
-        tb.new JavacTask()
+        new JavacTask(tb)
                 .outdir(".")
-                .options("-extdirs", "ext1" + File.pathSeparator + "ext2")
+                .options("-source", "8",
+                        "-extdirs", "ext1" + File.pathSeparator + "ext2")
                 .sources(ExtDirTest_2Src)
-                .run();
+                .run()
+                .writeAll();
 
-        tb.new JavacTask()
+        new JavacTask(tb)
                 .outdir(".")
-                .options("-extdirs", "ext3")
+                .options("-source", "8",
+                        "-extdirs", "ext3")
                 .sources(ExtDirTest_3Src)
-                .run();
+                .run()
+                .writeAll();
     }
 
 }

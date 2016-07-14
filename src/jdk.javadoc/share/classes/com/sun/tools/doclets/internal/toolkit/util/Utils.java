@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,10 +32,9 @@ import java.lang.annotation.Target;
 import java.text.Collator;
 import java.util.*;
 
-import javax.tools.StandardLocation;
+import javax.tools.JavaFileManager.Location;
 
 import com.sun.javadoc.*;
-import com.sun.javadoc.AnnotationDesc.ElementValuePair;
 import com.sun.tools.doclets.internal.toolkit.*;
 import com.sun.tools.javac.util.StringUtils;
 
@@ -50,6 +49,7 @@ import com.sun.tools.javac.util.StringUtils;
  * @author Atul M Dambalkar
  * @author Jamie Ho
  */
+@Deprecated
 public class Utils {
     /**
      * Return array of class members whose documentation is to be generated.
@@ -205,13 +205,14 @@ public class Utils {
      * @param overwrite Overwrite files if true.
      */
     public void copyDocFiles(Configuration configuration, PackageDoc pd) {
-        copyDocFiles(configuration, DocPath.forPackage(pd).resolve(DocPaths.DOC_FILES));
+        Location locn = configuration.getLocationForPackage(pd);
+        copyDocFiles(configuration, locn, DocPath.forPackage(pd).resolve(DocPaths.DOC_FILES));
     }
 
-    public void copyDocFiles(Configuration configuration, DocPath dir) {
+    public void copyDocFiles(Configuration configuration, Location locn, DocPath dir) {
         try {
             boolean first = true;
-            for (DocFile f : DocFile.list(configuration, StandardLocation.SOURCE_PATH, dir)) {
+            for (DocFile f : DocFile.list(configuration, locn, dir)) {
                 if (!f.isDirectory()) {
                     continue;
                 }
@@ -237,7 +238,7 @@ public class Utils {
                     } else if (srcfile.isDirectory()) {
                         if (configuration.copydocfilesubdirs
                                 && !configuration.shouldExcludeDocFileDir(srcfile.getName())) {
-                            copyDocFiles(configuration, dir.resolve(srcfile.getName()));
+                            copyDocFiles(configuration, locn, dir.resolve(srcfile.getName()));
                         }
                     }
                 }
@@ -443,7 +444,7 @@ public class Utils {
 
     private boolean isDeclarationTarget(AnnotationDesc targetAnno) {
         // The error recovery steps here are analogous to TypeAnnotations
-        ElementValuePair[] elems = targetAnno.elementValues();
+        AnnotationDesc.ElementValuePair[] elems = targetAnno.elementValues();
         if (elems == null
             || elems.length != 1
             || !"value".equals(elems[0].element().name())

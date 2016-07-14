@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,8 @@ package com.sun.tools.sjavac.client;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 
+import com.sun.tools.javac.main.Main;
+import com.sun.tools.javac.main.Main.Result;
 import com.sun.tools.sjavac.AutoFlushWriter;
 import com.sun.tools.sjavac.Log;
 import com.sun.tools.sjavac.Util;
@@ -51,15 +53,17 @@ public class ClientMain {
 
     public static int run(String[] args, Writer out, Writer err) {
 
-        Log.initializeLog(out, err);
+        Log.setLogForCurrentThread(new Log(out, err));
 
         Options options;
         try {
             options = Options.parseArgs(args);
         } catch (IllegalArgumentException e) {
             Log.error(e.getMessage());
-            return -1;
+            return Result.CMDERR.exitCode;
         }
+
+        Log.setLogLevel(options.getLogLevel());
 
         Log.debug("==========================================================");
         Log.debug("Launching sjavac client with the following parameters:");
@@ -67,25 +71,17 @@ public class ClientMain {
         Log.debug("==========================================================");
 
         // Prepare sjavac object
-        boolean background = Util.extractBooleanOption("background", options.getServerConf(), true);
-        Sjavac sjavac;
-        // Create an sjavac implementation to be used for compilation
-        if (background) {
-            try {
-                sjavac = new SjavacClient(options);
-            } catch (PortFileInaccessibleException e) {
-                Log.error("Port file inaccessible.");
-                return -1;
-            }
-        } else {
-            sjavac = new SjavacImpl();
+        boolean useServer = options.getServerConf() != null;
+        Sjavac sjavac = useServer ? new SjavacClient(options) : new SjavacImpl();
+
+        // Perform compilation
+        Result result = sjavac.compile(args);
+
+        // If sjavac is running in the foreground we should shut it down at this point
+        if (!useServer) {
+            sjavac.shutdown();
         }
 
-        int rc = sjavac.compile(args, out, err);
-
-        if (!background)
-            sjavac.shutdown();
-
-        return rc;
+        return result.exitCode;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,6 @@ import com.sun.source.tree.*;
  * @author Peter von der Ah&eacute;
  * @since 1.6
  */
-@jdk.Exported
 public class SimpleTreeVisitor <R,P> implements TreeVisitor<R,P> {
     /**
      * The default value, returned by the {@link #defaultAction default action}.
@@ -720,14 +719,30 @@ public class SimpleTreeVisitor <R,P> implements TreeVisitor<R,P> {
         return defaultAction(node, p);
     }
 
-    /**
-     * {@inheritDoc} This implementation calls {@code defaultAction}.
-     *
-     * @param node {@inheritDoc}
-     * @param p {@inheritDoc}
-     * @return  the result of {@code defaultAction}
-     */
+    public R visitModule(ModuleTree node, P p) {
+        return defaultAction(node, p);
+    }
+
     @Override
+    public R visitExports(ExportsTree node, P p) {
+        return defaultAction(node, p);
+    }
+
+    @Override
+    public R visitProvides(ProvidesTree node, P p) {
+        return defaultAction(node, p);
+    }
+
+    @Override
+    public R visitRequires(RequiresTree node, P p) {
+        return defaultAction(node, p);
+    }
+
+    @Override
+    public R visitUses(UsesTree node, P p) {
+        return defaultAction(node, p);
+    }
+
     public R visitErroneous(ErroneousTree node, P p) {
         return defaultAction(node, p);
     }

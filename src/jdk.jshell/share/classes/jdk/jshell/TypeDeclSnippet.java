@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.jshell;
 
 import java.util.Collection;
@@ -41,8 +42,10 @@ public class TypeDeclSnippet extends DeclarationSnippet {
     TypeDeclSnippet(TypeDeclKey key, String userSource, Wrap guts,
             String unitName, SubKind subkind, Wrap corralled,
             Collection<String> declareReferences,
-            Collection<String> bodyReferences) {
-        super(key, userSource, guts, unitName, subkind, corralled, declareReferences, bodyReferences);
+            Collection<String> bodyReferences,
+            DiagList syntheticDiags) {
+        super(key, userSource, guts, unitName, subkind, corralled,
+                declareReferences, bodyReferences, syntheticDiags);
     }
 
     /**** internal access ****/

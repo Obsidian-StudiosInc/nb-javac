@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,15 @@
 
 /*
  * @test
+ * @bug 8144095
  * @summary Test Command Completion
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.jdeps/com.sun.tools.javap
+ *          jdk.jshell/jdk.internal.jshell.tool
  * @library /tools/lib
- * @build ReplToolTesting TestingInputStream Compiler ToolBox
+ * @build toolbox.ToolBox toolbox.JarTask toolbox.JavacTask
+ * @build ReplToolTesting TestingInputStream Compiler
  * @run testng CommandCompletionTest
  */
 
@@ -46,25 +52,26 @@ import org.testng.annotations.Test;
 public class CommandCompletionTest extends ReplToolTesting {
 
     public void testCommand() {
-        assertCompletion("/f|", false, "/feedback ");
         assertCompletion("/deb|", false);
-        assertCompletion("/feedback v|", false, "verbose");
-        assertCompletion("/c|", false, "/classes ", "/classpath ");
+        assertCompletion("/re|", false, "/reload ", "/reset ", "/retain ");
         assertCompletion("/h|", false, "/help ", "/history ");
-        assertCompletion("/feedback |", false,
-                "?", "concise", "default", "normal", "off", "verbose");
     }
 
     public void testList() {
-        assertCompletion("/l|", false, "/list ");
-        assertCompletion("/list |", false, "all");
-        assertCompletion("/list q|", false);
+        test(false, new String[] {"-nostartup"},
+                a -> assertCompletion(a, "/l|", false, "/list "),
+                a -> assertCompletion(a, "/list |", false, "-all ", "-history ", "-start "),
+                a -> assertCompletion(a, "/list -h|", false, "-history "),
+                a -> assertCompletion(a, "/list q|", false),
+                a -> assertVariable(a, "int", "xray"),
+                a -> assertCompletion(a, "/list |", false, "-all ", "-history ", "-start ", "1", "xray"),
+                a -> assertCompletion(a, "/list x|", false, "xray")
+        );
     }
 
     public void testDrop() {
-        assertCompletion("/d|", false, "/drop ");
-
         test(false, new String[] {"-nostartup"},
+                a -> assertCompletion(a, "/d|", false, "/drop "),
                 a -> assertClass(a, "class cTest {}", "class", "cTest"),
                 a -> assertMethod(a, "int mTest() { return 0; }", "()I", "mTest"),
                 a -> assertVariable(a, "int", "fTest"),
@@ -74,10 +81,9 @@ public class CommandCompletionTest extends ReplToolTesting {
     }
 
     public void testEdit() {
-        assertCompletion("/e|", false, "/edit ", "/exit ");
-        assertCompletion("/ed|", false, "/edit ");
-
         test(false, new String[]{"-nostartup"},
+                a -> assertCompletion(a, "/e|", false, "/edit ", "/exit "),
+                a -> assertCompletion(a, "/ed|", false, "/edit "),
                 a -> assertClass(a, "class cTest {}", "class", "cTest"),
                 a -> assertMethod(a, "int mTest() { return 0; }", "()I", "mTest"),
                 a -> assertVariable(a, "int", "fTest"),
@@ -100,9 +106,9 @@ public class CommandCompletionTest extends ReplToolTesting {
 
     public void testSave() throws IOException {
         Compiler compiler = new Compiler();
-        assertCompletion("/s|", false, "/save ", "/savestart ", "/seteditor ", "/setstart ");
+        assertCompletion("/s|", false, "/save ", "/set ");
         List<String> p1 = listFiles(Paths.get(""));
-        Collections.addAll(p1, "all ", "history ");
+        Collections.addAll(p1, "-all ", "-history ", "-start ");
         FileSystems.getDefault().getRootDirectories().forEach(s -> p1.add(s.toString()));
         Collections.sort(p1);
         assertCompletion("/save |", false, p1.toArray(new String[p1.size()]));
@@ -110,7 +116,7 @@ public class CommandCompletionTest extends ReplToolTesting {
         List<String> p2 = listFiles(classDir);
         assertCompletion("/save " + classDir + "/|",
                 false, p2.toArray(new String[p2.size()]));
-        assertCompletion("/save all " + classDir + "/|",
+        assertCompletion("/save -all " + classDir + "/|",
                 false, p2.toArray(new String[p2.size()]));
     }
 

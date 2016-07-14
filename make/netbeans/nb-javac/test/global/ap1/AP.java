@@ -46,7 +46,7 @@ import javax.tools.JavaFileObject;
  *
  * @author lahvac
  */
-@SupportedSourceVersion(SourceVersion.RELEASE_7)
+@SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class AP extends AbstractProcessor {
 
     @Override

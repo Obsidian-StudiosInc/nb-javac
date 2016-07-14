@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,14 +27,18 @@
  * @summary Verify that javap marks public interfaces as public
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.main
- * @build ToolBox
+ *          jdk.jdeps/com.sun.tools.javap
+ * @build toolbox.ToolBox toolbox.JavapTask
  * @run main PublicInterfaceTest
  */
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+
+import toolbox.JavapTask;
+import toolbox.Task;
+import toolbox.ToolBox;
 
 // Original test: test/tools/javap/PublicInterfaceTest.sh
 public class PublicInterfaceTest {
@@ -45,10 +49,10 @@ public class PublicInterfaceTest {
 
         Path pathToClass = Paths.get(ToolBox.testClasses, "PublicInterfaceTest$Test.class");
 
-        String out = tb.new JavapTask()
+        String out = new JavapTask(tb)
                 .classes(pathToClass.toString())
                 .run()
-                .getOutput(ToolBox.OutputKind.DIRECT);
+                .getOutput(Task.OutputKind.DIRECT);
 
         if (!out.contains("public"))
             throw new AssertionError("The javap output does not contain \"public\"");

@@ -64,12 +64,13 @@ public class AnnotateTest extends TestCase {
 
     public void testNotImportedAnnotationsAttributed() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; @Retention(RetentionPolicy.CLASS) public class Test {}";
 
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         ct.analyze();
@@ -87,12 +88,13 @@ public class AnnotateTest extends TestCase {
 
     public void testNotImportedAnnotationsAttributed156131() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; @TransformationSet({@Transformation(displayName=\"\")}) public class Test {}";
 
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         ct.analyze();
@@ -110,12 +112,13 @@ public class AnnotateTest extends TestCase {
     
     public void testUnresolvableAttributeType() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String codeAnnotation = "package test; @interface A { E e(); } @interface E { }";
 
-        final JavacTaskImpl annotation = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-d", workingDir.getAbsolutePath()), null, Arrays.asList(new MyFileObject(codeAnnotation)));
+        final JavacTaskImpl annotation = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov", "-d", workingDir.getAbsolutePath()), null, Arrays.asList(new MyFileObject(codeAnnotation)));
         
         annotation.generate();
 
@@ -123,7 +126,7 @@ public class AnnotateTest extends TestCase {
         
         String code = "package test; @A(e = @Transformation(displayName=\"\") ) class Test {}";
 
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-classpath", workingDir.getAbsolutePath()), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov", "-classpath", workingDir.getAbsolutePath()), null, Arrays.asList(new MyFileObject(code)));
         
         CompilationUnitTree cut = ct.parse().iterator().next();
 
@@ -142,12 +145,13 @@ public class AnnotateTest extends TestCase {
 
     public void test199020a() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; @Undefined1(v=\"\", {@Undefined2}) public class Test {}";
 
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         ct.analyze();

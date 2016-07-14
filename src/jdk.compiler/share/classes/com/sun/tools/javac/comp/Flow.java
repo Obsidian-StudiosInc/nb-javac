@@ -767,6 +767,10 @@ public class Flow {
             }
         }
 
+        public void visitModuleDef(JCModuleDecl tree) {
+            // Do nothing for modules
+        }
+
     /**************************************************************************
      * main method
      *************************************************************************/
@@ -1333,6 +1337,10 @@ public class Flow {
                 caught = prevCaught;
                 thrown = prevThrown;
             }
+        }
+
+        public void visitModuleDef(JCModuleDecl tree) {
+            // Do nothing for modules
         }
 
     /**************************************************************************
@@ -2372,10 +2380,11 @@ public class Flow {
         // assigned before reading their value
         public void visitSelect(JCFieldAccess tree) {
             super.visitSelect(tree);
+            JCTree sel = TreeInfo.skipParens(tree.selected);
             if (enforceThisDotInit &&
-                tree.selected.hasTag(IDENT) &&
-                ((JCIdent)tree.selected).name == names._this &&
-                tree.sym.kind == VAR) {
+                    sel.hasTag(IDENT) &&
+                    ((JCIdent)sel).name == names._this &&
+                    tree.sym.kind == VAR) {
                 checkInit(tree.pos(), (VarSymbol)tree.sym);
             }
         }
@@ -2449,6 +2458,10 @@ public class Flow {
         public void visitAnnotatedType(JCAnnotatedType tree) {
             // annotations don't get scanned
             tree.underlyingType.accept(this);
+        }
+
+        public void visitModuleDef(JCModuleDecl tree) {
+            // Do nothing for modules
         }
 
     /**************************************************************************
@@ -2638,6 +2651,10 @@ public class Flow {
                 }
             }
             super.visitTry(tree);
+        }
+
+        public void visitModuleDef(JCModuleDecl tree) {
+            // Do nothing for modules
         }
 
     /**************************************************************************

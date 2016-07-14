@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,6 @@
 package com.sun.tools.sjavac;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.Writer;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,6 +41,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import com.sun.tools.javac.main.Main.Result;
 import com.sun.tools.sjavac.comp.CompilationService;
 import com.sun.tools.sjavac.options.Options;
 import com.sun.tools.sjavac.pubapi.PubApi;
@@ -80,7 +79,6 @@ public class CompileJavaPackages implements Transformer {
     public boolean transform(final CompilationService sjavac,
                              Map<String,Set<URI>> pkgSrcs,
                              final Set<URI>             visibleSources,
-                             final Map<URI,Set<String>> visibleClasses,
                              Map<String,Set<String>> oldPackageDependents,
                              URI destRoot,
                              final Map<String,Set<URI>>    packageArtifacts,
@@ -90,9 +88,7 @@ public class CompileJavaPackages implements Transformer {
                              final Map<String, PubApi> dependencyPubapis,
                              int debugLevel,
                              boolean incremental,
-                             int numCores,
-                             final Writer out,
-                             final Writer err) {
+                             int numCores) {
 
         Log.debug("Performing CompileJavaPackages transform...");
 
@@ -220,7 +216,9 @@ public class CompileJavaPackages implements Transformer {
             }
 
             String chunkId = id + "-" + String.valueOf(i);
+            Log log = Log.get();
             compilationCalls.add(() -> {
+                Log.setLogForCurrentThread(log);
                 CompilationSubResult result = sjavac.compile("n/a",
                                                              chunkId,
                                                              args.prepJavacArgs(),
@@ -228,8 +226,8 @@ public class CompileJavaPackages implements Transformer {
                                                              cc.srcs,
                                                              visibleSources);
                 synchronized (lock) {
-                    safeWrite(result.stdout, out);
-                    safeWrite(result.stderr, err);
+                    Util.getLines(result.stdout).forEach(Log::info);
+                    Util.getLines(result.stderr).forEach(Log::error);
                 }
                 return result;
             });
@@ -247,8 +245,10 @@ public class CompileJavaPackages implements Transformer {
                 subResults.add(fut.get());
             } catch (ExecutionException ee) {
                 Log.error("Compilation failed: " + ee.getMessage());
-            } catch (InterruptedException ee) {
-                Log.error("Compilation interrupted: " + ee.getMessage());
+                Log.error(ee);
+            } catch (InterruptedException ie) {
+                Log.error("Compilation interrupted: " + ie.getMessage());
+                Log.error(ie);
                 Thread.currentThread().interrupt();
             }
         }
@@ -280,7 +280,7 @@ public class CompileJavaPackages implements Transformer {
             }
 
             // Check the return values.
-            if (subResult.returnCode != 0) {
+            if (subResult.result != Result.OK) {
                 rc = false;
             }
         }
@@ -291,16 +291,6 @@ public class CompileJavaPackages implements Transformer {
         Log.debug("Compilation of "+numSources+" source files took "+minutes+"m "+seconds+"s");
 
         return rc;
-    }
-
-    private void safeWrite(String str, Writer w) {
-        if (str.length() > 0) {
-            try {
-                w.write(str);
-            } catch (IOException e) {
-                Log.error("Could not print compilation output.");
-            }
-        }
     }
 
     /**

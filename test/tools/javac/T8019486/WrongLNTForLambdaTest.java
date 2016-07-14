@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,11 @@
  * @bug 8019486 8026861 8027142
  * @summary javac, generates erroneous LVT for a test case with lambda code
  * @library /tools/lib
- * @modules jdk.jdeps/com.sun.tools.classfile
- *          jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
+ * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.compiler/com.sun.tools.javac.util
- * @build ToolBox
+ *          jdk.jdeps/com.sun.tools.classfile
+ * @build toolbox.ToolBox toolbox.JavacTask
  * @run main WrongLNTForLambdaTest
  */
 
@@ -43,6 +42,9 @@ import com.sun.tools.classfile.Code_attribute;
 import com.sun.tools.classfile.LineNumberTable_attribute;
 import com.sun.tools.classfile.Method;
 import com.sun.tools.javac.util.Assert;
+
+import toolbox.JavacTask;
+import toolbox.ToolBox;
 
 public class WrongLNTForLambdaTest {
 
@@ -151,7 +153,7 @@ public class WrongLNTForLambdaTest {
     }
 
     void compileTestClass() throws Exception {
-        tb.new JavacTask()
+        new JavacTask(tb)
                 .sources(testSource)
                 .run();
     }

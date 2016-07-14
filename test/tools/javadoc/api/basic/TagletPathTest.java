@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
  * @summary javadoc should have a javax.tools.Tool service provider
  * @modules java.compiler
  *          jdk.compiler
+ *          jdk.javadoc/com.sun.tools.doclets.standard
  * @build APITest
  * @run main TagletPathTest
  */
@@ -81,7 +82,7 @@ public class TagletPathTest extends APITest {
             Iterable<String> options = Arrays.asList("-taglet", "UnderlineTaglet");
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
-            DocumentationTask t = tool.getTask(pw, fm, null, null, options, files);
+            DocumentationTask t = tool.getTask(pw, fm, null, com.sun.tools.doclets.standard.Standard.class, options, files);
             boolean ok = t.call();
             String out = sw.toString();
             System.err.println(">>" + out + "<<");

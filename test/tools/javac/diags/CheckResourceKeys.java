@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,8 @@
  */
 
 import java.io.*;
+import java.lang.reflect.Layer;
+import java.lang.reflect.Module;
 import java.util.*;
 import javax.tools.*;
 import com.sun.tools.classfile.*;
@@ -182,7 +184,7 @@ public class CheckResourceKeys {
      * have a significant recognizable substring to look for.
      */
     private boolean isMandatoryWarningString(String s) {
-        String[] bases = { "deprecated", "unchecked", "varargs", "sunapi" };
+        String[] bases = { "deprecated", "unchecked", "varargs" };
         String[] tails = { ".filename", ".filename.additional", ".plural", ".plural.additional", ".recompile" };
         for (String b: bases) {
             if (s.startsWith(b)) {
@@ -229,25 +231,17 @@ public class CheckResourceKeys {
         "compiler.err.signature.doesnt.match.supertype",    // UNUSED
         "compiler.err.type.var.more.than.once",             // UNUSED
         "compiler.err.type.var.more.than.once.in.result",   // UNUSED
-        "compiler.misc.ccf.found.later.version",            // UNUSED
         "compiler.misc.non.denotable.type",                 // UNUSED
         "compiler.misc.unnamed.package",                    // should be required, CR 6964147
-        "compiler.misc.verbose.retro",                      // UNUSED
-        "compiler.misc.verbose.retro.with",                 // UNUSED
-        "compiler.misc.verbose.retro.with.list",            // UNUSED
         "compiler.warn.proc.type.already.exists",           // TODO in JavacFiler
         "javac.err.invalid.arg",                            // UNUSED ??
         "javac.opt.arg.class",                              // UNUSED ??
         "javac.opt.arg.pathname",                           // UNUSED ??
         "javac.opt.moreinfo",                               // option commented out
         "javac.opt.nogj",                                   // UNUSED
-        "javac.opt.printflat",                              // option commented out
         "javac.opt.printsearch",                            // option commented out
         "javac.opt.prompt",                                 // option commented out
-        "javac.opt.retrofit",                               // UNUSED
-        "javac.opt.s",                                      // option commented out
-        "javac.opt.scramble",                               // option commented out
-        "javac.opt.scrambleall"                             // option commented out
+        "javac.opt.s"                                       // option commented out
         ));
 
     /**
@@ -261,7 +255,7 @@ public class CheckResourceKeys {
                 if (cs.matches(".*\\.java"))
                     continue;
                 // ignore package and class names
-                if (cs.matches("(com|java|javax|sun)\\.[A-Za-z.]+"))
+                if (cs.matches("(com|java|javax|jdk|sun)\\.[A-Za-z.]+"))
                     continue;
                 // explicit known exceptions
                 if (noResourceRequired.contains(cs))
@@ -275,6 +269,9 @@ public class CheckResourceKeys {
     }
     // where
     private Set<String> noResourceRequired = new HashSet<String>(Arrays.asList(
+            // module names
+            "jdk.compiler",
+            "jdk.javadoc",
             // system properties
             "application.home", // in Paths.java
             "env.class.path",
@@ -285,18 +282,22 @@ public class CheckResourceKeys {
             "ct.sym",
             "rt.jar",
             "jfxrt.jar",
-            "bootmodules.jimage",
+            "module-info.class",
+            "jrt-fs.jar",
             // -XD option names
             "process.packages",
             "ignore.symbol.file",
+            "fileManager.deferClose",
             // prefix/embedded strings
             "compiler.",
             "compiler.misc.",
             "opt.Xlint.desc.",
             "count.",
             "illegal.",
+            "java.",
             "javac.",
-            "verbose."
+            "verbose.",
+            "locn."
     ));
 
     /**
@@ -382,10 +383,11 @@ public class CheckResourceKeys {
      * Get the set of keys from the javac resource bundles.
      */
     Set<String> getResourceKeys() {
+        Module jdk_compiler = Layer.boot().findModule("jdk.compiler").get();
         Set<String> results = new TreeSet<String>();
         for (String name : new String[]{"javac", "compiler"}) {
             ResourceBundle b =
-                    ResourceBundle.getBundle("com.sun.tools.javac.resources." + name);
+                    ResourceBundle.getBundle("com.sun.tools.javac.resources." + name, jdk_compiler);
             results.addAll(b.keySet());
         }
         return results;

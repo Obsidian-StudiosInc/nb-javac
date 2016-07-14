@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.jshell;
 
 import jdk.jshell.Key.ExpressionKey;
@@ -38,7 +39,7 @@ import jdk.jshell.Key.ExpressionKey;
 public class ExpressionSnippet extends Snippet {
 
     ExpressionSnippet(ExpressionKey key, String userSource, Wrap guts, String name, SubKind subkind) {
-        super(key, userSource, guts, name, subkind);
+        super(key, userSource, guts, name, subkind, null);
     }
 
     /**

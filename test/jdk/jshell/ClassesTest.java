@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @bug 8145239
  * @summary Tests for EvaluationState.classes
  * @build KullaTesting TestingInputStream ExpectedDiagnostic
  * @run testng ClassesTest
@@ -42,12 +43,14 @@ import org.testng.annotations.Test;
 import jdk.jshell.Diag;
 import static jdk.jshell.Snippet.Status.VALID;
 import static jdk.jshell.Snippet.Status.RECOVERABLE_NOT_DEFINED;
+import static jdk.jshell.Snippet.Status.RECOVERABLE_DEFINED;
 import static jdk.jshell.Snippet.Status.DROPPED;
 import static jdk.jshell.Snippet.Status.REJECTED;
+import static jdk.jshell.Snippet.Status.OVERWRITTEN;
+import static jdk.jshell.Snippet.Status.NONEXISTENT;
 import static jdk.jshell.Snippet.SubKind.*;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import static jdk.jshell.Snippet.Status.OVERWRITTEN;
 
 @Test
 public class ClassesTest extends KullaTesting {
@@ -81,10 +84,10 @@ public class ClassesTest extends KullaTesting {
         TypeDeclSnippet c1 = (TypeDeclSnippet) assertDeclareFail("class A { void f() { return g(); } }", "compiler.err.prob.found.req");
         assertTypeDeclSnippet(c1, "A", REJECTED, CLASS_SUBKIND, 0, 2);
         TypeDeclSnippet c2 = classKey(assertEval("class A { int f() { return g(); } }",
-                ste(c1, REJECTED, RECOVERABLE_NOT_DEFINED, false, null)));
-        assertTypeDeclSnippet(c2, "A", RECOVERABLE_NOT_DEFINED, CLASS_SUBKIND, 1, 0);
+                ste(c1, NONEXISTENT, RECOVERABLE_DEFINED, true, null)));
+        assertTypeDeclSnippet(c2, "A", RECOVERABLE_DEFINED, CLASS_SUBKIND, 1, 0);
         assertDrop(c2,
-                ste(c2, RECOVERABLE_NOT_DEFINED, DROPPED, false, null));
+                ste(c2, RECOVERABLE_DEFINED, DROPPED, true, null));
     }
 
     public void classDeclaration() {
@@ -174,12 +177,33 @@ public class ClassesTest extends KullaTesting {
         assertActiveKeys();
     }
 
+    //8154496: test3 update: sig change should false
+    public void classesRedeclaration3() {
+        Snippet a = classKey(assertEval("class A { }"));
+        assertClasses(clazz(KullaTesting.ClassType.CLASS, "A"));
+        assertActiveKeys();
+
+        Snippet test1 = methodKey(assertEval("A test() { return null; }"));
+        Snippet test2 = methodKey(assertEval("void test(A a) { }"));
+        Snippet test3 = methodKey(assertEval("void test(int n) {A a;}"));
+        assertActiveKeys();
+
+        assertEval("interface A { }",
+                ste(MAIN_SNIPPET, VALID, VALID, true, null),
+                ste(test1, VALID, VALID, true, MAIN_SNIPPET),
+                ste(test2, VALID, VALID, true, MAIN_SNIPPET),
+                ste(test3, VALID, VALID, true, MAIN_SNIPPET),
+                ste(a, VALID, OVERWRITTEN, false, MAIN_SNIPPET));
+        assertClasses(clazz(KullaTesting.ClassType.INTERFACE, "A"));
+        assertMethods(method("()A", "test"), method("(A)void", "test"), method("(int)void", "test"));
+        assertActiveKeys();
+    }
+
     public void classesCyclic1() {
         Snippet b = classKey(assertEval("class B extends A { }",
                 added(RECOVERABLE_NOT_DEFINED)));
         Snippet a = classKey(assertEval("class A extends B { }", DiagCheck.DIAG_IGNORE, DiagCheck.DIAG_IGNORE,
-                added(RECOVERABLE_NOT_DEFINED),
-                ste(b, RECOVERABLE_NOT_DEFINED, RECOVERABLE_NOT_DEFINED, false, MAIN_SNIPPET)));
+                added(REJECTED)));
         /***
         assertDeclareFail("class A extends B { }", "****",
                 added(REJECTED),

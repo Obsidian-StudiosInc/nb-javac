@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,30 +26,27 @@
  *  @bug 8001098 8004961 8004082
  *  @library /tools/lib
  *  @modules jdk.compiler/com.sun.tools.javac.api
- *           jdk.compiler/com.sun.tools.javac.file
  *           jdk.compiler/com.sun.tools.javac.main
- *  @build ToolBox
+ *          jdk.jdeps/com.sun.tools.javap
+ *  @build toolbox.ToolBox toolbox.JavacTask toolbox.JarTask
  *  @run main Test
  *  @summary Provide a simple light-weight "plug-in" mechanism for javac
  */
 
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
+
 import javax.tools.JavaCompiler;
-import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
+
+import toolbox.JarTask;
+import toolbox.JavacTask;
+import toolbox.Task;
+import toolbox.ToolBox;
 
 public class Test {
     public static void main(String... args) throws Exception {
@@ -82,14 +79,14 @@ public class Test {
         try {
             // compile the plugin explicitly, to a non-standard directory
             // so that we don't find it on the wrong path by accident
-            tb.new JavacTask()
+            new JavacTask(tb)
               .options("-d", pluginClasses.getPath())
               .files(pluginSrc.getPath())
               .run();
 
             File plugin = new File(pluginClasses.getPath(), "META-INF/services/com.sun.source.util.Plugin");
             tb.writeFile(plugin.getPath(), "ShowTypePlugin\n");
-            tb.new JarTask()
+            new JarTask(tb)
               .run("cf", pluginJar.getPath(), "-C", pluginClasses.getPath(), ".");
 
             testCommandLine("-Xplugin:showtype", ref1);
@@ -112,13 +109,13 @@ public class Test {
         Iterable<? extends JavaFileObject> files = fm.getJavaFileObjects(identifiers);
 
         System.err.println("test api: " + options + " " + files);
-        ToolBox.Result result = tb.new JavacTask(ToolBox.Mode.API)
+        Task.Result result = new JavacTask(tb, Task.Mode.API)
                                   .fileManager(fm)
                                   .options(opt)
                                   .files(identifiers.toPath())
-                                  .run(ToolBox.Expect.SUCCESS)
+                                  .run(Task.Expect.SUCCESS)
                                   .writeAll();
-        String out = result.getOutput(ToolBox.OutputKind.DIRECT);
+        String out = result.getOutput(Task.OutputKind.DIRECT);
         checkOutput(out, ref);
     }
 
@@ -131,11 +128,11 @@ public class Test {
             identifiers.getPath() };
 
         System.err.println("test command line: " + Arrays.asList(args));
-        ToolBox.Result result = tb.new JavacTask(ToolBox.Mode.CMDLINE)
+        Task.Result result = new JavacTask(tb, Task.Mode.CMDLINE)
                                   .options(args)
-                                  .run(ToolBox.Expect.SUCCESS)
+                                  .run(Task.Expect.SUCCESS)
                                   .writeAll();
-        String out = result.getOutput(ToolBox.OutputKind.DIRECT);
+        String out = result.getOutput(Task.OutputKind.DIRECT);
         checkOutput(out, ref);
     }
 

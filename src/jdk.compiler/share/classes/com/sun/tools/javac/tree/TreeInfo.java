@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,7 @@ import static com.sun.tools.javac.code.TypeTag.BOT;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 import static com.sun.tools.javac.tree.JCTree.Tag.BLOCK;
 import static com.sun.tools.javac.tree.JCTree.Tag.SYNCHRONIZED;
+import javax.tools.JavaFileObject;
 
 /** Utility class containing inspector methods for trees.
  *
@@ -638,6 +639,10 @@ public class TreeInfo {
                 if (that.packge == sym) result = that;
                 else super.visitTopLevel(that);
             }
+            public void visitModuleDef(JCModuleDecl that) {
+                if (that.sym == sym) result = that;
+                // no need to scan within module declaration
+            }
             public void visitPackageDef(JCPackageDecl that) {
                 if (that.packge == sym) result = that;
                 else super.visitPackageDef(that);
@@ -790,7 +795,12 @@ public class TreeInfo {
         node = skipParens(node);
         switch (node.getTag()) {
         case TOPLEVEL:
-            return ((JCCompilationUnit) node).packge;
+            JCCompilationUnit cut = (JCCompilationUnit) node;
+            if (isModuleInfo(cut) && cut.defs.nonEmpty() && cut.defs.head.hasTag(MODULEDEF))
+                return symbolFor(cut.defs.head);
+            return cut.packge;
+        case MODULEDEF:
+            return ((JCModuleDecl) node).sym;
         case PACKAGEDEF:
             return ((JCPackageDecl) node).packge;
         case CLASSDEF:
@@ -1171,5 +1181,23 @@ public class TreeInfo {
         TypeAnnotationFinder finder = new TypeAnnotationFinder();
         finder.scan(e);
         return finder.foundTypeAnno;
+    }
+
+    public static boolean isModuleInfo(JCCompilationUnit tree) {
+        return tree.sourcefile.isNameCompatible("module-info", JavaFileObject.Kind.SOURCE)
+                && tree.defs.nonEmpty() && tree.defs.head.hasTag(MODULEDEF);
+    }
+
+    public static JCModuleDecl getModule(JCCompilationUnit t) {
+        if (t.defs.nonEmpty()) {
+            JCTree def = t.defs.head;
+            if (def.hasTag(MODULEDEF))
+                return (JCModuleDecl) def;
+        }
+        return null;
+    }
+
+    public static boolean isPackageInfo(JCCompilationUnit tree) {
+        return tree.sourcefile.isNameCompatible("package-info", JavaFileObject.Kind.SOURCE);
     }
 }

@@ -25,36 +25,42 @@
 
 package jdk.jshell;
 
+import jdk.jshell.spi.ExecutionControl;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.MissingResourceException;
 import java.util.Objects;
+import java.util.ResourceBundle;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 import java.util.function.Supplier;
 import jdk.internal.jshell.debug.InternalDebugControl;
+import jdk.internal.jshell.jdi.FailOverExecutionControl;
 import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.toList;
-import static jdk.internal.jshell.debug.InternalDebugControl.DBG_EVNT;
 import static jdk.jshell.Util.expunge;
 import jdk.jshell.Snippet.Status;
+import jdk.internal.jshell.jdi.JDIExecutionControl;
+import jdk.jshell.spi.ExecutionEnv;
 
 /**
  * The JShell evaluation state engine.  This is the central class in the JShell
- * API.  A <code>JShell</code> instance holds the evolving compilation and
+ * API.  A {@code JShell} instance holds the evolving compilation and
  * execution state.  The state is changed with the instance methods
  * {@link jdk.jshell.JShell#eval(java.lang.String) eval(String)},
  * {@link jdk.jshell.JShell#drop(jdk.jshell.PersistentSnippet) drop(PersistentSnippet)} and
  * {@link jdk.jshell.JShell#addToClasspath(java.lang.String) addToClasspath(String)}.
  * The majority of methods query the state.
- * A <code>JShell</code> instance also allows registering for events with
+ * A {@code JShell} instance also allows registering for events with
  * {@link jdk.jshell.JShell#onSnippetEvent(java.util.function.Consumer) onSnippetEvent(Consumer)}
  * and {@link jdk.jshell.JShell#onShutdown(java.util.function.Consumer) onShutdown(Consumer)}, which
  * are unregistered with
@@ -64,37 +70,41 @@ import jdk.jshell.Snippet.Status;
  * When complete the instance should be closed to free resources --
  * {@link jdk.jshell.JShell#close()}.
  * <p>
- * An instance of <code>JShell</code> is created with
- * <code>JShell.create()</code>.
+ * An instance of {@code JShell} is created with
+ * {@code JShell.create()}.
  * <p>
  * This class is not thread safe, except as noted, all access should be through
  * a single thread.
- * @see jdk.jshell
  * @author Robert Field
  */
 public class JShell implements AutoCloseable {
 
     final SnippetMaps maps;
     final KeyMap keyMap;
+    final OuterWrapMap outerMap;
     final TaskFactory taskFactory;
     final InputStream in;
     final PrintStream out;
     final PrintStream err;
     final Supplier<String> tempVariableNameGenerator;
     final BiFunction<Snippet, Integer, String> idGenerator;
+    final List<String> extraRemoteVMOptions;
+    final List<String> extraCompilerOptions;
+    final ExecutionControl executionControl;
 
     private int nextKeyIndex = 1;
 
     final Eval eval;
-    final ClassTracker classTracker;
+    private final Map<String, byte[]> classnameToBytes = new HashMap<>();
     private final Map<Subscription, Consumer<JShell>> shutdownListeners = new HashMap<>();
     private final Map<Subscription, Consumer<SnippetEvent>> keyStatusListeners = new HashMap<>();
     private boolean closed = false;
 
-
-    private ExecutionControl executionControl = null;
+    private boolean executionControlLaunched = false;
     private SourceCodeAnalysisImpl sourceCodeAnalysis = null;
 
+    private static final String L10N_RB_NAME    = "jdk.jshell.resources.l10n";
+    private static ResourceBundle outputRB  = null;
 
     JShell(Builder b) {
         this.in = b.in;
@@ -102,32 +112,38 @@ public class JShell implements AutoCloseable {
         this.err = b.err;
         this.tempVariableNameGenerator = b.tempVariableNameGenerator;
         this.idGenerator = b.idGenerator;
+        this.extraRemoteVMOptions = b.extraRemoteVMOptions;
+        this.extraCompilerOptions = b.extraCompilerOptions;
+        this.executionControl = b.executionControl==null
+                ? new FailOverExecutionControl(
+                        new JDIExecutionControl(),
+                        new JDIExecutionControl(false))
+                : b.executionControl;
 
         this.maps = new SnippetMaps(this);
-        maps.setPackageName("REPL");
         this.keyMap = new KeyMap(this);
+        this.outerMap = new OuterWrapMap(this);
         this.taskFactory = new TaskFactory(this);
         this.eval = new Eval(this);
-        this.classTracker = new ClassTracker(this);
     }
 
     /**
-     * Builder for <code>JShell</code> instances.
-     * Create custom instances of <code>JShell</code> by using the setter
+     * Builder for {@code JShell} instances.
+     * Create custom instances of {@code JShell} by using the setter
      * methods on this class.  After zero or more of these, use the
-     * {@link #build()} method to create a <code>JShell</code> instance.
+     * {@link #build()} method to create a {@code JShell} instance.
      * These can all be chained. For example, setting the remote output and
      * error streams:
      * <pre>
-     * <code>
+     * {@code
      *     JShell myShell =
      *       JShell.builder()
      *         .out(myOutStream)
      *         .err(myErrStream)
-     *         .build(); </code> </pre>
+     *         .build(); } </pre>
      * If no special set-up is needed, just use
-     * <code>JShell.builder().build()</code> or the short-cut equivalent
-     * <code>JShell.create()</code>.
+     * {@code JShell.builder().build()} or the short-cut equivalent
+     * {@code JShell.create()}.
      */
     public static class Builder {
 
@@ -136,22 +152,25 @@ public class JShell implements AutoCloseable {
         PrintStream err = System.err;
         Supplier<String> tempVariableNameGenerator = null;
         BiFunction<Snippet, Integer, String> idGenerator = null;
+        List<String> extraRemoteVMOptions = new ArrayList<>();
+        List<String> extraCompilerOptions = new ArrayList<>();
+        ExecutionControl executionControl;
 
         Builder() { }
 
         /**
-         * Input for the running evaluation (it's <code>System.in</code>). Note:
-         * applications that use <code>System.in</code> for snippet or other
-         * user input cannot use <code>System.in</code> as the input stream for
+         * Sets the input for the running evaluation (it's {@code System.in}). Note:
+         * applications that use {@code System.in} for snippet or other
+         * user input cannot use {@code System.in} as the input stream for
          * the remote process.
          * <p>
          * The default, if this is not set, is to provide an empty input stream
-         * -- <code>new ByteArrayInputStream(new byte[0])</code>.
+         * -- {@code new ByteArrayInputStream(new byte[0])}.
          *
-         * @param in the <code>InputStream</code> to be channelled to
-         * <code>System.in</code> in the remote execution process.
-         * @return the <code>Builder</code> instance (for use in chained
-         * initialization).
+         * @param in the {@code InputStream} to be channelled to
+         * {@code System.in} in the remote execution process
+         * @return the {@code Builder} instance (for use in chained
+         * initialization)
          */
         public Builder in(InputStream in) {
             this.in = in;
@@ -159,16 +178,16 @@ public class JShell implements AutoCloseable {
         }
 
         /**
-         * Output for the running evaluation (it's <code>System.out</code>).
+         * Sets the output for the running evaluation (it's {@code System.out}).
          * The controlling process and
-         * the remote process can share <code>System.out</code>.
+         * the remote process can share {@code System.out}.
          * <p>
-         * The default, if this is not set, is <code>System.out</code>.
+         * The default, if this is not set, is {@code System.out}.
          *
-         * @param out the <code>PrintStream</code> to be channelled to
-         * <code>System.out</code> in the remote execution process.
-         * @return the <code>Builder</code> instance (for use in chained
-         * initialization).
+         * @param out the {@code PrintStream} to be channelled to
+         * {@code System.out} in the remote execution process
+         * @return the {@code Builder} instance (for use in chained
+         * initialization)
          */
         public Builder out(PrintStream out) {
             this.out = out;
@@ -176,16 +195,16 @@ public class JShell implements AutoCloseable {
         }
 
         /**
-         * Error output for the running evaluation (it's
-         * <code>System.err</code>). The controlling process and the remote
-         * process can share <code>System.err</code>.
+         * Sets the error output for the running evaluation (it's
+         * {@code System.err}). The controlling process and the remote
+         * process can share {@code System.err}.
          * <p>
-         * The default, if this is not set, is <code>System.err</code>.
+         * The default, if this is not set, is {@code System.err}.
          *
-         * @param err the <code>PrintStream</code> to be channelled to
-         * <code>System.err</code> in the remote execution process.
-         * @return the <code>Builder</code> instance (for use in chained
-         * initialization).
+         * @param err the {@code PrintStream} to be channelled to
+         * {@code System.err} in the remote execution process
+         * @return the {@code Builder} instance (for use in chained
+         * initialization)
          */
         public Builder err(PrintStream err) {
             this.err = err;
@@ -193,7 +212,7 @@ public class JShell implements AutoCloseable {
         }
 
         /**
-         * Set a generator of temp variable names for
+         * Sets a generator of temp variable names for
          * {@link jdk.jshell.VarSnippet} of
          * {@link jdk.jshell.Snippet.SubKind#TEMP_VAR_EXPRESSION_SUBKIND}.
          * <p>
@@ -205,18 +224,18 @@ public class JShell implements AutoCloseable {
          * <p>
          * The callback is sent during the processing of the snippet, the
          * JShell state is not stable. No calls whatsoever on the
-         * <code>JShell</code> instance may be made from the callback.
+         * {@code JShell} instance may be made from the callback.
          * <p>
          * The generated name must be unique within active snippets.
          * <p>
-         * The default behavior (if this is not set or <code>generator</code>
+         * The default behavior (if this is not set or {@code generator}
          * is null) is to generate the name as a sequential number with a
          * prefixing dollar sign ("$").
          *
-         * @param generator the <code>Supplier</code> to generate the temporary
-         * variable name string or <code>null</code>.
-         * @return the <code>Builder</code> instance (for use in chained
-         * initialization).
+         * @param generator the {@code Supplier} to generate the temporary
+         * variable name string or {@code null}
+         * @return the {@code Builder} instance (for use in chained
+         * initialization)
          */
         public Builder tempVariableNameGenerator(Supplier<String> generator) {
             this.tempVariableNameGenerator = generator;
@@ -224,14 +243,14 @@ public class JShell implements AutoCloseable {
         }
 
         /**
-         * Set the generator of identifying names for Snippets.
+         * Sets the generator of identifying names for Snippets.
          * <p>
          * Do not use this method unless you have explicit need for it.
          * <p>
          * The generator will be used for newly created Snippet instances. The
          * identifying name (id) is accessed with
          * {@link jdk.jshell.Snippet#id()} and can be seen in the
-         * <code>StackTraceElement.getFileName()</code> for a
+         * {@code StackTraceElement.getFileName()} for a
          * {@link jdk.jshell.EvalException} and
          * {@link jdk.jshell.UnresolvedReferenceException}.
          * <p>
@@ -243,17 +262,17 @@ public class JShell implements AutoCloseable {
          * Snippet and the state as a whole are not stable. No calls to change
          * system state (including Snippet state) should be made. Queries of
          * Snippet may be made except to {@link jdk.jshell.Snippet#id()}. No
-         * calls on the <code>JShell</code> instance may be made from the
+         * calls on the {@code JShell} instance may be made from the
          * callback, except to
          * {@link #status(jdk.jshell.Snippet) status(Snippet)}.
          * <p>
-         * The default behavior (if this is not set or <code>generator</code>
+         * The default behavior (if this is not set or {@code generator}
          * is null) is to generate the id as the integer converted to a string.
          *
-         * @param generator the <code>BiFunction</code> to generate the id
-         * string or <code>null</code>.
-         * @return the <code>Builder</code> instance (for use in chained
-         * initialization).
+         * @param generator the {@code BiFunction} to generate the id
+         * string or {@code null}
+         * @return the {@code Builder} instance (for use in chained
+         * initialization)
          */
         public Builder idGenerator(BiFunction<Snippet, Integer, String> generator) {
             this.idGenerator = generator;
@@ -261,11 +280,51 @@ public class JShell implements AutoCloseable {
         }
 
         /**
-         * Build a JShell state engine. This is the entry-point to all JShell
+         * Sets additional VM options for launching the VM.
+         *
+         * @param options The options for the remote VM
+         * @return the {@code Builder} instance (for use in chained
+         * initialization)
+         */
+        public Builder remoteVMOptions(String... options) {
+            this.extraRemoteVMOptions.addAll(Arrays.asList(options));
+            return this;
+        }
+
+        /**
+         * Adds compiler options.  These additional options will be used on
+         * parsing, analysis, and code generation calls to the compiler.
+         * Options which interfere with results are not supported and have
+         * undefined effects on JShell's operation.
+         *
+         * @param options the addition options for compiler invocations
+         * @return the {@code Builder} instance (for use in chained
+         * initialization)
+         */
+        public Builder compilerOptions(String... options) {
+            this.extraCompilerOptions.addAll(Arrays.asList(options));
+            return this;
+        }
+
+        /**
+         * Sets the custom engine for execution. Snippet execution will be
+         * provided by the specified {@link ExecutionControl} instance.
+         *
+         * @param execEngine the execution engine
+         * @return the {@code Builder} instance (for use in chained
+         * initialization)
+         */
+        public Builder executionEngine(ExecutionControl execEngine) {
+            this.executionControl = execEngine;
+            return this;
+        }
+
+        /**
+         * Builds a JShell state engine. This is the entry-point to all JShell
          * functionality. This creates a remote process for execution. It is
          * thus important to close the returned instance.
          *
-         * @return the state engine.
+         * @return the state engine
          */
         public JShell build() {
             return new JShell(this);
@@ -276,22 +335,22 @@ public class JShell implements AutoCloseable {
 
     /**
      * Create a new JShell state engine.
-     * That is, create an instance of <code>JShell</code>.
+     * That is, create an instance of {@code JShell}.
      * <p>
      * Equivalent to {@link JShell#builder() JShell.builder()}{@link JShell.Builder#build() .build()}.
-     * @return an instance of <code>JShell</code>.
+     * @return an instance of {@code JShell}.
      */
     public static JShell create() {
         return builder().build();
     }
 
     /**
-     * Factory method for <code>JShell.Builder</code> which, in-turn, is used
-     * for creating instances of <code>JShell</code>.
-     * Create a default instance of <code>JShell</code> with
-     * <code>JShell.builder().build()</code>. For more construction options
+     * Factory method for {@code JShell.Builder} which, in-turn, is used
+     * for creating instances of {@code JShell}.
+     * Create a default instance of {@code JShell} with
+     * {@code JShell.builder().build()}. For more construction options
      * see {@link jdk.jshell.JShell.Builder}.
-     * @return an instance of <code>Builder</code>.
+     * @return an instance of {@code Builder}.
      * @see jdk.jshell.JShell.Builder
      */
     public static Builder builder() {
@@ -300,9 +359,9 @@ public class JShell implements AutoCloseable {
 
     /**
      * Access to source code analysis functionality.
-     * An instance of <code>JShell</code> will always return the same
-     * <code>SourceCodeAnalysis</code> instance from
-     * <code>sourceCodeAnalysis()</code>.
+     * An instance of {@code JShell} will always return the same
+     * {@code SourceCodeAnalysis} instance from
+     * {@code sourceCodeAnalysis()}.
      * @return an instance of {@link SourceCodeAnalysis SourceCodeAnalysis}
      * which can be used for source analysis such as completion detection and
      * completion suggestions.
@@ -318,7 +377,9 @@ public class JShell implements AutoCloseable {
      * Evaluate the input String, including definition and/or execution, if
      * applicable. The input is checked for errors, unless the errors can be
      * deferred (as is the case with some unresolvedDependencies references),
-     * errors will abort evaluation. The input should be
+     * errors will abort evaluation.
+     * <p>
+     * The input should be
      * exactly one complete snippet of source code, that is, one expression,
      * statement, variable declaration, method declaration, class declaration,
      * or import.
@@ -337,19 +398,29 @@ public class JShell implements AutoCloseable {
      * occur for dropped, rejected, or already overwritten declarations.
      * <p>
      * The execution environment is out of process.  If the evaluated code
-     * causes the execution environment to terminate, this <code>JShell</code>
+     * causes the execution environment to terminate, this {@code JShell}
      * instance will be closed but the calling process and VM remain valid.
      * @param input The input String to evaluate
      * @return the list of events directly or indirectly caused by this evaluation.
-     * @throws IllegalStateException if this <code>JShell</code> instance is closed.
+     * @throws IllegalStateException if this {@code JShell} instance is closed.
      * @see SourceCodeAnalysis#analyzeCompletion(String)
      * @see JShell#onShutdown(java.util.function.Consumer)
      */
     public List<SnippetEvent> eval(String input) throws IllegalStateException {
-        checkIfAlive();
-        List<SnippetEvent> events = eval.eval(input);
-        events.forEach(this::notifyKeyStatusEvent);
-        return Collections.unmodifiableList(events);
+        SourceCodeAnalysisImpl a = sourceCodeAnalysis;
+        if (a != null) {
+            a.suspendIndexing();
+        }
+        try {
+            checkIfAlive();
+            List<SnippetEvent> events = eval.eval(input);
+            events.forEach(this::notifyKeyStatusEvent);
+            return Collections.unmodifiableList(events);
+        } finally {
+            if (a != null) {
+                a.resumeIndexing();
+            }
+        }
     }
 
     /**
@@ -357,9 +428,9 @@ public class JShell implements AutoCloseable {
      * @param snippet The snippet to remove
      * @return The list of events from updating declarations dependent on the
      * dropped snippet.
-     * @throws IllegalStateException if this <code>JShell</code> instance is closed.
+     * @throws IllegalStateException if this {@code JShell} instance is closed.
      * @throws IllegalArgumentException if the snippet is not associated with
-     * this <code>JShell</code> instance.
+     * this {@code JShell} instance.
      */
     public List<SnippetEvent> drop(PersistentSnippet snippet) throws IllegalStateException {
         checkIfAlive();
@@ -372,12 +443,12 @@ public class JShell implements AutoCloseable {
     /**
      * The specified path is added to the end of the classpath used in eval().
      * Note that the unnamed package is not accessible from the package in which
-     * {@link JShell#eval()} code is placed.
+     * {@link JShell#eval(String)} code is placed.
      * @param path the path to add to the classpath.
      */
     public void addToClasspath(String path) {
         taskFactory.addToClasspath(path);  // Compiler
-        executionControl().commandAddToClasspath(path);       // Runtime
+        executionControl().addToClasspath(path);       // Runtime
         if (sourceCodeAnalysis != null) {
             sourceCodeAnalysis.classpathChanged();
         }
@@ -398,7 +469,7 @@ public class JShell implements AutoCloseable {
      */
     public void stop() {
         if (executionControl != null)
-            executionControl.commandStop();
+            executionControl.stop();
     }
 
     /**
@@ -409,7 +480,7 @@ public class JShell implements AutoCloseable {
     public void close() {
         if (!closed) {
             closeDown();
-            executionControl().commandExit();
+            executionControl().close();
         }
     }
 
@@ -425,77 +496,77 @@ public class JShell implements AutoCloseable {
 
     /**
      * Returns the active variable snippets.
-     * This convenience method is equivalent to <code>snippets()</code> filtered for
-     * {@link jdk.jshell.Snippet.Status#isActive status(snippet).isActive}
-     * <code>&amp;&amp; snippet.kind() == Kind.VARIABLE</code>
-     * and cast to <code>VarSnippet</code>.
+     * This convenience method is equivalent to {@code snippets()} filtered for
+     * {@link jdk.jshell.Snippet.Status#isActive() status(snippet).isActive()}
+     * {@code && snippet.kind() == Kind.VARIABLE}
+     * and cast to {@code VarSnippet}.
      * @return the active declared variables.
      * @throws IllegalStateException if this JShell instance is closed.
      */
     public List<VarSnippet> variables() throws IllegalStateException {
         return snippets().stream()
-                     .filter(sn -> status(sn).isActive && sn.kind() == Snippet.Kind.VAR)
+                     .filter(sn -> status(sn).isActive() && sn.kind() == Snippet.Kind.VAR)
                      .map(sn -> (VarSnippet) sn)
                      .collect(collectingAndThen(toList(), Collections::unmodifiableList));
     }
 
     /**
      * Returns the active method snippets.
-     * This convenience method is equivalent to <code>snippets()</code> filtered for
-     * {@link jdk.jshell.Snippet.Status#isActive status(snippet).isActive}
-     * <code>&amp;&amp; snippet.kind() == Kind.METHOD</code>
+     * This convenience method is equivalent to {@code snippets()} filtered for
+     * {@link jdk.jshell.Snippet.Status#isActive() status(snippet).isActive()}
+     * {@code && snippet.kind() == Kind.METHOD}
      * and cast to MethodSnippet.
      * @return the active declared methods.
      * @throws IllegalStateException if this JShell instance is closed.
      */
     public List<MethodSnippet> methods() throws IllegalStateException {
         return snippets().stream()
-                     .filter(sn -> status(sn).isActive && sn.kind() == Snippet.Kind.METHOD)
+                     .filter(sn -> status(sn).isActive() && sn.kind() == Snippet.Kind.METHOD)
                      .map(sn -> (MethodSnippet)sn)
                      .collect(collectingAndThen(toList(), Collections::unmodifiableList));
     }
 
     /**
      * Returns the active type declaration (class, interface, annotation type, and enum) snippets.
-     * This convenience method is equivalent to <code>snippets()</code> filtered for
-     * {@link jdk.jshell.Snippet.Status#isActive status(snippet).isActive}
-     * <code>&amp;&amp; snippet.kind() == Kind.TYPE_DECL</code>
+     * This convenience method is equivalent to {@code snippets()} filtered for
+     * {@link jdk.jshell.Snippet.Status#isActive() status(snippet).isActive()}
+     * {@code && snippet.kind() == Kind.TYPE_DECL}
      * and cast to TypeDeclSnippet.
      * @return the active declared type declarations.
      * @throws IllegalStateException if this JShell instance is closed.
      */
     public List<TypeDeclSnippet> types() throws IllegalStateException {
         return snippets().stream()
-                .filter(sn -> status(sn).isActive && sn.kind() == Snippet.Kind.TYPE_DECL)
+                .filter(sn -> status(sn).isActive() && sn.kind() == Snippet.Kind.TYPE_DECL)
                 .map(sn -> (TypeDeclSnippet) sn)
                 .collect(collectingAndThen(toList(), Collections::unmodifiableList));
     }
 
     /**
      * Returns the active import snippets.
-     * This convenience method is equivalent to <code>snippets()</code> filtered for
-     * {@link jdk.jshell.Snippet.Status#isActive status(snippet).isActive}
-     * <code>&amp;&amp; snippet.kind() == Kind.IMPORT</code>
+     * This convenience method is equivalent to {@code snippets()} filtered for
+     * {@link jdk.jshell.Snippet.Status#isActive() status(snippet).isActive()}
+     * {@code && snippet.kind() == Kind.IMPORT}
      * and cast to ImportSnippet.
      * @return the active declared import declarations.
      * @throws IllegalStateException if this JShell instance is closed.
      */
     public List<ImportSnippet> imports() throws IllegalStateException {
         return snippets().stream()
-                .filter(sn -> status(sn).isActive && sn.kind() == Snippet.Kind.IMPORT)
+                .filter(sn -> status(sn).isActive() && sn.kind() == Snippet.Kind.IMPORT)
                 .map(sn -> (ImportSnippet) sn)
                 .collect(collectingAndThen(toList(), Collections::unmodifiableList));
     }
 
     /**
      * Return the status of the snippet.
-     * This is updated either because of an explicit <code>eval()</code> call or
+     * This is updated either because of an explicit {@code eval()} call or
      * an automatic update triggered by a dependency.
-     * @param snippet the <code>Snippet</code> to look up
+     * @param snippet the {@code Snippet} to look up
      * @return the status corresponding to this snippet
-     * @throws IllegalStateException if this <code>JShell</code> instance is closed.
+     * @throws IllegalStateException if this {@code JShell} instance is closed.
      * @throws IllegalArgumentException if the snippet is not associated with
-     * this <code>JShell</code> instance.
+     * this {@code JShell} instance.
      */
     public Status status(Snippet snippet) {
         return checkValidSnippet(snippet).status();
@@ -503,14 +574,14 @@ public class JShell implements AutoCloseable {
 
     /**
      * Return the diagnostics of the most recent evaluation of the snippet.
-     * The evaluation can either because of an explicit <code>eval()</code> call or
+     * The evaluation can either because of an explicit {@code eval()} call or
      * an automatic update triggered by a dependency.
-     * @param snippet the <code>Snippet</code> to look up
+     * @param snippet the {@code Snippet} to look up
      * @return the diagnostics corresponding to this snippet.  This does not
-     * include unresolvedDependencies references reported in <code>unresolvedDependencies()</code>.
-     * @throws IllegalStateException if this <code>JShell</code> instance is closed.
+     * include unresolvedDependencies references reported in {@code unresolvedDependencies()}.
+     * @throws IllegalStateException if this {@code JShell} instance is closed.
      * @throws IllegalArgumentException if the snippet is not associated with
-     * this <code>JShell</code> instance.
+     * this {@code JShell} instance.
      */
     public List<Diag> diagnostics(Snippet snippet) {
         return Collections.unmodifiableList(checkValidSnippet(snippet).diagnostics());
@@ -522,13 +593,13 @@ public class JShell implements AutoCloseable {
      * declarations, the names of current unresolved dependencies for
      * the snippet.
      * The returned value of this method, for a given method may change when an
-     * <code>eval()</code> or <code>drop()</code> of another snippet causes
+     * {@code eval()} or {@code drop()} of another snippet causes
      * an update of a dependency.
-     * @param snippet the declaration <code>Snippet</code> to look up
+     * @param snippet the declaration {@code Snippet} to look up
      * @return the list of symbol names that are currently unresolvedDependencies.
-     * @throws IllegalStateException if this <code>JShell</code> instance is closed.
+     * @throws IllegalStateException if this {@code JShell} instance is closed.
      * @throws IllegalArgumentException if the snippet is not associated with
-     * this <code>JShell</code> instance.
+     * this {@code JShell} instance.
      */
     public List<String> unresolvedDependencies(DeclarationSnippet snippet) {
         return Collections.unmodifiableList(checkValidSnippet(snippet).unresolved());
@@ -538,9 +609,9 @@ public class JShell implements AutoCloseable {
      * Get the current value of a variable.
      * @param snippet the variable Snippet whose value is queried.
      * @return the current value of the variable referenced by snippet.
-     * @throws IllegalStateException if this <code>JShell</code> instance is closed.
+     * @throws IllegalStateException if this {@code JShell} instance is closed.
      * @throws IllegalArgumentException if the snippet is not associated with
-     * this <code>JShell</code> instance.
+     * this {@code JShell} instance.
      * @throws IllegalArgumentException if the variable's status is anything but
      * {@link jdk.jshell.Snippet.Status#VALID}.
      */
@@ -548,10 +619,10 @@ public class JShell implements AutoCloseable {
         checkIfAlive();
         checkValidSnippet(snippet);
         if (snippet.status() != Status.VALID) {
-            throw new IllegalArgumentException("Snippet parameter of varValue() '" +
-                    snippet + "' must be VALID, it is: " + snippet.status());
+            throw new IllegalArgumentException(
+                    messageFormat("jshell.exc.var.not.valid",  snippet, snippet.status()));
         }
-        String value = executionControl().commandVarValue(maps.classFullName(snippet), snippet.name());
+        String value = executionControl().varValue(snippet.classFullName(), snippet.name());
         return expunge(value);
     }
 
@@ -560,7 +631,7 @@ public class JShell implements AutoCloseable {
      * Each call adds a new subscription.
      * @param listener Action to perform when the Status changes.
      * @return A token which can be used to {@linkplain JShell#unsubscribe unsubscribe} this subscription.
-     * @throws IllegalStateException if this <code>JShell</code> instance is closed.
+     * @throws IllegalStateException if this {@code JShell} instance is closed.
      */
     public Subscription onSnippetEvent(Consumer<SnippetEvent> listener)
             throws IllegalStateException {
@@ -604,35 +675,86 @@ public class JShell implements AutoCloseable {
         }
     }
 
-    // --- private / package-private implementation support ---
+    /**
+     * Provide the environment for a execution engine.
+     */
+    class ExecutionEnvImpl implements ExecutionEnv {
 
+        @Override
+        public InputStream userIn() {
+            return in;
+        }
+
+        @Override
+        public PrintStream userOut() {
+            return out;
+        }
+
+        @Override
+        public PrintStream userErr() {
+            return err;
+        }
+
+        @Override
+        public JShell state() {
+            return JShell.this;
+        }
+
+        @Override
+        public List<String> extraRemoteVMOptions() {
+            return extraRemoteVMOptions;
+        }
+
+        @Override
+        public byte[] getClassBytes(String classname) {
+            return classnameToBytes.get(classname);
+        }
+
+        @Override
+        public EvalException createEvalException(String message, String exceptionClass, StackTraceElement[] stackElements) {
+            return new EvalException(message, exceptionClass, stackElements);
+        }
+
+        @Override
+        public UnresolvedReferenceException createUnresolvedReferenceException(int id, StackTraceElement[] stackElements) {
+            DeclarationSnippet sn = (DeclarationSnippet) maps.getSnippetDeadOrAlive(id);
+            return new UnresolvedReferenceException(sn, stackElements);
+        }
+
+        @Override
+        public void closeDown() {
+            JShell.this.closeDown();
+        }
+    }
+
+    // --- private / package-private implementation support ---
     ExecutionControl executionControl() {
-        if (executionControl == null) {
-            this.executionControl = new ExecutionControl(new JDIEnv(this), maps, this);
+        if (!executionControlLaunched) {
             try {
-                executionControl.launch();
-            } catch (IOException ex) {
-                throw new InternalError("Launching JDI execution engine threw: " + ex.getMessage(), ex);
+                executionControlLaunched = true;
+                executionControl.start(new ExecutionEnvImpl());
+            } catch (Throwable ex) {
+                throw new InternalError("Launching execution engine threw: " + ex.getMessage(), ex);
             }
         }
         return executionControl;
     }
 
+    void setClassnameToBytes(String classname, byte[] bytes) {
+        classnameToBytes.put(classname, bytes);
+    }
+
     void debug(int flags, String format, Object... args) {
-        if (InternalDebugControl.debugEnabled(this, flags)) {
-            err.printf(format, args);
-        }
+        InternalDebugControl.debug(this, err, flags, format, args);
     }
 
     void debug(Exception ex, String where) {
-        if (InternalDebugControl.debugEnabled(this, 0xFFFFFFFF)) {
-            err.printf("Fatal error: %s: %s\n", where, ex.getMessage());
-            ex.printStackTrace(err);
-        }
+        InternalDebugControl.debug(this, err, ex, where);
     }
 
     /**
      * Generate the next key index, indicating a unique snippet signature.
+     *
      * @return the next key index
      */
     int nextKeyIndex() {
@@ -660,7 +782,11 @@ public class JShell implements AutoCloseable {
         if (!closed) {
             // Send only once
             closed = true;
-            notifyShutdownEvent(this);
+            try {
+                notifyShutdownEvent(this);
+            } catch (Throwable thr) {
+                // Don't care about dying exceptions
+            }
         }
     }
 
@@ -670,7 +796,7 @@ public class JShell implements AutoCloseable {
      */
     private void checkIfAlive()  throws IllegalStateException {
         if (closed) {
-            throw new IllegalStateException("JShell (" + this + ") has been closed.");
+            throw new IllegalStateException(messageFormat("jshell.exc.closed", this));
         }
     }
 
@@ -683,13 +809,36 @@ public class JShell implements AutoCloseable {
      */
     private Snippet checkValidSnippet(Snippet sn) {
         if (sn == null) {
-            throw new NullPointerException("Snippet must not be null");
+            throw new NullPointerException(messageFormat("jshell.exc.null"));
         } else {
             if (sn.key().state() != this) {
-                throw new IllegalArgumentException("Snippet not from this JShell");
+                throw new IllegalArgumentException(messageFormat("jshell.exc.alien"));
             }
             return sn;
         }
+    }
+
+    /**
+     * Format using resource bundle look-up using MessageFormat
+     *
+     * @param key the resource key
+     * @param args
+     */
+    String messageFormat(String key, Object... args) {
+        if (outputRB == null) {
+            try {
+                outputRB = ResourceBundle.getBundle(L10N_RB_NAME);
+            } catch (MissingResourceException mre) {
+                throw new InternalError("Cannot find ResourceBundle: " + L10N_RB_NAME);
+            }
+        }
+        String s;
+        try {
+            s = outputRB.getString(key);
+        } catch (MissingResourceException mre) {
+            throw new InternalError("Missing resource: " + key + " in " + L10N_RB_NAME);
+        }
+        return MessageFormat.format(s, args);
     }
 
 }

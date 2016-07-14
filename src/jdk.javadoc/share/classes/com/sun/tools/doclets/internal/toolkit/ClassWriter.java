@@ -23,7 +23,6 @@
  * questions.
  */
 
-
 package com.sun.tools.doclets.internal.toolkit;
 
 import java.io.*;
@@ -42,6 +41,7 @@ import com.sun.javadoc.*;
  * @since 1.5
  */
 
+@Deprecated
 public interface ClassWriter {
 
     /**

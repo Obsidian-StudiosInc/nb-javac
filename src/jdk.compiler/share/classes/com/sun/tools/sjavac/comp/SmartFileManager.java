@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,8 @@ package com.sun.tools.sjavac.comp;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -63,8 +65,6 @@ public class SmartFileManager extends ForwardingJavaFileManager<JavaFileManager>
     Set<URI> visibleSources = new HashSet<>();
     // Map from modulename:packagename to artifacts.
     Map<String,Set<URI>> packageArtifacts = new HashMap<>();
-    // Where to print informational messages.
-    PrintWriter stdout;
 
     public SmartFileManager(JavaFileManager fileManager) {
         super(fileManager);
@@ -76,10 +76,6 @@ public class SmartFileManager extends ForwardingJavaFileManager<JavaFileManager>
 
     public void cleanArtifacts() {
         packageArtifacts = new HashMap<>();
-    }
-
-    public void setLog(PrintWriter pw) {
-        stdout = pw;
     }
 
     /**
@@ -137,7 +133,7 @@ public class SmartFileManager extends ForwardingJavaFileManager<JavaFileManager>
             return file;
         }
 
-        if (visibleSources.contains(file.toUri())) {
+        if (visibleSources.contains(file.toUri()) || isModuleInfo(file)) {
             return file;
         }
         return null;
@@ -172,10 +168,19 @@ public class SmartFileManager extends ForwardingJavaFileManager<JavaFileManager>
             return file;
         }
 
-        if (visibleSources.contains(file.toUri())) {
+        if (visibleSources.contains(file.toUri()) || isModuleInfo(file)) {
             return file;
         }
         return null;
+    }
+
+    private boolean isModuleInfo(FileObject fo) {
+        if (fo instanceof JavaFileObject) {
+            JavaFileObject jfo = (JavaFileObject) fo;
+            return jfo.isNameCompatible("module-info", Kind.SOURCE)
+                || jfo.isNameCompatible("module-info", Kind.CLASS);
+        }
+        return false;
     }
 
     @Override @DefinedBy(Api.COMPILER)
@@ -188,7 +193,7 @@ public class SmartFileManager extends ForwardingJavaFileManager<JavaFileManager>
         if (file == null) return file;
 
         if (location.equals(StandardLocation.NATIVE_HEADER_OUTPUT) && superFile instanceof JavaFileObject) {
-           file = new SmartFileObject((JavaFileObject) file, stdout);
+           file = new SmartFileObject((JavaFileObject) file);
            packageName = ":" + packageNameFromFileName(relativeName);
         }
         if (packageName.equals("")) {
@@ -196,6 +201,11 @@ public class SmartFileManager extends ForwardingJavaFileManager<JavaFileManager>
         }
         addArtifact(packageName, file.toUri());
         return file;
+    }
+
+    @Override @DefinedBy(Api.COMPILER)
+    public Location getModuleLocation(Location location, JavaFileObject fo, String pkgName) throws IOException {
+        return super.getModuleLocation(location, locUnwrap(fo), pkgName);
     }
 
     private static String packageNameFromFileName(String fn) {

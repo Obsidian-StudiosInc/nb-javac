@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.tree.*;
@@ -931,7 +932,7 @@ public class LambdaToMethod extends TreeTranslator {
         private JCExpression makeReceiver(VarSymbol rcvr) {
             if (rcvr == null) return null;
             JCExpression rcvrExpr = make.Ident(rcvr);
-            Type rcvrType = tree.sym.enclClass().type;
+            Type rcvrType = tree.ownerAccessible ? tree.sym.enclClass().type : tree.expr.type;
             if (rcvrType == syms.arrayClass.type) {
                 // Map the receiver type to the actually type, not just "array"
                 rcvrType = tree.getQualifierExpression().type;
@@ -1811,7 +1812,7 @@ public class LambdaToMethod extends TreeTranslator {
 
             TranslationContext(T tree) {
                 this.tree = tree;
-                this.owner = owner();
+                this.owner = owner(true);
                 this.depth = frameStack.size() - 1;
                 this.prev = context();
                 ClassSymbol csym =
@@ -2037,7 +2038,7 @@ public class LambdaToMethod extends TreeTranslator {
                         };
                         break;
                     case CAPTURED_OUTER_THIS:
-                        Name name = names.fromString(new String(sym.flatName().toString() + names.dollarThis));
+                        Name name = names.fromString(new String(sym.flatName().toString().replace('.', '$') + names.dollarThis));
                         ret = new VarSymbol(SYNTHETIC | FINAL | PARAMETER, name, types.erasure(sym.type), translatedSym) {
                             @Override
                             public Symbol baseSymbol() {

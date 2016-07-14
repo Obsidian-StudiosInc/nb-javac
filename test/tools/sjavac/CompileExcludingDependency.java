@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,10 +29,10 @@
  * @author sogoel (rewrite)
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.compiler/com.sun.tools.sjavac
- * @build Wrapper ToolBox
+ *          jdk.jdeps/com.sun.tools.javap
+ * @build Wrapper toolbox.ToolBox
  * @run main Wrapper CompileExcludingDependency
  */
 
@@ -47,9 +47,7 @@ public class CompileExcludingDependency extends SJavacTester {
 
     // Verify that excluding classes from compilation but not from linking works
     void test() throws Exception {
-        clean(TEST_ROOT);
         Files.createDirectories(BIN);
-        clean(GENSRC,BIN);
         Map<String,Long> previous_bin_state = collectState(BIN);
         ToolBox tb = new ToolBox();
         tb.writeFile(GENSRC.resolve("alfa/omega/A.java"),
@@ -57,18 +55,16 @@ public class CompileExcludingDependency extends SJavacTester {
         tb.writeFile(GENSRC.resolve("beta/B.java"),
                      "package beta; public class B { }");
 
-        compile("-x", "beta",
+        compile("-x", "beta/*",
                 "-src", GENSRC.toString(),
-                "-x", "alfa/omega",
+                "-x", "alfa/omega/*",
                 "-sourcepath", GENSRC.toString(),
                 "-d", BIN.toString(),
-                "--state-dir=" + BIN,
-                SERVER_ARG);
+                "--state-dir=" + BIN);
 
         Map<String,Long> new_bin_state = collectState(BIN);
         verifyThatFilesHaveBeenAdded(previous_bin_state, new_bin_state,
                                      BIN + "/alfa/omega/A.class",
                                      BIN + "/javac_state");
-        clean(GENSRC, BIN);
     }
 }

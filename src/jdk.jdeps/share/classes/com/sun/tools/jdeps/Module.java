@@ -22,41 +22,96 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package com.sun.tools.jdeps;
 
+import java.lang.module.ModuleDescriptor;
+import java.net.URI;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 /**
- * JDeps internal representation of module for dependency analysis.
+ * Jdeps internal representation of module for dependency analysis.
  */
-final class Module extends Archive {
-    private final String moduleName;
-    private final Map<String, Boolean> requires;
+class Module extends Archive {
+    static final Module UNNAMED_MODULE = new UnnamedModule();
+    static final String JDK_UNSUPPORTED = "jdk.unsupported";
+
+    static final boolean DEBUG = Boolean.getBoolean("jdeps.debug");
+    static void trace(String fmt, Object... args) {
+        trace(DEBUG, fmt, args);
+    }
+
+    static void trace(boolean traceOn, String fmt, Object... args) {
+        if (traceOn) {
+            System.err.format(fmt, args);
+        }
+    }
+
+    private final ModuleDescriptor descriptor;
     private final Map<String, Set<String>> exports;
-    private final Set<String> packages;
+    private final boolean isSystem;
+    private final URI location;
 
-    private Module(ClassFileReader reader, String name,
-                   Map<String, Boolean> requires,
+    protected Module(String name) {
+        super(name);
+        this.descriptor = null;
+        this.location = null;
+        this.exports = Collections.emptyMap();
+        this.isSystem = true;
+    }
+
+    private Module(String name,
+                   URI location,
+                   ModuleDescriptor descriptor,
                    Map<String, Set<String>> exports,
-                   Set<String> packages) {
-        super(name, reader);
-        this.moduleName = name;
-        this.requires = Collections.unmodifiableMap(requires);
+                   boolean isSystem,
+                   ClassFileReader reader) {
+        super(name, location, reader);
+        this.descriptor = descriptor;
+        this.location = location;
         this.exports = Collections.unmodifiableMap(exports);
-        this.packages = Collections.unmodifiableSet(packages);
+        this.isSystem = isSystem;
     }
 
+    /**
+     * Returns module name
+     */
     public String name() {
-        return moduleName;
+        return descriptor.name();
     }
 
-    public Map<String, Boolean> requires() {
-        return requires;
+    public boolean isNamed() {
+        return true;
+    }
+
+    public boolean isAutomatic() {
+        return descriptor.isAutomatic();
+    }
+
+    public Module getModule() {
+        return this;
+    }
+
+    public ModuleDescriptor descriptor() {
+        return descriptor;
+    }
+
+    public URI location() {
+        return location;
+    }
+
+    public boolean isJDK() {
+        String mn = name();
+        return isSystem &&
+            (mn.startsWith("java.") || mn.startsWith("jdk.") || mn.startsWith("javafx."));
+    }
+
+    public boolean isSystem() {
+        return isSystem;
     }
 
     public Map<String, Set<String>> exports() {
@@ -64,87 +119,37 @@ final class Module extends Archive {
     }
 
     public Set<String> packages() {
-        return packages;
+        return descriptor.packages();
     }
 
     /**
-     * Tests if this module can read m
+     * Tests if the package of the given name is exported.
      */
-    public boolean canRead(Module m) {
-        // ## TODO: handle "re-exported=true"
-        // all JDK modules require all modules containing its direct dependences
-        // should not be an issue
-        return requires.containsKey(m.name());
-    }
-
-    /**
-     * Tests if a given fully-qualified name is an exported type.
-     */
-    public boolean isExported(String cn) {
-        int i = cn.lastIndexOf('.');
-        String pn = i > 0 ? cn.substring(0, i) : "";
-
-        return isExportedPackage(pn);
-    }
-
-    /**
-     * Tests if a given package name is exported.
-     */
-    public boolean isExportedPackage(String pn) {
+    public boolean isExported(String pn) {
+        if (JDK_UNSUPPORTED.equals(this.name())) {
+            return false;
+        }
         return exports.containsKey(pn) ? exports.get(pn).isEmpty() : false;
     }
 
     /**
-     * Tests if the given classname is accessible to module m
+     * Converts this module to a strict module with the given dependences
+     *
+     * @throws IllegalArgumentException if this module is not an automatic module
      */
-    public boolean isAccessibleTo(String classname, Module m) {
-        int i = classname.lastIndexOf('.');
-        String pn = i > 0 ? classname.substring(0, i) : "";
-        if (!packages.contains(pn)) {
-            throw new IllegalArgumentException(classname + " is not a member of module " + name());
+    public Module toStrictModule(Map<String, Boolean> requires) {
+        if (!isAutomatic()) {
+            throw new IllegalArgumentException(name() + " already a strict module");
         }
-
-        if (m != null && !m.canRead(this)) {
-            trace("%s not readable by %s%n", this.name(), m.name());
-            return false;
-        }
-
-        // exported API
-        Set<String> ms = exports().get(pn);
-        String mname = m != null ? m.name() : "unnamed";
-        if (ms == null) {
-            trace("%s not exported in %s%n", classname, this.name());
-        } else if (!(ms.isEmpty() || ms.contains(mname))) {
-            trace("%s not permit to %s %s%n", classname, mname, ms);
-        }
-        return ms != null && (ms.isEmpty() || ms.contains(mname));
+        return new StrictModule(this, requires);
     }
 
-    private static final boolean traceOn = Boolean.getBoolean("jdeps.debug");
-    private void trace(String fmt, Object... args) {
-        if (traceOn) {
-            System.err.format(fmt, args);
-        }
-    }
-
-    @Override
-    public boolean equals(Object ob) {
-        if (!(ob instanceof Module))
-            return false;
-        Module that = (Module)ob;
-        return (moduleName.equals(that.moduleName)
-                && requires.equals(that.requires)
-                && exports.equals(that.exports)
-                && packages.equals(that.packages));
-    }
-
-    @Override
-    public int hashCode() {
-        int hc = moduleName.hashCode();
-        hc = hc * 43 + requires.hashCode();
-        hc = hc * 43 + exports.hashCode();
-        hc = hc * 43 + packages.hashCode();
-        return hc;
+    /**
+     * Tests if the package of the given name is qualifiedly exported
+     * to the target.
+     */
+    public boolean isExported(String pn, String target) {
+        return isExported(pn) || exports.containsKey(pn) && exports.get(pn).contains(target);
     }
 
     @Override
@@ -153,45 +158,105 @@ final class Module extends Archive {
     }
 
     public final static class Builder {
-        String name;
+        final String name;
+        final ModuleDescriptor descriptor;
+        final boolean isSystem;
         ClassFileReader reader;
-        final Map<String, Boolean> requires = new HashMap<>();
-        final Map<String, Set<String>> exports = new HashMap<>();
-        final Set<String> packages = new HashSet<>();
+        URI location;
 
-        public Builder() {
+        public Builder(ModuleDescriptor md) {
+            this(md, false);
         }
 
-        public Builder name(String n) {
-            name = n;
+        public Builder(ModuleDescriptor md, boolean isSystem) {
+            this.name = md.name();
+            this.descriptor = md;
+            this.isSystem = isSystem;
+        }
+
+        public Builder location(URI location) {
+            this.location = location;
             return this;
         }
 
-        public Builder require(String d, boolean reexport) {
-         //   System.err.format("%s depend %s reexports %s%n", name, d, reexport);
-            requires.put(d, reexport);
-            return this;
-        }
-
-        public Builder packages(Set<String> pkgs) {
-            packages.addAll(pkgs);
-            return this;
-        }
-
-        public Builder export(String p, Set<String> ms) {
-            Objects.requireNonNull(p);
-            Objects.requireNonNull(ms);
-            exports.put(p, new HashSet<>(ms));
-            return this;
-        }
-        public Builder classes(ClassFileReader.ModuleClassReader reader) {
+        public Builder classes(ClassFileReader reader) {
             this.reader = reader;
             return this;
         }
 
         public Module build() {
-            Module m = new Module(reader, name, requires, exports, packages);
-            return m;
+            if (descriptor.isAutomatic() && isSystem) {
+                throw new InternalError("JDK module: " + name + " can't be automatic module");
+            }
+
+            Map<String, Set<String>> exports = new HashMap<>();
+
+            descriptor.exports().stream()
+                .forEach(exp -> exports.computeIfAbsent(exp.source(), _k -> new HashSet<>())
+                                    .addAll(exp.targets()));
+
+            return new Module(name, location, descriptor, exports, isSystem, reader);
+        }
+    }
+
+    private static class UnnamedModule extends Module {
+        private UnnamedModule() {
+            super("unnamed", null, null,
+                  Collections.emptyMap(),
+                  false, null);
+        }
+
+        @Override
+        public String name() {
+            return "unnamed";
+        }
+
+        @Override
+        public boolean isNamed() {
+            return false;
+        }
+
+        @Override
+        public boolean isAutomatic() {
+            return false;
+        }
+
+        @Override
+        public boolean isExported(String pn) {
+            return true;
+        }
+    }
+
+    private static class StrictModule extends Module {
+        private final ModuleDescriptor md;
+
+        /**
+         * Converts the given automatic module to a strict module.
+         *
+         * Replace this module's dependences with the given requires and also
+         * declare service providers, if specified in META-INF/services configuration file
+         */
+        private StrictModule(Module m, Map<String, Boolean> requires) {
+            super(m.name(), m.location, m.descriptor, m.exports, m.isSystem, m.reader());
+
+            ModuleDescriptor.Builder builder = new ModuleDescriptor.Builder(m.name());
+            requires.keySet().forEach(mn -> {
+                if (requires.get(mn).equals(Boolean.TRUE)) {
+                    builder.requires(ModuleDescriptor.Requires.Modifier.PUBLIC, mn);
+                } else {
+                    builder.requires(mn);
+                }
+            });
+            m.descriptor.exports().forEach(e -> builder.exports(e));
+            m.descriptor.uses().forEach(s -> builder.uses(s));
+            m.descriptor.provides().values().forEach(p -> builder.provides(p));
+            builder.conceals(m.descriptor.conceals());
+            this.md = builder.build();
+        }
+
+        @Override
+        public ModuleDescriptor descriptor() {
+            return md;
         }
     }
 }

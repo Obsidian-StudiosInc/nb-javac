@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,12 @@
  * @bug 8044411
  * @summary Tests the RuntimeParameterVisibleAnnotations/RuntimeParameterInvisibleAnnotations attribute.
  *          Checks that the attribute is generated for bridge method.
+ * @modules jdk.jdeps/com.sun.tools.classfile
+ *          jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.main
  * @library /tools/lib /tools/javac/lib ../lib
- * @build WorkAnnotations TestBase TestResult InMemoryFileManager ToolBox
- * @build TestCase ClassType TestAnnotationInfo
+ * @build toolbox.ToolBox InMemoryFileManager TestResult TestBase
+ * @build WorkAnnotations TestCase ClassType TestAnnotationInfo
  * @build RuntimeParameterAnnotationsForGenericMethodTest AnnotationsTestBase RuntimeParameterAnnotationsTestBase
  * @run main RuntimeParameterAnnotationsForGenericMethodTest
  */

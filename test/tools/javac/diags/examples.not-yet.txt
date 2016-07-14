@@ -49,8 +49,6 @@ compiler.misc.bad.runtime.invisible.param.annotations   # bad class file
 compiler.misc.bad.signature                             # bad class file
 compiler.misc.bad.type.annotation.value
 compiler.misc.base.membership                           # UNUSED
-compiler.misc.ccf.found.later.version
-compiler.misc.ccf.unrecognized.attribute
 compiler.misc.class.file.not.found                      # ClassReader
 compiler.misc.class.file.wrong.class
 compiler.misc.fatal.err.cant.locate.ctor                # Resolve, from Lower
@@ -88,9 +86,6 @@ compiler.misc.unable.to.access.file                     # ClassFile
 compiler.misc.undecl.type.var                           # ClassReader
 compiler.misc.unicode.str.not.supported                 # ClassReader
 compiler.misc.malformed.vararg.method                   # ClassReader
-compiler.misc.verbose.retro                             # UNUSED
-compiler.misc.verbose.retro.with                        # UNUSED
-compiler.misc.verbose.retro.with.list                   # UNUSED
 compiler.misc.version.not.available                     # JavaCompiler; implies build error
 compiler.misc.where.description.captured
 compiler.misc.where.typevar.1
@@ -114,3 +109,28 @@ compiler.warn.file.from.future                          # warning for future mod
 compiler.err.cant.inherit.from.anon                     # error for subclass of anonymous class
 compiler.misc.bad.class.file                            # class file is malformed
 compiler.misc.bad.const.pool.entry                      # constant pool entry has wrong type
+
+# The following module-related messages will have to stay on the not-yet list for various reasons:
+compiler.warn.locn.unknown.file.on.module.path                # Never issued ATM (short circuited with an if (false))
+compiler.err.no.output.dir                                    # -d is always specified by test infrastructure
+compiler.err.output.dir.must.be.specified.with.dash.m.option  # -d is always specified by test infrastructure
+compiler.warn.outdir.is.in.exploded.module                    # No control over -d specified by test infrastructure
+compiler.err.invalid.module.specifier                         # Not possible (?)
+compiler.err.locn.cant.get.module.name.for.jar                # bad binary ? Infer module name failure
+compiler.misc.bad.module-info.name                            # bad class file
+compiler.err.locn.bad.module-info                             # bad class file
+compiler.err.locn.cant.read.file                              # bad class file
+compiler.misc.module.info.invalid.super.class                 # bad class file
+compiler.err.locn.cant.read.directory                         # file system issue
+compiler.misc.unnamed.module                                  # fragment uninteresting in and of itself
+compiler.misc.kindname.module                                 # fragment uninteresting in and of itself
+compiler.misc.locn.module_path                                # fragment uninteresting in and of itself
+compiler.misc.locn.module_source_path                         # fragment uninteresting in and of itself
+compiler.misc.locn.system_modules                             # fragment uninteresting in and of itself
+compiler.misc.locn.upgrade_module_path                        # fragment uninteresting in and of itself
+
+# The following are new module-related messages, that need new  examples to be created
+compiler.err.duplicate.module.on.path
+compiler.err.locn.module-info.not.allowed.on.patch.path
+compiler.misc.cant.resolve.modules
+compiler.misc.file.does.not.contain.module

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,23 +31,25 @@
  *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.compiler/com.sun.tools.javac.util
- * @build ToolBox
+ * @build toolbox.ToolBox toolbox.JarTask
  * @run main T6725036
  */
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Date;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+
 import javax.tools.*;
 
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.file.RelativePath.RelativeFile;
-import com.sun.tools.javac.file.ZipFileIndex;
-import com.sun.tools.javac.file.ZipFileIndexArchive;
-import com.sun.tools.javac.file.ZipFileIndexCache;
 import com.sun.tools.javac.util.Context;
+
+import toolbox.JarTask;
+import toolbox.ToolBox;
 
 public class T6725036 {
     public static void main(String... args) throws Exception {
@@ -63,21 +65,14 @@ public class T6725036 {
             JarEntry je = j.getJarEntry(TEST_ENTRY_NAME.getPath());
             long jarEntryTime = je.getTime();
 
-            ZipFileIndexCache zfic = ZipFileIndexCache.getSharedInstance();
-            ZipFileIndex zfi = zfic.getZipFileIndex(testJar.toPath(), null, false, null, false);
-            long zfiTime = zfi.getLastModified(TEST_ENTRY_NAME);
-
-            check(je, jarEntryTime, zfi + ":" + TEST_ENTRY_NAME.getPath(), zfiTime);
-
             Context context = new Context();
             JavacFileManager fm = new JavacFileManager(context, false, null);
-            ZipFileIndexArchive zfia = new ZipFileIndexArchive(fm, zfi);
-            JavaFileObject jfo =
-                zfia.getFileObject(TEST_ENTRY_NAME.dirname(),
-                                       TEST_ENTRY_NAME.basename());
-            long jfoTime = jfo.getLastModified();
+            fm.setLocation(StandardLocation.CLASS_PATH, Collections.singletonList(testJar));
+            FileObject fo =
+                fm.getFileForInput(StandardLocation.CLASS_PATH, "", TEST_ENTRY_NAME.getPath());
+            long jfoTime = fo.getLastModified();
 
-            check(je, jarEntryTime, jfo, jfoTime);
+            check(je, jarEntryTime, fo, jfoTime);
 
             if (errors > 0)
                 throw new Exception(errors + " occurred");
@@ -89,7 +84,7 @@ public class T6725036 {
         try (JavaFileManager fm = comp.getStandardFileManager(null, null, null)) {
             File f = new File(name);
             ToolBox tb = new ToolBox();
-            tb.new JarTask(name)
+            new JarTask(tb, name)
                 .files(fm, StandardLocation.PLATFORM_CLASS_PATH, paths)
                 .run();
             return f;

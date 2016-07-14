@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -120,26 +120,14 @@ public class JavacState {
     // ones that -sourcepath is allowed to see.
     Set<URI> visibleSrcs;
 
-    // Visible classes for linking. These are the only
-    // ones that -classpath is allowed to see.
-    // It maps from a classpath root to the set of visible classes for that root.
-    // If the set is empty, then all classes are visible for that root.
-    // It can also map from a jar file to the set of visible classes for that jar file.
-    Map<URI,Set<String>> visibleClasses;
-
     // Setup transform that always exist.
     private CompileJavaPackages compileJavaPackages = new CompileJavaPackages();
-
-    // Where to send stdout and stderr.
-    private Writer out, err;
 
     // Command line options.
     private Options options;
 
-    JavacState(Options op, boolean removeJavacState, Writer o, Writer e) {
+    JavacState(Options op, boolean removeJavacState) {
         options = op;
-        out = o;
-        err = e;
         numCores = options.getNumCores();
         theArgs = options.getStateArgsString();
         binDir = Util.pathToFile(options.getDestDir());
@@ -213,16 +201,6 @@ public class JavacState {
         }
     }
 
-    /**
-     * Specify which classes are visible to the compiler through -classpath.
-     */
-    public void setVisibleClasses(Map<String,Source> vs) {
-        visibleSrcs = new HashSet<>();
-        for (String s : vs.keySet()) {
-            Source src = vs.get(s);
-            visibleSrcs.add(src.file().toURI());
-        }
-    }
     /**
      * Returns true if this is an incremental build.
      */
@@ -311,8 +289,8 @@ public class JavacState {
     /**
      * Load a javac_state file.
      */
-    public static JavacState load(Options options, Writer out, Writer err) {
-        JavacState db = new JavacState(options, false, out, err);
+    public static JavacState load(Options options) {
+        JavacState db = new JavacState(options, false);
         Module  lastModule = null;
         Package lastPackage = null;
         Source  lastSource = null;
@@ -383,23 +361,23 @@ public class JavacState {
             // Silently create a new javac_state file.
             noFileFound = true;
         } catch (IOException e) {
-            Log.info("Dropping old javac_state because of errors when reading it.");
-            db = new JavacState(options, true, out, err);
+            Log.warn("Dropping old javac_state because of errors when reading it.");
+            db = new JavacState(options, true);
             foundCorrectVerNr = true;
             newCommandLine = false;
             syntaxError = false;
     }
         if (foundCorrectVerNr == false && !noFileFound) {
-            Log.info("Dropping old javac_state since it is of an old version.");
-            db = new JavacState(options, true, out, err);
+            Log.debug("Dropping old javac_state since it is of an old version.");
+            db = new JavacState(options, true);
         } else
         if (newCommandLine == true && !noFileFound) {
-            Log.info("Dropping old javac_state since a new command line is used!");
-            db = new JavacState(options, true, out, err);
+            Log.debug("Dropping old javac_state since a new command line is used!");
+            db = new JavacState(options, true);
         } else
         if (syntaxError == true) {
-            Log.info("Dropping old javac_state since it contains syntax errors.");
-            db = new JavacState(options, true, out, err);
+            Log.warn("Dropping old javac_state since it contains syntax errors.");
+            db = new JavacState(options, true);
         }
         db.prev.calculateDependents();
         return db;
@@ -820,7 +798,6 @@ public class JavacState {
             boolean r = t.transform(sjavac,
                                     srcs,
                                     visibleSrcs,
-                                    visibleClasses,
                                     prev.dependents(),
                                     outputDir.toURI(),
                                     packageArtifacts,
@@ -830,9 +807,7 @@ public class JavacState {
                                     dependencyPublicApis,
                                     0,
                                     isIncremental(),
-                                    numCores,
-                                    out,
-                                    err);
+                                    numCores);
             if (!r)
                 rc = false;
 
@@ -893,7 +868,7 @@ public class JavacState {
                         // This is an incremental compile! The pubapi
                         // did change. Trigger recompilation of dependents.
                         packagesWithChangedPublicApis.add(pkg);
-                        Log.info("The API of " + Util.justPackageName(pkg) + " has changed!");
+                        Log.debug("The API of " + Util.justPackageName(pkg) + " has changed!");
                     }
                 }
             }
@@ -954,8 +929,7 @@ public class JavacState {
             }
         }
         // Read in the file and create another set of filenames with full paths.
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(makefileSourceList));
+        try(BufferedReader in = new BufferedReader(new FileReader(makefileSourceList))) {
             for (;;) {
                 String l = in.readLine();
                 if (l==null) break;

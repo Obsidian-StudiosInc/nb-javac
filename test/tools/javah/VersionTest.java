@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
  * @test
  * @bug 6890226
  * @summary javah -version is broken
- * @modules jdk.compiler
+ * @modules jdk.compiler/com.sun.tools.javah
  */
 
 import java.io.*;
@@ -37,8 +37,8 @@ public class VersionTest {
         try {
             Locale.setDefault(Locale.ENGLISH);
             System.err.println(Locale.getDefault());
-            test("-version", "\\S+ version \"\\S+\"");
-            test("-fullversion", "\\S+ full version \"\\S+\"");
+            test("-version -XDsuppress-tool-removal-message", "\\S+ version \"\\S+\"");
+            test("-fullversion -XDsuppress-tool-removal-message", "\\S+ full version \"\\S+\"");
         } finally {
             Locale.setDefault(prev);
         }
@@ -47,7 +47,7 @@ public class VersionTest {
     static void test(String option, String regex) {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
-        String[] args = { option };
+        String[] args = option.split(" ");
         int rc = com.sun.tools.javah.Main.run(args, pw);
         pw.close();
         if (rc != 0)

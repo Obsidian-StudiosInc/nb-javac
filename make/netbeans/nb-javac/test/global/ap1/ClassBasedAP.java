@@ -44,7 +44,7 @@ import javax.tools.StandardLocation;
  *
  * @author lahvac
  */
-@SupportedSourceVersion(SourceVersion.RELEASE_7)
+@SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class ClassBasedAP extends AbstractProcessor {
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -676,9 +676,9 @@ public class Types {
 
             //merge thrown types - form the intersection of all the thrown types in
             //all the signatures in the list
-            boolean toErase = !bestSoFar.type.hasTag(FORALL);
             List<Type> thrown = null;
             Type mt1 = memberType(origin.type, bestSoFar);
+            boolean toErase = !mt1.hasTag(FORALL);
             for (Symbol msym2 : methodSyms) {
                 Type mt2 = memberType(origin.type, msym2);
                 List<Type> thrown_mt2 = mt2.getThrownTypes();
@@ -764,36 +764,42 @@ public class Types {
     }
 
     public Type removeWildcards(Type site) {
-        Type capturedSite = capture(site);
-        if (capturedSite != site) {
-            Type formalInterface = site.tsym.type;
-            ListBuffer<Type> typeargs = new ListBuffer<>();
-            List<Type> actualTypeargs = site.getTypeArguments();
-            List<Type> capturedTypeargs = capturedSite.getTypeArguments();
-            //simply replace the wildcards with its bound
-            for (Type t : formalInterface.getTypeArguments()) {
-                if (actualTypeargs.head.hasTag(WILDCARD)) {
-                    WildcardType wt = (WildcardType)actualTypeargs.head;
-                    Type bound;
-                    switch (wt.kind) {
-                        case EXTENDS:
-                        case UNBOUND:
-                            CapturedType capVar = (CapturedType)capturedTypeargs.head;
-                            //use declared bound if it doesn't depend on formal type-args
-                            bound = capVar.bound.containsAny(capturedSite.getTypeArguments()) ?
-                                    wt.type : capVar.bound;
-                            break;
-                        default:
-                            bound = wt.type;
+        if (site.getTypeArguments().stream().anyMatch(t -> t.hasTag(WILDCARD))) {
+            //compute non-wildcard parameterization - JLS 9.9
+            List<Type> actuals = site.getTypeArguments();
+            List<Type> formals = site.tsym.type.getTypeArguments();
+            ListBuffer<Type> targs = new ListBuffer<>();
+            for (Type formal : formals) {
+                Type actual = actuals.head;
+                Type bound = formal.getUpperBound();
+                if (actuals.head.hasTag(WILDCARD)) {
+                    WildcardType wt = (WildcardType)actual;
+                    //check that bound does not contain other formals
+                    if (bound.containsAny(formals)) {
+                        targs.add(wt.type);
+                    } else {
+                        //compute new type-argument based on declared bound and wildcard bound
+                        switch (wt.kind) {
+                            case UNBOUND:
+                                targs.add(bound);
+                                break;
+                            case EXTENDS:
+                                targs.add(glb(bound, wt.type));
+                                break;
+                            case SUPER:
+                                targs.add(wt.type);
+                                break;
+                            default:
+                                Assert.error("Cannot get here!");
+                        }
                     }
-                    typeargs.append(bound);
                 } else {
-                    typeargs.append(actualTypeargs.head);
+                    //not a wildcard - the new type argument remains unchanged
+                    targs.add(actual);
                 }
-                actualTypeargs = actualTypeargs.tail;
-                capturedTypeargs = capturedTypeargs.tail;
+                actuals = actuals.tail;
             }
-            return subst(formalInterface, formalInterface.getTypeArguments(), typeargs.toList());
+            return subst(site.tsym.type, formals, targs.toList());
         } else {
             return site;
         }
@@ -912,24 +918,24 @@ public class Types {
      * Is t an unchecked subtype of s?
      */
     public boolean isSubtypeUnchecked(Type t, Type s, Warner warn) {
-        boolean result = isSubtypeUncheckedInternal(t, s, warn);
+        boolean result = isSubtypeUncheckedInternal(t, s, true, warn);
         if (result) {
             checkUnsafeVarargsConversion(t, s, warn);
         }
         return result;
     }
     //where
-        private boolean isSubtypeUncheckedInternal(Type t, Type s, Warner warn) {
+        private boolean isSubtypeUncheckedInternal(Type t, Type s, boolean capture, Warner warn) {
             if (t.hasTag(ARRAY) && s.hasTag(ARRAY)) {
                 if (((ArrayType)t).elemtype.isPrimitive()) {
                     return isSameType(elemtype(t), elemtype(s));
                 } else {
-                    return isSubtypeUnchecked(elemtype(t), elemtype(s), warn);
+                    return isSubtypeUncheckedInternal(elemtype(t), elemtype(s), false, warn);
                 }
-            } else if (isSubtype(t, s)) {
+            } else if (isSubtype(t, s, capture)) {
                 return true;
             } else if (t.hasTag(TYPEVAR)) {
-                return isSubtypeUnchecked(t.getUpperBound(), s, warn);
+                return isSubtypeUncheckedInternal(t.getUpperBound(), s, false, warn);
             } else if (!s.isRaw()) {
                 Type t2 = asSuper(t, s.tsym);
                 if (t2 != null && t2.isRaw()) {
@@ -1225,18 +1231,19 @@ public class Types {
     }
 
     /**
-    * A polymorphic signature method (JLS SE 7, 8.4.1) is a method that
-    * (i) is declared in the java.lang.invoke.MethodHandle class, (ii) takes
-    * a single variable arity parameter (iii) whose declared type is Object[],
-    * (iv) has a return type of Object and (v) is native.
+     * A polymorphic signature method (JLS 15.12.3) is a method that
+     *   (i) is declared in the java.lang.invoke.MethodHandle/VarHandle classes;
+     *  (ii) takes a single variable arity parameter;
+     * (iii) whose declared type is Object[];
+     *  (iv) has any return type, Object signifying a polymorphic return type; and
+     *   (v) is native.
     */
    public boolean isSignaturePolymorphic(MethodSymbol msym) {
        List<Type> argtypes = msym.type.getParameterTypes();
        return (msym.flags_field & NATIVE) != 0 &&
-               msym.owner == syms.methodHandleType.tsym &&
+              (msym.owner == syms.methodHandleType.tsym || msym.owner == syms.varHandleType.tsym) &&
                argtypes.tail.tail == null &&
                argtypes.head.hasTag(TypeTag.ARRAY) &&
-               msym.type.getReturnType().tsym == syms.objectType.tsym &&
                ((ArrayType)argtypes.head).elemtype.tsym == syms.objectType.tsym;
    }
 
@@ -1288,10 +1295,13 @@ public class Types {
 
             @Override
             public Boolean visitWildcardType(WildcardType t, Type s) {
-                if (s.isPartial())
-                    return visit(s, t);
-                else
+                if (!s.hasTag(WILDCARD)) {
                     return false;
+                } else {
+                    WildcardType t2 = (WildcardType)s;
+                    return (t.kind == t2.kind || (t.isExtendsBound() && s.isExtendsBound())) &&
+                            isSameType(t.type, t2.type, true);
+                }
             }
 
             @Override
@@ -1309,14 +1319,21 @@ public class Types {
                     if (!visit(supertype(t), supertype(s)))
                         return false;
 
-                    HashSet<UniqueType> set = new HashSet<>();
-                    for (Type x : interfaces(t))
-                        set.add(new UniqueType(x, Types.this));
-                    for (Type x : interfaces(s)) {
-                        if (!set.remove(new UniqueType(x, Types.this)))
+                    Map<Symbol,Type> tMap = new HashMap<>();
+                    for (Type ti : interfaces(t)) {
+                        if (tMap.containsKey(ti)) {
+                            throw new AssertionError("Malformed intersection");
+                        }
+                        tMap.put(ti.tsym, ti);
+                    }
+                    for (Type si : interfaces(s)) {
+                        if (!tMap.containsKey(si.tsym))
+                            return false;
+                        Type ti = tMap.remove(si.tsym);
+                        if (!visit(ti, si))
                             return false;
                     }
-                    return (set.isEmpty());
+                    return tMap.isEmpty();
                 }
                 return t.tsym == s.tsym
                     && visit(t.getEnclosingType(), s.getEnclosingType())
@@ -1606,12 +1623,13 @@ public class Types {
     public boolean isCastable(Type t, Type s, Warner warn) {
         if (t == s)
             return true;
-
-        if (t.isPrimitive() != s.isPrimitive())
+        if (t.isPrimitive() != s.isPrimitive()) {
+            t = skipTypeVars(t, false);
             return (isConvertible(t, s, warn)
                     || (allowObjectToPrimitiveCast &&
                         s.isPrimitive() &&
                         isSubtype(boxedClass(s).type, t)));
+        }
         if (warn != warnStack.head) {
             try {
                 warnStack = warnStack.prepend(warn);
@@ -4101,7 +4119,7 @@ public class Types {
      * Return the class that boxes the given primitive.
      */
     public ClassSymbol boxedClass(Type t) {
-        return syms.enterClass(syms.boxedName[t.getTag().ordinal()]);
+        return syms.enterClass(syms.java_base, syms.boxedName[t.getTag().ordinal()]);
     }
 
     /**
@@ -4122,7 +4140,7 @@ public class Types {
                 Name box = syms.boxedName[i];
                 Type st = null;
                 if (box != null &&
-                    (st = asSuper(t, syms.enterClass(box))) != null &&
+                    (st = asSuper(t, syms.enterClass(syms.java_base, box))) != null &&
                     !st.isErroneous())
                     return syms.typeOfTag[i];
             }
@@ -4702,6 +4720,7 @@ public class Types {
         public R visitArrayType(ArrayType t, S s)       { return visitType(t, s); }
         public R visitMethodType(MethodType t, S s)     { return visitType(t, s); }
         public R visitPackageType(PackageType t, S s)   { return visitType(t, s); }
+        public R visitModuleType(ModuleType t, S s)     { return visitType(t, s); }
         public R visitTypeVar(TypeVar t, S s)           { return visitType(t, s); }
         public R visitCapturedType(CapturedType t, S s) { return visitType(t, s); }
         public R visitForAll(ForAll t, S s)             { return visitType(t, s); }

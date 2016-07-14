@@ -49,6 +49,7 @@ import com.sun.tools.javac.code.TypeAnnotationPosition.TypePathEntry;
 import com.sun.tools.javac.code.TypeAnnotationPosition.TypePathEntryKind;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
+import com.sun.tools.javac.code.Type.ModuleType;
 import com.sun.tools.javac.code.TypeMetadata.Entry.Kind;
 import com.sun.tools.javac.comp.Annotate;
 import com.sun.tools.javac.comp.Attr;
@@ -115,31 +116,23 @@ public class TypeAnnotations {
      * called from MemberEnter.
      */
     public void organizeTypeAnnotationsSignatures(final Env<AttrContext> env, final JCClassDecl tree) {
-        annotate.afterTypes(new Runnable() {
-            @Override
-            public void run() {
-                JavaFileObject oldSource = log.useSource(env.toplevel.sourcefile);
-
-                try {
-                    new TypeAnnotationPositions(true).scan(tree);
-                } finally {
-                    log.useSource(oldSource);
-                }
+        annotate.afterTypes(() -> {
+            JavaFileObject oldSource = log.useSource(env.toplevel.sourcefile);
+            try {
+                new TypeAnnotationPositions(true).scan(tree);
+            } finally {
+                log.useSource(oldSource);
             }
         });
     }
 
     public void validateTypeAnnotationsSignatures(final Env<AttrContext> env, final JCClassDecl tree) {
-        annotate.validate(new Runnable() { //validate annotations
-            @Override
-            public void run() {
-                JavaFileObject oldSource = log.useSource(env.toplevel.sourcefile);
-
-                try {
-                    attr.validateTypeAnnotations(tree, true);
-                } finally {
-                    log.useSource(oldSource);
-                }
+        annotate.validate(() -> { //validate annotations
+            JavaFileObject oldSource = log.useSource(env.toplevel.sourcefile);
+            try {
+                attr.validateTypeAnnotations(tree, true);
+            } finally {
+                log.useSource(oldSource);
             }
         });
     }
@@ -658,6 +651,11 @@ public class TypeAnnotations {
                 }
 
                 @Override
+                public Type visitModuleType(ModuleType t, List<TypeCompound> s) {
+                    return t.annotatedType(s);
+                }
+
+                @Override
                 public Type visitCapturedType(CapturedType t, List<TypeCompound> s) {
                     return t.annotatedType(s);
                 }
@@ -1023,7 +1021,7 @@ public class TypeAnnotations {
                 case METHOD_INVOCATION: {
                     JCMethodInvocation invocation = (JCMethodInvocation)frame;
                     if (!invocation.typeargs.contains(tree)) {
-                        throw new AssertionError("{" + tree + "} is not an argument in the invocation: " + invocation);
+                        return TypeAnnotationPosition.unknown;
                     }
                     MethodSymbol exsym = (MethodSymbol) TreeInfo.symbol(invocation.getMethodSelect());
                     final int type_index = invocation.typeargs.indexOf(tree);
@@ -1332,7 +1330,9 @@ public class TypeAnnotations {
 
             scan(tree.encl);
             scan(tree.typeargs);
-            scan(tree.clazz);
+            if (tree.def == null) {
+                scan(tree.clazz);
+            } // else super type will already have been scanned in the context of the anonymous class.
             scan(tree.args);
 
             // The class body will already be scanned.

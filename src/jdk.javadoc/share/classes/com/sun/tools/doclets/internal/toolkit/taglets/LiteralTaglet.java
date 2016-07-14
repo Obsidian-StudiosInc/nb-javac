@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package com.sun.tools.doclets.internal.toolkit.taglets;
 
 import java.util.Map;
@@ -48,6 +49,7 @@ import com.sun.tools.doclets.internal.toolkit.Content;
  * @since 1.5
  */
 
+@Deprecated
 public class LiteralTaglet extends BaseInlineTaglet {
 
     private static final String NAME = "literal";

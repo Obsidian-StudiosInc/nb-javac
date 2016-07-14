@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,7 +93,7 @@ public enum Option {
             CLASSPATH.processMatching(iter, helper);
         }
     },
-    X("-x", "Exclude directory from the subsequent source directory") {
+    X("-x", "Exclude files matching the given pattern") {
         @Override
         protected void processMatching(ArgumentIterator iter, OptionHelper helper) {
             String pattern = getFilePatternArg(iter, helper);
@@ -101,28 +101,12 @@ public enum Option {
                 helper.exclude(pattern);
         }
     },
-    I("-i", "Include only the given directory from the subsequent source directory") {
+    I("-i", "Include only files matching the given pattern") {
         @Override
         protected void processMatching(ArgumentIterator iter, OptionHelper helper) {
             String pattern = getFilePatternArg(iter, helper);
             if (pattern != null)
                 helper.include(pattern);
-        }
-    },
-    XF("-xf", "Exclude a given file") {
-        @Override
-        protected void processMatching(ArgumentIterator iter, OptionHelper helper) {
-            String pattern = getFilePatternArg(iter, helper);
-            if (pattern != null)
-                helper.excludeFile(pattern);
-        }
-    },
-    IF("-if", "Include only the given file") {
-        @Override
-        protected void processMatching(ArgumentIterator iter, OptionHelper helper) {
-            String pattern = getFilePatternArg(iter, helper);
-            if (pattern != null)
-                helper.includeFile(pattern);
         }
     },
     TR("-tr", "Translate resources") {
@@ -167,7 +151,8 @@ public enum Option {
             // Construct transformer
             try {
                 Class<?> trCls = Class.forName(classname);
-                Transformer transformer = (Transformer) trCls.newInstance();
+                Transformer transformer =
+                    (Transformer) trCls.getConstructor().newInstance();
                 transformer.setExtra(extra);
                 helper.addTransformer(suffix, transformer);
             } catch (Exception e) {
@@ -338,7 +323,7 @@ public enum Option {
     String getFilePatternArg(ArgumentIterator iter, OptionHelper helper) {
 
         if (!iter.hasNext()) {
-            helper.reportError(arg + " must be followed by a file or directory pattern.");
+            helper.reportError(arg + " must be followed by a glob pattern.");
             return null;
         }
 

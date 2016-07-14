@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,11 +27,13 @@
  * @summary Javac Crashes while building OpenJFX
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.main
- * @build ToolBox
+ * @build toolbox.ToolBox toolbox.JavacTask
  * @run main CompilerCrashWhenMixingBinariesAndSourcesTest
  */
+
+import toolbox.JavacTask;
+import toolbox.ToolBox;
 
 public class CompilerCrashWhenMixingBinariesAndSourcesTest {
     private static final String ASource =
@@ -52,13 +54,13 @@ public class CompilerCrashWhenMixingBinariesAndSourcesTest {
     public static void main(String[] args) throws Exception {
         ToolBox tb = new ToolBox();
 
-        tb.new JavacTask()
+        new JavacTask(tb)
                 .sources(ASource, BSource, CSource, DSource)
                 .run();
 
         tb.deleteFiles("A.class", "A$1.class", "C.class", "D.class");
 
-        tb.new JavacTask()
+        new JavacTask(tb)
                 .classpath(".")
                 .sources(ASource, CSource, DSource)
                 .run();

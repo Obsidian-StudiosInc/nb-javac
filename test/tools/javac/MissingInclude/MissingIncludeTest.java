@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,14 @@
  * doesn't exist.
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.main
- * @build ToolBox
+ * @build toolbox.ToolBox toolbox.JavacTask
  * @run main MissingIncludeTest
  */
+
+import toolbox.JavacTask;
+import toolbox.Task;
+import toolbox.ToolBox;
 
 // Original test: test/tools/javac/MissingInclude.sh
 public class MissingIncludeTest {
@@ -45,10 +48,10 @@ public class MissingIncludeTest {
 
         tb.writeFile(MissingIncludeFile, MissingIncludeSrc);
 
-        tb.new JavacTask(ToolBox.Mode.CMDLINE)
+        new JavacTask(tb, Task.Mode.CMDLINE)
                 .options("@/nonexistent_file")
                 .files(MissingIncludeFile)
-                .run(ToolBox.Expect.FAIL);
+                .run(Task.Expect.FAIL);
     }
 
 }

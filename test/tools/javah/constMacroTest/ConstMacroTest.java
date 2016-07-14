@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,14 +29,17 @@
  * header file.
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.main
- * @build ToolBox
+ *          jdk.compiler/com.sun.tools.javah
+ * @build toolbox.ToolBox toolbox.JavahTask
  * @run main ConstMacroTest
  */
 
 import java.io.*;
 import java.util.List;
+
+import toolbox.JavahTask;
+import toolbox.ToolBox;
 
 // Original test: test/tools/javah/ConstMacroTest.sh
 public class ConstMacroTest {
@@ -77,7 +80,7 @@ public class ConstMacroTest {
     public static void main(String[] args) throws Exception {
         ToolBox tb = new ToolBox();
 
-        tb.new JavahTask()
+        new JavahTask(tb)
                 .classpath(ToolBox.testClasses)
                 .classes("SubClassConsts")
                 .run();

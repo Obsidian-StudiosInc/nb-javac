@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,9 @@
  * @summary Analysis of public API does not take super classes into account
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.main
- * @build Wrapper ToolBox
+ *          jdk.jdeps/com.sun.tools.javap
+ * @build Wrapper toolbox.ToolBox
  * @run main Wrapper IncCompInheritance
  */
 
@@ -52,8 +52,7 @@ public class IncCompInheritance extends SjavacBase {
         toolbox.writeFile(src.resolve("pkgc/C.java"), c);
 
         // Initial compile (should succeed)
-        String server = "--server:portfile=testserver,background=false";
-        int rc1 = compile(server, "-d", classes, "--state-dir=" + classes, src);
+        int rc1 = compile("-d", classes, "--state-dir=" + classes, src);
         if (rc1 != 0)
             throw new AssertionError("Compilation failed unexpectedly");
 
@@ -65,7 +64,7 @@ public class IncCompInheritance extends SjavacBase {
         // Incremental compile (C should now be recompiled even though it
         // depends on A only through inheritance via B).
         // Since A.m is removed, this should fail.
-        int rc2 = compile(server, "-d", classes, "--state-dir=" + classes, src);
+        int rc2 = compile("-d", classes, "--state-dir=" + classes, src);
         if (rc2 == 0)
             throw new AssertionError("Compilation succeeded unexpectedly");
     }

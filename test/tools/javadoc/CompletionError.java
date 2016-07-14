@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,8 @@
  * @summary Check that CompletionFailures for missing classes are not incorrectly passed to
  *          the javadoc API clients.
  * @library /tools/lib
- * @modules jdk.javadoc
+ * @modules jdk.javadoc com.sun.tools.javac.api
+ *          jdk.jdeps/com.sun.tools.javap
  * @run main CompletionError
  */
 
@@ -63,7 +64,7 @@ public class CompletionError extends Doclet
             testsDone = false;
             while (!testsDone) {
                 ToolBox tb = new ToolBox();
-                tb.new JavacTask()
+                new JavacTask(tb)
                   .sources(testSource.toString(),
                            "public class CompletionErrorMissing {}",
                            "public interface CompletionErrorIntfMissing {}",

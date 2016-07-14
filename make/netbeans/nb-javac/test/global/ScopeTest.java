@@ -70,6 +70,7 @@ public class ScopeTest extends TestCase {
 
     public void testPositionForSuperConstructorCalls() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
@@ -85,7 +86,7 @@ public class ScopeTest extends TestCase {
                       "    }\n" +
                       "}\n";
 
-        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         Iterable<? extends CompilationUnitTree> trees = ct.parse();
 
@@ -116,6 +117,7 @@ public class ScopeTest extends TestCase {
 
     public void test142924() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
@@ -124,7 +126,7 @@ public class ScopeTest extends TestCase {
                       "    public Unresolved field;" +
                       "}\n";
 
-        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         ct.parse();
         ct.analyze();
 
@@ -140,6 +142,7 @@ public class ScopeTest extends TestCase {
 
     public void testScope180164() throws IOException {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
+        final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
@@ -153,7 +156,7 @@ public class ScopeTest extends TestCase {
                        "    };\n" +
                       "}\n";
 
-        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 	Iterable<? extends CompilationUnitTree> cut = ct.parse();
         ct.analyze();
 

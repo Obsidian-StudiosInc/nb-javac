@@ -14,5 +14,8 @@ keys=intermittent randomness
 # Group definitions
 groups=TEST.groups
 
-# Tests using jtreg 4.1 b12 features
-requiredVersion=4.1 b12
+# Tests using jtreg 4.2 b02 features
+requiredVersion=4.2 b02
+
+# Use new form of -Xpatch
+useNewXpatch=true
