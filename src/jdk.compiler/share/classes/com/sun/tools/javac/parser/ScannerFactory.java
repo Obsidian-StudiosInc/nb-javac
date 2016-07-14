@@ -87,3 +87,4 @@ public class ScannerFactory {
             return new Scanner(this, input, inputLength);
     }
 }
+

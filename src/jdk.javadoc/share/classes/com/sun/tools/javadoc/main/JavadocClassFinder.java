@@ -47,14 +47,18 @@ public class JavadocClassFinder extends ClassFinder {
     public static JavadocClassFinder instance(Context context) {
         ClassFinder instance = context.get(classFinderKey);
         if (instance == null)
-            instance = new JavadocClassFinder(context);
+            instance = new JavadocClassFinder(context, true);
         return (JavadocClassFinder)instance;
     }
 
     public static void preRegister(Context context) {
+        preRegister(context, true);
+    }
+    
+    public static void preRegister(Context context, final boolean loadDocEnv) {
         context.put(classFinderKey, new Context.Factory<ClassFinder>() {
             public ClassFinder make(Context c) {
-                return new JavadocClassFinder(c);
+                return new JavadocClassFinder(c, loadDocEnv);
             }
         });
     }
@@ -66,9 +70,10 @@ public class JavadocClassFinder extends ClassFinder {
     private EnumSet<JavaFileObject.Kind> noSource = EnumSet.of(JavaFileObject.Kind.CLASS,
                                                                JavaFileObject.Kind.HTML);
 
-    public JavadocClassFinder(Context context) {
+    public JavadocClassFinder(Context context, boolean loadDocEnv) {
         super(context);
-        docenv = DocEnv.instance(context);
+        if (loadDocEnv)
+            docenv = DocEnv.instance(context);
         preferSource = true;
     }
 
@@ -77,6 +82,9 @@ public class JavadocClassFinder extends ClassFinder {
      */
     @Override
     protected EnumSet<JavaFileObject.Kind> getPackageFileKinds() {
+        if (docenv == null)
+            return super.getPackageFileKinds();
+        else
         return docenv.docClasses ? noSource : all;
     }
 

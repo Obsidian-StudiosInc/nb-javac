@@ -36,6 +36,7 @@ import javax.lang.model.util.*;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.util.*;
+import com.sun.tools.javac.util.StringUtils;
 
 import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;

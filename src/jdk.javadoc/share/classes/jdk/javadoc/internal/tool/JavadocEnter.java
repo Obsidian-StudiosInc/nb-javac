@@ -85,7 +85,7 @@ public class JavadocEnter extends Enter {
     @Override
     public void visitTopLevel(JCCompilationUnit tree) {
         super.visitTopLevel(tree);
-        if (tree.sourcefile.isNameCompatible("package-info", JavaFileObject.Kind.SOURCE)) {
+        if (tree.sourcefile.isNameCompatible("package-info", JavaFileObject.Kind.SOURCE) && !isShadowed()) {
             JCPackageDecl pd = tree.getPackage();
             TreePath tp = pd == null ? toolEnv.getTreePath(tree) : toolEnv.getTreePath(tree, pd);
             toolEnv.setElementToTreePath(tree.packge, tp);
@@ -95,7 +95,7 @@ public class JavadocEnter extends Enter {
     @Override
     public void visitClassDef(JCClassDecl tree) {
         super.visitClassDef(tree);
-        if (tree.sym == null) return;
+        if (tree.sym == null || isShadowed()) return;
         if (tree.sym.kind == TYP || tree.sym.kind == ERR) {
             ClassSymbol c = tree.sym;
             toolEnv.setElementToTreePath(c, toolEnv.getTreePath(env.toplevel, tree));

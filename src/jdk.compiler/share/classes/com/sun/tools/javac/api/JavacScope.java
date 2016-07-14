@@ -65,7 +65,7 @@ public class JavacScope implements com.sun.source.tree.Scope {
 
     protected final Env<AttrContext> env;
 
-    private JavacScope(Env<AttrContext> env) {
+    protected JavacScope(Env<AttrContext> env) {
         this.env = Assert.checkNonNull(env);
     }
 
@@ -94,7 +94,7 @@ public class JavacScope implements com.sun.source.tree.Scope {
     @DefinedBy(Api.COMPILER_TREE)
     public TypeElement getEnclosingClass() {
         // hide the dummy class that javac uses to enclose the top level declarations
-        return (env.outer == null || env.outer == env ? null : env.enclClass.sym);
+        return (env.outer == null || env.outer == env || env.baseClause ? null : env.enclClass.sym);
     }
 
     @DefinedBy(Api.COMPILER_TREE)

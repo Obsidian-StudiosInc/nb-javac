@@ -29,6 +29,6 @@
  *
  * @author Jonathan Gibbons
  * @since 1.8
- * @see <a href="http://download.oracle.com/javase/6/docs/technotes/tools/solaris/javadoc.html#javadoctags">http://download.oracle.com/javase/6/docs/technotes/tools/solaris/javadoc.html#javadoctags</a>
+ * @see <a href="https://docs.oracle.com/javase/6/docs/technotes/tools/solaris/javadoc.html#javadoctags">https://docs.oracle.com/javase/6/docs/technotes/tools/solaris/javadoc.html#javadoctags</a>
  */
 package com.sun.source.doctree;

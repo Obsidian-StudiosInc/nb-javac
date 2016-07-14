@@ -301,16 +301,16 @@ public class RichDiagnosticFormatter extends
 
         public String simplify(Symbol s) {
             String name = s.getQualifiedName().toString();
-            if (!s.type.isCompound() && !s.type.isPrimitive()) {
+            if (!s.type.isCompound() && !s.type.isPrimitive() && !s.type.hasTag(VOID)) {
                 List<Symbol> conflicts = nameClashes.get(s.getSimpleName());
                 if (conflicts == null ||
                     (conflicts.size() == 1 &&
                     conflicts.contains(s))) {
                     List<Name> l = List.nil();
                     Symbol s2 = s;
-                    while (s2.type.hasTag(CLASS) &&
-                            s2.type.getEnclosingType().hasTag(CLASS) &&
-                            s2.owner.kind == TYP) {
+                    while (s2.type != null && s2.type.hasTag(CLASS) &&
+                            s2.type.getEnclosingType() != null && s2.type.getEnclosingType().hasTag(CLASS) &&
+                            s2.owner != null && s2.owner.kind == TYP) {
                         l = l.prepend(s2.getSimpleName());
                         s2 = s2.owner;
                     }

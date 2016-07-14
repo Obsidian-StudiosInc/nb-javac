@@ -234,7 +234,8 @@ public class Kinds {
         STATIC_INIT("kindname.static.init"),
         INSTANCE_INIT("kindname.instance.init"),
         PACKAGE("kindname.package"),
-        MODULE("kindname.module");
+        MODULE("kindname.module"),
+        ERROR("kindname.error");
 
         private final String name;
 

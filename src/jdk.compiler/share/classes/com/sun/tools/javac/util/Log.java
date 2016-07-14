@@ -28,6 +28,7 @@ package com.sun.tools.javac.util;
 import java.io.*;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
@@ -38,11 +39,13 @@ import com.sun.tools.javac.api.DiagnosticFormatter;
 import com.sun.tools.javac.main.Main;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.tree.EndPosTable;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
 
 import static com.sun.tools.javac.main.Option.*;
+import java.util.Map;
 
 /** A class for error logs. Reports errors and warnings, and
  *  keeps track of error numbers and positions.
@@ -157,7 +160,7 @@ public class Log extends AbstractLog {
             JCDiagnostic d;
             while ((d = deferred.poll()) != null) {
                 if (kinds.contains(d.getKind()))
-                    prev.report(d);
+                        prev.report(d);
             }
             deferred = null; // prevent accidental ongoing use
         }
@@ -222,6 +225,11 @@ public class Log extends AbstractLog {
      * Handler for initial dispatch of diagnostics.
      */
     private DiagnosticHandler diagnosticHandler;
+
+    private boolean partialReparse;
+
+    private final Set<Pair<JavaFileObject, Integer>> partialReparseRecorded = new HashSet<Pair<JavaFileObject,Integer>>();
+    private final HashMap<JCTree, JCDiagnostic> errTrees = new HashMap<JCTree, JCDiagnostic>();
 
     /** Construct a log with given I/O redirections.
      */
@@ -352,10 +360,30 @@ public class Log extends AbstractLog {
         getSource(name).setEndPosTable(endPosTable);
     }
 
+    public void startPartialReparse () {
+        assert partialReparseRecorded.isEmpty();
+        this.nerrors = 0;
+        this.nwarnings = 0;
+        this.partialReparse = true;
+    }
+
+    public void endPartialReparse () {
+        this.partialReparseRecorded.clear();
+        this.partialReparse = false;
+    }
+
     /** Return current sourcefile.
      */
     public JavaFileObject currentSourceFile() {
         return source == null ? null : source.getFile();
+    }
+
+    public DiagnosticListener<? super JavaFileObject> getDiagnosticListener() {
+        return diagListener;
+    }
+
+    public void setDiagnosticListener(DiagnosticListener<? super JavaFileObject> diagListener) {
+        this.diagListener = diagListener;
     }
 
     /** Get the current diagnostic formatter.
@@ -400,7 +428,21 @@ public class Log extends AbstractLog {
      * it must be specified explicitly for clarity and consistency checking.
      */
     public void popDiagnosticHandler(DiagnosticHandler h) {
-        Assert.check(diagnosticHandler == h);
+        if (diagnosticHandler != h) {
+            final Map<Thread, StackTraceElement[]> allStackTraces = Thread.getAllStackTraces();
+            final StringBuilder message = new StringBuilder("Wrong diagnostic handler: ").  //NOI18N
+                append(diagnosticHandler).
+                append("\nThread dump:\n"); //NOI18N
+            for (Map.Entry<Thread,StackTraceElement[]> e : allStackTraces.entrySet()) {
+                message.append(e.getKey().getName()).append('\n');  //NOI18N
+                for (StackTraceElement ste : e.getValue()) {
+                    message.append('\t').   //NOI18N
+                        append(ste.toString()).
+                        append('\n');   //NOI18N
+                }
+            }
+            Assert.check(diagnosticHandler == h, message);
+        }
         diagnosticHandler = h.prev;
     }
 
@@ -424,10 +466,19 @@ public class Log extends AbstractLog {
             return true;
 
         Pair<JavaFileObject,Integer> coords = new Pair<>(file, pos);
-        boolean shouldReport = !recorded.contains(coords);
-        if (shouldReport)
-            recorded.add(coords);
-        return shouldReport;
+        if (partialReparse) {
+            boolean shouldReport = !partialReparseRecorded.contains(coords);
+            if (shouldReport) {
+                partialReparseRecorded.add(coords);
+            }
+            return shouldReport;
+        }
+        else {
+            boolean shouldReport = !recorded.contains(coords);
+            if (shouldReport)
+                recorded.add(coords);
+            return shouldReport;
+        }
     }
 
     /** Prompt user after an error.
@@ -583,6 +634,9 @@ public class Log extends AbstractLog {
                 break;
 
             case ERROR:
+                if (diagnostic.getTree() != null && !errTrees.containsKey(diagnostic.getTree())) {
+                    errTrees.put(diagnostic.getTree(), diagnostic);
+                }
                 if (nerrors < MaxErrors &&
                     (diagnostic.isFlagSet(DiagnosticFlag.MULTIPLE) ||
                      shouldReport(diagnostic.getSource(), diagnostic.getIntPosition()))) {
@@ -723,5 +777,8 @@ public class Log extends AbstractLog {
     public static String format(String fmt, Object... args) {
         return String.format((java.util.Locale)null, fmt, args);
     }
-
+    
+    public JCDiagnostic getErrDiag(JCTree tree) {
+        return errTrees.get(tree);
+    }
 }
