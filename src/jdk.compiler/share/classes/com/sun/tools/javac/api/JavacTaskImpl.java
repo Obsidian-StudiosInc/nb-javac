@@ -247,7 +247,7 @@ public class JavacTaskImpl extends BasicJavacTask {
                 trees.add(tree);
             }
             else {
-                fos.add(ccw.wrap(file));
+                fos.add(file = ccw.wrap(file));
                 if (notYetEntered != null) {
                     assert !notYetEntered.containsKey(file) || notYetEntered.get(file) == null;
                     notYetEntered.put(file, null);
