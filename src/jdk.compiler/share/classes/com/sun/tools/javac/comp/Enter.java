@@ -353,9 +353,11 @@ public class Enter extends JCTree.Visitor {
                                                              JavaFileObject.Kind.SOURCE);
         if (TreeInfo.isModuleInfo(tree)) {
             tree.packge = syms.rootPackage;
-            Env<AttrContext> topEnv = topLevelEnv(tree);
-            classEnter(tree.defs, topEnv);
-            tree.modle.usesProvidesCompleter = modules.getUsesProvidesCompleter();
+            if (tree.modle != syms.noModule) {
+                Env<AttrContext> topEnv = topLevelEnv(tree);
+                classEnter(tree.defs, topEnv);
+                tree.modle.usesProvidesCompleter = modules.getUsesProvidesCompleter();
+            }
         } else {
             JCPackageDecl pd = tree.getPackage();
             if (pd != null) {
