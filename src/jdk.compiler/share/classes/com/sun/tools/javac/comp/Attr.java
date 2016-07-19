@@ -743,7 +743,7 @@ public class Attr extends JCTree.Visitor {
                 }
                 argtypes.append(argtype);
             } catch (BreakAttr ba) {
-                if (ba.result != null) {
+                if (ba.result != null && env.tree == ba.env.tree) {
                     argtypes.append(chk.checkNonVoid(arg, ba.result));
                 }
                 throw ba;
