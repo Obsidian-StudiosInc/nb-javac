@@ -37,6 +37,7 @@ import java.util.MissingResourceException;
 import java.util.Queue;
 import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.function.Function;
 
 import javax.annotation.processing.Processor;
 import javax.lang.model.SourceVersion;
@@ -347,6 +348,9 @@ public class JavaCompiler {
                 }
             };
 
+    protected final ModuleFinder.SourceFileCompleter sourceFileCompleter =
+            (fo, symbolGetter) -> readSourceFile(parseImplicitFile(fo), null, symbolGetter);
+
     /**
      * Command line options.
      */
@@ -426,6 +430,7 @@ public class JavaCompiler {
         duplicateClassChecker = context.get(DuplicateClassChecker.class);
 
         finder.sourceCompleter = sourceCompleter;
+        moduleFinder.sourceFileCompleter = sourceFileCompleter;
 
         options = Options.instance(context);
 
@@ -803,6 +808,24 @@ public class JavaCompiler {
         readSourceFile(null, c);
     }
 
+    private JCTree.JCCompilationUnit parseImplicitFile(JavaFileObject filename) {
+        JCTree.JCCompilationUnit tree = null;
+        JavaFileObject prev = log.useSource(filename);
+        try {
+            if (notYetEntered != null)
+                tree = notYetEntered.remove(filename);
+            if (tree == null)
+                tree = parse(filename, filename.getCharContent(false));
+        } catch (IOException e) {
+            log.error("error.reading.file", filename, JavacFileManager.getMessage(e));
+            tree = make.TopLevel(List.<JCTree>nil());
+            tree.sourcefile = filename;
+        } finally {
+            log.useSource(prev);
+        }
+        return tree;
+    }
+
     /** Compile a ClassSymbol from source, optionally using the given compilation unit as
      *  the source tree.
      *  @param tree the compilation unit in which the given ClassSymbol resides,
@@ -813,23 +836,20 @@ public class JavaCompiler {
         if (completionFailureName == c.fullname) {
             throw new CompletionFailure(c, "user-selected completion failure by class name");
         }
-        JavaFileObject filename = c.classfile;
-        JavaFileObject prev = log.useSource(filename);
 
         if (tree == null) {
-            try {
-                if (notYetEntered != null)
-                    tree = notYetEntered.remove(filename);
-                if (tree == null)
-                    tree = parse(filename, filename.getCharContent(false));
-            } catch (IOException e) {
-                log.error("error.reading.file", filename, JavacFileManager.getMessage(e));
-                tree = make.TopLevel(List.<JCTree>nil());
-                tree.sourcefile = filename;
-            } finally {
-                log.useSource(prev);
-            }
+            tree = parseImplicitFile(c.classfile);
         }
+
+        readSourceFile(tree, c, cut -> c);
+    }
+
+    private ClassSymbol readSourceFile(JCCompilationUnit tree,
+                                       ClassSymbol expectedSymbol,
+                                       Function<JCCompilationUnit, ClassSymbol> symbolGetter)
+                                           throws CompletionFailure {
+        Assert.checkNonNull(tree);
+
 
         if (!taskListener.isEmpty()) {
             TaskEvent e = new TaskEvent(TaskEvent.Kind.ENTER, tree);
@@ -845,11 +865,11 @@ public class JavaCompiler {
         // Note that if module resolution failed, we may not even
         // have enough modules available to access java.lang, and
         // so risk getting FatalError("no.java.lang") from MemberEnter.
-        if (!modules.enter(List.of(tree), c)) {
-            throw new CompletionFailure(c, diags.fragment("cant.resolve.modules"));
+        if (!modules.enter(List.of(tree), expectedSymbol)) {
+            throw new CompletionFailure(expectedSymbol /*TODO: null!!!*/, diags.fragment("cant.resolve.modules"));
         }
 
-        enter.complete(List.of(tree), c);
+        enter.complete(List.of(tree), expectedSymbol);
 
         if (!taskListener.isEmpty()) {
             TaskEvent e = new TaskEvent(TaskEvent.Kind.ENTER, tree);
@@ -860,7 +880,8 @@ public class JavaCompiler {
             toProcessAnnotations = toProcessAnnotations.prepend(tree);
         }
 
-        if (enter.getEnv(c) == null) {
+        ClassSymbol sym = symbolGetter.apply(tree);
+        if (sym == null || enter.getEnv(sym) == null) {
             boolean isPkgInfo =
                 tree.sourcefile.isNameCompatible("package-info",
                                                  JavaFileObject.Kind.SOURCE);
@@ -871,24 +892,26 @@ public class JavaCompiler {
                 if (enter.getEnv(tree.modle) == null) {
                     JCDiagnostic diag =
                         diagFactory.fragment("file.does.not.contain.module");
-                    throw new ClassFinder.BadClassFile(c, filename, diag, diagFactory);
+                    throw new ClassFinder.BadClassFile(sym, tree.sourcefile, diag, diagFactory);
                 }
             } else if (isPkgInfo) {
                 if (enter.getEnv(tree.packge) == null) {
                     JCDiagnostic diag =
                         diagFactory.fragment("file.does.not.contain.package",
-                                                 c.location());
-                    throw new ClassFinder.BadClassFile(c, filename, diag, diagFactory);
+                                                 sym.location());
+                    throw new ClassFinder.BadClassFile(sym, tree.sourcefile, diag, diagFactory);
                 }
             } else {
                 JCDiagnostic diag =
                         diagFactory.fragment("file.doesnt.contain.class",
-                                            c.getQualifiedName());
-                throw new ClassFinder.BadClassFile(c, filename, diag, diagFactory);
+                                            sym.getQualifiedName());
+                throw new ClassFinder.BadClassFile(sym, tree.sourcefile, diag, diagFactory);
             }
         }
 
         implicitSourceFilesRead = true;
+
+        return sym;
     }
     
     private boolean checkEntered(JCCompilationUnit unit) {

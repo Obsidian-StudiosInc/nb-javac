@@ -3660,7 +3660,8 @@ public class Check {
     // Check that packages imported are in scope (JLS 7.4.3, 6.3, 6.5.3.1, 6.5.3.2)
     public void checkImportedPackagesObservable(final JCCompilationUnit toplevel) {
         OUTER: for (JCImport imp : toplevel.getImports()) {
-            if (!imp.staticImport && TreeInfo.name(imp.qualid) == names.asterisk) {
+            if (!imp.staticImport && TreeInfo.name(imp.qualid) == names.asterisk
+                    && ((JCFieldAccess)imp.qualid).selected.type != null) {
                 TypeSymbol tsym = ((JCFieldAccess)imp.qualid).selected.type.tsym;
                 if (toplevel.modle.visiblePackages != null) {
                     //TODO - unclear: selects like javax.* will get resolved from the current module

@@ -914,13 +914,9 @@ public abstract class Symbol extends AnnoConstruct implements Element {
             return msym;
         }
 
-        public ModuleSymbol() {
-            super(MDL, 0, null, null, null);
-            this.type = new ModuleType(this);
-        }
-
         public ModuleSymbol(Name name, Symbol owner) {
             super(MDL, 0, name, null, owner);
+            Assert.checkNonNull(name);
             this.type = new ModuleType(this);
         }
 

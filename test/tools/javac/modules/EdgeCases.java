@@ -58,6 +58,8 @@ import com.sun.tools.javac.code.Symbol.ModuleSymbol;
 import toolbox.JarTask;
 import toolbox.JavacTask;
 import toolbox.Task;
+import toolbox.Task.Expect;
+import toolbox.Task.OutputKind;
 
 public class EdgeCases extends ModuleTestBase {
 
@@ -302,6 +304,57 @@ public class EdgeCases extends ModuleTestBase {
         if (!expected.equals(log)) {
             throw new IllegalStateException(log.toString());
         }
+    }
+
+    @Test
+    public void testImplicitJavaBase(Path base) throws Exception {
+        Path src = base.resolve("src");
+        Path src_java_base = src.resolve("java.base");
+        Files.createDirectories(src_java_base);
+        tb.writeJavaFiles(src_java_base, "module java.base { exports java.lang; }");
+        tb.writeJavaFiles(src_java_base,
+                          "package java.lang; public class Object {}");
+        Path classes = base.resolve("classes");
+        tb.createDirectories(classes);
+
+        //module-info from source:
+        new JavacTask(tb)
+            .options("-sourcepath", src_java_base.toString())
+            .outdir(classes)
+            .files(findJavaFiles(src_java_base.resolve("java").resolve("lang").resolve("Object.java")))
+            .run()
+            .writeAll();
+
+        //module-info from class:
+        if (!Files.exists(classes.resolve("module-info.class"))) {
+            throw new AssertionError("module-info.class not created!");
+        }
+
+        new JavacTask(tb)
+            .outdir(classes)
+            .files(findJavaFiles(src_java_base.resolve("java").resolve("lang").resolve("Object.java")))
+            .run()
+            .writeAll();
+
+        //broken module-info.class:
+        Files.newOutputStream(classes.resolve("module-info.class")).close();
+
+        List<String> log = new JavacTask(tb)
+            .options("-XDrawDiagnostics")
+            .outdir(classes)
+            .files(findJavaFiles(src_java_base.resolve("java").resolve("lang").resolve("Object.java")))
+            .run(Expect.FAIL)
+            .writeAll()
+            .getOutputLines(OutputKind.DIRECT);
+
+        List<String> expected = Arrays.asList(
+                "- compiler.err.cant.access: <error>.module-info, (compiler.misc.bad.class.file.header: module-info.class, (compiler.misc.illegal.start.of.class.file))",
+                "1 error");
+
+        if (!expected.equals(log)) {
+            throw new AssertionError("Unexpected output: " + log);
+        }
+
     }
 
 }
