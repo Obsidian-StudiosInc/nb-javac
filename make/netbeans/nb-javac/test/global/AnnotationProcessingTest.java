@@ -49,7 +49,6 @@ import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
-import static junit.framework.Assert.assertEquals;
 import junit.framework.TestCase;
 
 /**

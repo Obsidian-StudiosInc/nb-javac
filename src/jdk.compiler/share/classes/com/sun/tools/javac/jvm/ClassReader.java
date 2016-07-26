@@ -2409,11 +2409,7 @@ public class ClassReader {
         } else {
             c.flags_field = flags;
             Name modInfoName = readModuleInfoName(nextChar());
-            if (c.owner.name == null) {
-                syms.enterModule((ModuleSymbol) c.owner, Convert.packagePart(modInfoName));
-            } else {
-                // TODO: validate name
-            }
+            // TODO: validate module name
             currentModule = (ModuleSymbol) c.owner;
         }
 

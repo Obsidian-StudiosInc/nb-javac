@@ -261,14 +261,8 @@ public class Modules extends JCTree.Visitor {
             ModuleSymbol sym;
             if (c != null) {
                sym = (ModuleSymbol) c.owner;
-               if (sym.name == null) {
-                   //ModuleFinder.findSingleModule creates a stub of a ModuleSymbol without a name,
-                   //fill the name here after the module-info.java has been parsed
-                   //also enter the ModuleSymbol among modules:
-                   syms.enterModule(sym, name);
-               } else {
-                   // TODO: validate name
-               }
+               Assert.checkNonNull(sym.name);
+               // TODO: validate module name
             } else {
                 sym = syms.enterModule(name);
                 if (sym.module_info.sourcefile != null && sym.module_info.sourcefile != toplevel.sourcefile) {

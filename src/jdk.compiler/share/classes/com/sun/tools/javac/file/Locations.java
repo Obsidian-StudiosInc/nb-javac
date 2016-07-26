@@ -25,6 +25,8 @@
 
 package com.sun.tools.javac.file;
 
+import com.sun.tools.javac.util.ModuleNameReader;
+
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;

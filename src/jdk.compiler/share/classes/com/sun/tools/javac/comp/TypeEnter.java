@@ -286,7 +286,9 @@ public class TypeEnter implements Completer {
                     dependencies.push(env.enclClass.sym, phaseName);
                     runPhase(env);
                 } catch (CompletionFailure ex) {
-                    chk.completionError(tree.pos(), ex);
+                    if (ex.sym.kind != PCK || !names.java_lang.contentEquals(((PackageSymbol)ex.sym).fullname)) {
+                        chk.completionError(tree.pos(), ex);
+                    }
                 } catch (Attr.BreakAttr br) {
                     queue.clear();
                     throw br;
