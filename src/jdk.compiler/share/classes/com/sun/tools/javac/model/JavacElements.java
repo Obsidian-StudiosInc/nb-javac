@@ -141,20 +141,29 @@ public class JavacElements implements Elements {
 
 
     public ClassSymbol getTypeElementByBinaryName (final CharSequence binaryName) {
+        return getTypeElementByBinaryName(modules.getDefaultModule(), binaryName);
+    }
+    
+    public ClassSymbol getTypeElementByBinaryName (
+            final ModuleElement module,
+            final CharSequence binaryName) {
         final String strName = binaryName instanceof String ? (String) binaryName : binaryName.toString();
         int index = strName.indexOf('$');   //NOI18N
         final String owner = index < 0 ? strName : strName.substring(0,index);
         return SourceVersion.isName(owner)
-            ? binaryNameToClassSymbol(strName, owner)
+            ? binaryNameToClassSymbol((ModuleSymbol)module, strName, owner)
             : null;
     }
 
-    private ClassSymbol binaryNameToClassSymbol (final String binaryName, final String owner) {
+    private ClassSymbol binaryNameToClassSymbol (
+            final ModuleSymbol module,
+            final String binaryName,
+            final String owner) {
         final Name name = names.fromString(binaryName);
-        ClassSymbol sym = syms.getClass(modules.getDefaultModule(), name);  //TODO: hardcoded default module reference
+        ClassSymbol sym = syms.getClass(module, name);  //TODO: hardcoded default module reference
         try {
             if (sym == null) {
-                Symbol ownerSym = javaCompiler.resolveIdent(syms.lookupPackage(modules.getDefaultModule(), Convert.packagePart(names.fromString(owner))).modle, owner);
+                Symbol ownerSym = javaCompiler.resolveIdent(syms.lookupPackage(module, Convert.packagePart(names.fromString(owner))).modle, owner);
                 sym = syms.getClass(ownerSym.packge().modle, name);
             }
 
