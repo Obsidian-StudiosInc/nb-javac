@@ -78,24 +78,14 @@
         <delete file="${dist.jar}"/>
         <jar destfile="${dist.dir}/jshell.jar">
             <fileset dir="${build.classes.dir}">
-                <include name="jdk/internal/jshell/debug/**/*"/>
-		<include name="jdk/internal/jshell/remote/RemoteCodes.class"/>
-		<include name="jdk/internal/jshell/jdi/*"/>
-                <include name="jdk/jshell/**/*"/>
-            </fileset>
-        </jar>
-        <jar destfile="${dist.dir}/jshell-probe.jar">
-            <fileset dir="${build.classes.dir}">
-                <include name="jdk/internal/jshell/remote/*"/>
+                <include name="jdk/**/*"/>
             </fileset>
         </jar>
     </target>
 
     <target name="-copy-jars-to-build" if="modules.ext.exists">
         <copy file="${dist.dir}/jshell.jar" tofile="../../../../nbbuild/netbeans/java/modules/ext/nb-jshell.jar" />
-        <copy file="${dist.dir}/jshell-probe.jar" tofile="../../../../nbbuild/netbeans/java/modules/ext/nb-jshell-probe.jar" />
         <copy file="${dist.dir}/jshell.jar"  tofile="../../../../libs.jshell/external/jshell.jar"/>
-        <copy file="${dist.dir}/jshell-probe.jar" tofile="../../../../libs.jshell/external/jshell-probe.jar" />
         <touch file="../../../../nbbuild/netbeans/java/.lastModified" />
     </target>
 
