@@ -130,6 +130,7 @@ import javax.tools.ToolProvider;
 
 import static jdk.jshell.Util.REPL_DOESNOTMATTER_CLASS_NAME;
 import static java.util.stream.Collectors.joining;
+import static jdk.jshell.SourceCodeAnalysis.Completeness.DEFINITELY_INCOMPLETE;
 
 /**
  * The concrete implementation of SourceCodeAnalysis.
@@ -165,6 +166,10 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
     @Override
     public CompletionInfo analyzeCompletion(String srcInput) {
         MaskCommentsAndModifiers mcm = new MaskCommentsAndModifiers(srcInput, false);
+        if (mcm.endsWithOpenComment()) {
+            proc.debug(DBG_COMPA, "Incomplete (open comment): %s\n", srcInput);
+            return new CompletionInfo(DEFINITELY_INCOMPLETE, srcInput.length(), null, srcInput + '\n');
+        }
         String cleared = mcm.cleared();
         String trimmedInput = Util.trimEnd(cleared);
         if (trimmedInput.isEmpty()) {
@@ -271,8 +276,8 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
         }
         String requiredPrefix = identifier;
         return computeSuggestions(codeWrap, cursor, anchor).stream()
-                .filter(s -> s.continuation.startsWith(requiredPrefix) && !s.continuation.equals(REPL_DOESNOTMATTER_CLASS_NAME))
-                .sorted(Comparator.comparing(s -> s.continuation))
+                .filter(s -> s.continuation().startsWith(requiredPrefix) && !s.continuation().equals(REPL_DOESNOTMATTER_CLASS_NAME))
+                .sorted(Comparator.comparing(s -> s.continuation()))
                 .collect(collectingAndThen(toList(), Collections::unmodifiableList));
     }
 
@@ -406,6 +411,55 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
         }
         anchor[0] = cursor;
         return result;
+    }
+
+    @Override
+    public SnippetWrapper wrapper(Snippet snippet) {
+        return new SnippetWrapper() {
+            @Override
+            public String source() {
+                return snippet.source();
+            }
+
+            @Override
+            public String wrapped() {
+                return snippet.outerWrap().wrapped();
+            }
+
+            @Override
+            public String fullClassName() {
+                return snippet.classFullName();
+            }
+
+            @Override
+            public Snippet.Kind kind() {
+                return snippet.kind() == Snippet.Kind.ERRONEOUS
+                        ? ((ErroneousSnippet) snippet).probableKind()
+                        : snippet.kind();
+            }
+
+            @Override
+            public int sourceToWrappedPosition(int pos) {
+                return snippet.outerWrap().snippetIndexToWrapIndex(pos);
+            }
+
+            @Override
+            public int wrappedToSourcePosition(int pos) {
+                return snippet.outerWrap().wrapIndexToSnippetIndex(pos);
+            }
+        };
+    }
+
+    @Override
+    public List<SnippetWrapper> wrappers(String input) {
+        return proc.eval.sourceToSnippetsWithWrappers(input).stream()
+                .map(sn -> wrapper(sn))
+                .collect(toList());
+    }
+
+    @Override
+    public Collection<Snippet> dependents(Snippet snippet) {
+        return proc.maps.getDependents(snippet);
     }
 
     private boolean isStaticContext(AnalyzeTask at, TreePath path) {
@@ -942,7 +996,7 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
     //tweaked by tests to disable reading parameter names from classfiles so that tests using
     //JDK's classes are stable for both release and fastdebug builds:
     private final String[] keepParameterNames = new String[] {
-        "-XDsave-parameter-names=true"
+        "-parameters"
     };
 
     private String documentationImpl(String code, int cursor) {
@@ -1218,9 +1272,9 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
     public String analyzeType(String code, int cursor) {
         code = code.substring(0, cursor);
         CompletionInfo completionInfo = analyzeCompletion(code);
-        if (!completionInfo.completeness.isComplete)
+        if (!completionInfo.completeness().isComplete())
             return null;
-        if (completionInfo.completeness == Completeness.COMPLETE_WITH_SEMI) {
+        if (completionInfo.completeness() == Completeness.COMPLETE_WITH_SEMI) {
             code += ";";
         }
 

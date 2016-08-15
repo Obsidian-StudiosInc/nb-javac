@@ -568,7 +568,20 @@ public enum Option {
             return false;
         }
     },
-    ;
+
+   XSHOULDSTOP("-Xshouldstop:", null, HIDDEN, BASIC) {
+        @Override
+        public boolean process(OptionHelper helper, String option) {
+            String p = option.substring(option.indexOf(':') + 1).trim();
+            String[] subOptions = p.split(";");
+            for (String subOption : subOptions) {
+                subOption = "shouldstop." + subOption.trim();
+                XD.process(helper, subOption, subOption);
+            }
+            return false;
+        }
+    },
+   ;
 
     /** The kind of an Option. This is used by the -help and -X options. */
     public enum OptionKind {
