@@ -23,27 +23,43 @@
  * questions.
  */
 
-package jdk.internal.jshell.jdi;
+package jdk.jshell.execution;
 
+import java.util.function.Consumer;
 import com.sun.jdi.*;
 import com.sun.jdi.event.*;
 
 /**
  * Handler of Java Debug Interface events.
- * Adapted from jdb EventHandler; Handling of events not used by JShell stubbed out.
+ * Adapted from jdb EventHandler.
+ * Only exit and disconnect events processed.
  */
 class JDIEventHandler implements Runnable {
 
-    Thread thread;
-    volatile boolean connected = true;
-    boolean completed = false;
-    String shutdownMessageKey;
-    final JDIEnv env;
+    private final Thread thread;
+    private volatile boolean connected = true;
+    private boolean completed = false;
+    private final VirtualMachine vm;
+    private final Consumer<String> reportVMExit;
 
-    JDIEventHandler(JDIEnv env) {
-        this.env = env;
+    /**
+     * Creates an event handler. Start with {@code start()}.
+     *
+     * @param vm the virtual machine for which to handle events
+     * @param reportVMExit callback to report exit/disconnect
+     * (passed true if the VM has died)
+     */
+    JDIEventHandler(VirtualMachine vm, Consumer<String> reportVMExit) {
+        this.vm = vm;
+        this.reportVMExit = reportVMExit;
         this.thread = new Thread(this, "event-handler");
-        this.thread.start();
+    }
+
+    /**
+     * Starts the event handler.
+     */
+    void start() {
+        thread.start();
     }
 
     synchronized void shutdown() {
@@ -56,7 +72,7 @@ class JDIEventHandler implements Runnable {
 
     @Override
     public void run() {
-        EventQueue queue = env.vm().eventQueue();
+        EventQueue queue = vm.eventQueue();
         while (connected) {
             try {
                 EventSet eventSet = queue.remove();
@@ -83,55 +99,29 @@ class JDIEventHandler implements Runnable {
     }
 
     private boolean handleEvent(Event event) {
-        if (event instanceof ExceptionEvent) {
-            exceptionEvent(event);
-        } else if (event instanceof WatchpointEvent) {
-            fieldWatchEvent(event);
-        } else if (event instanceof MethodEntryEvent) {
-            methodEntryEvent(event);
-        } else if (event instanceof MethodExitEvent) {
-            methodExitEvent(event);
-        } else if (event instanceof ClassPrepareEvent) {
-            classPrepareEvent(event);
-        } else if (event instanceof ThreadStartEvent) {
-            threadStartEvent(event);
-        } else if (event instanceof ThreadDeathEvent) {
-            threadDeathEvent(event);
-        } else if (event instanceof VMStartEvent) {
-            vmStartEvent(event);
-            return true;
-        } else {
-            handleExitEvent(event);
-        }
+        handleExitEvent(event);
         return true;
     }
 
-    private boolean vmDied = false;
-
     private void handleExitEvent(Event event) {
         if (event instanceof VMDeathEvent) {
-            vmDied = true;
-            shutdownMessageKey = "The application exited";
+            reportVMExit.accept("VM Died");
         } else if (event instanceof VMDisconnectEvent) {
             connected = false;
-            if (!vmDied) {
-                shutdownMessageKey = "The application has been disconnected";
-            }
+            reportVMExit.accept("VM Disconnected");
         } else {
-            throw new InternalError("Unexpected event type: " +
-                    event.getClass());
+            // ignore everything else
         }
-        env.shutdown();
     }
 
-    synchronized void handleDisconnectedException() {
+    private synchronized void handleDisconnectedException() {
         /*
          * A VMDisconnectedException has happened while dealing with
          * another event. We need to flush the event queue, dealing only
          * with exit events (VMDeath, VMDisconnect) so that we terminate
          * correctly.
          */
-        EventQueue queue = env.vm().eventQueue();
+        EventQueue queue = vm.eventQueue();
         while (connected) {
             try {
                 EventSet eventSet = queue.remove();
@@ -145,37 +135,5 @@ class JDIEventHandler implements Runnable {
                 // ignore
             }
         }
-    }
-
-    private void vmStartEvent(Event event)  {
-        VMStartEvent se = (VMStartEvent)event;
-    }
-
-    private void methodEntryEvent(Event event)  {
-        MethodEntryEvent me = (MethodEntryEvent)event;
-    }
-
-    private void methodExitEvent(Event event)  {
-        MethodExitEvent me = (MethodExitEvent)event;
-    }
-
-    private void fieldWatchEvent(Event event)  {
-        WatchpointEvent fwe = (WatchpointEvent)event;
-    }
-
-    private void classPrepareEvent(Event event)  {
-        ClassPrepareEvent cle = (ClassPrepareEvent)event;
-    }
-
-    private void exceptionEvent(Event event) {
-        ExceptionEvent ee = (ExceptionEvent)event;
-    }
-
-    private void threadDeathEvent(Event event) {
-        ThreadDeathEvent tee = (ThreadDeathEvent)event;
-    }
-
-    private void threadStartEvent(Event event) {
-        ThreadStartEvent tse = (ThreadStartEvent)event;
     }
 }
