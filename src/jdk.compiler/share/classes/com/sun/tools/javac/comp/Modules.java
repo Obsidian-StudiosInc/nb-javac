@@ -38,6 +38,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -146,9 +147,11 @@ public class Modules extends JCTree.Visitor {
     private final String addReadsOpt;
     private Map<ModuleSymbol, Set<RequiresDirective>> addReads;
     private final String addModsOpt;
+    private final Set<String> extraAddMods = new HashSet<>();
     private final String limitModsOpt;
+    private final Set<String> extraLimitMods = new HashSet<>();
 
-    private Set<ModuleSymbol> rootModules = Collections.emptySet();
+    private Set<ModuleSymbol> rootModules = null;
 
     public static Modules instance(Context context) {
         Modules instance = context.get(Modules.class);
@@ -181,10 +184,10 @@ public class Modules extends JCTree.Visitor {
         java_se = names.fromString("java.se");
         java_ = names.fromString("java.");
 
-        addExportsOpt = options.get(Option.XADDEXPORTS);
-        addReadsOpt = options.get(Option.XADDREADS);
-        addModsOpt = options.get(Option.ADDMODS);
-        limitModsOpt = options.get(Option.LIMITMODS);
+        addExportsOpt = options.get(Option.ADD_EXPORTS);
+        addReadsOpt = options.get(Option.ADD_READS);
+        addModsOpt = options.get(Option.ADD_MODULES);
+        limitModsOpt = options.get(Option.LIMIT_MODULES);
     }
 
     int depth = -1;
@@ -194,7 +197,39 @@ public class Modules extends JCTree.Visitor {
         System.err.println(msg);
     }
 
+    public void addExtraAddModules(String... extras) {
+        extraAddMods.addAll(Arrays.asList(extras));
+    }
+
+    public void addExtraLimitModules(String... extras) {
+        extraLimitMods.addAll(Arrays.asList(extras));
+    }
+
+    boolean inInitModules;
+    public void initModules(List<JCCompilationUnit> trees) {
+        Assert.check(!inInitModules);
+        try {
+            inInitModules = true;
+            Assert.checkNull(rootModules);
+            enter(trees, modules -> {
+                Assert.checkNull(rootModules);
+                Assert.checkNull(allModules);
+                this.rootModules = modules;
+                setupAllModules(); //initialize the module graph
+                Assert.checkNonNull(allModules);
+                inInitModules = false;
+            }, null);
+        } finally {
+            inInitModules = false;
+        }
+    }
+
     public boolean enter(List<JCCompilationUnit> trees, ClassSymbol c) {
+        Assert.check(rootModules != null || inInitModules || !allowModules);
+        return enter(trees, modules -> {}, c);
+    }
+
+    private boolean enter(List<JCCompilationUnit> trees, Consumer<Set<ModuleSymbol>> init, ClassSymbol c) {
         if (!allowModules) {
             for (JCCompilationUnit tree: trees) {
                 tree.modle = syms.noModule;
@@ -212,10 +247,7 @@ public class Modules extends JCTree.Visitor {
 
             setCompilationUnitModules(trees, roots);
 
-            if (!roots.isEmpty() && this.rootModules.isEmpty()) {
-                this.rootModules = roots;
-                allModules(); //ensure errors reported
-            }
+            init.accept(roots);
 
             for (ModuleSymbol msym: roots) {
                 msym.complete();
@@ -392,6 +424,7 @@ public class Modules extends JCTree.Visitor {
                 defaultModule.completer = sym -> completeModule((ModuleSymbol) sym);
             } else {
                 Assert.check(rootModules.isEmpty());
+                rootModules.add(defaultModule);
             }
 
             if (defaultModule != syms.unnamedModule) {
@@ -461,7 +494,7 @@ public class Modules extends JCTree.Visitor {
                 msym.requires = List.nil();
                 msym.uses = List.nil();
             } else if ((msym.flags_field & Flags.AUTOMATIC_MODULE) != 0) {
-                completeAutomaticModule(msym);
+                setupAutomaticModule(msym);
             } else {
                 msym.module_info.complete();
             }
@@ -484,13 +517,8 @@ public class Modules extends JCTree.Visitor {
         }
     };
 
-    private void completeAutomaticModule(ModuleSymbol msym) throws CompletionFailure {
+    private void setupAutomaticModule(ModuleSymbol msym) throws CompletionFailure {
         try {
-            msym.provides = List.nil();
-            msym.requires = List.nil();
-            msym.uses = List.nil();
-            msym.directives = List.nil();
-
             ListBuffer<Directive> directives = new ListBuffer<>();
             ListBuffer<ExportsDirective> exports = new ListBuffer<>();
             Set<String> seenPackages = new HashSet<>();
@@ -504,33 +532,41 @@ public class Modules extends JCTree.Visitor {
                     exports.add(d);
                 }
             }
+
             msym.exports = exports.toList();
-
-            ListBuffer<RequiresDirective> requires = new ListBuffer<>();
-
-            //ensure all modules are found:
-            moduleFinder.findAllModules();
-
-            for (ModuleSymbol ms : allModules()) {
-                if (ms == syms.unnamedModule || ms == msym)
-                    continue;
-                Set<RequiresFlag> flags = (ms.flags_field & Flags.AUTOMATIC_MODULE) != 0 ?
-                        EnumSet.of(RequiresFlag.PUBLIC) : EnumSet.noneOf(RequiresFlag.class);
-                RequiresDirective d = new RequiresDirective(ms, flags);
-                directives.add(d);
-                requires.add(d);
-            }
-
-            RequiresDirective requiresUnnamed = new RequiresDirective(syms.unnamedModule);
-            directives.add(requiresUnnamed);
-            requires.add(requiresUnnamed);
-
-            msym.requires = requires.toList();
+            msym.provides = List.nil();
+            msym.requires = List.nil();
+            msym.uses = List.nil();
             msym.directives = directives.toList();
             msym.flags_field |= Flags.ACYCLIC;
         } catch (IOException ex) {
             throw new IllegalStateException(ex);
         }
+    }
+
+    private void completeAutomaticModule(ModuleSymbol msym) throws CompletionFailure {
+        ListBuffer<Directive> directives = new ListBuffer<>();
+
+        directives.addAll(msym.directives);
+
+        ListBuffer<RequiresDirective> requires = new ListBuffer<>();
+
+        for (ModuleSymbol ms : allModules()) {
+            if (ms == syms.unnamedModule || ms == msym)
+                continue;
+            Set<RequiresFlag> flags = (ms.flags_field & Flags.AUTOMATIC_MODULE) != 0 ?
+                    EnumSet.of(RequiresFlag.PUBLIC) : EnumSet.noneOf(RequiresFlag.class);
+            RequiresDirective d = new RequiresDirective(ms, flags);
+            directives.add(d);
+            requires.add(d);
+        }
+
+        RequiresDirective requiresUnnamed = new RequiresDirective(syms.unnamedModule);
+        directives.add(requiresUnnamed);
+        requires.add(requiresUnnamed);
+
+        msym.requires = requires.toList();
+        msym.directives = directives.toList();
     }
 
     private Completer getSourceCompleter(JCCompilationUnit tree) {
@@ -543,8 +579,8 @@ public class Modules extends JCTree.Visitor {
                 JavaFileObject prev = log.useSource(tree.sourcefile);
                 try {
                     tree.defs.head.accept(v);
-                    completeModule(msym);
                     checkCyclicDependencies((JCModuleDecl) tree.defs.head);
+                    completeModule(msym);
                 } finally {
                     log.useSource(prev);
                     msym.flags_field &= ~UNATTRIBUTED;
@@ -662,6 +698,9 @@ public class Modules extends JCTree.Visitor {
     public Completer getUsesProvidesCompleter() {
         return sym -> {
             ModuleSymbol msym = (ModuleSymbol) sym;
+
+            msym.complete();
+
             Env<AttrContext> env = typeEnvs.get(msym);
             UsesProvidesVisitor v = new UsesProvidesVisitor(msym, env);
             JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
@@ -759,7 +798,9 @@ public class Modules extends JCTree.Visitor {
 
         @Override
         public void visitRequires(JCRequires tree) {
-            msym.directives = msym.directives.prepend(tree.directive);
+            if (tree.directive != null) {
+                msym.directives = msym.directives.prepend(tree.directive);
+            }
         }
 
         @Override
@@ -823,19 +864,29 @@ public class Modules extends JCTree.Visitor {
         }
     }
 
-    private Set<ModuleSymbol> allModulesCache;
+    private Set<ModuleSymbol> allModules;
 
-    private Set<ModuleSymbol> allModules() {
-        if (allModulesCache != null)
-            return allModulesCache;
+    public Set<ModuleSymbol> allModules() {
+        Assert.checkNonNull(allModules);
+        return allModules;
+    }
+
+    private void setupAllModules() {
+        Assert.checkNonNull(rootModules);
+        Assert.checkNull(allModules);
 
         Set<ModuleSymbol> observable;
 
-        if (limitModsOpt == null) {
+        if (limitModsOpt == null && extraLimitMods.isEmpty()) {
             observable = null;
         } else {
             Set<ModuleSymbol> limitMods = new HashSet<>();
-            for (String limit : limitModsOpt.split(",")) {
+            if (limitModsOpt != null) {
+                for (String limit : limitModsOpt.split(",")) {
+                    limitMods.add(syms.enterModule(names.fromString(limit)));
+                }
+            }
+            for (String limit : extraLimitMods) {
                 limitMods.add(syms.enterModule(names.fromString(limit)));
             }
             observable = computeTransitiveClosure(limitMods, null);
@@ -870,8 +921,15 @@ public class Modules extends JCTree.Visitor {
 
         enabledRoot.addAll(rootModules);
 
-        if (addModsOpt != null) {
-            for (String added : addModsOpt.split(",")) {
+        if (addModsOpt != null || !extraAddMods.isEmpty()) {
+            Set<String> fullAddMods = new HashSet<>();
+            fullAddMods.addAll(extraAddMods);
+
+            if (addModsOpt != null) {
+                fullAddMods.addAll(Arrays.asList(addModsOpt.split(",")));
+            }
+
+            for (String added : fullAddMods) {
                 Stream<ModuleSymbol> modules;
                 switch (added) {
                     case ALL_SYSTEM:
@@ -900,20 +958,7 @@ public class Modules extends JCTree.Visitor {
 
         result.add(syms.unnamedModule);
 
-        if (!rootModules.isEmpty())
-            allModulesCache = result;
-
-        return result;
-    }
-
-    public void enableAllModules() {
-        allModulesCache = new HashSet<>();
-
-        moduleFinder.findAllModules();
-
-        for (ModuleSymbol msym : syms.getAllModules()) {
-            allModulesCache.add(msym);
-        }
+        allModules = result;
     }
 
     private Set<ModuleSymbol> computeTransitiveClosure(Iterable<? extends ModuleSymbol> base, Set<ModuleSymbol> observable) {
@@ -975,6 +1020,15 @@ public class Modules extends JCTree.Visitor {
     private final Map<ModuleSymbol, Set<ModuleSymbol>> requiresPublicCache = new HashMap<>();
 
     private void completeModule(ModuleSymbol msym) {
+        if (inInitModules) {
+            msym.completer = sym -> completeModule(msym);
+            return ;
+        }
+
+        if ((msym.flags_field & Flags.AUTOMATIC_MODULE) != 0) {
+            completeAutomaticModule(msym);
+        }
+
         Assert.checkNonNull(msym.requires);
 
         initAddReads();
@@ -1216,9 +1270,9 @@ public class Modules extends JCTree.Visitor {
 
     private void checkCyclicDependencies(JCModuleDecl mod) {
         for (JCDirective d : mod.directives) {
-            if (!d.hasTag(Tag.REQUIRES))
+            JCRequires rd;
+            if (!d.hasTag(Tag.REQUIRES) || (rd = (JCRequires) d).directive == null)
                 continue;
-            JCRequires rd = (JCRequires) d;
             Set<ModuleSymbol> nonSyntheticDeps = new HashSet<>();
             List<ModuleSymbol> queue = List.of(rd.directive.module);
             while (queue.nonEmpty()) {
@@ -1226,11 +1280,11 @@ public class Modules extends JCTree.Visitor {
                 queue = queue.tail;
                 if (!nonSyntheticDeps.add(current))
                     continue;
+                current.complete();
                 if ((current.flags() & Flags.ACYCLIC) != 0)
                     continue;
                 if (current.kind != MDL)
                     continue;
-                current.complete();
                 Assert.checkNonNull(current.requires, () -> current.toString());
                 for (RequiresDirective dep : current.requires) {
                     if (!dep.flags.contains(RequiresFlag.EXTRA))
@@ -1266,5 +1320,7 @@ public class Modules extends JCTree.Visitor {
     }
 
     public void newRound() {
+        rootModules = null;
+        allModules = null;
     }
 }

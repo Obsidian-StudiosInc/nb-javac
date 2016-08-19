@@ -75,7 +75,7 @@ public class EdgeCases extends ModuleTestBase {
         tb.createDirectories(classes);
 
         List<String> log = new JavacTask(tb)
-                .options("-XaddExports:undef/undef=ALL-UNNAMED", "-XDrawDiagnostics")
+                .options("--add-exports", "undef/undef=ALL-UNNAMED", "-XDrawDiagnostics")
                 .outdir(classes)
                 .files(findJavaFiles(src))
                 .run(Task.Expect.FAIL)
@@ -169,7 +169,7 @@ public class EdgeCases extends ModuleTestBase {
 
         String log = new JavacTask(tb)
                 .options("-XDrawDiagnostics",
-                         "-modulesourcepath", src.toString())
+                         "--module-source-path", src.toString())
                 .outdir(classes)
                 .files(findJavaFiles(src))
                 .run(Task.Expect.FAIL)
@@ -224,16 +224,16 @@ public class EdgeCases extends ModuleTestBase {
         tb.createDirectories(classes);
 
         new JavacTask(tb)
-                .options("-modulepath", modulePath.toString(),
-                         "-modulesourcepath", src.toString())
+                .options("--module-path", modulePath.toString(),
+                         "--module-source-path", src.toString())
                 .outdir(classes)
                 .files(findJavaFiles(src_m2))
                 .run()
                 .writeAll();
 
         new JavacTask(tb)
-                .options("-modulepath", modulePath.toString(),
-                         "-modulesourcepath", src.toString())
+                .options("--module-path", modulePath.toString(),
+                         "--module-source-path", src.toString())
                 .outdir(classes)
                 .files(findJavaFiles(src_m3))
                 .run()
@@ -252,7 +252,7 @@ public class EdgeCases extends ModuleTestBase {
         tb.createDirectories(classes);
 
         new JavacTask(tb)
-                .options("-sourcepath", src_m1.toString(),
+                .options("--source-path", src_m1.toString(),
                          "-XDrawDiagnostics")
                 .outdir(classes)
                 .files(findJavaFiles(src_m1.resolve("test")))
@@ -263,7 +263,7 @@ public class EdgeCases extends ModuleTestBase {
                           "module m1 {}");
 
         new JavacTask(tb)
-                .options("-sourcepath", src_m1.toString())
+                .options("--source-path", src_m1.toString())
                 .outdir(classes)
                 .files(findJavaFiles(src_m1.resolve("test")))
                 .run()
@@ -288,7 +288,7 @@ public class EdgeCases extends ModuleTestBase {
         tb.createDirectories(classes);
 
         List<String> log = new JavacTask(tb)
-                .options("-modulesourcepath", src.toString(),
+                .options("--module-source-path", src.toString(),
                          "-XDrawDiagnostics")
                 .outdir(classes)
                 .files(findJavaFiles(src))

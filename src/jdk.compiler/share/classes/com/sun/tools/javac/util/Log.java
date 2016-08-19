@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,11 +27,14 @@ package com.sun.tools.javac.util;
 
 import java.io.*;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+
 import javax.tools.DiagnosticListener;
 import javax.tools.JavaFileObject;
 
@@ -59,8 +62,11 @@ public class Log extends AbstractLog {
     /** The context key for the log. */
     public static final Context.Key<Log> logKey = new Context.Key<>();
 
-    /** The context key for the output PrintWriter. */
+    /** The context key for the standard output PrintWriter. */
     public static final Context.Key<PrintWriter> outKey = new Context.Key<>();
+
+    /** The context key for the diagnostic PrintWriter. */
+    public static final Context.Key<PrintWriter> errKey = new Context.Key<>();
 
     /* TODO: Should unify this with prefix handling in JCDiagnostic.Factory. */
     public enum PrefixKind {
@@ -114,6 +120,7 @@ public class Log extends AbstractLog {
             install(log);
         }
 
+        @Override
         public void report(JCDiagnostic diag) { }
     }
 
@@ -137,6 +144,7 @@ public class Log extends AbstractLog {
             install(log);
         }
 
+        @Override
         public void report(JCDiagnostic diag) {
             if (!diag.isFlagSet(JCDiagnostic.DiagnosticFlag.NON_DEFERRABLE) &&
                 (filter == null || filter.accepts(diag))) {
@@ -166,13 +174,9 @@ public class Log extends AbstractLog {
         }
     }
 
-    public enum WriterKind { NOTICE, WARNING, ERROR }
+    public enum WriterKind { NOTICE, WARNING, ERROR, STDOUT, STDERR }
 
-    protected PrintWriter errWriter;
-
-    protected PrintWriter warnWriter;
-
-    protected PrintWriter noticeWriter;
+    private final Map<WriterKind, PrintWriter> writers;
 
     /** The maximum number of errors/warnings that are reported.
      */
@@ -231,14 +235,130 @@ public class Log extends AbstractLog {
     private final Set<Pair<JavaFileObject, Integer>> partialReparseRecorded = new HashSet<Pair<JavaFileObject,Integer>>();
     private final HashMap<JCTree, JCDiagnostic> errTrees = new HashMap<JCTree, JCDiagnostic>();
 
-    /** Construct a log with given I/O redirections.
+    /** Get the Log instance for this context. */
+    public static Log instance(Context context) {
+        Log instance = context.get(logKey);
+        if (instance == null)
+            instance = new Log(context);
+        return instance;
+    }
+
+    /**
+     * Register a Context.Factory to create a Log.
      */
+    public static void preRegister(Context context, PrintWriter w) {
+        context.put(Log.class, (Context.Factory<Log>) (c -> new Log(c, w)));
+    }
+
+    /**
+     * Construct a log with default settings.
+     * If no streams are set in the context, the log will be initialized to use
+     * System.out for normal output, and System.err for all diagnostic output.
+     * If one stream is set in the context, with either Log.outKey or Log.errKey,
+     * it will be used for all output.
+     * Otherwise, the log will be initialized to use both streams found in the context.
+     */
+    protected Log(Context context) {
+        this(context, initWriters(context));
+    }
+
+    /**
+     * Initialize a map of writers based on values found in the context
+     * @param context the context in which to find writers to use
+     * @return a map of writers
+     */
+    private static Map<WriterKind, PrintWriter> initWriters(Context context) {
+        PrintWriter out = context.get(outKey);
+        PrintWriter err = context.get(errKey);
+        if (out == null && err == null) {
+            out = new PrintWriter(System.out, true);
+            err = new PrintWriter(System.err, true);
+            return initWriters(out, err);
+        } else if (out == null || err == null) {
+            PrintWriter pw = (out != null) ? out : err;
+            return initWriters(pw, pw);
+        } else {
+            return initWriters(out, err);
+        }
+    }
+
+    /**
+     * Construct a log with all output sent to a single output stream.
+     */
+    protected Log(Context context, PrintWriter writer) {
+        this(context, initWriters(writer, writer));
+    }
+
+    /**
+     * Construct a log.
+     * The log will be initialized to use stdOut for normal output, and stdErr
+     * for all diagnostic output.
+     */
+    protected Log(Context context, PrintWriter out, PrintWriter err) {
+        this(context, initWriters(out, err));
+    }
+
+    /**
+     * Initialize a writer map for a stream for normal output, and a stream for diagnostics.
+     * @param out a stream to be used for normal output
+     * @param err a stream to be used for diagnostic messages, such as errors, warnings, etc
+     * @return a map of writers
+     */
+    private static Map<WriterKind, PrintWriter> initWriters(PrintWriter out, PrintWriter err) {
+        Map<WriterKind, PrintWriter> writers = new EnumMap<>(WriterKind.class);
+        writers.put(WriterKind.ERROR, err);
+        writers.put(WriterKind.WARNING, err);
+        writers.put(WriterKind.NOTICE, err);
+
+        writers.put(WriterKind.STDOUT, out);
+        writers.put(WriterKind.STDERR, err);
+
+        return writers;
+    }
+
+    /**
+     * Construct a log with given I/O redirections.
+     * @deprecated
+     * This constructor is provided to support the supported but now-deprecated javadoc entry point
+     *      com.sun.tools.javadoc.Main.execute(String programName,
+     *          PrintWriter errWriter, PrintWriter warnWriter, PrintWriter noticeWriter,
+     *          String defaultDocletClassName, String... args)
+     */
+    @Deprecated
     protected Log(Context context, PrintWriter errWriter, PrintWriter warnWriter, PrintWriter noticeWriter) {
+        this(context, initWriters(errWriter, warnWriter, noticeWriter));
+    }
+
+    /**
+     * Initialize a writer map with different streams for different types of diagnostics.
+     * @param errWriter a stream for writing error messages
+     * @param warnWriter a stream for writing warning messages
+     * @param noticeWriter a stream for writing notice messages
+     * @return a map of writers
+     * @deprecated This method exists to support a supported but now deprecated javadoc entry point.
+     */
+    @Deprecated
+    private static Map<WriterKind, PrintWriter>  initWriters(PrintWriter errWriter, PrintWriter warnWriter, PrintWriter noticeWriter) {
+        Map<WriterKind, PrintWriter> writers = new EnumMap<>(WriterKind.class);
+        writers.put(WriterKind.ERROR, errWriter);
+        writers.put(WriterKind.WARNING, warnWriter);
+        writers.put(WriterKind.NOTICE, noticeWriter);
+
+        writers.put(WriterKind.STDOUT, noticeWriter);
+        writers.put(WriterKind.STDERR, errWriter);
+
+        return writers;
+    }
+
+    /**
+     * Creates a log.
+     * @param context the context in which the log should be registered
+     * @param writers a map of writers that can be accessed by the kind of writer required
+     */
+    private Log(Context context, Map<WriterKind, PrintWriter> writers) {
         super(JCDiagnostic.Factory.instance(context));
         context.put(logKey, this);
-        this.errWriter = errWriter;
-        this.warnWriter = warnWriter;
-        this.noticeWriter = noticeWriter;
+        this.writers = writers;
 
         @SuppressWarnings("unchecked") // FIXME
         DiagnosticListener<? super JavaFileObject> dl =
@@ -253,6 +373,7 @@ public class Log extends AbstractLog {
         final Options options = Options.instance(context);
         initOptions(options);
         options.addListener(new Runnable() {
+            @Override
             public void run() {
                 initOptions(options);
             }
@@ -300,42 +421,6 @@ public class Log extends AbstractLog {
         protected int getDefaultMaxWarnings() {
             return 100;
         }
-
-    /** The default writer for diagnostics
-     */
-    static PrintWriter defaultWriter(Context context) {
-        PrintWriter result = context.get(outKey);
-        if (result == null)
-            context.put(outKey, result = new PrintWriter(System.err));
-        return result;
-    }
-
-    /** Construct a log with default settings.
-     */
-    protected Log(Context context) {
-        this(context, defaultWriter(context));
-    }
-
-    /** Construct a log with all output redirected.
-     */
-    protected Log(Context context, PrintWriter defaultWriter) {
-        this(context, defaultWriter, defaultWriter, defaultWriter);
-    }
-
-    /** Get the Log instance for this context. */
-    public static Log instance(Context context) {
-        Log instance = context.get(logKey);
-        if (instance == null)
-            instance = new Log(context);
-        return instance;
-    }
-
-    /**
-     * Register a Context.Factory to create a Log.
-     */
-    public static void preRegister(Context context, PrintWriter w) {
-        context.put(Log.class, (Context.Factory<Log>) (c -> new Log(c, w)));
-    }
 
     /** The number of errors encountered so far.
      */
@@ -399,26 +484,18 @@ public class Log extends AbstractLog {
     }
 
     public PrintWriter getWriter(WriterKind kind) {
-        switch (kind) {
-            case NOTICE:    return noticeWriter;
-            case WARNING:   return warnWriter;
-            case ERROR:     return errWriter;
-            default:        throw new IllegalArgumentException();
-        }
+        return writers.get(kind);
     }
 
     public void setWriter(WriterKind kind, PrintWriter pw) {
         Assert.checkNonNull(pw);
-        switch (kind) {
-            case NOTICE:    noticeWriter = pw;  break;
-            case WARNING:   warnWriter = pw;    break;
-            case ERROR:     errWriter = pw;     break;
-            default:        throw new IllegalArgumentException();
-        }
+        writers.put(kind, pw);
     }
 
     public void setWriters(PrintWriter pw) {
-        noticeWriter = warnWriter = errWriter = Assert.checkNonNull(pw);
+        Assert.checkNonNull(pw);
+        for (WriterKind k: WriterKind.values())
+            writers.put(k, pw);
     }
 
     /**
@@ -449,9 +526,9 @@ public class Log extends AbstractLog {
     /** Flush the logs
      */
     public void flush() {
-        errWriter.flush();
-        warnWriter.flush();
-        noticeWriter.flush();
+        for (PrintWriter pw: writers.values()) {
+            pw.flush();
+        }
     }
 
     public void flush(WriterKind kind) {
@@ -521,6 +598,7 @@ public class Log extends AbstractLog {
     }
 
     public void printNewline() {
+        PrintWriter noticeWriter = writers.get(WriterKind.NOTICE);
         noticeWriter.println();
     }
 
@@ -529,10 +607,12 @@ public class Log extends AbstractLog {
     }
 
     public void printLines(String key, Object... args) {
+        PrintWriter noticeWriter = writers.get(WriterKind.NOTICE);
         printRawLines(noticeWriter, localize(key, args));
     }
 
     public void printLines(PrefixKind pk, String key, Object... args) {
+        PrintWriter noticeWriter = writers.get(WriterKind.NOTICE);
         printRawLines(noticeWriter, localize(pk, key, args));
     }
 
@@ -548,6 +628,7 @@ public class Log extends AbstractLog {
      *  for the platform.
      */
     public void printRawLines(String msg) {
+        PrintWriter noticeWriter = writers.get(WriterKind.NOTICE);
         printRawLines(noticeWriter, msg);
     }
 
@@ -575,10 +656,13 @@ public class Log extends AbstractLog {
      * noticeWriter stream.
      */
     public void printVerbose(String key, Object... args) {
+        PrintWriter noticeWriter = writers.get(WriterKind.NOTICE);
         printRawLines(noticeWriter, localize("verbose." + key, args));
     }
 
+    @Override
     protected void directError(String key, Object... args) {
+        PrintWriter errWriter = writers.get(WriterKind.ERROR);
         printRawLines(errWriter, localize(key, args));
         errWriter.flush();
     }
@@ -597,6 +681,7 @@ public class Log extends AbstractLog {
      * Primary method to report a diagnostic.
      * @param diagnostic
      */
+    @Override
     public void report(JCDiagnostic diagnostic) {
         diagnosticHandler.report(diagnostic);
      }
@@ -607,6 +692,7 @@ public class Log extends AbstractLog {
      * reported so far, the diagnostic may be handed off to writeDiagnostic.
      */
     private class DefaultDiagnosticHandler extends DiagnosticHandler {
+        @Override
         public void report(JCDiagnostic diagnostic) {
             if (expectDiagKeys != null)
                 expectDiagKeys.remove(diagnostic.getCode());
@@ -685,13 +771,13 @@ public class Log extends AbstractLog {
             throw new IllegalArgumentException();
 
         case NOTE:
-            return noticeWriter;
+            return writers.get(WriterKind.NOTICE);
 
         case WARNING:
-            return warnWriter;
+            return writers.get(WriterKind.WARNING);
 
         case ERROR:
-            return errWriter;
+            return writers.get(WriterKind.ERROR);
 
         default:
             throw new Error();
@@ -716,6 +802,14 @@ public class Log extends AbstractLog {
         return localize(PrefixKind.COMPILER_MISC, key, args);
     }
 
+    public String localize(JCDiagnostic.DiagnosticInfo diagInfo) {
+        if (useRawMessages) {
+            return diagInfo.key();
+        } else {
+            return messages.getLocalizedString(diagInfo.key(), diagInfo.args);
+        }
+    }
+
     /** Find a localized string in the resource bundle.
      *  @param key    The key for the localized string.
      *  @param args   Fields to substitute into the string.
@@ -737,26 +831,27 @@ public class Log extends AbstractLog {
 
     /** print an error or warning message:
      */
-    private void printRawError(int pos, String msg) {
+    private void printRawDiag(PrintWriter pw, String prefix, int pos, String msg) {
         if (source == null || pos == Position.NOPOS) {
-            printRawLines(errWriter, "error: " + msg);
+            printRawLines(pw, prefix + msg);
         } else {
             int line = source.getLineNumber(pos);
             JavaFileObject file = source.getFile();
             if (file != null)
-                printRawLines(errWriter,
+                printRawLines(pw,
                            file.getName() + ":" +
                            line + ": " + msg);
-            printErrLine(pos, errWriter);
+            printErrLine(pos, pw);
         }
-        errWriter.flush();
+        pw.flush();
     }
 
     /** report an error:
      */
     public void rawError(int pos, String msg) {
+        PrintWriter errWriter = writers.get(WriterKind.ERROR);
         if (nerrors < MaxErrors && shouldReport(currentSourceFile(), pos)) {
-            printRawError(pos, msg);
+            printRawDiag(errWriter, "error: ", pos, msg);
             prompt();
             nerrors++;
         }
@@ -766,12 +861,13 @@ public class Log extends AbstractLog {
     /** report a warning:
      */
     public void rawWarning(int pos, String msg) {
+        PrintWriter warnWriter = writers.get(WriterKind.ERROR);
         if (nwarnings < MaxWarnings && emitWarnings) {
-            printRawError(pos, "warning: " + msg);
+            printRawDiag(warnWriter, "warning: ", pos, msg);
         }
         prompt();
         nwarnings++;
-        errWriter.flush();
+        warnWriter.flush();
     }
 
     public static String format(String fmt, Object... args) {

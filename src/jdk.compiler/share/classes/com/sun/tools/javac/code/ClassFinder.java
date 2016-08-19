@@ -52,6 +52,7 @@ import com.sun.tools.javac.file.JRTIndex;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.jvm.Profile;
+import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.platform.PlatformDescription;
 import com.sun.tools.javac.util.*;
 
@@ -59,8 +60,6 @@ import static javax.tools.StandardLocation.*;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
-
-import static com.sun.tools.javac.main.Option.*;
 
 import com.sun.tools.javac.util.Dependencies.CompletionCause;
 
@@ -204,10 +203,10 @@ public class ClassFinder {
         annotate = Annotate.instance(context);
 
         Options options = Options.instance(context);
-        verbose = options.isSet(VERBOSE);
+        verbose = options.isSet(Option.VERBOSE);
         cacheCompletionFailure = options.isUnset("dev");
         preferSource = "source".equals(options.get("-Xprefer"));
-        userPathsFirst = options.isSet(XXUSERPATHSFIRST);
+        userPathsFirst = options.isSet(Option.XXUSERPATHSFIRST);
         allowSigFiles = context.get(PlatformDescription.class) != null;
 
         completionFailureName =
@@ -215,7 +214,7 @@ public class ClassFinder {
             ? names.fromString(options.get("failcomplete"))
             : null;
 
-        moduleOverride = options.isSet(XMODULE) ? names.fromString(options.get(XMODULE))
+        moduleOverride = options.isSet(Option.XMODULE) ? names.fromString(options.get(Option.XMODULE))
                                                 : null;
 
         // Temporary, until more info is available from the module system.

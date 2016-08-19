@@ -28,6 +28,7 @@ package jdk.javadoc.internal.doclets.formats.html.markup;
 import java.io.*;
 import java.util.*;
 
+import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 
@@ -35,6 +36,7 @@ import jdk.javadoc.internal.doclets.formats.html.ConfigurationImpl;
 import jdk.javadoc.internal.doclets.formats.html.SectionName;
 import jdk.javadoc.internal.doclets.toolkit.Configuration;
 import jdk.javadoc.internal.doclets.toolkit.Content;
+import jdk.javadoc.internal.doclets.toolkit.Messages;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFile;
 import jdk.javadoc.internal.doclets.toolkit.util.DocLink;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
@@ -66,11 +68,11 @@ public abstract class HtmlDocWriter extends HtmlWriter {
      *
      * @param filename String file name.
      */
-    public HtmlDocWriter(Configuration configuration, DocPath filename)
-            throws IOException {
+    public HtmlDocWriter(Configuration configuration, DocPath filename) {
         super(configuration, filename);
         this.pathToRoot = filename.parent().invert();
-        configuration.message.notice("doclet.Generating_0",
+        Messages messages = configuration.getMessages();
+        messages.notice("doclet.Generating_0",
             DocFile.createFileForOutput(configuration, filename).getPath());
     }
 
@@ -282,6 +284,21 @@ public abstract class HtmlDocWriter extends HtmlWriter {
         return anchor;
     }
 
+    public Content getModuleFramesHyperLink(ModuleElement mdle, Content label, String target) {
+        DocLink mdlLink = new DocLink(DocPaths.moduleFrame(mdle));
+        DocLink mtFrameLink = new DocLink(DocPaths.moduleTypeFrame(mdle));
+        DocLink cFrameLink = new DocLink(DocPaths.moduleSummary(mdle));
+        HtmlTree anchor = HtmlTree.A(mdlLink.toString(), label);
+        StringBuilder onclickStr = new StringBuilder("updateModuleFrame('")
+                .append(mtFrameLink.toString())
+                .append("','")
+                .append(cFrameLink.toString())
+                .append("');");
+        anchor.addAttr(HtmlAttr.TARGET, target);
+        anchor.addAttr(HtmlAttr.ONCLICK, onclickStr.toString());
+        return anchor;
+    }
+
     /**
      * Get the enclosed name of the package
      *
@@ -292,10 +309,6 @@ public abstract class HtmlDocWriter extends HtmlWriter {
 
         PackageElement encl = configuration.utils.containingPackage(te);
         return (encl.isUnnamed()) ? "" : (encl.getQualifiedName() + ".");
-    }
-
-    public boolean getMemberDetailsListPrinted() {
-        return memberDetailsListPrinted;
     }
 
     /**

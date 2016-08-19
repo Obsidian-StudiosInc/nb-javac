@@ -1955,7 +1955,8 @@ public class Attr extends JCTree.Visitor {
             Type qualifier = (tree.meth.hasTag(SELECT))
                     ? ((JCFieldAccess) tree.meth).selected.type
                     : env.enclClass.sym.type;
-            restype = adjustMethodReturnType(qualifier, methName, argtypes, restype);
+            Symbol msym = TreeInfo.symbol(tree.meth);
+            restype = adjustMethodReturnType(msym, qualifier, methName, argtypes, restype);
 
             chk.checkRefTypes(tree.typeargs, typeargtypes);
 
@@ -1967,19 +1968,25 @@ public class Attr extends JCTree.Visitor {
         chk.validate(tree.typeargs, localEnv);
     }
     //where
-        Type adjustMethodReturnType(Type qualifierType, Name methodName, List<Type> argtypes, Type restype) {
-            if (methodName == names.clone && types.isArray(qualifierType)) {
+        Type adjustMethodReturnType(Symbol msym, Type qualifierType, Name methodName, List<Type> argtypes, Type restype) {
+            if (msym != null &&
+                    msym.owner == syms.objectType.tsym &&
+                    methodName == names.getClass &&
+                    argtypes.isEmpty()) {
+                // as a special case, x.getClass() has type Class<? extends |X|>
+                return new ClassType(restype.getEnclosingType(),
+                        List.<Type>of(new WildcardType(types.erasure(qualifierType),
+                                BoundKind.EXTENDS,
+                                syms.boundClass)),
+                        restype.tsym,
+                        restype.getMetadata());
+            } else if (msym != null &&
+                    msym.owner == syms.arrayClass &&
+                    methodName == names.clone &&
+                    types.isArray(qualifierType)) {
                 // as a special case, array.clone() has a result that is
                 // the same as static type of the array being cloned
                 return qualifierType;
-            } else if (methodName == names.getClass && argtypes.isEmpty()) {
-                // as a special case, x.getClass() has type Class<? extends |X|>
-                return new ClassType(restype.getEnclosingType(),
-                              List.<Type>of(new WildcardType(types.erasure(qualifierType),
-                                                               BoundKind.EXTENDS,
-                                                             syms.boundClass)),
-                                     restype.tsym,
-                                     restype.getMetadata());
             } else {
                 return restype;
             }
@@ -3124,7 +3131,7 @@ public class Attr extends JCTree.Visitor {
 
             if (!refType.isErroneous()) {
                 refType = types.createMethodTypeWithReturn(refType,
-                        adjustMethodReturnType(lookupHelper.site, that.name, checkInfo.pt.getParameterTypes(), refType.getReturnType()));
+                        adjustMethodReturnType(refSym, lookupHelper.site, that.name, checkInfo.pt.getParameterTypes(), refType.getReturnType()));
             }
 
             //go ahead with standard method reference compatibility check - note that param check
@@ -3287,7 +3294,7 @@ public class Attr extends JCTree.Visitor {
         Type operand = attribExpr(tree.rhs, env);
         // Find operator.
         Symbol operator = tree.operator = operators.resolveBinary(tree, tree.getTag().noAssignOp(), owntype, operand);
-        if (operator.kind == MTH &&
+        if (operator != operators.noOpSymbol &&
                 !owntype.isErroneous() &&
                 !operand.isErroneous()) {
             chk.checkDivZero(tree.rhs.pos(), operator, operand);
@@ -3307,7 +3314,7 @@ public class Attr extends JCTree.Visitor {
         // Find operator.
         Symbol operator = tree.operator = operators.resolveUnary(tree, tree.getTag(), argtype);
         Type owntype = types.createErrorType(tree.type);
-        if (operator.kind == MTH &&
+        if (operator != operators.noOpSymbol &&
                 !argtype.isErroneous()) {
             owntype = (tree.getTag().isIncOrDecUnaryOp())
                 ? tree.arg.type
@@ -3334,7 +3341,7 @@ public class Attr extends JCTree.Visitor {
             // Find operator.
             Symbol operator = tree.operator = operators.resolveBinary(tree, tree.getTag(), left, right);
             Type owntype = types.createErrorType(tree.type);
-            if (operator.kind == MTH &&
+            if (operator != operators.noOpSymbol &&
                     !left.isErroneous() &&
                     !right.isErroneous()) {
                 owntype = operator.type.getReturnType();
@@ -4513,6 +4520,9 @@ public class Attr extends JCTree.Visitor {
             case TOPLEVEL:
                 attribTopLevel(env);
                 break;
+            case PACKAGEDEF:
+                attribPackage(env.tree.pos(), ((JCPackageDecl) env.tree).packge);
+                break;
             default:
                 attribClass(env.tree.pos(), env.enclClass.sym);
         }
@@ -4529,6 +4539,20 @@ public class Attr extends JCTree.Visitor {
         } catch (CompletionFailure ex) {
             chk.completionError(toplevel.pos(), ex);
         }
+    }
+
+    public void attribPackage(DiagnosticPosition pos, PackageSymbol p) {
+        try {
+            annotate.flush();
+            attribPackage(p);
+        } catch (CompletionFailure ex) {
+            chk.completionError(pos, ex);
+        }
+    }
+
+    void attribPackage(PackageSymbol p) {
+        Env<AttrContext> env = typeEnvs.get(p);
+        chk.checkDeprecatedAnnotation(((JCPackageDecl) env.tree).pid.pos(), p);
     }
 
     public void attribModule(DiagnosticPosition pos, ModuleSymbol m) {

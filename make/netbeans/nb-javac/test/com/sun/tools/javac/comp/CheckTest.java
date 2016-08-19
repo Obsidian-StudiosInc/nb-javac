@@ -76,7 +76,7 @@ public class CheckTest extends TestCase {
         
         MemoryOutputJFM m = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
 
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, m, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov", "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, m, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov", "-XDshouldstop.at=GENERATE"), null, Arrays.asList(new MyFileObject(code)));
         
         ct.generate();
         
