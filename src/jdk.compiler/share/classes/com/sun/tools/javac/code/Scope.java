@@ -301,7 +301,7 @@ public abstract class Scope {
         /** Use as a "not-found" result for lookup.
          * Also used to mark deleted entries in the table.
          */
-        private static final Entry sentinel = new Entry(null, null, null, null);
+        protected static final Entry sentinel = new Entry(null, null, null, null);
 
         /** The hash table's initial size.
          */
@@ -961,7 +961,9 @@ public abstract class Scope {
 
                 if (inspectSuperTypes) {
                     // also import inherited names
-                    result = importFrom(types.supertype(tsym.type).tsym);
+                    Type sup = types.supertype(tsym.type);
+                    if (sup != null)
+                        result = importFrom(sup.tsym);
                     for (Type t : types.interfaces(tsym.type))
                         result = Stream.concat(importFrom(t.tsym), result);
                 }
@@ -1086,7 +1088,7 @@ public abstract class Scope {
         public Entry lookup(Name name) {
             Entry e = super.lookup(name);
             if (e.scope == null)
-                return new Entry(owner, null, null, null);
+                return new Entry(owner, sentinel, null, null);
             else
                 return e;
         }

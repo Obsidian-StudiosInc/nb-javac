@@ -293,14 +293,8 @@ public class Modules extends JCTree.Visitor {
             ModuleSymbol sym;
             if (c != null) {
                sym = (ModuleSymbol) c.owner;
-               if (sym.name == null) {
-                   //ModuleFinder.findSingleModule creates a stub of a ModuleSymbol without a name,
-                   //fill the name here after the module-info.java has been parsed
-                   //also enter the ModuleSymbol among modules:
-                   syms.enterModule(sym, name);
-               } else {
-                   // TODO: validate name
-               }
+               Assert.checkNonNull(sym.name);
+               // TODO: validate module name
             } else {
                 sym = syms.enterModule(name);
                 if (sym.module_info.sourcefile != null && sym.module_info.sourcefile != toplevel.sourcefile) {
@@ -338,6 +332,9 @@ public class Modules extends JCTree.Visitor {
         if (multiModuleMode) {
             checkNoAllModulePath();
             for (JCCompilationUnit tree: trees) {
+                if (tree.modle != null) {
+                    continue;
+                }
                 if (tree.defs.isEmpty()) {
                     tree.modle = syms.unnamedModule;
                     continue;
@@ -437,7 +434,9 @@ public class Modules extends JCTree.Visitor {
             }
 
             for (JCCompilationUnit tree: trees) {
-                tree.modle = defaultModule;
+                if (tree.modle == null) {
+                    tree.modle = defaultModule;
+                }
             }
         }
     }
@@ -616,17 +615,17 @@ public class Modules extends JCTree.Visitor {
         @Override
         public void visitRequires(JCRequires tree) {
             ModuleSymbol msym = lookupModule(tree.moduleName);
+            Set<RequiresFlag> flags = EnumSet.noneOf(RequiresFlag.class);
+            if (tree.isPublic)
+                flags.add(RequiresFlag.PUBLIC);
+            RequiresDirective d = new RequiresDirective(msym, flags);
+            tree.directive = d;
             if (msym.kind != MDL) {
                 log.error(tree.moduleName.pos(), Errors.ModuleNotFound(msym));
             } else if (allRequires.contains(msym)) {
                 log.error(tree.moduleName.pos(), Errors.DuplicateRequires(msym));
             } else {
                 allRequires.add(msym);
-                Set<RequiresFlag> flags = EnumSet.noneOf(RequiresFlag.class);
-                if (tree.isPublic)
-                    flags.add(RequiresFlag.PUBLIC);
-                RequiresDirective d = new RequiresDirective(msym, flags);
-                tree.directive = d;
                 sym.requires = sym.requires.prepend(d);
             }
         }
@@ -1283,6 +1282,8 @@ public class Modules extends JCTree.Visitor {
                     continue;
                 current.complete();
                 if ((current.flags() & Flags.ACYCLIC) != 0)
+                    continue;
+                if (current.kind != MDL)
                     continue;
                 Assert.checkNonNull(current.requires, () -> current.toString());
                 for (RequiresDirective dep : current.requires) {

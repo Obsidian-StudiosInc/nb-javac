@@ -43,6 +43,7 @@ import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.util.ElementScanner6;
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 
@@ -55,6 +56,7 @@ import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.jvm.*;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.JCTree.Tag;
@@ -68,8 +70,10 @@ import static com.sun.tools.javac.code.Kinds.Kind.*;
 import static com.sun.tools.javac.code.Scope.LookupKind.NON_RECURSIVE;
 import static com.sun.tools.javac.code.Symbol.OperatorSymbol.AccessCode.FIRSTASGOP;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
+import static com.sun.tools.javac.code.TypeTag.ERROR;
 import static com.sun.tools.javac.code.TypeTag.FORALL;
 import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
+import static com.sun.tools.javac.code.TypeTag.UNKNOWN;
 import static com.sun.tools.javac.jvm.ByteCodes.iadd;
 import static com.sun.tools.javac.jvm.ByteCodes.ishll;
 import static com.sun.tools.javac.jvm.ByteCodes.lushrl;
@@ -344,7 +348,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
      */
     public Type externalType(Types types) {
         Type t = erasure(types);
-        if (name == name.table.names.init && owner.hasOuterInstance()) {
+        if (name != null && name == name.table.names.init && owner != null && owner.hasOuterInstance()) {
             Type outerThisType = types.erasure(owner.type.getEnclosingType());
             return new MethodType(t.getParameterTypes().prepend(outerThisType),
                                   t.getReturnType(),
@@ -384,7 +388,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
      *  turn local to a method or variable initializer.
      */
     public boolean isLocal() {
-        return
+        return owner.kind != ERR &&
             (owner.kind.matches(KindSelector.VAL_MTH) ||
              (owner.kind == TYP && owner.isLocal()));
     }
@@ -427,7 +431,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
     /** A class is an inner class if it it has an enclosing instance class.
      */
     public boolean isInner() {
-        return kind == TYP && type.getEnclosingType().hasTag(CLASS);
+        return kind == TYP && type.getEnclosingType() != null && type.getEnclosingType().hasTag(CLASS);
     }
 
     /** An inner class has an outer instance if it is not an interface
@@ -439,7 +443,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
      *  @see #isInner
      */
     public boolean hasOuterInstance() {
-        return
+        return type.getEnclosingType() != null &&
             type.getEnclosingType().hasTag(CLASS) && (flags() & (INTERFACE | NOOUTERTHIS)) == 0;
     }
 
@@ -451,7 +455,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
     public ClassSymbol enclClass() {
         Symbol c = this;
         while (c != null &&
-               (!c.kind.matches(KindSelector.TYP) || !c.type.hasTag(CLASS))) {
+               (!c.kind.matches(KindSelector.TYP) || !(c.type.hasTag(CLASS) || c.type.hasTag(ERROR)))) {
             c = c.owner;
         }
         return (ClassSymbol)c;
@@ -769,7 +773,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         @Override @DefinedBy(Api.LANGUAGE_MODEL)
         public java.util.List<Symbol> getEnclosedElements() {
             List<Symbol> list = List.nil();
-            if (kind == TYP && type.hasTag(TYPEVAR)) {
+            if (kind == NIL || (kind == TYP && type.hasTag(TYPEVAR) || type.hasTag(UNKNOWN))) {
                 return list;
             }
             for (Symbol sym : members().getSymbols(NON_RECURSIVE)) {
@@ -779,7 +783,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
                     }
                 } catch (BadEnclosingMethodAttr badEnclosingMethod) {
                     // ignore the exception
-                }
+                } catch (CompletionFailure cf) {}
             }
             return list;
         }
@@ -821,6 +825,8 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         public List<Type> getBounds() {
             TypeVar t = (TypeVar)type;
             Type bound = t.getUpperBound();
+            if (bound == null)
+                return List.nil();
             if (!bound.isCompound())
                 return List.of(bound);
             ClassType ct = (ClassType)bound;
@@ -915,13 +921,9 @@ public abstract class Symbol extends AnnoConstruct implements Element {
             return msym;
         }
 
-        public ModuleSymbol() {
-            super(MDL, 0, null, null, null);
-            this.type = new ModuleType(this);
-        }
-
         public ModuleSymbol(Name name, Symbol owner) {
             super(MDL, 0, name, null, owner);
+            Assert.checkNonNull(name);
             this.type = new ModuleType(this);
         }
 
@@ -946,6 +948,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         }
 
         public void completeUsesProvides() {
+            complete();
             if (usesProvidesCompleter != Completer.NULL_COMPLETER) {
                 Completer c = usesProvidesCompleter;
                 usesProvidesCompleter = Completer.NULL_COMPLETER;
@@ -1030,22 +1033,28 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         }
 
         public WriteableScope members() {
-            complete();
+            try {
+                complete();
+            } catch (CompletionFailure cf) {}
             return members_field;
         }
 
         public long flags() {
-            complete();
+            try {
+                complete();
+            } catch (CompletionFailure cf) {}
             return flags_field;
         }
 
         @Override
         public List<Attribute.Compound> getRawAttributes() {
-            complete();
-            if (package_info != null) {
-                package_info.complete();
-                mergeAttributes();
-            }
+            try {
+                complete();
+                if (package_info != null) {
+                    package_info.complete();
+                    mergeAttributes();
+                }
+            } catch (CompletionFailure cf) {}
             return super.getRawAttributes();
         }
 
@@ -1158,24 +1167,32 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         }
 
         public long flags() {
-            complete();
+            try {
+                complete();
+            } catch (CompletionFailure cf) {}
             return flags_field;
         }
 
         public WriteableScope members() {
-            complete();
+            try {
+                complete();
+            } catch (CompletionFailure cf) {}
             return members_field;
         }
 
         @Override
         public List<Attribute.Compound> getRawAttributes() {
-            complete();
+            try {
+                complete();
+            } catch (CompletionFailure cf) {}
             return super.getRawAttributes();
         }
 
         @Override
         public List<Attribute.TypeCompound> getRawTypeAttributes() {
-            complete();
+            try {
+                complete();
+            } catch (CompletionFailure cf) {}               
             return super.getRawTypeAttributes();
         }
 
@@ -1205,17 +1222,19 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         }
 
         public boolean isSubClass(Symbol base, Types types) {
-            if (this == base) {
-                return true;
-            } else if ((base.flags() & INTERFACE) != 0) {
-                for (Type t = type; t.hasTag(CLASS); t = types.supertype(t))
-                    for (List<Type> is = types.interfaces(t);
-                         is.nonEmpty();
-                         is = is.tail)
-                        if (is.head.tsym.isSubClass(base, types)) return true;
-            } else {
-                for (Type t = type; t.hasTag(CLASS); t = types.supertype(t))
-                    if (t.tsym == base) return true;
+            if (base != null) {
+                if (this == base) {
+                    return true;
+                } else if ((base.flags() & INTERFACE) != 0) {
+                    for (Type t = type; t.hasTag(CLASS); t = types.supertype(t))
+                        for (List<Type> is = types.interfaces(t);
+                             is.nonEmpty();
+                             is = is.tail)
+                            if (is.head.tsym.isSubClass(base, types)) return true;
+                } else {
+                    for (Type t = type; t.hasTag(CLASS); t = types.supertype(t))
+                        if (t.tsym == base) return true;
+                }
             }
             return false;
         }
@@ -1235,7 +1254,9 @@ public abstract class Symbol extends AnnoConstruct implements Element {
 
         @DefinedBy(Api.LANGUAGE_MODEL)
         public List<Type> getInterfaces() {
-            complete();
+            try {
+                complete();
+            } catch (CompletionFailure cf) {}
             if (type instanceof ClassType) {
                 ClassType t = (ClassType)type;
                 if (t.interfaces_field == null) // FIXME: shouldn't be null
@@ -1250,7 +1271,9 @@ public abstract class Symbol extends AnnoConstruct implements Element {
 
         @DefinedBy(Api.LANGUAGE_MODEL)
         public Type getSuperclass() {
-            complete();
+            try {
+                complete();
+            } catch (CompletionFailure cf) {}
             if (type instanceof ClassType) {
                 ClassType t = (ClassType)type;
                 if (t.supertype_field == null) // FIXME: shouldn't be null
@@ -1310,7 +1333,9 @@ public abstract class Symbol extends AnnoConstruct implements Element {
 
         @DefinedBy(Api.LANGUAGE_MODEL)
         public NestingKind getNestingKind() {
-            complete();
+            try {
+                complete();
+            } catch (CompletionFailure cf) {}
             if (owner.kind == PCK)
                 return NestingKind.TOP_LEVEL;
             else if (name.isEmpty())
@@ -1380,6 +1405,10 @@ public abstract class Symbol extends AnnoConstruct implements Element {
 
         public void clearAnnotationMetadata() {
             metadata = null;
+            clearAnnotationTypeMetadata();
+        }
+        
+        public void clearAnnotationTypeMetadata() {
             annotationTypeMetadata = AnnotationTypeMetadata.notAnAnnotationType();
         }
 
@@ -1485,6 +1514,12 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         {
             setData(new Callable<Object>() {
                 public Object call() {
+                    for (JCTree member : env.enclClass.defs) {
+                        if (member == variable)
+                            break;
+                        if (member.hasTag(Tag.VARDEF))
+                            ((JCVariableDecl) member).sym.getConstValue();
+                    }
                     return attr.attribLazyConstantValue(env, variable, type);
                 }
             });
@@ -1518,6 +1553,8 @@ public abstract class Symbol extends AnnoConstruct implements Element {
                 data = null; // to make sure we don't evaluate this twice.
                 try {
                     data = eval.call();
+                } catch (Attr.BreakAttr bk) {
+                    throw bk;
                 } catch (Exception ex) {
                     throw new AssertionError(ex);
                 }
@@ -1532,6 +1569,63 @@ public abstract class Symbol extends AnnoConstruct implements Element {
 
         public <R, P> R accept(Symbol.Visitor<R, P> v, P p) {
             return v.visitVarSymbol(this, p);
+        }
+
+        public void setName(Name name) {
+            this.name = name;
+        }
+    }
+
+    /** A class for variable symbols representing method parameters that allows for
+     * lazy name resolution
+     */
+    public static class ParamSymbol extends VarSymbol {
+
+        private boolean initialized = false;
+
+        public ParamSymbol(long flags, Name name, Type type, Symbol owner) {
+            super(flags, name, type, owner);
+        }
+
+        public Name getSimpleName() {
+            if (!initialized) {
+                ClassSymbol enclClass = this.enclClass();
+                new ElementScanner6<Void, Void>() {
+                    @Override
+                    public Void visitVariable(VariableElement e, Void p) {
+                        if (e instanceof ParamSymbol)
+                            ((ParamSymbol)e).initialized = true;
+                        return super.visitVariable(e, p);
+                    }
+                    @Override
+                    public Void visitType(TypeElement te, Void p) {
+                        if (te instanceof ClassSymbol) {
+                            List<Symbol> list = List.nil();
+                            for (Symbol sym : ((ClassSymbol)te).members().getSymbols()) {
+                                try {
+                                    if (sym != null && sym.owner == te)
+                                        list = list.prepend(sym);
+                                } catch (CompletionFailure cf) {}
+                            }
+                            return scan(list, p);
+                        }
+                        return super.visitType(te, p);
+                    }                    
+                }.scan(enclClass);
+                if (!name.table.loader.loadTreeFor(enclClass, true))
+                    name.table.loader.loadParamNames(enclClass);
+            }
+            return super.getSimpleName();
+        }
+
+        public void setName(Name name) {
+            if (this.name != name)
+                super.setName(this.name.table.fromString(name.toString()));
+        }
+
+        @Override
+        public String toString() {
+            return getSimpleName().toString();
         }
     }
 
@@ -1668,7 +1762,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
          *  @param origin   The class of which the implementation is a member.
          */
         public MethodSymbol binaryImplementation(ClassSymbol origin, Types types) {
-            for (TypeSymbol c = origin; c != null; c = types.supertype(c.type).tsym) {
+            for (TypeSymbol c = origin; c != null && !c.type.hasTag(ERROR); c = types.supertype(c.type).tsym) {
                 for (Symbol sym : c.members().getSymbolsByName(name)) {
                     if (sym.kind == MTH &&
                         ((MethodSymbol)sym).binaryOverrides(this, origin, types))
@@ -1813,6 +1907,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         public List<VarSymbol> params() {
             owner.complete();
             if (params == null) {
+                Assert.checkNonNull(type, "Invalid element: " + this.name);
                 // If ClassReader.saveParameterNames has been set true, then
                 // savedParameterNames will be set to a list of names that
                 // matches the types in type.getParameterTypes().  If any names
@@ -1836,6 +1931,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
                     if (remaining.isEmpty()) {
                         // no names for any parameters available
                         paramName = createArgName(i, paramNames);
+                        buf.append(new ParamSymbol(PARAMETER, paramName, t, this));
                     } else {
                         paramName = remaining.head;
                         remaining = remaining.tail;
@@ -1843,8 +1939,8 @@ public abstract class Symbol extends AnnoConstruct implements Element {
                             // no name for this specific parameter
                             paramName = createArgName(i, paramNames);
                         }
+                        buf.append(new VarSymbol(PARAMETER, paramName, t, this));
                     }
-                    buf.append(new VarSymbol(PARAMETER, paramName, t, this));
                     i++;
                 }
                 params = buf.toList();

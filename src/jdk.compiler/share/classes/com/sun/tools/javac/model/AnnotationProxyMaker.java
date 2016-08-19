@@ -189,7 +189,12 @@ public class AnnotationProxyMaker {
                 // Construct a proxy for a MirroredTypesException
                 ListBuffer<TypeMirror> elems = new ListBuffer<>();
                 for (Attribute value : a.values) {
-                    Type elem = ((Attribute.Class) value).classType;
+                    Type elem = null;
+                    if (value instanceof Attribute.Class) {
+                        elem = ((Attribute.Class) value).classType;
+                    } else if (value instanceof Attribute.UnresolvedClass) {
+                        elem = ((Attribute.UnresolvedClass) value).classType;
+                    }
                     elems.append(elem);
                 }
                 value = new MirroredTypesExceptionProxy(elems.toList());

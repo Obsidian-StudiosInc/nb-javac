@@ -25,12 +25,14 @@
 package com.sun.tools.javac.code;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.function.Function;
 
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileManager.Location;
@@ -53,6 +55,18 @@ import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.StringUtils;
 
 import static com.sun.tools.javac.code.Kinds.Kind.*;
+import com.sun.tools.javac.code.Symbol.ClassSymbol;
+import com.sun.tools.javac.code.Symbol.Completer;
+import com.sun.tools.javac.comp.Modules;
+import com.sun.tools.javac.util.ModuleNameReader;
+import com.sun.tools.javac.parser.ParserFactory;
+import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
+import com.sun.tools.javac.tree.JCTree.Tag;
+import com.sun.tools.javac.tree.TreeInfo;
+import com.sun.tools.javac.util.Assert;
+import com.sun.tools.javac.util.ModuleNameReader.BadClassFile;
 
 /**
  *  This class provides operations to locate module definitions
@@ -83,6 +97,10 @@ public class ModuleFinder {
     private final JavaFileManager fileManager;
 
     private final JCDiagnostic.Factory diags;
+
+    private ModuleNameReader moduleNameReader;
+
+    public SourceFileCompleter sourceFileCompleter;
 
     /** Get the ModuleFinder instance for this invocation. */
     public static ModuleFinder instance(Context context) {
@@ -182,6 +200,8 @@ public class ModuleFinder {
         return list;
     }
 
+    private boolean inFindSingleModule;
+
     public ModuleSymbol findSingleModule() {
         try {
             JavaFileObject src_fo = getModuleInfoFromLocation(StandardLocation.SOURCE_PATH, Kind.SOURCE);
@@ -194,26 +214,46 @@ public class ModuleFinder {
             if (fo == null) {
                 msym = syms.unnamedModule;
             } else {
-                // Note: the following may trigger a re-entrant call to Modules.enter
-//                msym = new ModuleSymbol();
-//                ClassSymbol info = new ClassSymbol(Flags.MODULE, names.module_info, msym);
-//                info.modle = msym;
-//                info.classfile = fo;
-//                info.members_field = WriteableScope.create(info);
-//                msym.module_info = info;
-                msym = ModuleSymbol.create(null, names.module_info);
-                msym.module_info.classfile = fo;
-                msym.completer = sym -> classFinder.fillIn(msym.module_info);
-//                // TODO: should we do the following here, or as soon as we find the name in
-//                // the source or class file?
-//                // Consider the case when the class/source path module shadows one on the
-//                // module source path
-//                if (syms.modules.get(msym.name) != null) {
-//                    // error: module already defined
-//                    System.err.println("ERROR: module already defined: " + msym);
-//                } else {
-//                    syms.modules.put(msym.name, msym);
-//                }
+                switch (fo.getKind()) {
+                    case SOURCE:
+                        if (!inFindSingleModule) {
+                            try {
+                                inFindSingleModule = true;
+                                // Note: the following will trigger a re-entrant call to Modules.enter
+                                msym = (ModuleSymbol) sourceFileCompleter.complete(fo, tl -> {
+                                    return tl.defs.nonEmpty() && tl.defs.head.hasTag(Tag.MODULEDEF) ?
+                                            ((JCModuleDecl) tl.defs.head).sym.module_info : null;
+                                }).owner;
+                                msym.module_info.classfile = fo;
+                            } catch (CompletionFailure cf) {
+                                msym = syms.unnamedModule;
+                            } finally {
+                                inFindSingleModule = false;
+                            }
+                        } else {
+                            //the module-info.java does not contain a module declaration,
+                            //avoid infinite recursion:
+                            msym = syms.unnamedModule;
+                        }
+                        break;
+                    case CLASS:
+                        Name name;
+                        try {
+                            name = names.fromString(readModuleName(fo));
+                        } catch (BadClassFile | IOException ex) {
+                            //fillIn will report proper errors:
+                            name = names.error;
+                        }
+                        msym = syms.enterModule(name);
+                        msym.module_info.classfile = fo;
+                        msym.completer = Completer.NULL_COMPLETER;
+                        classFinder.fillIn(msym.module_info);
+                        break;
+                    default:
+                        Assert.error();
+                        msym = syms.unnamedModule;
+                        break;
+                }
             }
 
             msym.classLocation = StandardLocation.CLASS_OUTPUT;
@@ -222,6 +262,12 @@ public class ModuleFinder {
         } catch (IOException e) {
             throw new Error(e); // FIXME
         }
+    }
+
+    private String readModuleName(JavaFileObject jfo) throws IOException, ModuleNameReader.BadClassFile {
+        if (moduleNameReader == null)
+            moduleNameReader = new ModuleNameReader();
+        return moduleNameReader.readModuleName(jfo);
     }
 
     private JavaFileObject getModuleInfoFromLocation(Location location, Kind kind) throws IOException {
@@ -330,6 +376,10 @@ public class ModuleFinder {
             default:
                 throw new AssertionError();
         }
+    }
+
+    public interface SourceFileCompleter {
+        public ClassSymbol complete(JavaFileObject file, Function<JCCompilationUnit, ClassSymbol> symbolGetter);
     }
 
 }
