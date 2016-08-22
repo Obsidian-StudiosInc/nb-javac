@@ -487,10 +487,9 @@ public abstract class Symbol extends AnnoConstruct implements Element {
 
     private boolean hiddenIn(ClassSymbol clazz, Types types) {
         Symbol sym = hiddenInInternal(clazz, types);
-        Assert.check(sym != null, "the result of hiddenInInternal() can't be null");
         /* If we find the current symbol then there is no symbol hiding it
          */
-        return sym != this;
+        return sym != null && sym != this;
     }
 
     /** This method looks in the supertypes graph that has the current class as the
