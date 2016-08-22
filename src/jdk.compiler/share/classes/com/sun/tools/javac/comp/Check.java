@@ -3324,7 +3324,9 @@ public class Check {
             for (JCTree def : tree.defs) {
                 if (!def.hasTag(METHODDEF)) continue;
                 JCMethodDecl meth = (JCMethodDecl)def;
-                checkAnnotationResType(meth.pos(), meth.restype.type);
+                if (meth.restype != null) {
+                    checkAnnotationResType(meth.pos(), meth.restype.type);
+                }
             }
         } finally {
             tree.sym.flags_field &= ~LOCKED;
