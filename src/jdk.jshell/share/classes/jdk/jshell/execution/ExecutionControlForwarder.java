@@ -171,33 +171,27 @@ class ExecutionControlForwarder {
             // handled by the outer level
             throw ex;
         } catch (EngineTerminationException ex) {
-            System.err.println("Terminated");
             writeStatus(RESULT_TERMINATED);
             writeUTF(ex.getMessage());
             flush();
             return false;
         } catch (NotImplementedException ex) {
-            System.err.println("Not implemented");
             writeStatus(RESULT_NOT_IMPLEMENTED);
             writeUTF(ex.getMessage());
             flush();
             return true;
         } catch (InternalException ex) {
-            System.err.println("Internal problem");
-            ex.printStackTrace();
             writeStatus(RESULT_INTERNAL_PROBLEM);
             writeUTF(ex.getMessage());
             flush();
             return true;
         } catch (ClassInstallException ex) {
-            System.err.println("Class install");
             writeStatus(RESULT_CLASS_INSTALL_EXCEPTION);
             writeUTF(ex.getMessage());
             writeObject(ex.installed());
             flush();
             return true;
         } catch (UserException ex) {
-            System.err.println("User exc");
             writeStatus(RESULT_USER_EXCEPTION);
             writeUTF(ex.getMessage());
             writeUTF(ex.causeExceptionClass());
@@ -205,21 +199,16 @@ class ExecutionControlForwarder {
             flush();
             return true;
         } catch (ResolutionException ex) {
-            System.err.println("Resolution exc");
             writeStatus(RESULT_CORRALLED);
             writeInt(ex.id());
             writeObject(ex.getStackTrace());
             flush();
             return true;
         } catch (StoppedException ex) {
-            System.err.println("Stopped exc");
-            ex.printStackTrace();
             writeStatus(RESULT_STOPPED);
             flush();
             return true;
         } catch (Throwable ex) {
-            ex.printStackTrace();
-            System.err.println("Throwable");
             writeStatus(RESULT_TERMINATED);
             writeUTF(ex.getMessage());
             flush();
