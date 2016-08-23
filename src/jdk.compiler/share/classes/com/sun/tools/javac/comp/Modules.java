@@ -210,15 +210,18 @@ public class Modules extends JCTree.Visitor {
         Assert.check(!inInitModules);
         try {
             inInitModules = true;
-            Assert.checkNull(rootModules);
-            enter(trees, modules -> {
-                Assert.checkNull(rootModules);
-                Assert.checkNull(allModules);
-                this.rootModules = modules;
-                setupAllModules(); //initialize the module graph
-                Assert.checkNonNull(allModules);
-                inInitModules = false;
-            }, null);
+            if (rootModules == null) {
+                enter(trees, modules -> {
+                    Assert.checkNull(rootModules);
+                    Assert.checkNull(allModules);
+                    this.rootModules = modules;
+                    setupAllModules(); //initialize the module graph
+                    Assert.checkNonNull(allModules);
+                    inInitModules = false;
+                }, null);
+            } else {
+                enter(trees, null);
+            }
         } finally {
             inInitModules = false;
         }
