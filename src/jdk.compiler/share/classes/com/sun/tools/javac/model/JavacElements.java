@@ -148,11 +148,18 @@ public class JavacElements implements Elements {
             final ModuleElement module,
             final CharSequence binaryName) {
         final String strName = binaryName instanceof String ? (String) binaryName : binaryName.toString();
-        int index = strName.indexOf('$');   //NOI18N
-        final String owner = index < 0 ? strName : strName.substring(0,index);
-        return SourceVersion.isName(owner)
-            ? binaryNameToClassSymbol((ModuleSymbol)module, strName, owner)
-            : null;
+        int index = strName.lastIndexOf('.');    //NOI18N
+        do {
+            index = strName.indexOf('$', index+1);   //NOI18N
+            final String owner = index < 0 ? strName : strName.substring(0,index);
+            if (SourceVersion.isName(owner)) {
+                ClassSymbol clz = binaryNameToClassSymbol((ModuleSymbol)module, strName, owner);
+                if (clz != null) {
+                    return clz;
+                }
+            }
+        } while (index >= 0);
+        return null;
     }
 
     private ClassSymbol binaryNameToClassSymbol (
