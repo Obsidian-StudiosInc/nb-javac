@@ -276,7 +276,7 @@ public class Analyzer {
         @Override
         boolean match (JCNewClass tree){
             Type clazztype = tree.clazz.type;
-            return tree.def != null &&
+            return tree.def != null && clazztype != null &&
                     clazztype.hasTag(CLASS) &&
                     types.isFunctionalInterface(clazztype.tsym) &&
                     decls(tree.def).length() == 1;
