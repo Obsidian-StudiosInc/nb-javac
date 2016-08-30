@@ -279,7 +279,8 @@ public class Analyzer {
             return tree.def != null && clazztype != null &&
                     clazztype.hasTag(CLASS) &&
                     types.isFunctionalInterface(clazztype.tsym) &&
-                    decls(tree.def).length() == 1;
+                    decls(tree.def).length() == 1
+                    && decls(tree.def).head.hasTag(METHODDEF);
         }
         //where
             private List<JCTree> decls(JCClassDecl decl) {
