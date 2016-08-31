@@ -3290,13 +3290,12 @@ public class JavacParser implements Parser {
                 JCExpression serviceName = qualident(false);
                 if (token.kind == IDENTIFIER && token.name() == names.with) {
                     nextToken();
-                    JCExpression implName = qualident(false);
-                    accept(SEMI);
-                    defs.append(toP(F.at(pos).Provides(serviceName, implName)));
                 } else {
                     error(token.pos, "expected", "'" + names.with + "'");
-                    skip(false, false, false, false);
                 }
+                JCExpression implName = qualident(false);
+                accept(SEMI);
+                defs.append(toP(F.at(pos).Provides(serviceName, implName)));
             } else if (token.name() == names.uses) {
                 nextToken();
                 JCExpression service = qualident(false);
