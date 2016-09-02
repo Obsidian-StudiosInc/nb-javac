@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.jshell;
 
 import java.util.Collection;
@@ -43,8 +44,10 @@ public class MethodSnippet extends DeclarationSnippet {
 
     MethodSnippet(MethodKey key, String userSource, Wrap guts,
             String name, String signature, Wrap corralled,
-            Collection<String> declareReferences, Collection<String> bodyReferences) {
-        super(key, userSource, guts, name, SubKind.METHOD_SUBKIND, corralled, declareReferences, bodyReferences);
+            Collection<String> declareReferences, Collection<String> bodyReferences,
+            DiagList syntheticDiags) {
+        super(key, userSource, guts, name, SubKind.METHOD_SUBKIND, corralled,
+                declareReferences, bodyReferences, syntheticDiags);
         this.signature = signature;
     }
 

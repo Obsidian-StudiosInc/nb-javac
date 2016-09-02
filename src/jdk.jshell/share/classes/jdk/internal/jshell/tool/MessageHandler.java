@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,33 +23,19 @@
  * questions.
  */
 
+package jdk.internal.jshell.tool;
 
-package jdk.internal.jshell.remote;
-
-import java.util.regex.Pattern;
 
 /**
- * Communication constants shared between the main process and the remote
- * execution process
+ * User message reporting support
+ *
  * @author Robert Field
  */
-public class RemoteCodes {
-    // Command codes
-    public static final int CMD_EXIT       = 0;
-    public static final int CMD_LOAD       = 1;
-    public static final int CMD_INVOKE     = 3;
-    public static final int CMD_CLASSPATH  = 4;
-    public static final int CMD_VARVALUE   = 5;
+public interface MessageHandler {
 
-    // Return result codes
-    public static final int RESULT_SUCCESS   = 100;
-    public static final int RESULT_FAIL      = 101;
-    public static final int RESULT_EXCEPTION = 102;
-    public static final int RESULT_CORRALLED = 103;
-    public static final int RESULT_KILLED    = 104;
+    void fluff(String format, Object... args);
 
-    public static final String DOIT_METHOD_NAME = "do_it$";
-    public static final String replClass = "\\$REPL(?<num>\\d+)[A-Z]*";
-    public static final Pattern prefixPattern = Pattern.compile("(REPL\\.)?" + replClass + "[\\$\\.]?");
+    void fluffmsg(String messageKey, Object... args);
 
+    void errormsg(String messageKey, Object... args);
 }

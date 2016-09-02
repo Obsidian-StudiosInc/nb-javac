@@ -38,7 +38,8 @@ import java.util.regex.Matcher;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
-import static jdk.internal.jshell.remote.RemoteCodes.prefixPattern;
+import static jdk.jshell.Util.PREFIX_PATTERN;
+import static jdk.jshell.Util.REPL_PACKAGE;
 import static jdk.internal.jshell.debug.InternalDebugControl.DBG_DEP;
 
 /**
@@ -48,7 +49,6 @@ import static jdk.internal.jshell.debug.InternalDebugControl.DBG_DEP;
  */
 final class SnippetMaps {
 
-    private String packageName;
     private final List<Snippet> keyIndexToSnippet = new ArrayList<>();
     private final Set<Snippet> snippets = new LinkedHashSet<>();
     private final Map<String, Set<Integer>> dependencies = new HashMap<>();
@@ -81,6 +81,13 @@ final class SnippetMaps {
     }
 
     Snippet getSnippet(int ki) {
+        Snippet sn = getSnippetDeadOrAlive(ki);
+        return (sn != null && !sn.status().isActive())
+                ? null
+                : sn;
+    }
+
+    Snippet getSnippetDeadOrAlive(int ki) {
         if (ki >= keyIndexToSnippet.size()) {
             return null;
         }
@@ -91,23 +98,11 @@ final class SnippetMaps {
         return new ArrayList<>(snippets);
     }
 
-    void setPackageName(String n) {
-        packageName = n;
-    }
-
-    String packageName() {
-        return packageName;
-    }
-
-    String classFullName(Snippet sn) {
-        return packageName + "." + sn.className();
-    }
-
     String packageAndImportsExcept(Set<Key> except, Collection<Snippet> plus) {
         StringBuilder sb = new StringBuilder();
-        sb.append("package ").append(packageName()).append(";\n");
+        sb.append("package ").append(REPL_PACKAGE).append(";\n");
         for (Snippet si : keyIndexToSnippet) {
-            if (si != null && si.status().isDefined && (except == null || !except.contains(si.key()))) {
+            if (si != null && si.status().isDefined() && (except == null || !except.contains(si.key()))) {
                 sb.append(si.importLine(state));
             }
         }
@@ -119,7 +114,7 @@ final class SnippetMaps {
     }
 
     List<Snippet> getDependents(Snippet snip) {
-        if (!snip.kind().isPersistent) {
+        if (!snip.kind().isPersistent()) {
             return Collections.emptyList();
         }
         Set<Integer> depset;
@@ -137,7 +132,7 @@ final class SnippetMaps {
         }
         List<Snippet> deps = new ArrayList<>();
         for (Integer dss : depset) {
-            Snippet dep = getSnippet(dss);
+            Snippet dep = getSnippetDeadOrAlive(dss);
             if (dep != null) {
                 deps.add(dep);
                 state.debug(DBG_DEP, "Found dependency %s -> %s\n", snip.name(), dep.name());
@@ -161,7 +156,7 @@ final class SnippetMaps {
     }
 
     String fullClassNameAndPackageToClass(String full, String pkg) {
-        Matcher mat = prefixPattern.matcher(full);
+        Matcher mat = PREFIX_PATTERN.matcher(full);
         if (mat.lookingAt()) {
             return full.substring(mat.end());
         }
@@ -195,6 +190,6 @@ final class SnippetMaps {
     private Stream<ImportSnippet> importSnippets() {
         return state.keyMap.importKeys()
                 .map(key -> (ImportSnippet)getSnippet(key))
-                .filter(sn -> state.status(sn).isDefined);
+                .filter(sn -> sn != null && state.status(sn).isDefined());
     }
 }

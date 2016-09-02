@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,27 +23,15 @@
  * questions.
  */
 
-package jdk.internal.jshell.remote;
+package jdk.jshell;
 
 /**
- * The exception thrown on the remote side upon executing a
- * {@link jdk.jshell.Snippet.Status#RECOVERABLE_DEFINED RECOVERABLE_DEFINED}
- * user method. This exception is not seen by the end user nor through the API.
- * @author Robert Field
+ * The superclass of JShell generated exceptions
  */
 @SuppressWarnings("serial")             // serialVersionUID intentionally omitted
-public class RemoteResolutionException extends RuntimeException {
+public class JShellException extends Exception {
 
-    final int id;
-
-    /**
-     * The throw of this exception is generated into the body of a
-     * {@link jdk.jshell.Snippet.Status#RECOVERABLE_DEFINED RECOVERABLE_DEFINED}
-     * method.
-     * @param id An internal identifier of the specific method
-     */
-    public RemoteResolutionException(int id) {
-        super("RemoteResolutionException");
-        this.id = id;
+    JShellException(String message) {
+        super(message);
     }
 }
