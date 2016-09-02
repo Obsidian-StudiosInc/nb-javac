@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,35 +22,38 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-
 package jdk.jshell;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import com.sun.jdi.ReferenceType;
+import java.util.Objects;
+import jdk.jshell.spi.ExecutionControl.ClassBytecodes;
 
 /**
- * Tracks the state of a class through compilation and loading in the remote
- * environment.
- *
- * @author Robert Field
+ * Tracks the state of a class.
  */
 class ClassTracker {
 
-    private final JShell state;
     private final HashMap<String, ClassInfo> map;
 
-    ClassTracker(JShell state) {
-        this.state = state;
+    ClassTracker() {
         this.map = new HashMap<>();
     }
 
+    /**
+     * Associates a class name, class bytes (current and loaded).
+     */
     class ClassInfo {
 
+        // The name of the class
         private final String className;
-        private byte[] bytes;
+
+        // The corresponding compiled class bytes when a load or redefine
+        // is started.  May not be the loaded bytes.  May be null.
+        private byte[] currentBytes;
+
+        // The class bytes successfully loaded/redefined into the remote VM.
         private byte[] loadedBytes;
-        private ReferenceType rt;
 
         private ClassInfo(String className) {
             this.className = className;
@@ -60,38 +63,69 @@ class ClassTracker {
             return className;
         }
 
-        byte[] getBytes() {
-            return bytes;
+        byte[] getLoadedBytes() {
+            return loadedBytes;
         }
 
-        void setBytes(byte[] bytes) {
-            this.bytes = bytes;
+        byte[] getCurrentBytes() {
+            return currentBytes;
         }
 
-        void setLoaded() {
-            loadedBytes = bytes;
+        void setCurrentBytes(byte[] bytes) {
+            this.currentBytes = bytes;
+        }
+
+        void setLoadedBytes(byte[] bytes) {
+            this.loadedBytes = bytes;
         }
 
         boolean isLoaded() {
-            return Arrays.equals(loadedBytes, bytes);
+            return loadedBytes != null;
         }
 
-        ReferenceType getReferenceTypeOrNull() {
-            if (rt == null) {
-                rt = state.executionControl().nameToRef(className);
+        boolean isCurrent() {
+            return Arrays.equals(currentBytes, loadedBytes);
+        }
+
+        ClassBytecodes toClassBytecodes() {
+            return new ClassBytecodes(className, currentBytes);
+        }
+
+            @Override
+        public boolean equals(Object o) {
+            return o instanceof ClassInfo
+                    && ((ClassInfo) o).className.equals(className);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(this.className);
+        }
+    }
+
+    void markLoaded(ClassBytecodes[] cbcs) {
+        for (ClassBytecodes cbc : cbcs) {
+            get(cbc.name()).setLoadedBytes(cbc.bytecodes());
+        }
+    }
+
+    void markLoaded(ClassBytecodes[] cbcs, boolean[] isLoaded) {
+        for (int i = 0; i < cbcs.length; ++i) {
+            if (isLoaded[i]) {
+                ClassBytecodes cbc = cbcs[i];
+                get(cbc.name()).setLoadedBytes(cbc.bytecodes());
             }
-            return rt;
         }
     }
 
-    ClassInfo classInfo(String className, byte[] bytes) {
-        ClassInfo ci = map.computeIfAbsent(className, k -> new ClassInfo(k));
-        ci.setBytes(bytes);
-        return ci;
+    // Map a class name to the current compiled class bytes.
+    void setCurrentBytes(String className, byte[] bytes) {
+        ClassInfo ci = get(className);
+        ci.setCurrentBytes(bytes);
     }
 
+    // Lookup the ClassInfo by class name, create if it does not exist.
     ClassInfo get(String className) {
-        return map.get(className);
+        return map.computeIfAbsent(className, k -> new ClassInfo(k));
     }
-
 }

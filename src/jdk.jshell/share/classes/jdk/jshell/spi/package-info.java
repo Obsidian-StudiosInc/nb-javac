@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,42 +23,17 @@
  * questions.
  */
 
-package jdk.internal.jshell.remote;
-
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.security.CodeSource;
-import java.util.Map;
-import java.util.TreeMap;
-
 /**
- * Class loader wrapper which caches class files by name until requested.
- * @author Robert Field
+ * Defines the Service Provider Interface for pluggable JShell execution engines.
+ * The JShell core tracks and compiles Snippets then sends them
+ * (represented in a wrapper class) to the execution engine for loading,
+ * and in the case of executable Snippets, execution.  The JShell
+ * implementation includes a default execution engine (currently a remote
+ * process which is JDI controlled).  By implementing the
+ * {@link jdk.jshell.spi.ExecutionControl} interface and installing it with
+ * {@link jdk.jshell.JShell.Builder#executionEngine(jdk.jshell.spi.ExecutionControl.Generator) }
+ * other execution engines can be used.
+ *
+ * @see jdk.jshell.execution for execution implementation support
  */
-class RemoteClassLoader extends URLClassLoader {
-
-    private final Map<String, byte[]> classObjects = new TreeMap<>();
-
-    RemoteClassLoader() {
-        super(new URL[0]);
-    }
-
-    void delare(String name, byte[] bytes) {
-        classObjects.put(name, bytes);
-    }
-
-    @Override
-    protected Class<?> findClass(String name) throws ClassNotFoundException {
-        byte[] b = classObjects.get(name);
-        if (b == null) {
-            return super.findClass(name);
-        }
-        return super.defineClass(name, b, 0, b.length, (CodeSource) null);
-    }
-
-    @Override
-    public void addURL(URL url) {
-        super.addURL(url);
-    }
-
-}
+package jdk.jshell.spi;

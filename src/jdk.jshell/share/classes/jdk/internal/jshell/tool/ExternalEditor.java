@@ -33,6 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.util.Arrays;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
@@ -58,7 +59,7 @@ public class ExternalEditor {
         this.input = input;
     }
 
-    private void edit(String cmd, String initialText) {
+    private void edit(String[] cmd, String initialText) {
         try {
             setupWatch(initialText);
             launch(cmd);
@@ -72,8 +73,8 @@ public class ExternalEditor {
      */
     private void setupWatch(String initialText) throws IOException {
         this.watcher = FileSystems.getDefault().newWatchService();
-        this.dir = Files.createTempDirectory("REPL");
-        this.tmpfile = Files.createTempFile(dir, null, ".repl");
+        this.dir = Files.createTempDirectory("jshelltemp");
+        this.tmpfile = Files.createTempFile(dir, null, ".edit");
         Files.write(tmpfile, initialText.getBytes(Charset.forName("UTF-8")));
         dir.register(watcher,
                 ENTRY_CREATE,
@@ -85,12 +86,17 @@ public class ExternalEditor {
                 try {
                     key = watcher.take();
                 } catch (ClosedWatchServiceException ex) {
+                    // The watch service has been closed, we are done
                     break;
                 } catch (InterruptedException ex) {
-                    continue; // tolerate an intrupt
+                    // tolerate an interrupt
+                    continue;
                 }
 
                 if (!key.pollEvents().isEmpty()) {
+                    // Changes have occurred in temp edit directory,
+                    // transfer the new sources to JShell (unless the editor is
+                    // running directly in JShell's window -- don't make a mess)
                     if (!input.terminalEditorRunning()) {
                         saveFile();
                     }
@@ -98,7 +104,7 @@ public class ExternalEditor {
 
                 boolean valid = key.reset();
                 if (!valid) {
-                    errorHandler.accept("Invalid key");
+                    // The watch service has been closed, we are done
                     break;
                 }
             }
@@ -106,8 +112,10 @@ public class ExternalEditor {
         watchedThread.start();
     }
 
-    private void launch(String cmd) throws IOException {
-        ProcessBuilder pb = new ProcessBuilder(cmd, tmpfile.toString());
+    private void launch(String[] cmd) throws IOException {
+        String[] params = Arrays.copyOf(cmd, cmd.length + 1);
+        params[cmd.length] = tmpfile.toString();
+        ProcessBuilder pb = new ProcessBuilder(params);
         pb = pb.inheritIO();
 
         try {
@@ -139,7 +147,7 @@ public class ExternalEditor {
         }
     }
 
-    static void edit(String cmd, Consumer<String> errorHandler, String initialText,
+    static void edit(String[] cmd, Consumer<String> errorHandler, String initialText,
             Consumer<String> saveHandler, IOContext input) {
         ExternalEditor ed = new ExternalEditor(errorHandler,  saveHandler, input);
         ed.edit(cmd, initialText);
