@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,37 +23,21 @@
  * questions.
  */
 
-package jdk.jshell;
-
-import com.sun.tools.javac.parser.JavacParser;
-import com.sun.tools.javac.parser.ParserFactory;
-import com.sun.tools.javac.parser.ScannerFactory;
-import com.sun.tools.javac.util.Context;
+package jdk.internal.jshell.jdi;
 
 /**
- *
- * @author Robert Field
+ * Internal exception when Java Debug Interface VirtualMacine is not connected.
+ * Copy of jdb VMNotConnectedException.
  */
-class ReplParserFactory extends ParserFactory {
+class JDINotConnectedException extends RuntimeException {
 
-    public static ParserFactory instance(Context context) {
-        ParserFactory instance = context.get(parserFactoryKey);
-        if (instance == null) {
-            instance = new ReplParserFactory(context);
-        }
-        return instance;
+    private static final long serialVersionUID = -7433430494903950165L;
+
+    public JDINotConnectedException() {
+        super();
     }
 
-    private final ScannerFactory scannerFactory;
-
-    protected ReplParserFactory(Context context) {
-        super(context);
-        this.scannerFactory = ScannerFactory.instance(context);
-    }
-
-    @Override
-    public JavacParser newParser(CharSequence input, boolean keepDocComments, boolean keepEndPos, boolean keepLineMap) {
-        com.sun.tools.javac.parser.Lexer lexer = scannerFactory.newScanner(input, keepDocComments);
-        return new ReplParser(this, lexer, keepDocComments, keepLineMap, keepEndPos);
+    public JDINotConnectedException(String s) {
+        super(s);
     }
 }

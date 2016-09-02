@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-
 package jdk.jshell;
 
 import java.util.ArrayList;
@@ -50,9 +49,9 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.LinkedHashSet;
 import java.util.Set;
-import jdk.jshell.ClassTracker.ClassInfo;
 import jdk.jshell.Key.ErroneousKey;
 import jdk.jshell.Key.MethodKey;
+import jdk.jshell.Key.TypeDeclKey;
 import jdk.jshell.Snippet.SubKind;
 import jdk.jshell.TaskFactory.AnalyzeTask;
 import jdk.jshell.TaskFactory.BaseTask;
@@ -64,9 +63,9 @@ import jdk.jshell.Snippet.Status;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 import static jdk.internal.jshell.debug.InternalDebugControl.DBG_GEN;
-import static jdk.jshell.Util.*;
-import static jdk.internal.jshell.remote.RemoteCodes.DOIT_METHOD_NAME;
-import static jdk.internal.jshell.remote.RemoteCodes.prefixPattern;
+import static jdk.jshell.Util.DOIT_METHOD_NAME;
+import static jdk.jshell.Util.PREFIX_PATTERN;
+import static jdk.jshell.Util.expunge;
 import static jdk.jshell.Snippet.SubKind.SINGLE_TYPE_IMPORT_SUBKIND;
 import static jdk.jshell.Snippet.SubKind.SINGLE_STATIC_IMPORT_SUBKIND;
 import static jdk.jshell.Snippet.SubKind.TYPE_IMPORT_ON_DEMAND_SUBKIND;
@@ -132,7 +131,7 @@ class Eval {
     }
 
     private List<SnippetEvent> processImport(String userSource, String compileSource) {
-        Wrap guts = Wrap.importWrap(compileSource);
+        Wrap guts = Wrap.simpleWrap(compileSource);
         Matcher mat = IMPORT_PATTERN.matcher(compileSource);
         String fullname;
         String name;
@@ -190,7 +189,7 @@ class Eval {
 
     private List<SnippetEvent> processVariables(String userSource, List<? extends Tree> units, String compileSource, ParseTask pt) {
         List<SnippetEvent> allEvents = new ArrayList<>();
-        TreeDissector dis = new TreeDissector(pt);
+        TreeDissector dis = TreeDissector.createByFirstClass(pt);
         for (Tree unitTree : units) {
             VariableTree vt = (VariableTree) unitTree;
             String name = vt.getName().toString();
@@ -206,10 +205,7 @@ class Eval {
             }
             Range rtype = dis.treeToRange(baseType);
             Range runit = dis.treeToRange(vt);
-            // in an incomplete source, the end may be positioned after the whole source.
-            if (runit.end < compileSource.length()) {
-                runit = new Range(runit.begin, runit.end - 1);
-            }
+            runit = new Range(runit.begin, runit.end - 1);
             ExpressionTree it = vt.getInitializer();
             Range rinit = null;
             int nameMax = runit.end - 1;
@@ -298,16 +294,19 @@ class Eval {
         TreeDependencyScanner tds = new TreeDependencyScanner();
         tds.scan(unitTree);
 
-        TreeDissector dis = new TreeDissector(pt);
+        TreeDissector dis = TreeDissector.createByFirstClass(pt);
 
         ClassTree klassTree = (ClassTree) unitTree;
         String name = klassTree.getSimpleName().toString();
+        DiagList modDiag = modifierDiagnostics(klassTree.getModifiers(), dis, false);
+        TypeDeclKey key = state.keyMap.keyForClass(name);
+        // Corralling mutates.  Must be last use of pt, unitTree, klassTree
+        Wrap corralled = new Corraller(key.index(), pt.getContext()).corralType(klassTree);
+
         Wrap guts = Wrap.classMemberWrap(compileSource);
-        Wrap corralled = null; //TODO
-        Snippet snip = new TypeDeclSnippet(state.keyMap.keyForClass(name), userSource, guts,
+        Snippet snip = new TypeDeclSnippet(key, userSource, guts,
                 name, snippetKind,
                 corralled, tds.declareReferences(), tds.bodyReferences());
-        DiagList modDiag = modifierDiagnostics(klassTree.getModifiers(), dis, false);
         return declare(snip, modDiag);
     }
 
@@ -337,54 +336,38 @@ class Eval {
         return declare(snip);
     }
 
-    private OuterWrap wrapInClass(String className, Set<Key> except, String userSource, Wrap guts, Collection<Snippet> plus) {
-        String imports = state.maps.packageAndImportsExcept(except, plus);
-        return OuterWrap.wrapInClass(state.maps.packageName(), className, imports, userSource, guts);
-    }
-
-    OuterWrap wrapInClass(Snippet snip, Set<Key> except, Wrap guts, Collection<Snippet> plus) {
-        return wrapInClass(snip.className(), except, snip.source(), guts, plus);
-    }
-
     private AnalyzeTask trialCompile(Wrap guts) {
-        OuterWrap outer = wrapInClass(REPL_DOESNOTMATTER_CLASS_NAME,
-                Collections.emptySet(), "", guts, null);
+        OuterWrap outer = state.outerMap.wrapInTrialClass(guts);
         return state.taskFactory.new AnalyzeTask(outer);
     }
 
     private List<SnippetEvent> processMethod(String userSource, Tree unitTree, String compileSource, ParseTask pt) {
         TreeDependencyScanner tds = new TreeDependencyScanner();
         tds.scan(unitTree);
+        TreeDissector dis = TreeDissector.createByFirstClass(pt);
 
         MethodTree mt = (MethodTree) unitTree;
-        TreeDissector dis = new TreeDissector(pt);
-        DiagList modDiag = modifierDiagnostics(mt.getModifiers(), dis, true);
-        if (modDiag.hasErrors()) {
-            return compileFailResult(modDiag, userSource);
-        }
-        String unitName = mt.getName().toString();
-        Wrap guts = Wrap.classMemberWrap(compileSource);
-
-        Range modRange = dis.treeToRange(mt.getModifiers());
-        Range tpRange = dis.treeListToRange(mt.getTypeParameters());
-        Range typeRange = dis.treeToRange(mt.getReturnType());
         String name = mt.getName().toString();
-        Range paramRange = dis.treeListToRange(mt.getParameters());
-        Range throwsRange = dis.treeListToRange(mt.getThrows());
-
         String parameterTypes
                 = mt.getParameters()
                 .stream()
                 .map(param -> dis.treeToRange(param.getType()).part(compileSource))
                 .collect(Collectors.joining(","));
+        Tree returnType = mt.getReturnType();
+        DiagList modDiag = modifierDiagnostics(mt.getModifiers(), dis, true);
+        MethodKey key = state.keyMap.keyForMethod(name, parameterTypes);
+        // Corralling mutates.  Must be last use of pt, unitTree, mt
+        Wrap corralled = new Corraller(key.index(), pt.getContext()).corralMethod(mt);
+
+        if (modDiag.hasErrors()) {
+            return compileFailResult(modDiag, userSource);
+        }
+        Wrap guts = Wrap.classMemberWrap(compileSource);
+        Range typeRange = dis.treeToRange(returnType);
         String signature = "(" + parameterTypes + ")" + typeRange.part(compileSource);
 
-        MethodKey key = state.keyMap.keyForMethod(name, parameterTypes);
-        // rewrap with correct Key index
-        Wrap corralled = Wrap.corralledMethod(compileSource,
-                modRange, tpRange, typeRange, name, paramRange, throwsRange, key.index());
         Snippet snip = new MethodSnippet(key, userSource, guts,
-                unitName, signature,
+                name, signature,
                 corralled, tds.declareReferences(), tds.bodyReferences());
         return declare(snip, modDiag);
     }
@@ -421,9 +404,9 @@ class Eval {
     private ExpressionInfo typeOfExpression(String expression) {
         Wrap guts = Wrap.methodReturnWrap(expression);
         TaskFactory.AnalyzeTask at = trialCompile(guts);
-        if (!at.hasErrors() && at.cuTree() != null) {
-            return new TreeDissector(at)
-                    .typeOfReturnStatement(at.messages(), state.maps::fullClassNameAndPackageToClass);
+        if (!at.hasErrors() && at.firstCuTree() != null) {
+            return TreeDissector.createByFirstClass(at)
+                    .typeOfReturnStatement(at, state);
         }
         return null;
     }
@@ -453,13 +436,6 @@ class Eval {
 
     private List<SnippetEvent> declare(Snippet si, DiagList generatedDiagnostics) {
         Unit c = new Unit(state, si, null, generatedDiagnostics);
-
-        // Ignores duplicates
-        //TODO: remove, modify, or move to edit
-        if (c.isRedundant()) {
-            return Collections.emptyList();
-        }
-
         Set<Unit> ins = new LinkedHashSet<>();
         ins.add(c);
         Set<Unit> outs = compileAndLoad(ins);
@@ -475,54 +451,100 @@ class Eval {
 
         // If appropriate, execute the snippet
         String value = null;
-        Exception exception = null;
-        if (si.isExecutable() && si.status().isDefined) {
-            try {
-                value = state.executionControl().commandInvoke(state.maps.classFullName(si));
-                value = si.subKind().hasValue()
-                        ? expunge(value)
-                        : "";
-            } catch (EvalException ex) {
-                exception = translateExecutionException(ex);
-            } catch (UnresolvedReferenceException ex) {
-                exception = ex;
+        JShellException exception = null;
+        if (si.status().isDefined) {
+            if (si.isExecutable()) {
+                try {
+                value = state.executionControl().invoke(si.classFullName(), DOIT_METHOD_NAME);
+                    value = si.subKind().hasValue()
+                            ? expunge(value)
+                            : "";
+                } catch (EvalException ex) {
+                    exception = translateExecutionException(ex);
+                } catch (JShellException ex) {
+                    // UnresolvedReferenceException
+                    exception = ex;
+                }
+            } else if (si.subKind() == SubKind.VAR_DECLARATION_SUBKIND) {
+                switch (((VarSnippet) si).typeName()) {
+                    case "byte":
+                    case "short":
+                    case "int":
+                    case "long":
+                        value = "0";
+                        break;
+                    case "float":
+                    case "double":
+                        value = "0.0";
+                        break;
+                    case "boolean":
+                        value = "false";
+                        break;
+                    case "char":
+                        value = "''";
+                        break;
+                    default:
+                        value = "null";
+                        break;
+                }
             }
         }
         return events(c, outs, value, exception);
     }
 
-    private List<SnippetEvent> events(Unit c, Collection<Unit> outs, String value, Exception exception) {
+    private boolean interestingEvent(SnippetEvent e) {
+        return e.isSignatureChange()
+                    || e.causeSnippet() == null
+                    || e.status() != e.previousStatus()
+                    || e.exception() != null;
+    }
+
+    private List<SnippetEvent> events(Unit c, Collection<Unit> outs, String value, JShellException exception) {
         List<SnippetEvent> events = new ArrayList<>();
         events.add(c.event(value, exception));
         events.addAll(outs.stream()
                 .filter(u -> u != c)
                 .map(u -> u.event(null, null))
+                .filter(this::interestingEvent)
                 .collect(Collectors.toList()));
         events.addAll(outs.stream()
                 .flatMap(u -> u.secondaryEvents().stream())
+                .filter(this::interestingEvent)
                 .collect(Collectors.toList()));
         //System.err.printf("Events: %s\n", events);
         return events;
     }
-    
+
+    private Set<OuterWrap> outerWrapSet(Collection<Unit> units) {
+        return units.stream()
+                .map(u -> u.snippet().outerWrap())
+                .collect(toSet());
+    }
+
     private Set<Unit> compileAndLoad(Set<Unit> ins) {
         if (ins.isEmpty()) {
             return ins;
         }
         Set<Unit> replaced = new LinkedHashSet<>();
+        // Loop until dependencies and errors are stable
         while (true) {
             state.debug(DBG_GEN, "compileAndLoad  %s\n", ins);
 
-            ins.stream().forEach(u -> u.initialize(ins));
-            AnalyzeTask at = state.taskFactory.new AnalyzeTask(ins);
+            ins.stream().forEach(u -> u.initialize());
+            ins.stream().forEach(u -> u.setWrap(ins, ins));
+            AnalyzeTask at = state.taskFactory.new AnalyzeTask(outerWrapSet(ins));
             ins.stream().forEach(u -> u.setDiagnostics(at));
+
             // corral any Snippets that need it
-            if (ins.stream().filter(u -> u.corralIfNeeded(ins)).count() > 0) {
+            AnalyzeTask cat;
+            if (ins.stream().anyMatch(u -> u.corralIfNeeded(ins))) {
                 // if any were corralled, re-analyze everything
-                AnalyzeTask cat = state.taskFactory.new AnalyzeTask(ins);
+                cat = state.taskFactory.new AnalyzeTask(outerWrapSet(ins));
                 ins.stream().forEach(u -> u.setCorralledDiagnostics(cat));
+            } else {
+                cat = at;
             }
-            ins.stream().forEach(u -> u.setStatus());
+            ins.stream().forEach(u -> u.setStatus(cat));
             // compile and load the legit snippets
             boolean success;
             while (true) {
@@ -539,7 +561,7 @@ class Eval {
                     legit.stream().forEach(u -> u.setWrap(ins, legit));
 
                     // generate class files for those capable
-                    CompileTask ct = state.taskFactory.new CompileTask(legit, state.getCompilerOptions());
+                    CompileTask ct = state.taskFactory.new CompileTask(outerWrapSet(legit));
                     if (!ct.compile()) {
                         // oy! compile failed because of recursive new unresolved
                         if (legit.stream()
@@ -555,8 +577,8 @@ class Eval {
 
                     // load all new classes
                     load(legit.stream()
-                            .flatMap(u -> u.classesToLoad(ct.classInfoList(u)))
-                            .collect(toList()));
+                            .flatMap(u -> u.classesToLoad(ct.classList(u.snippet().outerWrap())))
+                            .collect(toSet()));
                     // attempt to redefine the remaining classes
                     List<Unit> toReplace = legit.stream()
                             .filter(u -> !u.doRedefines())
@@ -590,9 +612,13 @@ class Eval {
         }
     }
 
-    private void load(List<ClassInfo> cil) {
-        if (!cil.isEmpty()) {
-            state.executionControl().commandLoad(cil);
+    /**
+     * If there are classes to load, loads by calling the execution engine.
+     * @param classnames names of the classes to load.
+     */
+    private void load(Collection<String> classnames) {
+        if (!classnames.isEmpty()) {
+            state.executionControl().load(classnames);
         }
     }
 
@@ -608,20 +634,14 @@ class Eval {
         StackTraceElement[] elems = new StackTraceElement[last + 1];
         for (int i = 0; i <= last; ++i) {
             StackTraceElement r = raw[i];
-            String rawKlass = r.getClassName();
-            Matcher matcher = prefixPattern.matcher(rawKlass);
-            String num;
-            if (matcher.find() && (num = matcher.group("num")) != null) {
-                int end = matcher.end();
-                if (rawKlass.charAt(end - 1) == '$') {
-                    --end;
-                }
-                int id = Integer.parseInt(num);
-                Snippet si = state.maps.getSnippet(id);
-                String klass = expunge(rawKlass);
+            OuterSnippetsClassWrap outer = state.outerMap.getOuter(r.getClassName());
+            if (outer != null) {
+                String klass = expunge(r.getClassName());
                 String method = r.getMethodName().equals(DOIT_METHOD_NAME) ? "" : r.getMethodName();
-                String file = "#" + id;
-                int line = si.outerWrap().wrapLineToSnippetLine(r.getLineNumber() - 1) + 1;
+                int wln = r.getLineNumber() - 1;
+                int line = outer.wrapLineToSnippetLine(wln) + 1;
+                Snippet sn = outer.wrapLineToSnippet(wln);
+                String file = "#" + sn.id();
                 elems[i] = new StackTraceElement(klass, method, file, line);
             } else if (r.getFileName().equals("<none>")) {
                 elems[i] = new StackTraceElement(r.getClassName(), r.getMethodName(), null, r.getLineNumber());
@@ -637,7 +657,7 @@ class Eval {
     }
 
     private boolean isWrap(StackTraceElement ste) {
-        return prefixPattern.matcher(ste.getClassName()).find();
+        return PREFIX_PATTERN.matcher(ste.getClassName()).find();
     }
 
     private DiagList modifierDiagnostics(ModifiersTree modtree,
@@ -651,17 +671,19 @@ class Eval {
             ModifierDiagnostic(List<Modifier> list, boolean fatal) {
                 this.fatal = fatal;
                 StringBuilder sb = new StringBuilder();
-                sb.append((list.size() > 1) ? "Modifiers " : "Modifier ");
                 for (Modifier mod : list) {
                     sb.append("'");
                     sb.append(mod.toString());
                     sb.append("' ");
                 }
-                sb.append("not permitted in top-level declarations");
-                if (!fatal) {
-                    sb.append(", ignored");
-                }
-                this.message = sb.toString();
+                String key = (list.size() > 1)
+                        ? fatal
+                            ? "jshell.diag.modifier.plural.fatal"
+                            : "jshell.diag.modifier.plural.ignore"
+                        : fatal
+                            ? "jshell.diag.modifier.single.fatal"
+                            : "jshell.diag.modifier.single.ignore";
+                this.message = state.messageFormat(key, sb.toString());
             }
 
             @Override
@@ -694,11 +716,6 @@ class Eval {
             @Override
             public String getMessage(Locale locale) {
                 return message;
-            }
-
-            @Override
-            Unit unitOrNull() {
-                return null;
             }
         }
 
