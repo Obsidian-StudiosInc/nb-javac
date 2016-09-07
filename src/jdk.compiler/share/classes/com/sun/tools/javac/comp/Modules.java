@@ -300,7 +300,7 @@ public class Modules extends JCTree.Visitor {
                // TODO: validate module name
             } else {
                 sym = syms.enterModule(name);
-                if (sym.module_info.sourcefile != null && sym.module_info.sourcefile != toplevel.sourcefile) {
+                if ((sym.flags_field & Flags.FROMCLASS) == 0 && sym.module_info.sourcefile != null && sym.module_info.sourcefile != toplevel.sourcefile) {
                     log.error(decl.pos(), Errors.DuplicateModule(sym));
                     return;
                 }

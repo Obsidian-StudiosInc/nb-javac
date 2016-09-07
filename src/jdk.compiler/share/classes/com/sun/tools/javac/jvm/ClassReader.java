@@ -2412,6 +2412,7 @@ public class ClassReader {
             Name modInfoName = readModuleInfoName(nextChar());
             // TODO: validate module name
             currentModule = (ModuleSymbol) c.owner;
+            currentModule.flags_field |= FROMCLASS;
         }
 
         // class attributes must be read before class
