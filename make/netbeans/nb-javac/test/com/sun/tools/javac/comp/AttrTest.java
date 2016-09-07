@@ -325,7 +325,7 @@ public class AttrTest extends TestCase {
             diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
         }
         
-        assertEquals(new HashSet<String>(Arrays.asList("/Use.java:93-104:compiler.err.cant.apply.diamond.1", "/Use.java:89-110:compiler.err.cant.resolve.args")), diagnostics);
+        assertEquals(new HashSet<String>(Arrays.asList("/Use.java:93-104:compiler.err.cant.apply.diamond.1")), diagnostics);
     }
 
     public void testErrorConstructor1() throws IOException {

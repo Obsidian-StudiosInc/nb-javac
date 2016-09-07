@@ -101,6 +101,14 @@ public class CompilerProperties {
         }
         
         /**
+         * compiler.warn.deprecated.annotation.has.no.effect=\
+         *    @Deprecated annotation has no effect on this {0} declaration
+         */
+        public static Warning DeprecatedAnnotationHasNoEffect(Kind arg0) {
+            return new Warning("compiler", "deprecated.annotation.has.no.effect", arg0);
+        }
+        
+        /**
          * compiler.warn.diamond.redundant.args=\
          *    Redundant type arguments in new expression (use diamond operator instead).
          */
@@ -800,6 +808,14 @@ public class CompilerProperties {
         public static final Warning Warning = new Warning("compiler", "warning");
     }
     public static class Fragments {
+        /**
+         * compiler.misc.anachronistic.module.info=\
+         *    module declaration found in version {0}.{1} classfile
+         */
+        public static Fragment AnachronisticModuleInfo(String arg0, String arg1) {
+            return new Fragment("compiler", "anachronistic.module.info", arg0, arg1);
+        }
+        
         /**
          * compiler.misc.anonymous.class=\
          *    <anonymous {0}>
@@ -2770,6 +2786,382 @@ public class CompilerProperties {
             return new Fragment("compiler", "x.print.rounds", arg0, arg1, arg2, arg3);
         }
     }
+    public static class Notes {
+        /**
+         * compiler.note.compressed.diags=\
+         *    Some messages have been simplified; recompile with -Xdiags:verbose to get full output
+         */
+        public static final Note CompressedDiags = new Note("compiler", "compressed.diags");
+        
+        /**
+         * compiler.note.deferred.method.inst=\
+         *    Deferred instantiation of method {0}\n\
+         *    instantiated signature: {1}\n\
+         *    target-type: {2}
+         */
+        public static Note DeferredMethodInst(Symbol arg0, Type arg1, Type arg2) {
+            return new Note("compiler", "deferred.method.inst", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.note.deprecated.filename=\
+         *    {0} uses or overrides a deprecated API.
+         */
+        public static Note DeprecatedFilename(File arg0) {
+            return new Note("compiler", "deprecated.filename", arg0);
+        }
+        
+        /**
+         * compiler.note.deprecated.filename=\
+         *    {0} uses or overrides a deprecated API.
+         */
+        public static Note DeprecatedFilename(JavaFileObject arg0) {
+            return new Note("compiler", "deprecated.filename", arg0);
+        }
+        
+        /**
+         * compiler.note.deprecated.filename.additional=\
+         *    {0} has additional uses or overrides of a deprecated API.
+         */
+        public static Note DeprecatedFilenameAdditional(File arg0) {
+            return new Note("compiler", "deprecated.filename.additional", arg0);
+        }
+        
+        /**
+         * compiler.note.deprecated.filename.additional=\
+         *    {0} has additional uses or overrides of a deprecated API.
+         */
+        public static Note DeprecatedFilenameAdditional(JavaFileObject arg0) {
+            return new Note("compiler", "deprecated.filename.additional", arg0);
+        }
+        
+        /**
+         * compiler.note.deprecated.plural=\
+         *    Some input files use or override a deprecated API.
+         */
+        public static final Note DeprecatedPlural = new Note("compiler", "deprecated.plural");
+        
+        /**
+         * compiler.note.deprecated.plural.additional=\
+         *    Some input files additionally use or override a deprecated API.
+         */
+        public static final Note DeprecatedPluralAdditional = new Note("compiler", "deprecated.plural.additional");
+        
+        /**
+         * compiler.note.deprecated.recompile=\
+         *    Recompile with -Xlint:deprecation for details.
+         */
+        public static final Note DeprecatedRecompile = new Note("compiler", "deprecated.recompile");
+        
+        /**
+         * compiler.note.lambda.stat=\
+         *    Translating lambda expression\n\
+         *    alternate metafactory = {0}\n\
+         *    synthetic method = {1}
+         */
+        public static Note LambdaStat(boolean arg0, Symbol arg1) {
+            return new Note("compiler", "lambda.stat", arg0, arg1);
+        }
+        
+        /**
+         * compiler.note.mref.stat=\
+         *    Translating method reference\n\
+         *    alternate metafactory = {0}\n\
+         */
+        public static Note MrefStat(boolean arg0, Void arg1) {
+            return new Note("compiler", "mref.stat", arg0, arg1);
+        }
+        
+        /**
+         * compiler.note.mref.stat.1=\
+         *    Translating method reference\n\
+         *    alternate metafactory = {0}\n\
+         *    bridge method = {1}
+         */
+        public static Note MrefStat1(boolean arg0, Symbol arg1) {
+            return new Note("compiler", "mref.stat.1", arg0, arg1);
+        }
+        
+        /**
+         * compiler.note.note=\
+         *    Note:\u0020
+         */
+        public static final Note Note = new Note("compiler", "note");
+        
+        /**
+         * compiler.note.proc.messager=\
+         *    {0}
+         */
+        public static Note ProcMessager(String arg0) {
+            return new Note("compiler", "proc.messager", arg0);
+        }
+        
+        /**
+         * compiler.note.unchecked.filename=\
+         *    {0} uses unchecked or unsafe operations.
+         */
+        public static Note UncheckedFilename(File arg0) {
+            return new Note("compiler", "unchecked.filename", arg0);
+        }
+        
+        /**
+         * compiler.note.unchecked.filename=\
+         *    {0} uses unchecked or unsafe operations.
+         */
+        public static Note UncheckedFilename(JavaFileObject arg0) {
+            return new Note("compiler", "unchecked.filename", arg0);
+        }
+        
+        /**
+         * compiler.note.unchecked.filename.additional=\
+         *    {0} has additional unchecked or unsafe operations.
+         */
+        public static Note UncheckedFilenameAdditional(File arg0) {
+            return new Note("compiler", "unchecked.filename.additional", arg0);
+        }
+        
+        /**
+         * compiler.note.unchecked.filename.additional=\
+         *    {0} has additional unchecked or unsafe operations.
+         */
+        public static Note UncheckedFilenameAdditional(JavaFileObject arg0) {
+            return new Note("compiler", "unchecked.filename.additional", arg0);
+        }
+        
+        /**
+         * compiler.note.unchecked.plural=\
+         *    Some input files use unchecked or unsafe operations.
+         */
+        public static final Note UncheckedPlural = new Note("compiler", "unchecked.plural");
+        
+        /**
+         * compiler.note.unchecked.plural.additional=\
+         *    Some input files additionally use unchecked or unsafe operations.
+         */
+        public static final Note UncheckedPluralAdditional = new Note("compiler", "unchecked.plural.additional");
+        
+        /**
+         * compiler.note.unchecked.recompile=\
+         *    Recompile with -Xlint:unchecked for details.
+         */
+        public static final Note UncheckedRecompile = new Note("compiler", "unchecked.recompile");
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, List<? extends Type> arg4, List<? extends Type> arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, List<? extends Type> arg4, JCDiagnostic arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, List<? extends Type> arg4, Fragment arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, JCDiagnostic arg4, List<? extends Type> arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, JCDiagnostic arg4, JCDiagnostic arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, JCDiagnostic arg4, Fragment arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, Fragment arg4, List<? extends Type> arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, Fragment arg4, JCDiagnostic arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, Fragment arg4, Fragment arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, List<? extends Type> arg4, List<? extends Type> arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, List<? extends Type> arg4, JCDiagnostic arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, List<? extends Type> arg4, Fragment arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, JCDiagnostic arg4, List<? extends Type> arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, JCDiagnostic arg4, JCDiagnostic arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, JCDiagnostic arg4, Fragment arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, Fragment arg4, List<? extends Type> arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, Fragment arg4, JCDiagnostic arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, Fragment arg4, Fragment arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+    }
     public static class Errors {
         /**
          * compiler.err.abstract.cant.be.accessed.directly=\
@@ -2795,7 +3187,7 @@ public class CompilerProperties {
         
         /**
          * compiler.err.addmods.all.module.path.invalid=\
-         *    -addmods ALL-MODULE-PATH can only be used when compiling the unnamed module
+         *    --add-modules ALL-MODULE-PATH can only be used when compiling the unnamed module
          */
         public static final Error AddmodsAllModulePathInvalid = new Error("compiler", "addmods.all.module.path.invalid");
         
@@ -4405,6 +4797,12 @@ public class CompilerProperties {
         public static final Error InvalidMethDeclRetTypeReq = new Error("compiler", "invalid.meth.decl.ret.type.req");
         
         /**
+         * compiler.err.invalid.module.directive=\
+         *  module directive keyword or ''}'' expected
+         */
+        public static final Error InvalidModuleDirective = new Error("compiler", "invalid.module.directive");
+        
+        /**
          * compiler.err.invalid.module.specifier=\
          *    module specifier not allowed: {0}
          */
@@ -4695,7 +5093,7 @@ public class CompilerProperties {
         
         /**
          * compiler.err.locn.invalid.arg.for.xpatch=\
-         *    invalid argument for -Xpatch option: {0}
+         *    invalid argument for --patch-module option: {0}
          */
         public static Error LocnInvalidArgForXpatch(String arg0) {
             return new Error("compiler", "locn.invalid.arg.for.xpatch", arg0);
@@ -4953,6 +5351,14 @@ public class CompilerProperties {
          */
         public static Error NoSuperclass(Type arg0) {
             return new Error("compiler", "no.superclass", arg0);
+        }
+        
+        /**
+         * compiler.err.no.zipfs.for.archive=\
+         *    No file system provider is available to handle this file: {0}
+         */
+        public static Error NoZipfsForArchive(Path arg0) {
+            return new Error("compiler", "no.zipfs.for.archive", arg0);
         }
         
         /**
@@ -5352,7 +5758,7 @@ public class CompilerProperties {
         
         /**
          * compiler.err.processorpath.no.processormodulepath=\
-         *    illegal combination of -processorpath and -processormodulepath
+         *    illegal combination of -processorpath and --processor-module-path
          */
         public static final Error ProcessorpathNoProcessormodulepath = new Error("compiler", "processorpath.no.processormodulepath");
         
@@ -5979,7 +6385,7 @@ public class CompilerProperties {
         
         /**
          * compiler.err.xaddexports.malformed.entry=\
-         *    bad value for -XaddExports: {0}
+         *    bad value for --add-exports {0}
          */
         public static Error XaddexportsMalformedEntry(String arg0) {
             return new Error("compiler", "xaddexports.malformed.entry", arg0);
@@ -5987,7 +6393,7 @@ public class CompilerProperties {
         
         /**
          * compiler.err.xaddexports.too.many=\
-         *    multiple -XaddExports options for {0}
+         *    multiple --add-exports options for {0}
          */
         public static Error XaddexportsTooMany(String arg0) {
             return new Error("compiler", "xaddexports.too.many", arg0);
@@ -5995,7 +6401,7 @@ public class CompilerProperties {
         
         /**
          * compiler.err.xaddreads.malformed.entry=\
-         *    bad value for -XaddReads: {0}
+         *    bad value for --add-reads {0}
          */
         public static Error XaddreadsMalformedEntry(String arg0) {
             return new Error("compiler", "xaddreads.malformed.entry", arg0);
@@ -6003,7 +6409,7 @@ public class CompilerProperties {
         
         /**
          * compiler.err.xaddreads.too.many=\
-         *    multiple -XaddReads options for {0}
+         *    multiple --add-reads options for {0}
          */
         public static Error XaddreadsTooMany(String arg0) {
             return new Error("compiler", "xaddreads.too.many", arg0);
@@ -6011,384 +6417,8 @@ public class CompilerProperties {
         
         /**
          * compiler.err.xmodule.no.module.sourcepath=\
-         *    illegal combination of -Xmodule and -modulesourcepath
+         *    illegal combination of -Xmodule and --module-source-path
          */
         public static final Error XmoduleNoModuleSourcepath = new Error("compiler", "xmodule.no.module.sourcepath");
-    }
-    public static class Notes {
-        /**
-         * compiler.note.compressed.diags=\
-         *    Some messages have been simplified; recompile with -Xdiags:verbose to get full output
-         */
-        public static final Note CompressedDiags = new Note("compiler", "compressed.diags");
-        
-        /**
-         * compiler.note.deferred.method.inst=\
-         *    Deferred instantiation of method {0}\n\
-         *    instantiated signature: {1}\n\
-         *    target-type: {2}
-         */
-        public static Note DeferredMethodInst(Symbol arg0, Type arg1, Type arg2) {
-            return new Note("compiler", "deferred.method.inst", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.note.deprecated.filename=\
-         *    {0} uses or overrides a deprecated API.
-         */
-        public static Note DeprecatedFilename(File arg0) {
-            return new Note("compiler", "deprecated.filename", arg0);
-        }
-        
-        /**
-         * compiler.note.deprecated.filename=\
-         *    {0} uses or overrides a deprecated API.
-         */
-        public static Note DeprecatedFilename(JavaFileObject arg0) {
-            return new Note("compiler", "deprecated.filename", arg0);
-        }
-        
-        /**
-         * compiler.note.deprecated.filename.additional=\
-         *    {0} has additional uses or overrides of a deprecated API.
-         */
-        public static Note DeprecatedFilenameAdditional(File arg0) {
-            return new Note("compiler", "deprecated.filename.additional", arg0);
-        }
-        
-        /**
-         * compiler.note.deprecated.filename.additional=\
-         *    {0} has additional uses or overrides of a deprecated API.
-         */
-        public static Note DeprecatedFilenameAdditional(JavaFileObject arg0) {
-            return new Note("compiler", "deprecated.filename.additional", arg0);
-        }
-        
-        /**
-         * compiler.note.deprecated.plural=\
-         *    Some input files use or override a deprecated API.
-         */
-        public static final Note DeprecatedPlural = new Note("compiler", "deprecated.plural");
-        
-        /**
-         * compiler.note.deprecated.plural.additional=\
-         *    Some input files additionally use or override a deprecated API.
-         */
-        public static final Note DeprecatedPluralAdditional = new Note("compiler", "deprecated.plural.additional");
-        
-        /**
-         * compiler.note.deprecated.recompile=\
-         *    Recompile with -Xlint:deprecation for details.
-         */
-        public static final Note DeprecatedRecompile = new Note("compiler", "deprecated.recompile");
-        
-        /**
-         * compiler.note.lambda.stat=\
-         *    Translating lambda expression\n\
-         *    alternate metafactory = {0}\n\
-         *    synthetic method = {1}
-         */
-        public static Note LambdaStat(boolean arg0, Symbol arg1) {
-            return new Note("compiler", "lambda.stat", arg0, arg1);
-        }
-        
-        /**
-         * compiler.note.mref.stat=\
-         *    Translating method reference\n\
-         *    alternate metafactory = {0}\n\
-         */
-        public static Note MrefStat(boolean arg0, Void arg1) {
-            return new Note("compiler", "mref.stat", arg0, arg1);
-        }
-        
-        /**
-         * compiler.note.mref.stat.1=\
-         *    Translating method reference\n\
-         *    alternate metafactory = {0}\n\
-         *    bridge method = {1}
-         */
-        public static Note MrefStat1(boolean arg0, Symbol arg1) {
-            return new Note("compiler", "mref.stat.1", arg0, arg1);
-        }
-        
-        /**
-         * compiler.note.note=\
-         *    Note:\u0020
-         */
-        public static final Note Note = new Note("compiler", "note");
-        
-        /**
-         * compiler.note.proc.messager=\
-         *    {0}
-         */
-        public static Note ProcMessager(String arg0) {
-            return new Note("compiler", "proc.messager", arg0);
-        }
-        
-        /**
-         * compiler.note.unchecked.filename=\
-         *    {0} uses unchecked or unsafe operations.
-         */
-        public static Note UncheckedFilename(File arg0) {
-            return new Note("compiler", "unchecked.filename", arg0);
-        }
-        
-        /**
-         * compiler.note.unchecked.filename=\
-         *    {0} uses unchecked or unsafe operations.
-         */
-        public static Note UncheckedFilename(JavaFileObject arg0) {
-            return new Note("compiler", "unchecked.filename", arg0);
-        }
-        
-        /**
-         * compiler.note.unchecked.filename.additional=\
-         *    {0} has additional unchecked or unsafe operations.
-         */
-        public static Note UncheckedFilenameAdditional(File arg0) {
-            return new Note("compiler", "unchecked.filename.additional", arg0);
-        }
-        
-        /**
-         * compiler.note.unchecked.filename.additional=\
-         *    {0} has additional unchecked or unsafe operations.
-         */
-        public static Note UncheckedFilenameAdditional(JavaFileObject arg0) {
-            return new Note("compiler", "unchecked.filename.additional", arg0);
-        }
-        
-        /**
-         * compiler.note.unchecked.plural=\
-         *    Some input files use unchecked or unsafe operations.
-         */
-        public static final Note UncheckedPlural = new Note("compiler", "unchecked.plural");
-        
-        /**
-         * compiler.note.unchecked.plural.additional=\
-         *    Some input files additionally use unchecked or unsafe operations.
-         */
-        public static final Note UncheckedPluralAdditional = new Note("compiler", "unchecked.plural.additional");
-        
-        /**
-         * compiler.note.unchecked.recompile=\
-         *    Recompile with -Xlint:unchecked for details.
-         */
-        public static final Note UncheckedRecompile = new Note("compiler", "unchecked.recompile");
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, List<? extends Type> arg4, List<? extends Type> arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, List<? extends Type> arg4, JCDiagnostic arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, List<? extends Type> arg4, Fragment arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, JCDiagnostic arg4, List<? extends Type> arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, JCDiagnostic arg4, JCDiagnostic arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, JCDiagnostic arg4, Fragment arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, Fragment arg4, List<? extends Type> arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, Fragment arg4, JCDiagnostic arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, Fragment arg4, Fragment arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, List<? extends Type> arg4, List<? extends Type> arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, List<? extends Type> arg4, JCDiagnostic arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, List<? extends Type> arg4, Fragment arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, JCDiagnostic arg4, List<? extends Type> arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, JCDiagnostic arg4, JCDiagnostic arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, JCDiagnostic arg4, Fragment arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, Fragment arg4, List<? extends Type> arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, Fragment arg4, JCDiagnostic arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, Fragment arg4, Fragment arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
     }
 }
