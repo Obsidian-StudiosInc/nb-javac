@@ -27,6 +27,9 @@ package com.sun.tools.javac.comp;
 
 import java.util.EnumSet;
 import java.util.Set;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Modifier;
+import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Scope.WriteableScope;
@@ -41,7 +44,10 @@ import com.sun.tools.javac.tree.JCTree.*;
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
+import static com.sun.tools.javac.code.TypeTag.FORALL;
 import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
+import static com.sun.tools.javac.code.TypeTag.VOID;
+import com.sun.tools.javac.model.LazyTreeLoader;
 
 /** Resolves field, method and constructor header, and constructs corresponding Symbols.
  *
@@ -53,6 +59,7 @@ import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
 public class MemberEnter extends JCTree.Visitor {
     protected static final Context.Key<MemberEnter> memberEnterKey = new Context.Key<>();
 
+    private final Names names;
     private final Enter enter;
     private final Log log;
     private final Check chk;
@@ -61,6 +68,7 @@ public class MemberEnter extends JCTree.Visitor {
     private final Annotate annotate;
     private final Types types;
     private final DeferredLintHandler deferredLintHandler;
+    private final LazyTreeLoader treeLoader;
 
     public static MemberEnter instance(Context context) {
         MemberEnter instance = context.get(memberEnterKey);
@@ -71,6 +79,7 @@ public class MemberEnter extends JCTree.Visitor {
 
     protected MemberEnter(Context context) {
         context.put(memberEnterKey, this);
+        names = Names.instance(context);
         enter = Enter.instance(context);
         log = Log.instance(context);
         chk = Check.instance(context);
@@ -79,6 +88,7 @@ public class MemberEnter extends JCTree.Visitor {
         annotate = Annotate.instance(context);
         types = Types.instance(context);
         deferredLintHandler = DeferredLintHandler.instance(context);
+        treeLoader = LazyTreeLoader.instance(context);
     }
 
     /** Construct method type from method signature.
@@ -173,6 +183,59 @@ public class MemberEnter extends JCTree.Visitor {
             memberEnter(l.head, env);
     }
 
+    boolean hasSameBounds(ForAll t, ForAll s) {
+        List<Type> l1 = t.tvars;
+        List<Type> l2 = s.tvars;
+        while (l1.nonEmpty() && l2.nonEmpty() &&
+               isSameAPType(l1.head.getUpperBound(),
+                          types.subst(l2.head.getUpperBound(),
+                                s.tvars,
+                                t.tvars))) {
+            l1 = l1.tail;
+            l2 = l2.tail;
+        }
+        return l1.isEmpty() && l2.isEmpty();
+    }
+    
+    private boolean isSameAPType(Type t, Type s) {
+        return    t != null && !t.hasTag(TypeTag.UNKNOWN) && types.isSameType(t, s)
+               || t.tsym != null && s.tsym != null && s.isErroneous() && t.tsym.name == s.tsym.name;
+    }
+    
+    private boolean isSameMethod(Type ot, Type os) {
+        if (ot.getTag() != os.getTag()) return false;
+        
+        switch (ot.getTag()) {
+            case METHOD: {
+                MethodType t = (MethodType) ot;
+                MethodType s = (MethodType) os;
+
+                if (t.getParameterTypes().size() != s.getParameterTypes().size()) return false;
+                if (!isSameAPType(t.getReturnType(), s.getReturnType())) return false;
+
+                List<Type> tp = t.getParameterTypes();
+                List<Type> sp = s.getParameterTypes();
+
+                while (!tp.isEmpty() && !sp.isEmpty()) {
+                    if (!isSameAPType(tp.head, sp.head)) return false;
+                    tp = tp.tail;
+                    sp = sp.tail;
+                }
+
+                return tp.isEmpty() == sp.isEmpty();
+            }
+            case FORALL: {
+                ForAll t = (ForAll) ot;
+                ForAll s = (ForAll) os;
+
+                return    hasSameBounds(t, s)
+                       && isSameMethod(t.qtype, types.subst(s.qtype, s.tvars, t.tvars));
+            }
+            default:
+                return false;
+        }
+    }
+    
     public void visitMethodDef(JCMethodDecl tree) {
         WriteableScope enclScope = enter.enterScope(env);
         MethodSymbol m = new MethodSymbol(0, tree.name, null, enclScope.owner);
@@ -199,33 +262,120 @@ public class MemberEnter extends JCTree.Visitor {
         if (types.isSignaturePolymorphic(m)) {
             m.flags_field |= SIGNATURE_POLYMORPHIC;
         }
+        if ((enclScope.owner.flags_field & FROMCLASS) != 0) {
+            for (Symbol sym : enclScope.getSymbolsByName(tree.name)) {
+                if (sym.kind == MTH) {
+                    boolean sameType = (enclScope.owner.flags_field & APT_CLEANED) != 0 ? isSameMethod(m.type, sym.type) : types.isSameType(m.type, sym.type);
+                    if (sameType) {
+                        if ((sym.flags_field & FROMCLASS) != 0) {
+                            treeCleaner.scan(tree);
+                            tree.sym = (MethodSymbol)sym;
+                            localEnv = methodEnv(tree, env);
+                            tree.sym.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, tree.sym, tree) | (tree.sym.flags_field & APT_CLEANED);
+                            tree.sym.flags_field |= FROMCLASS;
+                            if (tree.sym.type.hasTag(FORALL)) {
+                                for(List<Type> tvars = ((ForAll)tree.sym.type).tvars; tvars.nonEmpty(); tvars = tvars.tail)
+                                    localEnv.info.scope.enter(tvars.head.tsym);
+                            }
+                            List<VarSymbol> p = tree.sym.params().reverse();
+                            if (p != null) {
+                                List<JCVariableDecl> l = tree.params.reverse();
+                                while(l.nonEmpty() && p.nonEmpty()) {
+                                    p.head.setName(l.head.name);
+                                    if (l.head.getModifiers() != null && l.head.getModifiers().getFlags().contains(Modifier.FINAL)) {
+                                        //copy the final flag, as the symbol might have come from the classfile:
+                                        p.head.flags_field |= FINAL;
+                                    }
+                                    localEnv.info.scope.enter(p.head);
+                                    p.head.flags_field |= FROMCLASS;
+                                    p = p.tail;
+                                    l = l.tail;
+                                }
+                                while(p.nonEmpty()) {
+                                    p.head.setName(p.head.name);
+                                    localEnv.info.scope.enter(p.head);
+                                    p = p.tail;
+                                }
+                            }
+                            prevLintPos = deferredLintHandler.setPos(tree.pos());
+                            try {
+                                tree.sym.type = signature(tree.sym, tree.typarams, tree.params,
+                                        tree.restype, tree.recvparam, tree.thrown,
+                                        localEnv);
+                            } finally {
+                                deferredLintHandler.setPos(prevLintPos);
+                            }
+                            tree.sym.flags_field &= ~FROMCLASS;
+                            localEnv.info.scope.leave();
 
-        // Set m.params
-        ListBuffer<VarSymbol> params = new ListBuffer<>();
-        JCVariableDecl lastParam = null;
-        for (List<JCVariableDecl> l = tree.params; l.nonEmpty(); l = l.tail) {
-            JCVariableDecl param = lastParam = l.head;
-            params.append(Assert.checkNonNull(param.sym));
+                            // Set m.params
+                            ListBuffer<VarSymbol> params = new ListBuffer<>();
+                            JCVariableDecl lastParam = null;
+                            for (List<JCVariableDecl> l = tree.params; l.nonEmpty(); l = l.tail) {
+                                JCVariableDecl param = lastParam = l.head;
+                                params.append(Assert.checkNonNull(param.sym));
+                            }
+                            tree.sym.params = params.toList();
+
+                            // mark the method varargs, if necessary
+                            if (lastParam != null && (lastParam.mods.flags & Flags.VARARGS) != 0)
+                                tree.sym.flags_field |= Flags.VARARGS;
+                            tree.sym.flags_field &= ~APT_CLEANED;
+                        }
+                        break;
+                    }
+                }
+            }
+            if (tree.sym == m) {
+                if ((enclScope.owner.flags_field & APT_CLEANED) == 0 && (m.name != names.init || !m.owner.owner.kind.matches(KindSelector.VAL_MTH))) {
+                    ClassSymbol cs = enclScope.owner.outermostClass();
+                    treeLoader.couplingError(cs, tree);
+                } else {
+                    localEnv.info.scope.leave();
+                    // Set m.params
+                    ListBuffer<VarSymbol> params = new ListBuffer<>();
+                    JCVariableDecl lastParam = null;
+                    for (List<JCVariableDecl> l = tree.params; l.nonEmpty(); l = l.tail) {
+                        JCVariableDecl param = lastParam = l.head;
+                        params.append(Assert.checkNonNull(param.sym));
+                    }
+                    m.params = params.toList();
+
+                    // mark the method varargs, if necessary
+                    if (lastParam != null && (lastParam.mods.flags & Flags.VARARGS) != 0)
+                        m.flags_field |= Flags.VARARGS;
+
+                    if( chk.checkUnique(tree.pos(), m, enclScope))
+                        enclScope.enter(m);
+                }
+            }
+        } else {
+            // Set m.params
+            ListBuffer<VarSymbol> params = new ListBuffer<>();
+            JCVariableDecl lastParam = null;
+            for (List<JCVariableDecl> l = tree.params; l.nonEmpty(); l = l.tail) {
+                JCVariableDecl param = lastParam = l.head;
+                params.append(Assert.checkNonNull(param.sym));
+            }
+            m.params = params.toList();
+
+            // mark the method varargs, if necessary
+            if (lastParam != null && (lastParam.mods.flags & Flags.VARARGS) != 0)
+                m.flags_field |= Flags.VARARGS;
+
+            localEnv.info.scope.leave();
+            if (chk.checkUnique(tree.pos(), m, enclScope)) {
+            enclScope.enter(m);
+            }
         }
-        m.params = params.toList();
-
-        // mark the method varargs, if necessary
-        if (lastParam != null && (lastParam.mods.flags & Flags.VARARGS) != 0)
-            m.flags_field |= Flags.VARARGS;
-
-        localEnv.info.scope.leave();
-        if (chk.checkUnique(tree.pos(), m, enclScope)) {
-        enclScope.enter(m);
-        }
-
-        annotate.annotateLater(tree.mods.annotations, localEnv, m, tree.pos());
+        annotate.annotateLater(tree.mods.annotations, localEnv, tree.sym, tree.pos());
         // Visit the signature of the method. Note that
         // TypeAnnotate doesn't descend into the body.
-        annotate.queueScanTreeAndTypeAnnotate(tree, localEnv, m, tree.pos());
+        annotate.queueScanTreeAndTypeAnnotate(tree, localEnv, tree.sym, tree.pos());
 
         if (tree.defaultValue != null) {
-            m.defaultValue = annotate.unfinishedDefaultValue(); // set it to temporary sentinel for now
-            annotate.annotateDefaultValueLater(tree.defaultValue, localEnv, m, tree.pos());
+            tree.sym.defaultValue = annotate.unfinishedDefaultValue(); // set it to temporary sentinel for now
+            annotate.annotateDefaultValueLater(tree.defaultValue, localEnv, tree.sym, tree.pos());
         }
     }
 
@@ -267,6 +417,11 @@ public class MemberEnter extends JCTree.Visitor {
             deferredLintHandler.setPos(prevLintPos);
         }
 
+        if (tree.vartype.type != null && tree.vartype.type.hasTag(VOID)) {
+            log.error(tree.vartype, "illegal.start.of.type");
+            tree.vartype.type = syms.errType;
+        }
+
         if ((tree.mods.flags & VARARGS) != 0) {
             //if we are entering a varargs parameter, we need to
             //replace its type (a plain array type) with the more
@@ -278,8 +433,31 @@ public class MemberEnter extends JCTree.Visitor {
             tree.vartype.type = atype.makeVarargs();
         }
         WriteableScope enclScope = enter.enterScope(env);
-        VarSymbol v =
-            new VarSymbol(0, tree.name, tree.vartype.type, enclScope.owner);
+        VarSymbol v = null;
+        boolean doEnterSymbol = true;
+        if ((enclScope.owner.flags_field & FROMCLASS) != 0) {
+            for (Symbol sym : enclScope.getSymbolsByName(tree.name)) {
+                boolean sameType = (enclScope.owner.flags_field & APT_CLEANED) != 0 ? isSameAPType(tree.vartype.type, sym.type) : types.isSameType(tree.vartype.type, sym.type);
+                if (sym.kind == VAR && sameType) {
+                    if ((sym.flags_field & FROMCLASS) != 0) {
+                        v = (VarSymbol)sym;
+                        v.type = tree.vartype.type;
+                        sym.flags_field &= ~FROMCLASS;
+                    }
+                    break;
+                }
+            }
+            if (v != null) {
+                doEnterSymbol = false;
+            } else if ((enclScope.owner.flags_field & APT_CLEANED) == 0) {
+                ClassSymbol cs = enclScope.owner.outermostClass();
+                treeLoader.couplingError(cs, tree);
+                doEnterSymbol = false;
+            }
+        }
+        if (v == null) {
+            v = new VarSymbol(0, tree.name, tree.vartype.type, enclScope.owner);
+        }
         v.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, v, tree);
         tree.sym = v;
         if (tree.init != null) {
@@ -291,9 +469,13 @@ public class MemberEnter extends JCTree.Visitor {
                 v.setLazyConstValue(initEnv(tree, initEnv), attr, tree);
             }
         }
-        if (chk.checkUnique(tree.pos(), v, enclScope)) {
-            chk.checkTransparentVar(tree.pos(), v, enclScope);
-            enclScope.enter(v);
+        if (doEnterSymbol) {
+            if (chk.checkUnique(tree.pos(), v, enclScope)) {
+                chk.checkTransparentVar(tree.pos(), v, enclScope);
+                enclScope.enter(v);
+            } else if (v.getKind() == ElementKind.LOCAL_VARIABLE) {
+                enclScope.enter(v);
+            }
         }
 
         annotate.annotateLater(tree.mods.annotations, localEnv, v, tree.pos());
@@ -410,7 +592,7 @@ public class MemberEnter extends JCTree.Visitor {
      */
     Env<AttrContext> initEnv(JCVariableDecl tree, Env<AttrContext> env) {
         Env<AttrContext> localEnv = env.dupto(new AttrContextEnv(tree, env.info.dup()));
-        if (tree.sym.owner.kind == TYP) {
+        if (tree.sym.owner.kind == TYP || tree.sym.owner.kind == ERR) {
             localEnv.info.scope = env.info.scope.dupUnshared(tree.sym);
         }
         if ((tree.mods.flags & STATIC) != 0 ||
@@ -430,6 +612,8 @@ public class MemberEnter extends JCTree.Visitor {
     }
 
     public Env<AttrContext> getMethodEnv(JCMethodDecl tree, Env<AttrContext> env) {
+        if (tree.sym == null)
+            return null;
         Env<AttrContext> mEnv = methodEnv(tree, env);
         mEnv.info.lint = mEnv.info.lint.augment(tree.sym);
         for (List<JCTypeParameter> l = tree.typarams; l.nonEmpty(); l = l.tail)
@@ -440,7 +624,57 @@ public class MemberEnter extends JCTree.Visitor {
     }
 
     public Env<AttrContext> getInitEnv(JCVariableDecl tree, Env<AttrContext> env) {
+        if (tree.sym == null)
+            return null;
         Env<AttrContext> iEnv = initEnv(tree, env);
         return iEnv;
     }
+
+    private static TreeScanner treeCleaner = new TreeScanner() {
+        public void scan(JCTree node) {
+            super.scan(node);
+            if (node != null)
+                node.type = null;
+        }
+        public void visitTopLevel(JCCompilationUnit node) {
+            node.packge = null;
+            super.visitTopLevel(node);
+        }
+        public void visitClassDef(JCClassDecl node) {
+            node.sym = null;
+            super.visitClassDef(node);
+        }
+        public void visitMethodDef(JCMethodDecl node) {
+            node.sym = null;
+            super.visitMethodDef(node);
+        }
+        public void visitVarDef(JCVariableDecl node) {
+            node.sym = null;
+            super.visitVarDef(node);
+        }
+        public void visitNewClass(JCNewClass node) {
+            node.constructor = null;
+            super.visitNewClass(node);
+        }
+        public void visitAssignop(JCAssignOp node) {
+            node.operator = null;
+            super.visitAssignop(node);
+        }
+        public void visitUnary(JCUnary node) {
+            node.operator = null;
+            super.visitUnary(node);
+        }
+        public void visitBinary(JCBinary node) {
+            node.operator = null;
+            super.visitBinary(node);
+        }
+        public void visitSelect(JCFieldAccess node) {
+            node.sym = null;
+            super.visitSelect(node);
+        }
+        public void visitIdent(JCIdent node) {
+            node.sym = null;
+            super.visitIdent(node);
+        }
+    };
 }
