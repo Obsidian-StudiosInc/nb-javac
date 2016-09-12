@@ -517,6 +517,9 @@ public class Symtab {
                            List.<Type>nil(), methodClass),
             arrayClass);
         arrayClass.members().enter(arrayCloneMethod);
+
+        unnamedModule = new Symbol.ModuleSymbol(
+            Kinds.Kind.ERR, 0, names.fromString("unnamed"), botType, null);
     }
 
     /** Define a new class given its name and owner.
@@ -635,4 +638,18 @@ public class Symtab {
     public PackageSymbol enterPackage(Name name, PackageSymbol owner) {
         return enterPackage(TypeSymbol.formFullName(name, owner));
     }
+    
+    /**
+     * This method is stub only. Permits JDK9 code to call nb-javac. Delegates
+     * to {@link #enterPackage(com.sun.tools.javac.util.Name)}.
+     */
+    public PackageSymbol enterPackage(Symbol.ModuleSymbol module, Name fullname) {
+        return enterPackage(fullname);
+    }
+    
+    /**
+     * This is just a stub value, not a real Module. For linking with JDK9 specific 
+     * code.
+     */
+    public final Symbol.ModuleSymbol unnamedModule;
 }

@@ -2026,4 +2026,14 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         R visitTypeSymbol(TypeSymbol s, P arg);
         R visitSymbol(Symbol s, P arg);
     }
+    
+    public static class ModuleSymbol extends TypeSymbol {
+        public ModuleSymbol(Kind kind, long flags, Name name, Type type, Symbol owner) {
+            super(kind, flags, name, type, owner);
+        }
+        @Override
+        public <R, P> R accept(ElementVisitor<R, P> v, P p) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+    }
 }

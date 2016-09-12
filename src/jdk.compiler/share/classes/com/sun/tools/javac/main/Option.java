@@ -552,7 +552,36 @@ public enum Option {
             }
             return false;
         }
-    };
+    },
+    
+    // Stub processors, just ignore JDK9 module options.
+    XADDEXPORTS("-XaddExports:", "opt.arg.addExports", "opt.addExports", EXTENDED, BASIC) {
+        @Override
+        public boolean process(OptionHelper helper, String option) {
+            return false;
+        }
+    },
+
+    XADDREADS("-XaddReads:", "opt.arg.addReads", "opt.addReads", EXTENDED, BASIC) {
+        @Override
+        public boolean process(OptionHelper helper, String option) {
+            return false;
+        }
+    },
+
+   XSHOULDSTOP("-Xshouldstop:", null, HIDDEN, BASIC) {
+        @Override
+        public boolean process(OptionHelper helper, String option) {
+            String p = option.substring(option.indexOf(':') + 1).trim();
+            String[] subOptions = p.split(";");
+            for (String subOption : subOptions) {
+                subOption = "shouldstop." + subOption.trim();
+                XD.process(helper, subOption, subOption);
+            }
+            return false;
+        }
+    },
+   ;
 
     /** The kind of an Option. This is used by the -help and -X options. */
     public enum OptionKind {
