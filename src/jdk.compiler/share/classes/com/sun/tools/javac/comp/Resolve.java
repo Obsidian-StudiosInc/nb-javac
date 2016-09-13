@@ -541,8 +541,7 @@ public class Resolve {
         } else if (mt.hasTag(FORALL) && typeargtypes.nonEmpty()) {
             ForAll pmt = (ForAll) mt;
             if (typeargtypes.length() != pmt.tvars.length()) {
-                inapplicableMethodException.fillInStackTrace();
-                throw inapplicableMethodException.setMessage("arg.length.mismatch"); // not enough args
+                throw new InapplicableMethodException(diags).setMessage("arg.length.mismatch"); // not enough args
             }
             // Check type arguments are within bounds
             List<Type> formals = pmt.tvars;
@@ -552,8 +551,7 @@ public class Resolve {
                                                 pmt.tvars, typeargtypes);
                 for (; bounds.nonEmpty(); bounds = bounds.tail) {
                     if (!types.isSubtypeUnchecked(actuals.head, bounds.head, warn)) {
-                        inapplicableMethodException.fillInStackTrace();
-                        throw inapplicableMethodException.setMessage("explicit.param.do.not.conform.to.bounds",actuals.head, bounds);
+                        throw new InapplicableMethodException(diags).setMessage("explicit.param.do.not.conform.to.bounds",actuals.head, bounds);
                     }
                 }
                 formals = formals.tail;
@@ -776,7 +774,7 @@ public class Resolve {
         protected void reportMC(DiagnosticPosition pos, MethodCheckDiag diag, InferenceContext inferenceContext, Object... args) {
             boolean inferDiag = inferenceContext != infer.emptyContext;
             InapplicableMethodException ex = inferDiag ?
-                    infer.inferenceException : inapplicableMethodException;
+                    infer.inferenceException : new InapplicableMethodException(diags);
             if (inferDiag && (!diag.inferKey.equals(diag.basicKey))) {
                 Object[] args2 = new Object[args.length + 1];
                 System.arraycopy(args, 0, args2, 1, args.length);
@@ -982,8 +980,7 @@ public class Resolve {
         }
 
         public void report(DiagnosticPosition pos, JCDiagnostic details) {
-            inapplicableMethodException.fillInStackTrace();
-            throw inapplicableMethodException.setMessage(details);
+            throw new InapplicableMethodException(diags).setMessage(details);
         }
 
         public Warner checkWarner(DiagnosticPosition pos, Type found, Type req) {
