@@ -2562,14 +2562,9 @@ public class ClassReader {
             }
 
             if (c == currentModule.module_info) {
-                if (interimUses.nonEmpty() || interimProvides.nonEmpty()) {
-                    Assert.check(currentModule.isCompleted());
-                    currentModule.usesProvidesCompleter =
+                Assert.check(currentModule.isCompleted());
+                currentModule.usesProvidesCompleter =
                             new UsesProvidesCompleter(currentModule, interimUses, interimProvides);
-                } else {
-                    currentModule.uses = List.nil();
-                    currentModule.provides = List.nil();
-                }
             }
         } catch (IOException ex) {
             throw badClassFile("unable.to.access.file", ex.getMessage());
@@ -2856,6 +2851,11 @@ public class ClassReader {
                 directives.add(d);
             }
             currentModule.provides = provides.toList();
+            for (RequiresDirective rd : currentModule.requires) {
+                if (rd.flags.contains(RequiresFlag.EXTRA)) {
+                    directives.add(rd);
+                }
+            }
             currentModule.directives = directives.toList();
         }
     }
