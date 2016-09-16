@@ -467,7 +467,7 @@ public class Modules extends JCTree.Visitor {
     }
 
     private void checkSpecifiedModule(List<JCCompilationUnit> trees, JCDiagnostic.Error error) {
-        if (moduleOverride != null) {
+        if (moduleOverride != null && !trees.isEmpty()) {
             JavaFileObject prev = log.useSource(trees.head.sourcefile);
             try {
                 log.error(trees.head.pos(), error);
