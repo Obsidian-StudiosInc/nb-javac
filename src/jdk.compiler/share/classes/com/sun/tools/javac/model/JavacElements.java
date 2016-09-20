@@ -141,6 +141,7 @@ public class JavacElements implements Elements {
 
 
     public ClassSymbol getTypeElementByBinaryName (final CharSequence binaryName) {
+        ensureEntered("getTypeElementByBinaryName");
         return getTypeElementByBinaryName(modules.getDefaultModule(), binaryName);
     }
     
