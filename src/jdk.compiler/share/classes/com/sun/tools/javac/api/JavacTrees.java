@@ -492,6 +492,9 @@ public class JavacTrees extends DocTrees {
                     toplevel.modle = msym;
                     toplevel.packge = msym.unnamedPackage;
                     Symbol sym = attr.attribIdent(ref.qualifierExpression, toplevel);
+                    if (sym == null) {
+                        return null;
+                    }
 
                     sym.complete();
 
