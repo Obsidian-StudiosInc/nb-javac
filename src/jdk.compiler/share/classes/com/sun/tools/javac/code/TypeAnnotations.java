@@ -1392,15 +1392,6 @@ public class TypeAnnotations {
         }
 
 
-        @Override
-        public void visitErroneous(JCErroneous tree) {
-            if (tree.errs != null) {
-                for (List<? extends JCTree> l = tree.errs; l.nonEmpty(); l = l.tail) {
-                    super.scan(l.head);
-                }
-            }
-        }
-        
         private void findTypeCompoundPosition(JCTree tree, JCTree frame, List<Attribute.TypeCompound> annotations) {
             if (!annotations.isEmpty()) {
                 final TypeAnnotationPosition p =
