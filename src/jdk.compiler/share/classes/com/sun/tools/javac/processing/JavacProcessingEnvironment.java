@@ -81,6 +81,7 @@ import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.Iterators;
 import com.sun.tools.javac.util.JCDiagnostic;
+import com.sun.tools.javac.util.JDK9Wrappers.Module;
 import com.sun.tools.javac.util.JavacMessages;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Log;
@@ -124,7 +125,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     private final JavacTypes typeUtils;
     private final JavaCompiler compiler;
     private final Modules modules;
-    private final ModuleHelper moduleHelper;
     private final Types types;
 
     /**
@@ -235,7 +235,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         names = Names.instance(context);
         enter = Enter.instance(context);
         initialCompleter = ClassFinder.instance(context).getCompleter();
-        moduleHelper = ModuleHelper.instance(context);
         initProcessorLoader();
 
         defaultModule = source.allowModules() && options.isUnset("noModules")
@@ -273,7 +272,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     ? fileManager.getClassLoader(ANNOTATION_PROCESSOR_PATH)
                     : fileManager.getClassLoader(CLASS_PATH);
 
-                moduleHelper.addExports(processorClassLoader);
+                if (options.isSet("accessInternalAPI"))
+                    ModuleHelper.addExports(Module.getModule(getClass()), Module.getUnnamedModule(processorClassLoader));
 
                 if (processorClassLoader != null && processorClassLoader instanceof Closeable) {
                     compiler.closeables = compiler.closeables.prepend((Closeable) processorClassLoader);
@@ -1549,6 +1549,23 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 }
             }
             public void visitClassDef(JCClassDecl node) {
+                super.visitClassDef(node);
+                // remove generated constructor that may have been added during attribution:
+                List<JCTree> beforeConstructor = List.nil();
+                List<JCTree> defs = node.defs;
+                while (defs.nonEmpty() && !defs.head.hasTag(Tag.METHODDEF)) {
+                    beforeConstructor = beforeConstructor.prepend(defs.head);
+                    defs = defs.tail;
+                }
+                if (defs.nonEmpty() &&
+                    (((JCMethodDecl) defs.head).mods.flags & Flags.GENERATEDCONSTR) != 0) {
+                    defs = defs.tail;
+                    while (beforeConstructor.nonEmpty()) {
+                        defs = defs.prepend(beforeConstructor.head);
+                        beforeConstructor = beforeConstructor.tail;
+                    }
+                    node.defs = defs;
+                }
                 if (node.sym != null) {
                     new ElementScanner6<Void, Void>() {
                         @Override
@@ -1575,9 +1592,14 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                         chk.removeCompiled(node.sym);
                 }
                 node.sym = null;
-                super.visitClassDef(node);
             }
             public void visitMethodDef(JCMethodDecl node) {
+                // remove super constructor call that may have been added during attribution:
+                if (TreeInfo.isConstructor(node) && node.sym != null && node.sym.owner.isEnum() &&
+                    node.body.stats.nonEmpty() && TreeInfo.isSuperCall(node.body.stats.head) &&
+                    node.body.stats.head.pos == node.body.pos) {
+                    node.body.stats = node.body.stats.tail;
+                }
                 node.sym = null;
                 super.visitMethodDef(node);
             }

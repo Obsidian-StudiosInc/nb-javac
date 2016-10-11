@@ -295,9 +295,12 @@ public class Modules extends JCTree.Visitor {
             Name name = TreeInfo.fullName(decl.qualId);
             ModuleSymbol sym;
             if (c != null) {
-               sym = (ModuleSymbol) c.owner;
-               Assert.checkNonNull(sym.name);
-               // TODO: validate module name
+                sym = (ModuleSymbol) c.owner;
+                Assert.checkNonNull(sym.name);
+                Name treeName = TreeInfo.fullName(decl.qualId);
+                if (sym.name != treeName) {
+                    log.error(decl.pos(), Errors.ModuleNameMismatch(name, sym.name));
+                }
             } else {
                 sym = syms.enterModule(name);
                 if ((sym.flags_field & Flags.FROMCLASS) == 0 && sym.module_info.sourcefile != null && sym.module_info.sourcefile != toplevel.sourcefile) {
@@ -392,6 +395,7 @@ public class Modules extends JCTree.Visitor {
                             if (moduleOverride != null) {
                                 checkNoAllModulePath();
                                 defaultModule = moduleFinder.findModule(names.fromString(moduleOverride));
+                                defaultModule.sourceLocation = StandardLocation.SOURCE_PATH;
                             } else {
                                 // Question: why not do findAllModules and initVisiblePackages here?
                                 // i.e. body of unnamedModuleCompleter
@@ -432,7 +436,9 @@ public class Modules extends JCTree.Visitor {
 
             if (defaultModule != syms.unnamedModule) {
                 syms.unnamedModule.completer = getUnnamedModuleCompleter();
-                syms.unnamedModule.sourceLocation = StandardLocation.SOURCE_PATH;
+                if (moduleOverride == null) {
+                    syms.unnamedModule.sourceLocation = StandardLocation.SOURCE_PATH;
+                }
                 syms.unnamedModule.classLocation = StandardLocation.CLASS_PATH;
             }
 
@@ -1005,6 +1011,10 @@ public class Modules extends JCTree.Visitor {
         return new Symbol.Completer() {
             @Override
             public void complete(Symbol sym) throws CompletionFailure {
+                if (inInitModules) {
+                    sym.completer = this;
+                    return ;
+                }
                 ModuleSymbol msym = (ModuleSymbol) sym;
                 Set<ModuleSymbol> allModules = allModules();
                 for (ModuleSymbol m : allModules) {
@@ -1092,7 +1102,7 @@ public class Modules extends JCTree.Visitor {
         Set<ModuleSymbol> requiresPublic = requiresPublicCache.get(msym);
 
         if (requiresPublic == null) {
-            //the module graph may contain cycles involving automatic modules or -XaddReads edges
+            //the module graph may contain cycles involving automatic modules or --add-reads edges
             requiresPublic = new HashSet<>();
 
             Set<ModuleSymbol> seen = new HashSet<>();
@@ -1194,7 +1204,7 @@ public class Modules extends JCTree.Visitor {
             }
 
             // Terminology comes from
-            //  -XaddExports:module/package=target,...
+            //  --add-exports module/package=target,...
             // Compare to
             //  module module { exports package to target, ... }
             String moduleName = em.group(1);
@@ -1247,7 +1257,7 @@ public class Modules extends JCTree.Visitor {
             }
 
             // Terminology comes from
-            //  -XaddReads:target-module=source-module,...
+            //  --add-reads target-module=source-module,...
             // Compare to
             //  module target-module { requires source-module; ... }
             String targetName = rm.group(1);

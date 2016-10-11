@@ -25,7 +25,6 @@
 package com.sun.tools.javac.code;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -40,10 +39,14 @@ import javax.tools.JavaFileObject;
 import javax.tools.JavaFileObject.Kind;
 import javax.tools.StandardLocation;
 
+import com.sun.tools.javac.code.Symbol.Completer;
 import com.sun.tools.javac.code.Symbol.CompletionFailure;
 import com.sun.tools.javac.code.Symbol.ModuleSymbol;
+import com.sun.tools.javac.jvm.ModuleNameReader;
+import com.sun.tools.javac.jvm.ModuleNameReader.BadClassFile;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
+import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.JCDiagnostic.Fragment;
@@ -52,21 +55,8 @@ import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
-import com.sun.tools.javac.util.StringUtils;
 
 import static com.sun.tools.javac.code.Kinds.Kind.*;
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.Completer;
-import com.sun.tools.javac.comp.Modules;
-import com.sun.tools.javac.util.ModuleNameReader;
-import com.sun.tools.javac.parser.ParserFactory;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
-import com.sun.tools.javac.tree.JCTree.Tag;
-import com.sun.tools.javac.tree.TreeInfo;
-import com.sun.tools.javac.util.Assert;
-import com.sun.tools.javac.util.ModuleNameReader.BadClassFile;
 
 /**
  *  This class provides operations to locate module definitions
@@ -100,7 +90,7 @@ public class ModuleFinder {
 
     private ModuleNameReader moduleNameReader;
 
-    public SourceFileCompleter sourceFileCompleter;
+    public ModuleInfoSourceFileCompleter sourceFileCompleter;
 
     /** Get the ModuleFinder instance for this invocation. */
     public static ModuleFinder instance(Context context) {
@@ -220,13 +210,8 @@ public class ModuleFinder {
                             try {
                                 inFindSingleModule = true;
                                 // Note: the following will trigger a re-entrant call to Modules.enter
-                                msym = (ModuleSymbol) sourceFileCompleter.complete(fo, tl -> {
-                                    return tl.defs.nonEmpty() && tl.defs.head.hasTag(Tag.MODULEDEF) ?
-                                            ((JCModuleDecl) tl.defs.head).sym.module_info : null;
-                                }).owner;
+                                msym = sourceFileCompleter.complete(fo);
                                 msym.module_info.classfile = fo;
-                            } catch (CompletionFailure cf) {
-                                msym = syms.unnamedModule;
                             } finally {
                                 inFindSingleModule = false;
                             }
@@ -378,8 +363,8 @@ public class ModuleFinder {
         }
     }
 
-    public interface SourceFileCompleter {
-        public ClassSymbol complete(JavaFileObject file, Function<JCCompilationUnit, ClassSymbol> symbolGetter);
+    public interface ModuleInfoSourceFileCompleter {
+        public ModuleSymbol complete(JavaFileObject file);
     }
 
 }

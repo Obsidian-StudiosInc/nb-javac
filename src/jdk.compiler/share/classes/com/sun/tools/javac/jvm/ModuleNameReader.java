@@ -22,7 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package com.sun.tools.javac.util;
+package com.sun.tools.javac.jvm;
 
 import java.io.IOException;
 import java.io.InputStream;

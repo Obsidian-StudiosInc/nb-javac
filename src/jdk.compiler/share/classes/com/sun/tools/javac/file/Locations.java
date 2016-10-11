@@ -80,7 +80,7 @@ import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Log;
-import com.sun.tools.javac.util.ModuleNameReader;
+import com.sun.tools.javac.jvm.ModuleNameReader;
 import com.sun.tools.javac.util.Pair;
 import com.sun.tools.javac.util.StringUtils;
 
@@ -131,6 +131,7 @@ public class Locations {
 
     Map<Path, FileSystem> fileSystems = new LinkedHashMap<>();
     List<Closeable> closeables = new ArrayList<>();
+    private Map<String,String> fsEnv = Collections.emptyMap();
 
     Locations() {
         initHandlers();
@@ -206,6 +207,10 @@ public class Locations {
             }
         }
         return entries;
+    }
+
+    public void setMultiReleaseValue(String multiReleaseValue) {
+        fsEnv = Collections.singletonMap("multi-release", multiReleaseValue);
     }
 
     /**
@@ -811,7 +816,7 @@ public class Locations {
      * SYSTEM_MODULES and MODULE_PATH.
      *
      * The Location can be specified to accept overriding classes from the
-     * {@code -Xpatch:<module>=<path> } parameter.
+     * {@code --patch-module <module>=<path> } parameter.
      */
     private class ModuleLocationHandler extends LocationHandler implements Location {
         protected final String name;
@@ -1048,7 +1053,8 @@ public class Locations {
                 }
 
                 if (p.getFileName().toString().endsWith(".jar") && fsInfo.exists(p)) {
-                    try (FileSystem fs = FileSystems.newFileSystem(p, null)) {
+                    URI uri = URI.create("jar:" + p.toUri());
+                    try (FileSystem fs = FileSystems.newFileSystem(uri, fsEnv, null)) {
                         Path moduleInfoClass = fs.getPath("module-info.class");
                         if (Files.exists(moduleInfoClass)) {
                             String moduleName = readModuleName(moduleInfoClass);

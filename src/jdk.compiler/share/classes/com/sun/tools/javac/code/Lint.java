@@ -175,6 +175,11 @@ public class Lint
         EMPTY("empty"),
 
         /**
+         * Warn about issues regarding module exports.
+         */
+        EXPORTS("exports"),
+
+        /**
          * Warn about falling through from one case of a switch statement to the next.
          */
         FALLTHROUGH("fallthrough"),

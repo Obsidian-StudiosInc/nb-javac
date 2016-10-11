@@ -363,6 +363,19 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         return (flags_field & DEPRECATED) != 0;
     }
 
+    public boolean isDeprecatableViaAnnotation() {
+        switch (getKind()) {
+            case LOCAL_VARIABLE:
+            case PACKAGE:
+            case PARAMETER:
+            case RESOURCE_VARIABLE:
+            case EXCEPTION_PARAMETER:
+                return false;
+            default:
+                return true;
+        }
+    }
+
     public boolean isStatic() {
         return
             (flags() & STATIC) != 0 ||
@@ -908,7 +921,6 @@ public abstract class Symbol extends AnnoConstruct implements Element {
 
         /**
          * Create a ModuleSymbol with an associated module-info ClassSymbol.
-         * The name of the module may be null, if it is not known yet.
          */
         public static ModuleSymbol create(Name name, Name module_info) {
             ModuleSymbol msym = new ModuleSymbol(name, null);

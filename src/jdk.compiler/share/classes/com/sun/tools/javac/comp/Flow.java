@@ -1125,7 +1125,7 @@ public class Flow {
                     if (types.asSuper(sup, syms.autoCloseableType.tsym) != null) {
                         Symbol closeMethod = rs.resolveQualifiedMethod(tree,
                                 attrEnv,
-                                sup,
+                                types.skipTypeVars(sup, false),
                                 names.close,
                                 List.<Type>nil(),
                                 List.<Type>nil());

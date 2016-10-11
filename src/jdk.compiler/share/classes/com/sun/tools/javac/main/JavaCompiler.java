@@ -69,7 +69,9 @@ import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCLambda;
 import com.sun.tools.javac.tree.JCTree.JCMemberReference;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
+import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
+import com.sun.tools.javac.tree.JCTree.Tag;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.JCDiagnostic.Factory;
@@ -348,8 +350,12 @@ public class JavaCompiler {
                 }
             };
 
-    protected final ModuleFinder.SourceFileCompleter sourceFileCompleter =
-            (fo, symbolGetter) -> readSourceFile(parseImplicitFile(fo), null, symbolGetter);
+    protected final ModuleFinder.ModuleInfoSourceFileCompleter moduleInfoSourceFileCompleter =
+            fo -> (ModuleSymbol) readSourceFile(parseImplicitFile(fo), null, tl -> {
+                return tl.defs.nonEmpty() && tl.defs.head.hasTag(Tag.MODULEDEF) ?
+                        ((JCModuleDecl) tl.defs.head).sym.module_info :
+                        syms.defineClass(names.module_info, syms.errModule);
+            }).owner;
 
     /**
      * Command line options.
@@ -430,7 +436,7 @@ public class JavaCompiler {
         duplicateClassChecker = context.get(DuplicateClassChecker.class);
 
         finder.sourceCompleter = sourceCompleter;
-        moduleFinder.sourceFileCompleter = sourceFileCompleter;
+        moduleFinder.sourceFileCompleter = moduleInfoSourceFileCompleter;
 
         options = Options.instance(context);
 
@@ -447,8 +453,8 @@ public class JavaCompiler {
 
         verboseCompilePolicy = options.isSet("verboseCompilePolicy");
 
-        if (options.isSet("shouldstop.at") &&
-            CompileState.valueOf(options.get("shouldstop.at")) == CompileState.ATTR)
+        if (options.isSet("should-stop.at") &&
+            CompileState.valueOf(options.get("should-stop.at")) == CompileState.ATTR)
             compilePolicy = CompilePolicy.ATTR_ONLY;
         else
             compilePolicy = CompilePolicy.decode(options.get("compilePolicy"));
@@ -461,14 +467,14 @@ public class JavaCompiler {
             : null;
 
         shouldStopPolicyIfError =
-            options.isSet("shouldstop.at") // backwards compatible
-            ? CompileState.valueOf(options.get("shouldstop.at"))
-            : options.isSet("shouldstop.ifError")
-            ? CompileState.valueOf(options.get("shouldstop.ifError"))
+            options.isSet("should-stop.at") // backwards compatible
+            ? CompileState.valueOf(options.get("should-stop.at"))
+            : options.isSet("should-stop.ifError")
+            ? CompileState.valueOf(options.get("should-stop.ifError"))
             : CompileState.INIT;
         shouldStopPolicyIfNoError =
-            options.isSet("shouldstop.ifNoError")
-            ? CompileState.valueOf(options.get("shouldstop.ifNoError"))
+            options.isSet("should-stop.ifNoError")
+            ? CompileState.valueOf(options.get("should-stop.ifNoError"))
             : CompileState.GENERATE;
 
         if (options.isUnset("diags.legacy"))
@@ -809,21 +815,22 @@ public class JavaCompiler {
     }
 
     private JCTree.JCCompilationUnit parseImplicitFile(JavaFileObject filename) {
-        JCTree.JCCompilationUnit tree = null;
         JavaFileObject prev = log.useSource(filename);
         try {
-            if (notYetEntered != null)
-                tree = notYetEntered.remove(filename);
-            if (tree == null)
-                tree = parse(filename, filename.getCharContent(false));
+            JCTree.JCCompilationUnit t = null;
+            if (notYetEntered != null) {
+                t = notYetEntered.remove(filename);                
+            }
+            if (t == null) {
+                t = parse(filename, filename.getCharContent(false));
+            }
+            return t;
         } catch (IOException e) {
             log.error("error.reading.file", filename, JavacFileManager.getMessage(e));
-            tree = make.TopLevel(List.<JCTree>nil());
-            tree.sourcefile = filename;
+            return make.TopLevel(List.<JCTree>nil());
         } finally {
             log.useSource(prev);
         }
-        return tree;
     }
 
     /** Compile a ClassSymbol from source, optionally using the given compilation unit as
@@ -850,7 +857,6 @@ public class JavaCompiler {
                                            throws CompletionFailure {
         Assert.checkNonNull(tree);
 
-
         if (!taskListener.isEmpty()) {
             TaskEvent e = new TaskEvent(TaskEvent.Kind.ENTER, tree);
             taskListener.started(e);
@@ -866,7 +872,8 @@ public class JavaCompiler {
         // have enough modules available to access java.lang, and
         // so risk getting FatalError("no.java.lang") from MemberEnter.
         if (!modules.enter(List.of(tree), expectedSymbol)) {
-            throw new CompletionFailure(expectedSymbol /*TODO: null!!!*/, diags.fragment("cant.resolve.modules"));
+            throw new CompletionFailure(symbolGetter.apply(tree),
+                                        diags.fragment("cant.resolve.modules"));
         }
 
         enter.complete(List.of(tree), expectedSymbol);
