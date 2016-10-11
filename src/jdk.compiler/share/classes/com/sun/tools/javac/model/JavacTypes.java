@@ -38,6 +38,7 @@ import javax.lang.model.type.*;
 
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.*;
+import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.DefinedBy.Api;
 
@@ -65,6 +66,8 @@ public class JavacTypes implements javax.lang.model.util.Types {
 
     protected JavacTypes(Context context) {
         context.put(JavacTypes.class, this);
+        //Need ensure ClassReader is initialized before Symtab:
+        ClassReader.instance(context);
         syms = Symtab.instance(context);
         types = Types.instance(context);
     }
@@ -220,6 +223,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
         case DECLARED:
         case ERROR:
         case TYPEVAR:
+        case OTHER:
             return new Type.WildcardType(bound, bkind, syms.boundClass);
         default:
             throw new IllegalArgumentException(bound.toString());

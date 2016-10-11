@@ -238,9 +238,7 @@ public class TypeAnnotations {
             // Type annotations and declaration annotations on an
             // Element
         } else {
-            Assert.error("annotationTargetType(): unrecognized Attribute name " + e.value.name +
-                    " (" + e.value.name.getClass() + ")");
-            return AnnotationType.DECLARATION;
+            return AnnotationType.NONE;
         }
         return AnnotationType.NONE;
     }
@@ -1137,7 +1135,7 @@ public class TypeAnnotations {
                         separateAnnotationsKinds(tree, null, tree.sym, pos);
                     } else {
                         final TypeAnnotationPosition pos =
-                            TypeAnnotationPosition.methodReturn(tree.restype.pos);
+                            TypeAnnotationPosition.methodReturn(tree.restype != null ? tree.restype.pos : tree.pos);
                         separateAnnotationsKinds(tree.restype,
                                                  tree.sym.type.getReturnType(),
                                                  tree.sym, pos);
