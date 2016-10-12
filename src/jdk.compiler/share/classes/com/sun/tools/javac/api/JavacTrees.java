@@ -423,15 +423,17 @@ public class JavacTrees extends DocTrees {
         Symbol sym = TreeInfo.symbolFor(tree);
         if (sym == null) {
             for (TreePath p = path; p != null; p = p.getParentPath()) {
-                JCTree t = (JCTree) p.getLeaf();
-                if (t.hasTag(JCTree.Tag.CLASSDEF)) {
-                    JCClassDecl ct = (JCClassDecl) t;
-                    if (ct.sym != null) {
-                        if ((ct.sym.flags_field & Flags.UNATTRIBUTED) != 0) {
-                            attr.attribClass(ct.pos(), ct.sym);
-                            sym = TreeInfo.symbolFor(tree);
+                if (p.getLeaf() instanceof JCTree) {
+                    JCTree t = (JCTree) p.getLeaf();
+                    if (t.hasTag(JCTree.Tag.CLASSDEF)) {
+                        JCClassDecl ct = (JCClassDecl) t;
+                        if (ct.sym != null) {
+                            if ((ct.sym.flags_field & Flags.UNATTRIBUTED) != 0) {
+                                attr.attribClass(ct.pos(), ct.sym);
+                                sym = TreeInfo.symbolFor(tree);
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
             }
