@@ -2635,7 +2635,9 @@ public class Attr extends JCTree.Visitor {
             result = that.type = types.createErrorType(pt());
             return;
         } catch (BreakAttr ba) {
-            check(that, currentTarget, KindSelector.VAL, resultInfo);
+            if (currentTarget != null) {
+                check(that, currentTarget, KindSelector.VAL, resultInfo);
+            }
             needsRecovery = false;
             throw ba;
         } catch (Throwable t) {
