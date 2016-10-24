@@ -86,6 +86,7 @@ import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.main.Option.*;
 import static com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag.*;
+import java.util.Iterator;
 
 import static javax.tools.StandardLocation.CLASS_OUTPUT;
 
@@ -1901,8 +1902,17 @@ public class JavaCompiler {
         return now() - then;
     }
 
-    public void newRound() {
-        inputFiles.clear();
-        todo.clear();
+    public void newRound(final Set<? extends JCCompilationUnit> treesToClean) {
+        for (JCCompilationUnit treeToClean : treesToClean) {
+            if (treeToClean.sourcefile != null) {
+                inputFiles.remove(treeToClean.sourcefile);
+            }
+        }
+        for (Iterator<Env<AttrContext>> it = todo.iterator(); it.hasNext();) {
+            final Env<AttrContext> env = it.next();
+            if (treesToClean.contains(env.toplevel)) {
+                it.remove();
+            }
+        }
     }
 }

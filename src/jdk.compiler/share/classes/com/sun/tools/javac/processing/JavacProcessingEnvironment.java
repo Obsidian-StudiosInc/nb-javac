@@ -1262,7 +1262,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             }
             filer.newRound();
             messager.newRound();
-            compiler.newRound();
+            compiler.newRound(treesToClean);
             modules.newRound();
             types.newRound();
         }
