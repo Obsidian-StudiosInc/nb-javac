@@ -32,6 +32,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.tools.JavaFileObject;
 
+import com.sun.source.tree.LambdaExpressionTree.BodyKind;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.tree.*;
@@ -229,7 +230,7 @@ public class Flow {
             diagHandler = new Log.DiscardDiagnosticHandler(log);
         }
         try {
-            new AliveAnalyzer().analyzeTree(env, that, make);
+            new LambdaAliveAnalyzer().analyzeTree(env, that, make);
         } finally {
             if (!speculative) {
                 log.popDiagnosticHandler(diagHandler);
@@ -246,19 +247,7 @@ public class Flow {
         //related errors, which will allow for more errors to be detected
         Log.DiagnosticHandler diagHandler = new Log.DiscardDiagnosticHandler(log);
         try {
-            new AssignAnalyzer() {
-                WriteableScope enclosedSymbols = WriteableScope.create(env.enclClass.sym);
-                @Override
-                public void visitVarDef(JCVariableDecl tree) {
-                    enclosedSymbols.enter(tree.sym);
-                    super.visitVarDef(tree);
-                }
-                @Override
-                protected boolean trackable(VarSymbol sym) {
-                    return enclosedSymbols.includes(sym) &&
-                           sym.owner.kind == MTH;
-                }
-            }.analyzeTree(env, that);
+            new LambdaAssignAnalyzer(env).analyzeTree(env, that);
             LambdaFlowAnalyzer flowAnalyzer = new LambdaFlowAnalyzer();
             flowAnalyzer.analyzeTree(env, that, make);
             return flowAnalyzer.inferredThrownTypes;
@@ -890,9 +879,9 @@ public class Flow {
             List<Type> caughtPrev = caught;
             ListBuffer<FlowPendingExit> pendingExitsPrev = pendingExits;
             Lint lintPrev = lint;
-
+            boolean anonymousClass = tree.name == names.empty;
             pendingExits = new ListBuffer<>();
-            if (tree.name != names.empty) {
+            if (!anonymousClass) {
                 caught = List.nil();
             }
             classDef = tree;
@@ -912,7 +901,7 @@ public class Flow {
 
                 // add intersection of all thrown clauses of initial constructors
                 // to set of caught exceptions, unless class is anonymous.
-                if (tree.name != names.empty) {
+                if (!anonymousClass) {
                     boolean firstConstructor = true;
                     for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
                         if (TreeInfo.isInitialConstructor(l.head)) {
@@ -944,10 +933,11 @@ public class Flow {
                 // Changing the throws clause on the fly is okay here because
                 // the anonymous constructor can't be invoked anywhere else,
                 // and its type hasn't been cached.
-                if (tree.name == names.empty && thrownPrev != null) {
+                if (anonymousClass && thrownPrev != null) {
                     for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
-                        if (TreeInfo.isInitialConstructor(l.head)) {
+                        if (TreeInfo.isConstructor(l.head)) {
                             JCMethodDecl mdef = (JCMethodDecl)l.head;
+                            scan(mdef);
                             mdef.thrown = make.Types(thrown);
                             mdef.sym.type = types.createMethodTypeWithThrown(mdef.sym.type, thrown);
                         }
@@ -957,6 +947,8 @@ public class Flow {
 
                 // process all the methods
                 for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
+                    if (anonymousClass && TreeInfo.isConstructor(l.head))
+                        continue; // there can never be an uncaught exception.
                     if (l.head.hasTag(METHODDEF)) {
                         scan(l.head);
                         errorUncaught();
@@ -1367,6 +1359,79 @@ public class Flow {
                 this.thrown = this.caught = null;
                 this.classDef = null;
             }
+        }
+    }
+
+    /**
+     * Specialized pass that performs reachability analysis on a lambda
+     */
+    class LambdaAliveAnalyzer extends AliveAnalyzer {
+
+        boolean inLambda;
+
+        @Override
+        public void visitReturn(JCReturn tree) {
+            //ignore lambda return expression (which might not even be attributed)
+            recordExit(new PendingExit(tree));
+        }
+
+        @Override
+        public void visitLambda(JCLambda tree) {
+            if (inLambda || tree.getBodyKind() == BodyKind.EXPRESSION) {
+                return;
+            }
+            inLambda = true;
+            try {
+                super.visitLambda(tree);
+            } finally {
+                inLambda = false;
+            }
+        }
+
+        @Override
+        public void visitClassDef(JCClassDecl tree) {
+            //skip
+        }
+    }
+
+    /**
+     * Specialized pass that performs DA/DU on a lambda
+     */
+    class LambdaAssignAnalyzer extends AssignAnalyzer {
+        WriteableScope enclosedSymbols;
+        boolean inLambda;
+
+        LambdaAssignAnalyzer(Env<AttrContext> env) {
+            enclosedSymbols = WriteableScope.create(env.enclClass.sym);
+        }
+
+        @Override
+        public void visitLambda(JCLambda tree) {
+            if (inLambda) {
+                return;
+            }
+            inLambda = true;
+            try {
+                super.visitLambda(tree);
+            } finally {
+                inLambda = false;
+            }
+        }
+
+        @Override
+        public void visitVarDef(JCVariableDecl tree) {
+            enclosedSymbols.enter(tree.sym);
+            super.visitVarDef(tree);
+        }
+        @Override
+        protected boolean trackable(VarSymbol sym) {
+            return enclosedSymbols.includes(sym) &&
+                   sym.owner.kind == MTH;
+        }
+
+        @Override
+        public void visitClassDef(JCClassDecl tree) {
+            //skip
         }
     }
 
