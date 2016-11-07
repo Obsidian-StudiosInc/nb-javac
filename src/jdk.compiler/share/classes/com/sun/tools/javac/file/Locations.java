@@ -39,10 +39,10 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.ProviderNotFoundException;
-import java.nio.file.spi.FileSystemProvider;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -63,11 +63,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.zip.ZipFile;
 
 import javax.lang.model.SourceVersion;
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileManager.Location;
+import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardJavaFileManager.PathFactory;
 import javax.tools.StandardLocation;
@@ -78,6 +78,7 @@ import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
+import com.sun.tools.javac.util.JDK9Wrappers;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.jvm.ModuleNameReader;
@@ -138,7 +139,11 @@ public class Locations {
     }
 
     Path getPath(String first, String... more) {
-        return pathFactory.getPath(first, more);
+        try {
+            return pathFactory.getPath(first, more);
+        } catch (InvalidPathException ipe) {
+            throw new IllegalArgumentException(ipe);
+        }
     }
 
     public void close() throws IOException {
@@ -158,10 +163,9 @@ public class Locations {
         }
     }
 
-    // could replace Lint by "boolean warn"
-    void update(Log log, Lint lint, FSInfo fsInfo) {
+    void update(Log log, boolean warn, FSInfo fsInfo) {
         this.log = log;
-        warn = lint.isEnabled(Lint.LintCategory.PATH);
+        this.warn = warn;
         this.fsInfo = fsInfo;
     }
 
@@ -1103,6 +1107,11 @@ public class Locations {
 
                 if (p.getFileName().toString().endsWith(".jmod")) {
                     try {
+                        // check if the JMOD file is valid
+                        JDK9Wrappers.JmodFile.checkMagic(p);
+
+                        // No JMOD file system.  Use JarFileSystem to
+                        // workaround for now
                         FileSystem fs = fileSystems.get(p);
                         if (fs == null) {
                             URI uri = URI.create("jar:" + p.toUri());
