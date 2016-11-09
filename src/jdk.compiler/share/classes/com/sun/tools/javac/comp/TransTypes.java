@@ -407,6 +407,9 @@ public class TransTypes extends TreeTranslator {
                                        Type dest) {
             if (method.type.isErroneous())
                 return false;
+            Type memberType = types.memberType(dest, method);
+            if (memberType != null && memberType.isErroneous())
+                return false;
             if (impl != method) {
                 // If either method or impl have different erasures as
                 // members of dest, a bridge is needed.
