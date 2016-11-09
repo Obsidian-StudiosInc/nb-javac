@@ -2522,6 +2522,7 @@ public class Attr extends JCTree.Visitor {
         try {
             if (needsRecovery && isSerializable(pt())) {
                 localEnv.info.isSerializable = true;
+                localEnv.info.isLambda = true;
             }
             List<Type> explicitParamTypes = null;
             if (that.paramKind == JCLambda.ParameterKind.EXPLICIT) {
@@ -3106,7 +3107,7 @@ public class Attr extends JCTree.Visitor {
                 }
 
                 if (isTargetSerializable) {
-                    chk.checkElemAccessFromSerializableLambda(that);
+                    chk.checkAccessFromSerializableElement(that, true);
                 }
             }
 
@@ -3592,7 +3593,7 @@ public class Attr extends JCTree.Visitor {
         }
 
         if (env.info.isSerializable) {
-            chk.checkElemAccessFromSerializableLambda(tree);
+            chk.checkAccessFromSerializableElement(tree, env.info.isLambda);
         }
 
         result = checkId(tree, env1.enclClass.sym.type, sym, env, resultInfo);
@@ -3737,7 +3738,7 @@ public class Attr extends JCTree.Visitor {
         }
 
         if (env.info.isSerializable) {
-            chk.checkElemAccessFromSerializableLambda(tree);
+            chk.checkAccessFromSerializableElement(tree, env.info.isLambda);
         }
 
         env.info.selectSuper = selectSuperPrev;
@@ -4657,6 +4658,7 @@ public class Attr extends JCTree.Visitor {
                 chk.checkDeprecatedAnnotation(env.tree.pos(), c);
                 chk.checkClassOverrideEqualsAndHashIfNeeded(env.tree.pos(), c);
                 chk.checkFunctionalInterface((JCClassDecl) env.tree, c);
+                chk.checkLeaksNotAccessible(env, (JCClassDecl) env.tree);
             } finally {
                 env.info.returnResult = prevReturnRes;
                 log.useSource(prev);

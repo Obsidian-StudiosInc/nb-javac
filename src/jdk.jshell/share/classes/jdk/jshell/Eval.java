@@ -521,10 +521,13 @@ class Eval {
 
     List<SnippetEvent> drop(Snippet si) {
         Unit c = new Unit(state, si);
-
-        Set<Unit> ins = c.dependents().collect(toSet());
-        Set<Unit> outs = compileAndLoad(ins);
-
+        Set<Unit> outs;
+        if (si instanceof PersistentSnippet) {
+            Set<Unit> ins = c.dependents().collect(toSet());
+            outs = compileAndLoad(ins);
+        } else {
+            outs = Collections.emptySet();
+        }
         return events(c, outs, null, null);
     }
 
@@ -852,6 +855,8 @@ class Eval {
                 case PUBLIC:
                 case PROTECTED:
                 case PRIVATE:
+                    // quietly ignore, user cannot see effects one way or the other
+                    break;
                 case STATIC:
                 case FINAL:
                     list.add(mod);
