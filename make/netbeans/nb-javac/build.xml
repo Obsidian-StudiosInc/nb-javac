@@ -87,6 +87,7 @@
         <jar destfile="${dist.dir}/javac-impl.jar">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/tools/**/*"/>
+		<include name="jdk/internal/shellsupport/**/*"/>
             </fileset>
         </jar>
         <delete file="${dist.jar}"/>
