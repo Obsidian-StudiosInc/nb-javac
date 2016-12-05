@@ -61,6 +61,11 @@ public class JDIInitiator {
      */
     public JDIInitiator(int port, List<String> remoteVMOptions, String remoteAgent,
             boolean isLaunch, String host) {
+        this(port, remoteVMOptions, remoteAgent, isLaunch, host, null);
+    }
+    
+    public JDIInitiator(int port, List<String> remoteVMOptions, String remoteAgent,
+            boolean isLaunch, String host, Map<String, String> customConnectorArgs) {
         this.remoteAgent = remoteAgent;
         String connectorName
                 = isLaunch
@@ -76,6 +81,9 @@ public class JDIInitiator {
                         : new HashMap<>();
         if (host != null && !isLaunch) {
             argumentName2Value.put("localAddress", host);
+        }
+        if (customConnectorArgs != null) {
+            argumentName2Value.putAll(customConnectorArgs);
         }
         this.connectorArgs = mergeConnectorArgs(connector, argumentName2Value);
         this.vm = isLaunch
