@@ -513,7 +513,16 @@ public class JShell implements AutoCloseable {
     public void close() {
         if (!closed) {
             closeDown();
-            executionControl().close();
+            // NB-FIX
+            try {
+                // in the case previous initialization has failed
+                if (executionControl != null) {
+                    executionControl().close();
+                }
+            } catch (ExecutionControlException ex) {
+                // do not worry
+            }
+            // NB-FIX-END
             if (sourceCodeAnalysis != null) {
                 sourceCodeAnalysis.close();
             }
@@ -742,10 +751,14 @@ public class JShell implements AutoCloseable {
     }
 
     // --- private / package-private implementation support ---
-    ExecutionControl executionControl() {
+    ExecutionControl executionControl() throws EngineTerminationException {
         if (executionControl == null) {
             try {
                 executionControl =  executionControlGenerator.generate(new ExecutionEnvImpl());
+            // NB-FIX
+            } catch (EngineTerminationException ex) {
+                throw ex;
+            // NB-FIX-END
             } catch (Throwable ex) {
                 throw new InternalError("Launching execution engine threw: " + ex.getMessage(), ex);
             }
