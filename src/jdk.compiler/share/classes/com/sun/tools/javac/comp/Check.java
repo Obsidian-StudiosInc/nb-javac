@@ -228,10 +228,18 @@ public class Check {
     void warnDeprecated(DiagnosticPosition pos, Symbol sym) {
         if (sym.isDeprecatedForRemoval()) {
             if (!lint.isSuppressed(LintCategory.REMOVAL)) {
-                removalHandler.report(pos, "has.been.deprecated.for.removal", sym, sym.location());
+                if (sym.kind == MDL) {
+                    removalHandler.report(pos, "has.been.deprecated.for.removal.module", sym);
+                } else {
+                    removalHandler.report(pos, "has.been.deprecated.for.removal", sym, sym.location());
+                }
             }
         } else if (!lint.isSuppressed(LintCategory.DEPRECATION)) {
-            deprecationHandler.report(pos, "has.been.deprecated", sym, sym.location());
+            if (sym.kind == MDL) {
+                deprecationHandler.report(pos, "has.been.deprecated.module", sym);
+            } else {
+                deprecationHandler.report(pos, "has.been.deprecated", sym, sym.location());
+            }
         }
     }
 
@@ -567,12 +575,8 @@ public class Check {
     Type checkType(final DiagnosticPosition pos, final Type found, final Type req, final CheckContext checkContext) {
         final InferenceContext inferenceContext = checkContext.inferenceContext();
         if (inferenceContext.free(req) || inferenceContext.free(found)) {
-            inferenceContext.addFreeTypeListener(List.of(req, found), new FreeTypeListener() {
-                @Override
-                public void typesInferred(InferenceContext inferenceContext) {
-                    checkType(pos, inferenceContext.asInstType(found), inferenceContext.asInstType(req), checkContext);
-                }
-            });
+            inferenceContext.addFreeTypeListener(List.of(req, found),
+                    solvedContext -> checkType(pos, solvedContext.asInstType(found), solvedContext.asInstType(req), checkContext));
         }
         if (req.hasTag(ERROR))
             return req;
@@ -616,13 +620,10 @@ public class Check {
                 && types.isSameType(tree.expr.type, tree.clazz.type)
                 && !(ignoreAnnotatedCasts && TreeInfo.containsTypeAnnotation(tree.clazz))
                 && !is292targetTypeCast(tree)) {
-            deferredLintHandler.report(new DeferredLintHandler.LintLogger() {
-                @Override
-                public void report() {
-                    if (lint.isEnabled(Lint.LintCategory.CAST))
-                        log.warning(Lint.LintCategory.CAST,
-                                tree.pos(), "redundant.cast", tree.clazz.type);
-                }
+            deferredLintHandler.report(() -> {
+                if (lint.isEnabled(LintCategory.CAST))
+                    log.warning(LintCategory.CAST,
+                            tree.pos(), "redundant.cast", tree.clazz.type);
             });
         }
     }
@@ -955,11 +956,8 @@ public class Check {
         // System.out.println("method : " + owntype);
         // System.out.println("actuals: " + argtypes);
         if (inferenceContext.free(mtype)) {
-            inferenceContext.addFreeTypeListener(List.of(mtype), new FreeTypeListener() {
-                public void typesInferred(InferenceContext inferenceContext) {
-                    checkMethod(inferenceContext.asInstType(mtype), sym, env, argtrees, argtypes, useVarargs, inferenceContext);
-                }
-            });
+            inferenceContext.addFreeTypeListener(List.of(mtype),
+                    solvedContext -> checkMethod(solvedContext.asInstType(mtype), sym, env, argtrees, argtypes, useVarargs, solvedContext));
             return mtype;
         }
         Type owntype = mtype;
@@ -2108,13 +2106,8 @@ public class Check {
         }
     }
 
-    private Filter<Symbol> equalsHasCodeFilter = new Filter<Symbol>() {
-        public boolean accepts(Symbol s) {
-            return MethodSymbol.implementation_filter.accepts(s) &&
-                    (s.flags() & BAD_OVERRIDE) == 0;
-
-        }
-    };
+    private Filter<Symbol> equalsHasCodeFilter = s -> MethodSymbol.implementation_filter.accepts(s) &&
+            (s.flags() & BAD_OVERRIDE) == 0;
 
     public void checkClassOverrideEqualsAndHashIfNeeded(DiagnosticPosition pos,
             ClassSymbol someClass) {
@@ -2153,6 +2146,18 @@ public class Check {
             if (overridesEquals && !overridesHashCode) {
                 log.warning(LintCategory.OVERRIDES, pos,
                         "override.equals.but.not.hashcode", someClass);
+            }
+        }
+    }
+
+    public void checkModuleName (JCModuleDecl tree) {
+        Name moduleName = tree.sym.name;
+        Assert.checkNonNull(moduleName);
+        if (lint.isEnabled(LintCategory.MODULE)) {
+            String moduleNameString = moduleName.toString();
+            int nameLength = moduleNameString.length();
+            if (nameLength > 0 && Character.isDigit(moduleNameString.charAt(nameLength - 1))) {
+                log.warning(Lint.LintCategory.MODULE, tree.qualId.pos(), Warnings.PoorChoiceForModuleName(moduleName));
             }
         }
     }
@@ -2210,7 +2215,7 @@ public class Check {
                         log.useSource(prevSource.getFile());
                     }
                 } else if (sym.kind == TYP) {
-                    checkClass(pos, sym, List.<JCTree>nil());
+                    checkClass(pos, sym, List.nil());
                 }
             } else {
                 //not completed yet
@@ -2302,7 +2307,7 @@ public class Check {
 
 
     void checkNonCyclic(DiagnosticPosition pos, TypeVar t) {
-        checkNonCyclic1(pos, t, List.<TypeVar>nil());
+        checkNonCyclic1(pos, t, List.nil());
     }
 
     private void checkNonCyclic1(DiagnosticPosition pos, Type t, List<TypeVar> seen) {
@@ -3312,13 +3317,8 @@ public class Check {
     void checkDeprecated(final DiagnosticPosition pos, final Symbol other, final Symbol s) {
         if ( (s.isDeprecatedForRemoval()
                 || s.isDeprecated() && !other.isDeprecated())
-              && s.outermostClass() != other.outermostClass()) {
-            deferredLintHandler.report(new DeferredLintHandler.LintLogger() {
-                @Override
-                public void report() {
-                    warnDeprecated(pos, s);
-                }
-            });
+                && (s.outermostClass() != other.outermostClass() || s.outermostClass() == null)) {
+            deferredLintHandler.report(() -> warnDeprecated(pos, s));
         }
     }
 
@@ -3459,12 +3459,7 @@ public class Check {
             int opc = ((OperatorSymbol)operator).opcode;
             if (opc == ByteCodes.idiv || opc == ByteCodes.imod
                 || opc == ByteCodes.ldiv || opc == ByteCodes.lmod) {
-                deferredLintHandler.report(new DeferredLintHandler.LintLogger() {
-                    @Override
-                    public void report() {
-                        warnDivZero(pos);
-                    }
-                });
+                deferredLintHandler.report(() -> warnDivZero(pos));
             }
         }
     }
@@ -3921,7 +3916,7 @@ public class Check {
             }
 
             if (whatPackage.modle != inPackage.modle && whatPackage.modle != syms.java_base) {
-                //check that relativeTo.modle requires public what.modle, somehow:
+                //check that relativeTo.modle requires transitive what.modle, somehow:
                 List<ModuleSymbol> todo = List.of(inPackage.modle);
 
                 while (todo.nonEmpty()) {
@@ -3930,13 +3925,23 @@ public class Check {
                     if (current == whatPackage.modle)
                         return ; //OK
                     for (RequiresDirective req : current.requires) {
-                        if (req.isPublic()) {
+                        if (req.isTransitive()) {
                             todo = todo.prepend(req.module);
                         }
                     }
                 }
 
-                log.warning(LintCategory.EXPORTS, pos, Warnings.LeaksNotAccessibleNotRequiredPublic(kindName(what), what, what.packge().modle));
+                log.warning(LintCategory.EXPORTS, pos, Warnings.LeaksNotAccessibleNotRequiredTransitive(kindName(what), what, what.packge().modle));
             }
         }
+
+    void checkModuleExists(final DiagnosticPosition pos, ModuleSymbol msym) {
+        if (msym.kind != MDL) {
+            deferredLintHandler.report(() -> {
+                if (lint.isEnabled(LintCategory.MODULE))
+                    log.warning(LintCategory.MODULE, pos, Warnings.ModuleNotFound(msym));
+            });
+        }
+    }
+
 }

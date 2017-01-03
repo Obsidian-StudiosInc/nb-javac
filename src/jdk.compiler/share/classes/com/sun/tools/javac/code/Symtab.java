@@ -309,14 +309,14 @@ public class Symtab {
                     MethodSymbol boxMethod =
                         new MethodSymbol(PUBLIC | STATIC, names.valueOf,
                                          new MethodType(List.of(type), sym.type,
-                                List.<Type>nil(), methodClass),
+                                List.nil(), methodClass),
                             sym);
                     sym.members().enter(boxMethod);
                     MethodSymbol unboxMethod =
                         new MethodSymbol(PUBLIC,
                             type.tsym.name.append(names.Value), // x.intValue()
-                            new MethodType(List.<Type>nil(), type,
-                                List.<Type>nil(), methodClass),
+                            new MethodType(List.nil(), type,
+                                List.nil(), methodClass),
                             sym);
                     sym.members().enter(unboxMethod);
                 }
@@ -383,7 +383,19 @@ public class Symtab {
         addRootPackageFor(unnamedModule);
         unnamedModule.enclosedPackages = unnamedModule.enclosedPackages.prepend(unnamedModule.unnamedPackage);
 
-        errModule = new ModuleSymbol(names.empty, null) { };
+        errModule = new ModuleSymbol(names.empty, null) {
+                {
+                    directives = List.nil();
+                    exports = List.nil();
+                    provides = List.nil();
+                    uses = List.nil();
+                    ModuleSymbol java_base = enterModule(names.java_base);
+                    com.sun.tools.javac.code.Directive.RequiresDirective d =
+                            new com.sun.tools.javac.code.Directive.RequiresDirective(java_base,
+                                    EnumSet.of(com.sun.tools.javac.code.Directive.RequiresFlag.MANDATED));
+                    requires = List.of(d);
+                }
+            };
         addRootPackageFor(errModule);
 
         noModule = new ModuleSymbol(names.empty, null) {
@@ -505,8 +517,8 @@ public class Symtab {
         enumFinalFinalize =
             new MethodSymbol(PROTECTED|FINAL|HYPOTHETICAL,
                              names.finalize,
-                             new MethodType(List.<Type>nil(), voidType,
-                                            List.<Type>nil(), methodClass),
+                             new MethodType(List.nil(), voidType,
+                                            List.nil(), methodClass),
                              enumSym);
         listType = enterClass("java.util.List");
         collectionsType = enterClass("java.util.Collections");
@@ -529,7 +541,7 @@ public class Symtab {
         autoCloseableType = enterClass("java.lang.AutoCloseable");
         autoCloseableClose = new MethodSymbol(PUBLIC,
                              names.close,
-                             new MethodType(List.<Type>nil(), voidType,
+                             new MethodType(List.nil(), voidType,
                                             List.of(exceptionType), methodClass),
                              autoCloseableType.tsym);
         trustMeType = enterClass("java.lang.SafeVarargs");
@@ -575,13 +587,13 @@ public class Symtab {
         arrayCloneMethod = new MethodSymbol(
             PUBLIC,
             names.clone,
-            new MethodType(List.<Type>nil(), objectType,
-                           List.<Type>nil(), methodClass),
+            new MethodType(List.nil(), objectType,
+                           List.nil(), methodClass),
             arrayClass);
         arrayClass.members().enter(arrayCloneMethod);
 
         if (java_base != noModule)
-            java_base.completer = sym -> moduleCompleter.complete(sym); //bootstrap issues
+            java_base.completer = moduleCompleter::complete; //bootstrap issues
 
     }
 
@@ -633,7 +645,7 @@ public class Symtab {
     }
 
     public ClassSymbol getClass(ModuleSymbol msym, Name flatName) {
-        Assert.checkNonNull(msym, () -> flatName.toString());
+        Assert.checkNonNull(msym, flatName::toString);
         return classes.getOrDefault(flatName, Collections.emptyMap()).get(msym);
     }
 
@@ -768,7 +780,8 @@ public class Symtab {
                 }
             };
         unnamedPackage.modle = module;
-        unnamedPackage.completer = sym -> initialCompleter.complete(sym);
+        //we cannot use a method reference below, as initialCompleter might be null now
+        unnamedPackage.completer = s -> initialCompleter.complete(s);
         module.unnamedPackage = unnamedPackage;
     }
 
@@ -781,7 +794,7 @@ public class Symtab {
         if (msym == null) {
             msym = ModuleSymbol.create(name, names.module_info);
             addRootPackageFor(msym);
-            msym.completer = sym -> moduleCompleter.complete(sym); //bootstrap issues
+            msym.completer = s -> moduleCompleter.complete(s); //bootstrap issues
             modules.put(name, msym);
         }
         return msym;

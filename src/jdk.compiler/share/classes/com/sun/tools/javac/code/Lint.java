@@ -118,6 +118,7 @@ public class Lint
             if (source.compareTo(Source.JDK1_9) >= 0) {
                 values.add(LintCategory.DEP_ANN);
             }
+            values.add(LintCategory.MODULE);
             values.add(LintCategory.REMOVAL);
         }
 
@@ -212,6 +213,11 @@ public class Lint
          * Warn about finally clauses that do not terminate normally.
          */
         FINALLY("finally"),
+
+        /**
+         * Warn about module system related issues.
+         */
+        MODULE("module"),
 
         /**
          * Warn about issues relating to use of command line options

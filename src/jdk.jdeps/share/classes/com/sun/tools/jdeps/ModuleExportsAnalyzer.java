@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.sun.tools.jdeps.Analyzer.NOT_FOUND;
 
@@ -68,21 +69,16 @@ public class ModuleExportsAnalyzer extends DepsAnalyzer {
 
         // A visitor to record the module-level dependences as well as
         // use of JDK internal APIs
-        Analyzer.Visitor visitor = new Analyzer.Visitor() {
-            @Override
-            public void visitDependence(String origin, Archive originArchive,
-                                        String target, Archive targetArchive)
-            {
-                Set<String> jdkInternals =
-                    deps.computeIfAbsent(originArchive, _k -> new HashMap<>())
-                        .computeIfAbsent(targetArchive, _k -> new HashSet<>());
+        Analyzer.Visitor visitor = (origin, originArchive, target, targetArchive) -> {
+            Set<String> jdkInternals =
+                deps.computeIfAbsent(originArchive, _k -> new HashMap<>())
+                    .computeIfAbsent(targetArchive, _k -> new HashSet<>());
 
-                Module module = targetArchive.getModule();
-                if (originArchive.getModule() != module &&
-                        module.isJDK() && !module.isExported(target)) {
-                    // use of JDK internal APIs
-                    jdkInternals.add(target);
-                }
+            Module module = targetArchive.getModule();
+            if (originArchive.getModule() != module &&
+                    module.isJDK() && !module.isExported(target)) {
+                // use of JDK internal APIs
+                jdkInternals.add(target);
             }
         };
 
@@ -140,20 +136,34 @@ public class ModuleExportsAnalyzer extends DepsAnalyzer {
         Set<Module> modules = builder.build().adjacentNodes(root);
 
         // if reduced is set, apply transition reduction
-        Set<Module> reducedSet = reduced ? builder.reduced().adjacentNodes(root)
-                                         : modules;
+        Set<Module> reducedSet;
+        if (reduced) {
+            Set<Module> nodes = builder.reduced().adjacentNodes(root);
+            if (nodes.size() == 1) {
+                // java.base only
+                reducedSet = nodes;
+            } else {
+                // java.base is mandated and can be excluded from the reduced graph
+                reducedSet = nodes.stream()
+                    .filter(m -> !"java.base".equals(m.name()) ||
+                                    jdkinternals.containsKey("java.base"))
+                    .collect(Collectors.toSet());
+            }
+        } else {
+            reducedSet = modules;
+        }
 
         modules.stream()
                .sorted(Comparator.comparing(Module::name))
                .forEach(m -> {
-                if (jdkinternals.containsKey(m)) {
-                    jdkinternals.get(m).stream()
-                        .sorted()
-                        .forEach(pn -> writer.format("   %s/%s%n", m, pn));
-                } else if (reducedSet.contains(m)){
-                    // if the transition reduction is applied, show the reduced graph
-                    writer.format("   %s%n", m);
-                }
+                    if (jdkinternals.containsKey(m)) {
+                        jdkinternals.get(m).stream()
+                            .sorted()
+                            .forEach(pn -> writer.format("   %s/%s%n", m, pn));
+                    } else if (reducedSet.contains(m)){
+                        // if the transition reduction is applied, show the reduced graph
+                        writer.format("   %s%n", m);
+                    }
             });
     }
 
@@ -163,7 +173,7 @@ public class ModuleExportsAnalyzer extends DepsAnalyzer {
         RootModule(String name) {
             super(name);
 
-            ModuleDescriptor.Builder builder = new ModuleDescriptor.Builder(name);
+            ModuleDescriptor.Builder builder = ModuleDescriptor.module(name);
             this.descriptor = builder.build();
         }
 

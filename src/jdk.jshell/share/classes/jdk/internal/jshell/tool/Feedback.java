@@ -116,6 +116,10 @@ class Feedback {
                 name, type, value, unresolved, errorLines);
     }
 
+    public String truncateVarValue(String value) {
+        return mode.truncateVarValue(value);
+    }
+
     public String getPrompt(String nextId) {
         return mode.getPrompt(nextId);
     }
@@ -416,6 +420,45 @@ class Feedback {
             return sb.toString();
         }
 
+        String truncateVarValue(String value) {
+            return truncateValue(value,
+                    bits(FormatCase.VARVALUE, FormatAction.ADDED,
+                            FormatWhen.PRIMARY, FormatResolve.OK,
+                            FormatUnresolved.UNRESOLVED0, FormatErrors.ERROR0));
+        }
+
+        String truncateValue(String value, long bits) {
+            if (value==null) {
+                return "";
+            } else {
+                // Retrieve the truncation length
+                String truncField = format(TRUNCATION_FIELD, bits);
+                if (truncField.isEmpty()) {
+                    // No truncation set, use whole value
+                    return value;
+                } else {
+                    // Convert truncation length to int
+                    // this is safe since it has been tested before it is set
+                    int trunc = Integer.parseUnsignedInt(truncField);
+                    int len = value.length();
+                    if (len > trunc) {
+                        if (trunc <= 13) {
+                            // Very short truncations have no room for "..."
+                            return value.substring(0, trunc);
+                        } else {
+                            // Normal truncation, make total length equal truncation length
+                            int endLen = trunc / 3;
+                            int startLen = trunc - 5 - endLen;
+                            return value.substring(0, startLen) + " ... " + value.substring(len -endLen);
+                        }
+                    } else {
+                        // Within truncation length, use whole value
+                        return value;
+                    }
+                }
+            }
+        }
+
         // Compute the display output given full context and values
         String format(FormatCase fc, FormatAction fa, FormatWhen fw,
                     FormatResolve fr, FormatUnresolved fu, FormatErrors fe,
@@ -425,33 +468,7 @@ class Feedback {
             String fname = name==null? "" : name;
             String ftype = type==null? "" : type;
             // Compute the representation of value
-            String fvalue;
-            if (value==null) {
-                fvalue = "";
-            } else {
-                // Retrieve the truncation length
-                String truncField = format(TRUNCATION_FIELD, bits);
-                if (truncField.isEmpty()) {
-                    // No truncation set, use whole value
-                    fvalue = value;
-                } else {
-                    // Convert truncation length to int
-                    // this is safe since it has been tested before it is set
-                    int trunc = Integer.parseUnsignedInt(truncField);
-                    if (value.length() > trunc) {
-                        if (trunc <= 5) {
-                            // Very short truncations have no room for "..."
-                            fvalue = value.substring(0, trunc);
-                        } else {
-                            // Normal truncation, make total length equal truncation length
-                            fvalue = value.substring(0, trunc - 4) + " ...";
-                        }
-                    } else {
-                        // Within truncation length, use whole value
-                        fvalue = value;
-                    }
-                }
-            }
+            String fvalue = truncateValue(value, bits);
             String funresolved = unresolved==null? "" : unresolved;
             String errors = errorLines.stream()
                     .map(el -> String.format(
@@ -865,7 +882,7 @@ class Feedback {
 
         void showTruncationSettings(Mode sm) {
             if (sm == null) {
-                modeMap.values().forEach(m -> showTruncationSettings(m));
+                modeMap.values().forEach(this::showTruncationSettings);
             } else {
                 List<Mode.Setting> trunc = sm.cases.get(TRUNCATION_FIELD);
                 if (trunc != null) {
@@ -880,7 +897,7 @@ class Feedback {
 
         void showPromptSettings(Mode sm) {
             if (sm == null) {
-                modeMap.values().forEach(m -> showPromptSettings(m));
+                modeMap.values().forEach(this::showPromptSettings);
             } else {
                 hard("/set prompt %s %s %s",
                         sm.name,
@@ -891,7 +908,7 @@ class Feedback {
 
         void showModeSettings(String umode, String msg) {
             if (umode == null) {
-                modeMap.values().forEach(n -> showModeSettings(n));
+                modeMap.values().forEach(this::showModeSettings);
             } else {
                 Mode m;
                 String retained = retainedMap.get(umode);
@@ -1255,7 +1272,7 @@ class Feedback {
                 return null;
             }
             if (at.isQuoted() ||
-                    !id.codePoints().allMatch(cp -> Character.isJavaIdentifierPart(cp))) {
+                    !id.codePoints().allMatch(Character::isJavaIdentifierPart)) {
                 errorat(err, id);
                 return null;
             }
@@ -1290,8 +1307,8 @@ class Feedback {
             // Failing an exact match, go searching
             Mode[] matches = modeMap.entrySet().stream()
                     .filter(e -> e.getKey().startsWith(umode))
-                    .map(e -> e.getValue())
-                    .toArray(size -> new Mode[size]);
+                    .map(Entry::getValue)
+                    .toArray(Mode[]::new);
             if (matches.length == 1) {
                 return matches[0];
             } else {

@@ -558,9 +558,9 @@ public class Resolve {
             // which is fine, see JLS 15.12.2.1
         } else if (mt.hasTag(FORALL) && typeargtypes.nonEmpty()) {
             ForAll pmt = (ForAll) mt;
-            if (typeargtypes.length() != pmt.tvars.length()) {
-                throw new InapplicableMethodException(diags).setMessage("arg.length.mismatch"); // not enough args
-            }
+            if (typeargtypes.length() != pmt.tvars.length())
+                 // not enough args
+                throw new InapplicableMethodException(diags).setMessage("wrong.number.type.args", Integer.toString(pmt.tvars.length()));
             // Check type arguments are within bounds
             List<Type> formals = pmt.tvars;
             List<Type> actuals = typeargtypes;
@@ -887,12 +887,8 @@ public class Resolve {
          */
         private void varargsAccessible(final Env<AttrContext> env, final Type t, final InferenceContext inferenceContext) {
             if (inferenceContext.free(t)) {
-                inferenceContext.addFreeTypeListener(List.of(t), new FreeTypeListener() {
-                    @Override
-                    public void typesInferred(InferenceContext inferenceContext) {
-                        varargsAccessible(env, inferenceContext.asInstType(t), inferenceContext);
-                    }
-                });
+                inferenceContext.addFreeTypeListener(List.of(t),
+                        solvedContext -> varargsAccessible(env, solvedContext.asInstType(t), solvedContext));
             } else {
                 if (!isAccessible(env, types.erasure(t))) {
                     Symbol location = env.enclClass.sym;
@@ -1857,47 +1853,43 @@ public class Resolve {
      * errors if some of the not-needed supertypes are missing/ill-formed).
      */
     Iterable<TypeSymbol> superclasses(final Type intype) {
-        return new Iterable<TypeSymbol>() {
-            public Iterator<TypeSymbol> iterator() {
-                return new Iterator<TypeSymbol>() {
+        return () -> new Iterator<TypeSymbol>() {
 
-                    List<TypeSymbol> seen = List.nil();
-                    TypeSymbol currentSym = symbolFor(intype);
-                    TypeSymbol prevSym = null;
+            List<TypeSymbol> seen = List.nil();
+            TypeSymbol currentSym = symbolFor(intype);
+            TypeSymbol prevSym = null;
 
-                    public boolean hasNext() {
-                        if (currentSym == syms.noSymbol) {
-                            currentSym = symbolFor(types.supertype(prevSym.type));
-                        }
-                        return currentSym != null;
-                    }
+            public boolean hasNext() {
+                if (currentSym == syms.noSymbol) {
+                    currentSym = symbolFor(types.supertype(prevSym.type));
+                }
+                return currentSym != null;
+            }
 
-                    public TypeSymbol next() {
-                        prevSym = currentSym;
-                        currentSym = syms.noSymbol;
-                        Assert.check(prevSym != null || prevSym != syms.noSymbol);
-                        return prevSym;
-                    }
+            public TypeSymbol next() {
+                prevSym = currentSym;
+                currentSym = syms.noSymbol;
+                Assert.check(prevSym != null || prevSym != syms.noSymbol);
+                return prevSym;
+            }
 
-                    public void remove() {
-                        throw new UnsupportedOperationException();
-                    }
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
 
-                    TypeSymbol symbolFor(Type t) {
-                        if (!t.hasTag(CLASS) &&
-                                !t.hasTag(TYPEVAR)) {
-                            return null;
-                        }
-                        t = types.skipTypeVars(t, false);
-                        if (seen.contains(t.tsym)) {
-                            //degenerate case in which we have a circular
-                            //class hierarchy - because of ill-formed classfiles
-                            return null;
-                        }
-                        seen = seen.prepend(t.tsym);
-                        return t.tsym;
-                    }
-                };
+            TypeSymbol symbolFor(Type t) {
+                if (!t.hasTag(CLASS) &&
+                        !t.hasTag(TYPEVAR)) {
+                    return null;
+                }
+                t = types.skipTypeVars(t, false);
+                if (seen.contains(t.tsym)) {
+                    //degenerate case in which we have a circular
+                    //class hierarchy - because of ill-formed classfiles
+                    return null;
+                }
+                seen = seen.prepend(t.tsym);
+                return t.tsym;
             }
         };
     }
@@ -1996,20 +1988,40 @@ public class Resolve {
                 throw err;
             }
         } catch (CompletionFailure ex) {
-            //even if a class cannot be found in the current module and packages in modules it depends on that
-            //are exported for any or this module, the class may exist internally in some of these modules,
-            //or may exist in a module on which this module does not depend. Provide better diagnostic in
-            //such cases by looking for the class in any module:
-            for (ModuleSymbol ms : syms.getAllModules()) {
-                //do not load currently unloaded classes, to avoid too eager completion of random things in other modules:
-                ClassSymbol clazz = syms.getClass(ms, name);
+            Symbol candidate = recoveryLoadClass.loadClass(env, name);
 
-                if (clazz != null) {
-                    return new AccessError(clazz);
-                }
+            if (candidate != null) {
+                return candidate;
             }
+
             return typeNotFound;
         }
+    }
+
+    public static interface RecoveryLoadClass {
+        Symbol loadClass(Env<AttrContext> env, Name name);
+    }
+
+    private RecoveryLoadClass recoveryLoadClass = (env, name) -> {
+        //even if a class cannot be found in the current module and packages in modules it depends on that
+        //are exported for any or this module, the class may exist internally in some of these modules,
+        //or may exist in a module on which this module does not depend. Provide better diagnostic in
+        //such cases by looking for the class in any module:
+        for (ModuleSymbol ms : syms.getAllModules()) {
+            //do not load currently unloaded classes, to avoid too eager completion of random things in other modules:
+            ClassSymbol clazz = syms.getClass(ms, name);
+
+            if (clazz != null) {
+                return new AccessError(clazz);
+            }
+        }
+        return null;
+    };
+
+    public RecoveryLoadClass setRecoveryLoadClass(RecoveryLoadClass recovery) {
+        RecoveryLoadClass prev = recoveryLoadClass;
+        recoveryLoadClass = recovery;
+        return prev;
     }
 
     /**
@@ -2348,7 +2360,7 @@ public class Resolve {
                   Type site,
                   Name name,
                   boolean qualified) {
-        return accessInternal(sym, pos, location, site, name, qualified, List.<Type>nil(), null, basicLogResolveHelper);
+        return accessInternal(sym, pos, location, site, name, qualified, List.nil(), null, basicLogResolveHelper);
     }
 
     /** Same as original accessBase(), but without location.
@@ -2694,7 +2706,7 @@ public class Resolve {
                 (sym.flags_field & SYNTHETIC) == 0) {
                     List<Type> oldParams = sym.type.hasTag(FORALL) ?
                             ((ForAll)sym.type).tvars :
-                            List.<Type>nil();
+                            List.nil();
                     Type constrType = new ForAll(site.tsym.type.getTypeArguments().appendList(oldParams),
                                                  types.createMethodTypeWithReturn(sym.type.asMethodType(), site));
                     MethodSymbol newConstr = new MethodSymbol(sym.flags(), names.init, constrType, site.tsym) {
@@ -2722,7 +2734,7 @@ public class Resolve {
         site = types.capture(site);
         
         ReferenceLookupHelper lookupHelper = makeReferenceLookupHelper(
-                referenceTree, site, name, List.<Type>nil(), null, VARARITY);
+                referenceTree, site, name, List.nil(), null, VARARITY);
 
         Env<AttrContext> newEnv = env.dup(env.tree, env.info.dup());
         Symbol sym = lookupMethod(newEnv, env.tree.pos(), site.tsym,
@@ -3276,7 +3288,7 @@ public class Resolve {
         protected Symbol lookup(Env<AttrContext> env, MethodResolutionPhase phase) {
             WriteableScope sc = WriteableScope.create(syms.arrayClass);
             MethodSymbol arrayConstr = new MethodSymbol(PUBLIC, name, null, site.tsym);
-            arrayConstr.type = new MethodType(List.<Type>of(syms.intType), site, List.<Type>nil(), syms.methodClass);
+            arrayConstr.type = new MethodType(List.of(syms.intType), site, List.nil(), syms.methodClass);
             sc.enter(arrayConstr);
             return findMethodInScope(env, site, name, argtypes, typeargtypes, sc, methodNotFound, phase.isBoxingRequired(), phase.isVarargsRequired(), false);
         }
@@ -3676,8 +3688,8 @@ public class Resolve {
                 Name name,
                 List<Type> argtypes,
                 List<Type> typeargtypes) {
-            argtypes = argtypes == null ? List.<Type>nil() : argtypes;
-            typeargtypes = typeargtypes == null ? List.<Type>nil() : typeargtypes;
+            argtypes = argtypes == null ? List.nil() : argtypes;
+            typeargtypes = typeargtypes == null ? List.nil() : typeargtypes;
             if (name == names.error)
                 return null;
 

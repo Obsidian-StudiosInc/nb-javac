@@ -515,12 +515,10 @@ public class DeferredAttr extends JCTree.Visitor {
             }
 
             DeferredAttrDiagHandler(Log log, JCTree newTree) {
-                super(log, new Filter<JCDiagnostic>() {
-                    public boolean accepts(JCDiagnostic d) {
-                        PosScanner posScanner = new PosScanner(d.getDiagnosticPosition());
-                        posScanner.scan(newTree);
-                        return posScanner.found;
-                    }
+                super(log, d -> {
+                    PosScanner posScanner = new PosScanner(d.getDiagnosticPosition());
+                    posScanner.scan(newTree);
+                    return posScanner.found;
                 });
             }
         }
@@ -1053,11 +1051,7 @@ public class DeferredAttr extends JCTree.Visitor {
         final Filter<JCTree> treeFilter;
 
         FilterScanner(final Set<JCTree.Tag> validTags) {
-            this.treeFilter = new Filter<JCTree>() {
-                public boolean accepts(JCTree t) {
-                    return validTags.contains(t.getTag());
-                }
-            };
+            this.treeFilter = t -> validTags.contains(t.getTag());
         }
 
         @Override

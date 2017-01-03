@@ -28,6 +28,7 @@ package com.sun.tools.javac.code;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Inherited;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -48,6 +49,7 @@ import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.code.ClassFinder.BadEnclosingMethodAttr;
+import com.sun.tools.javac.code.Directive.RequiresFlag;
 import com.sun.tools.javac.code.Kinds.Kind;
 import com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
 import com.sun.tools.javac.code.Scope.WriteableScope;
@@ -142,7 +144,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
      */
     public List<Attribute.Compound> getRawAttributes() {
         return (metadata == null)
-                ? List.<Attribute.Compound>nil()
+                ? List.nil()
                 : metadata.getDeclarationAttributes();
     }
 
@@ -152,7 +154,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
      */
     public List<Attribute.TypeCompound> getRawTypeAttributes() {
         return (metadata == null)
-                ? List.<Attribute.TypeCompound>nil()
+                ? List.nil()
                 : metadata.getTypeAttributes();
     }
 
@@ -194,13 +196,13 @@ public abstract class Symbol extends AnnoConstruct implements Element {
 
     public List<Attribute.TypeCompound> getClassInitTypeAttributes() {
         return (metadata == null)
-                ? List.<Attribute.TypeCompound>nil()
+                ? List.nil()
                 : metadata.getClassInitTypeAttributes();
     }
 
     public List<Attribute.TypeCompound> getInitTypeAttributes() {
         return (metadata == null)
-                ? List.<Attribute.TypeCompound>nil()
+                ? List.nil()
                 : metadata.getInitTypeAttributes();
     }
 
@@ -214,7 +216,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
 
     public List<Attribute.Compound> getDeclarationAttributes() {
         return (metadata == null)
-                ? List.<Attribute.Compound>nil()
+                ? List.nil()
                 : metadata.getDeclarationAttributes();
     }
 
@@ -361,6 +363,10 @@ public abstract class Symbol extends AnnoConstruct implements Element {
 
     public boolean isDeprecated() {
         return (flags_field & DEPRECATED) != 0;
+    }
+
+    public boolean hasDeprecatedAnnotation() {
+        return (flags_field & DEPRECATED_ANNOTATION) != 0;
     }
 
     public boolean isDeprecatedForRemoval() {
@@ -912,6 +918,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         public List<com.sun.tools.javac.code.Directive> directives;
         public List<com.sun.tools.javac.code.Directive.RequiresDirective> requires;
         public List<com.sun.tools.javac.code.Directive.ExportsDirective> exports;
+        public List<com.sun.tools.javac.code.Directive.OpensDirective> opens;
         public List<com.sun.tools.javac.code.Directive.ProvidesDirective> provides;
         public List<com.sun.tools.javac.code.Directive.UsesDirective> uses;
 
@@ -922,6 +929,8 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         public List<Symbol> enclosedPackages = List.nil();
 
         public Completer usesProvidesCompleter = Completer.NULL_COMPLETER;
+        public final Set<ModuleFlags> flags = EnumSet.noneOf(ModuleFlags.class);
+        public final Set<ModuleResolutionFlags> resolutionFlags = EnumSet.noneOf(ModuleResolutionFlags.class);
 
         /**
          * Create a ModuleSymbol with an associated module-info ClassSymbol.
@@ -945,6 +954,11 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         @Override @DefinedBy(Api.LANGUAGE_MODEL)
         public boolean isUnnamed() {
             return name.isEmpty() && owner == null;
+        }
+
+        @Override
+        public boolean isDeprecated() {
+            return hasDeprecatedAnnotation();
         }
 
         public boolean isNoModule() {
@@ -1011,6 +1025,45 @@ public abstract class Symbol extends AnnoConstruct implements Element {
             this.visiblePackages = null;
         }
 
+    }
+
+    public enum ModuleFlags {
+        OPEN(0x0020),
+        SYNTHETIC(0x1000),
+        MANDATED(0x8000);
+
+        public static int value(Set<ModuleFlags> s) {
+            int v = 0;
+            for (ModuleFlags f: s)
+                v |= f.value;
+            return v;
+        }
+
+        private ModuleFlags(int value) {
+            this.value = value;
+        }
+
+        public final int value;
+    }
+
+    public enum ModuleResolutionFlags {
+        DO_NOT_RESOLVE_BY_DEFAULT(0x0001),
+        WARN_DEPRECATED(0x0002),
+        WARN_DEPRECATED_REMOVAL(0x0004),
+        WARN_INCUBATOR(0x0008);
+
+        public static int value(Set<ModuleResolutionFlags> s) {
+            int v = 0;
+            for (ModuleResolutionFlags f: s)
+                v |= f.value;
+            return v;
+        }
+
+        private ModuleResolutionFlags(int value) {
+            this.value = value;
+        }
+
+        public final int value;
     }
 
     /** A class for package symbols
@@ -1215,7 +1268,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         public Type erasure(Types types) {
             if (erasure_field == null)
                 erasure_field = new ClassType(types.erasure(type.getEnclosingType()),
-                                              List.<Type>nil(), this,
+                                              List.nil(), this,
                                               type.getMetadata());
             return erasure_field;
         }
@@ -1528,16 +1581,14 @@ public abstract class Symbol extends AnnoConstruct implements Element {
                                       final Attr attr,
                                       final JCVariableDecl variable)
         {
-            setData(new Callable<Object>() {
-                public Object call() {
-                    for (JCTree member : env.enclClass.defs) {
-                        if (member == variable)
-                            break;
-                        if (member.hasTag(Tag.VARDEF))
-                            ((JCVariableDecl) member).sym.getConstValue();
-                    }
-                    return attr.attribLazyConstantValue(env, variable, type);
+            setData((Callable<Object>)() -> {
+                for (JCTree member : env.enclClass.defs) {
+                    if (member == variable)
+                        break;
+                    if (member.hasTag(Tag.VARDEF))
+                        ((JCVariableDecl) member).sym.getConstValue();
                 }
+                return attr.attribLazyConstantValue(env, variable, type);
             });
         }
 
@@ -1900,12 +1951,8 @@ public abstract class Symbol extends AnnoConstruct implements Element {
             return implementation(origin, types, checkResult, implementation_filter);
         }
         // where
-            public static final Filter<Symbol> implementation_filter = new Filter<Symbol>() {
-                public boolean accepts(Symbol s) {
-                    return s.kind == MTH &&
-                            (s.flags() & SYNTHETIC) == 0;
-                }
-            };
+            public static final Filter<Symbol> implementation_filter = s ->
+                    s.kind == MTH && (s.flags() & SYNTHETIC) == 0;
 
         public MethodSymbol implementation(TypeSymbol origin, Types types, boolean checkResult, Filter<Symbol> implFilter) {
             MethodSymbol res = types.implementation(this, origin, checkResult, implFilter);

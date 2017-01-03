@@ -45,6 +45,7 @@ import javax.tools.JavaFileObject;
 import java.util.*;
 
 import static com.sun.tools.javac.code.Flags.SYNTHETIC;
+import static com.sun.tools.javac.code.Kinds.Kind.MDL;
 import static com.sun.tools.javac.code.Kinds.Kind.MTH;
 import static com.sun.tools.javac.code.Kinds.Kind.VAR;
 import static com.sun.tools.javac.code.Scope.LookupKind.NON_RECURSIVE;
@@ -337,9 +338,9 @@ public class Annotate {
 
             // Note: @Deprecated has no effect on local variables and parameters
             if (!c.type.isErroneous()
-                    && toAnnotate.owner.kind != MTH
+                    && (toAnnotate.kind == MDL || toAnnotate.owner.kind != MTH)
                     && types.isSameType(c.type, syms.deprecatedType)) {
-                toAnnotate.flags_field |= Flags.DEPRECATED;
+                toAnnotate.flags_field |= (Flags.DEPRECATED | Flags.DEPRECATED_ANNOTATION);
                 Attribute fr = c.member(names.forRemoval);
                 if (fr instanceof Attribute.Constant) {
                     Attribute.Constant v = (Attribute.Constant) fr;
@@ -483,7 +484,7 @@ public class Annotate {
         JCIdent left = (JCIdent)assign.lhs;
         Symbol method = resolve.resolveQualifiedMethod(elidedValue ? assign.rhs.pos() : left.pos(),
                 env, thisAnnotationType,
-                left.name, List.<Type>nil(), null);
+                left.name, List.nil(), null);
         left.sym = method;
         left.type = method.type;
         if (method.owner != thisAnnotationType.tsym && !badAnnotation)
@@ -625,7 +626,7 @@ public class Annotate {
         // Special case, implicit array
         if (!tree.hasTag(NEWARRAY)) {
             tree = make.at(tree.pos).
-                    NewArray(null, List.<JCExpression>nil(), List.of(tree));
+                    NewArray(null, List.nil(), List.of(tree));
         }
 
         JCNewArray na = (JCNewArray)tree;

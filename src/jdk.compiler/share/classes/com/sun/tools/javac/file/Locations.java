@@ -73,6 +73,7 @@ import javax.tools.StandardJavaFileManager.PathFactory;
 import javax.tools.StandardLocation;
 
 import com.sun.tools.javac.code.Lint;
+import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
@@ -207,7 +208,13 @@ public class Locations {
                     entries.add(emptyPathDefault);
                 }
             } else {
-                entries.add(getPath(s));
+                try {
+                    entries.add(getPath(s));
+                } catch (IllegalArgumentException e) {
+                    if (warn) {
+                        log.warning(LintCategory.PATH, "invalid.path", s);
+                    }
+                }
             }
         }
         return entries;
@@ -272,7 +279,7 @@ public class Locations {
             }
 
             try (Stream<Path> s = Files.list(dir)) {
-                s.filter(dirEntry -> isArchive(dirEntry))
+                s.filter(Locations.this::isArchive)
                         .forEach(dirEntry -> addFile(dirEntry, warn));
             } catch (IOException ignore) {
             }
@@ -415,16 +422,16 @@ public class Locations {
         abstract void setPaths(Iterable<? extends Path> files) throws IOException;
 
         /**
-         * @see JavaFileManager#getModuleLocation(Location, String)
+         * @see JavaFileManager#getLocationForModule(Location, String)
          */
-        Location getModuleLocation(String moduleName) throws IOException {
+        Location getLocationForModule(String moduleName) throws IOException {
             return null;
         }
 
         /**
-         * @see JavaFileManager#getModuleLocation(Location, JavaFileObject, String)
+         * @see JavaFileManager#getLocationForModule(Location, JavaFileObject, String)
          */
-        Location getModuleLocation(Path dir) {
+        Location getLocationForModule(Path dir) {
             return null;
         }
 
@@ -436,9 +443,9 @@ public class Locations {
         }
 
         /**
-         * @see JavaFileManager#listModuleLocations
+         * @see JavaFileManager#listLocationsForModules
          */
-        Iterable<Set<Location>> listModuleLocations() throws IOException {
+        Iterable<Set<Location>> listLocationsForModules() throws IOException {
             return null;
         }
     }
@@ -476,6 +483,7 @@ public class Locations {
 
         private Path outputDir;
         private Map<String, Location> moduleLocations;
+        private Map<Path, Location> pathLocations;
 
         OutputLocationHandler(Location location, Option... options) {
             super(location, options);
@@ -521,21 +529,50 @@ public class Locations {
                 outputDir = dir;
             }
             moduleLocations = null;
+            pathLocations = null;
         }
 
         @Override
-        Location getModuleLocation(String name) {
-            if (moduleLocations == null)
+        Location getLocationForModule(String name) {
+            if (moduleLocations == null) {
                 moduleLocations = new HashMap<>();
+                pathLocations = new HashMap<>();
+            }
             Location l = moduleLocations.get(name);
             if (l == null) {
+                Path out = outputDir.resolve(name);
                 l = new ModuleLocationHandler(location.getName() + "[" + name + "]",
                         name,
-                        Collections.singleton(outputDir.resolve(name)),
+                        Collections.singleton(out),
                         true, false);
                 moduleLocations.put(name, l);
-            }
+                pathLocations.put(out.toAbsolutePath(), l);
+           }
             return l;
+        }
+
+        @Override
+        Location getLocationForModule(Path dir) {
+            return pathLocations.get(dir);
+        }
+
+        private boolean listed;
+
+        @Override
+        Iterable<Set<Location>> listLocationsForModules() throws IOException {
+            if (!listed && outputDir != null) {
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputDir)) {
+                    for (Path p : stream) {
+                        getLocationForModule(p.getFileName().toString());
+                    }
+                }
+                listed = true;
+            }
+            if (moduleLocations == null)
+                return Collections.emptySet();
+            Set<Location> locns = new LinkedHashSet<>();
+            moduleLocations.forEach((k, v) -> locns.add(v));
+            return Collections.singleton(locns);
         }
     }
 
@@ -890,6 +927,8 @@ public class Locations {
      * like UPGRADE_MODULE_PATH and MODULE_PATH.
      */
     private class ModulePathLocationHandler extends SimpleLocationHandler {
+        private Map<String, ModuleLocationHandler> pathModules;
+
         ModulePathLocationHandler(Location location, Option... options) {
             super(location, options);
         }
@@ -904,11 +943,17 @@ public class Locations {
         }
 
         @Override
-        Iterable<Set<Location>> listModuleLocations() {
+        public Location getLocationForModule(String moduleName) {
+            initPathModules();
+            return pathModules.get(moduleName);
+        }
+
+        @Override
+        Iterable<Set<Location>> listLocationsForModules() {
             if (searchPath == null)
                 return Collections.emptyList();
 
-            return () -> new ModulePathIterator();
+            return ModulePathIterator::new;
         }
 
         @Override
@@ -919,6 +964,23 @@ public class Locations {
                 }
             }
             super.setPaths(paths);
+        }
+
+        private void initPathModules() {
+            if (pathModules != null) {
+                return;
+            }
+
+            pathModules = new LinkedHashMap<>();
+
+            for (Set<Location> set : listLocationsForModules()) {
+                for (Location locn : set) {
+                    if (locn instanceof ModuleLocationHandler) {
+                        ModuleLocationHandler h = (ModuleLocationHandler) locn;
+                        pathModules.put(h.moduleName, h);
+                    }
+                }
+            }
         }
 
         private void checkValidModulePathEntry(Path p) {
@@ -1091,7 +1153,8 @@ public class Locations {
                     }
 
                     // finally clean up the module name
-                    mn =  mn.replaceAll("[^A-Za-z0-9]", ".")  // replace non-alphanumeric
+                    mn =  mn.replaceAll("(\\.|\\d)*$", "")    // remove trailing version
+                            .replaceAll("[^A-Za-z0-9]", ".")  // replace non-alphanumeric
                             .replaceAll("(\\.)(\\1)+", ".")   // collapse repeating dots
                             .replaceAll("^\\.", "")           // drop leading dots
                             .replaceAll("\\.$", "");          // drop trailing dots
@@ -1156,7 +1219,6 @@ public class Locations {
 
         private Map<String, Location> moduleLocations;
         private Map<Path, Location> pathLocations;
-
 
         ModuleSourcePathLocationHandler() {
             super(StandardLocation.MODULE_SOURCE_PATH,
@@ -1320,17 +1382,17 @@ public class Locations {
         }
 
         @Override
-        Location getModuleLocation(String name) {
+        Location getLocationForModule(String name) {
             return (moduleLocations == null) ? null : moduleLocations.get(name);
         }
 
         @Override
-        Location getModuleLocation(Path dir) {
+        Location getLocationForModule(Path dir) {
             return (pathLocations == null) ? null : pathLocations.get(dir);
         }
 
         @Override
-        Iterable<Set<Location>> listModuleLocations() {
+        Iterable<Set<Location>> listLocationsForModules() {
             if (moduleLocations == null)
                 return Collections.emptySet();
             Set<Location> locns = new LinkedHashSet<>();
@@ -1396,7 +1458,8 @@ public class Locations {
         }
 
         private void update(Path p) {
-            if (!isCurrentPlatform(p) && !Files.exists(p.resolve("jrt-fs.jar")) && !Files.exists(systemJavaHome.resolve("modules")))
+            if (!isCurrentPlatform(p) && !Files.exists(p.resolve("lib").resolve("jrt-fs.jar")) &&
+                    !Files.exists(systemJavaHome.resolve("modules")))
                 throw new IllegalArgumentException(p.toString());
             systemJavaHome = p;
             modules = null;
@@ -1411,13 +1474,13 @@ public class Locations {
         }
 
         @Override
-        Location getModuleLocation(String name) throws IOException {
+        Location getLocationForModule(String name) throws IOException {
             initSystemModules();
             return systemModules.get(name);
         }
 
         @Override
-        Iterable<Set<Location>> listModuleLocations() throws IOException {
+        Iterable<Set<Location>> listLocationsForModules() throws IOException {
             initSystemModules();
             Set<Location> locns = new LinkedHashSet<>();
             for (Location l: systemModules.values())
@@ -1591,14 +1654,14 @@ public class Locations {
         h.setPaths(files);
     }
 
-    Location getModuleLocation(Location location, String name) throws IOException {
+    Location getLocationForModule(Location location, String name) throws IOException {
         LocationHandler h = getHandler(location);
-        return (h == null ? null : h.getModuleLocation(name));
+        return (h == null ? null : h.getLocationForModule(name));
     }
 
-    Location getModuleLocation(Location location, Path dir) {
+    Location getLocationForModule(Location location, Path dir) {
         LocationHandler h = getHandler(location);
-        return (h == null ? null : h.getModuleLocation(dir));
+        return (h == null ? null : h.getLocationForModule(dir));
     }
 
     String inferModuleName(Location location) {
@@ -1606,9 +1669,9 @@ public class Locations {
         return (h == null ? null : h.inferModuleName());
     }
 
-    Iterable<Set<Location>> listModuleLocations(Location location) throws IOException {
+    Iterable<Set<Location>> listLocationsForModules(Location location) throws IOException {
         LocationHandler h = getHandler(location);
-        return (h == null ? null : h.listModuleLocations());
+        return (h == null ? null : h.listLocationsForModules());
     }
 
     protected LocationHandler getHandler(Location location) {

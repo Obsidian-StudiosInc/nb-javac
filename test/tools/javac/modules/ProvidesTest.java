@@ -24,6 +24,7 @@
 /**
  * @test
  * @summary simple tests of module provides
+ * @bug 8168854
  * @library /tools/lib
  * @modules
  *      jdk.compiler/com.sun.tools.javac.api
@@ -39,7 +40,7 @@ import java.util.List;
 
 import toolbox.JavacTask;
 import toolbox.Task;
-import toolbox.ToolBox;
+import toolbox.Task.Expect;
 
 public class ProvidesTest extends ModuleTestBase {
     public static void main(String... args) throws Exception {
@@ -67,11 +68,11 @@ public class ProvidesTest extends ModuleTestBase {
     @Test
     public void testMulti(Path base) throws Exception {
         Path src = base.resolve("src");
-        tb.writeJavaFiles(src.resolve("m1"),
-                "module m1 { exports p1; }",
+        tb.writeJavaFiles(src.resolve("m1x"),
+                "module m1x { exports p1; }",
                 "package p1; public class C1 { }");
-        tb.writeJavaFiles(src.resolve("m2"),
-                "module m2 { requires m1; provides p1.C1 with p2.C2; }",
+        tb.writeJavaFiles(src.resolve("m2x"),
+                "module m2x { requires m1x; provides p1.C1 with p2.C2; }",
                 "package p2; public class C2 extends p1.C1 { }");
         Path modules = base.resolve("modules");
         Files.createDirectories(modules);
@@ -415,9 +416,39 @@ public class ProvidesTest extends ModuleTestBase {
         tb.writeJavaFiles(src,
                 "module m { provides p1.C1.InnerDefinition with p2.C2; }",
                 "package p1; public class C1 { public class InnerDefinition { } }",
-                "package p2; public class C2 extends p1.C1.InnerDefinition { }");
+                "package p2; public class C2 extends p1.C1.InnerDefinition { public C2() { new p1.C1().super(); } }");
 
-        List<String> output = new JavacTask(tb)
+        new JavacTask(tb)
+                .options("-XDrawDiagnostics")
+                .outdir(Files.createDirectories(base.resolve("classes")))
+                .files(findJavaFiles(src))
+                .run(Expect.SUCCESS)
+                .writeAll();
+    }
+
+    @Test
+    public void testFactory(Path base) throws Exception {
+        Path src = base.resolve("src");
+        tb.writeJavaFiles(src,
+                "module m { exports p1; provides p1.C1 with p2.C2; }",
+                "package p1; public interface C1 { }",
+                "package p2; public class C2 { public static p1.C1 provider() { return null; } }");
+
+        new JavacTask(tb)
+                .options("-XDrawDiagnostics")
+                .outdir(Files.createDirectories(base.resolve("classes")))
+                .files(findJavaFiles(src))
+                .run()
+                .writeAll()
+                .getOutput(Task.OutputKind.DIRECT);
+
+        List<String> output;
+        List<String> expected;
+
+        tb.writeJavaFiles(src,
+                "package p2; public class C2 { public p1.C1 provider() { return null; } }");
+
+        output = new JavacTask(tb)
                 .options("-XDrawDiagnostics")
                 .outdir(Files.createDirectories(base.resolve("classes")))
                 .files(findJavaFiles(src))
@@ -425,14 +456,65 @@ public class ProvidesTest extends ModuleTestBase {
                 .writeAll()
                 .getOutputLines(Task.OutputKind.DIRECT);
 
-        List<String> expected = Arrays.asList(
-                "module-info.java:1:26: compiler.err.service.definition.is.inner: p1.C1.InnerDefinition",
-                "module-info.java:1:12: compiler.warn.service.provided.but.not.exported.or.used: p1.C1.InnerDefinition",
-                "C2.java:1:20: compiler.err.encl.class.required: p1.C1.InnerDefinition",
-                "2 errors",
-                "1 warning");
-        if (!output.containsAll(expected)) {
-            throw new Exception("Expected output not found");
+        expected = Arrays.asList("module-info.java:1:46: compiler.err.service.implementation.must.be.subtype.of.service.interface",
+                                 "1 error");
+
+        if (!expected.equals(output)) {
+            throw new Exception("Expected output not found. Output: " + output);
+        }
+
+        tb.writeJavaFiles(src,
+                "package p2; public class C2 { static p1.C1 provider() { return null; } }");
+
+        output = new JavacTask(tb)
+                .options("-XDrawDiagnostics")
+                .outdir(Files.createDirectories(base.resolve("classes")))
+                .files(findJavaFiles(src))
+                .run(Task.Expect.FAIL)
+                .writeAll()
+                .getOutputLines(Task.OutputKind.DIRECT);
+
+        expected = Arrays.asList("module-info.java:1:46: compiler.err.service.implementation.must.be.subtype.of.service.interface",
+                                 "1 error");
+
+        if (!expected.equals(output)) {
+            throw new Exception("Expected output not found. Output: " + output);
+        }
+
+        tb.writeJavaFiles(src,
+                "package p2; public class C2 { public static Object provider() { return null; } }");
+
+        output = new JavacTask(tb)
+                .options("-XDrawDiagnostics")
+                .outdir(Files.createDirectories(base.resolve("classes")))
+                .files(findJavaFiles(src))
+                .run(Task.Expect.FAIL)
+                .writeAll()
+                .getOutputLines(Task.OutputKind.DIRECT);
+
+        expected = Arrays.asList("module-info.java:1:46: compiler.err.service.implementation.provider.return.must.be.subtype.of.service.interface",
+                                 "1 error");
+
+        if (!expected.equals(output)) {
+            throw new Exception("Expected output not found. Output: " + output);
+        }
+
+        tb.writeJavaFiles(src,
+                "package p2; public class C2 { public static p1.C1 provider = new p1.C1() {}; }");
+
+        output = new JavacTask(tb)
+                .options("-XDrawDiagnostics")
+                .outdir(Files.createDirectories(base.resolve("classes")))
+                .files(findJavaFiles(src))
+                .run(Task.Expect.FAIL)
+                .writeAll()
+                .getOutputLines(Task.OutputKind.DIRECT);
+
+        expected = Arrays.asList("module-info.java:1:46: compiler.err.service.implementation.must.be.subtype.of.service.interface",
+                                 "1 error");
+
+        if (!expected.equals(output)) {
+            throw new Exception("Expected output not found. Output: " + output);
         }
     }
 }

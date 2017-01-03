@@ -71,6 +71,7 @@ import com.sun.tools.javac.file.RelativePath.RelativeDirectory;
 import com.sun.tools.javac.file.RelativePath.RelativeFile;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.Context.Factory;
 import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.List;
@@ -134,12 +135,8 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
      * Register a Context.Factory to create a JavacFileManager.
      */
     public static void preRegister(Context context) {
-        context.put(JavaFileManager.class, new Context.Factory<JavaFileManager>() {
-            @Override
-            public JavaFileManager make(Context c) {
-                return new JavacFileManager(c, true, null);
-            }
-        });
+        context.put(JavaFileManager.class,
+                (Factory<JavaFileManager>)c -> new JavacFileManager(c, true, null));
     }
 
     /**
@@ -671,7 +668,7 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
 
     @Override @DefinedBy(Api.COMPILER)
     public ClassLoader getClassLoader(Location location) {
-        nullCheck(location);
+        checkNotModuleOrientedLocation(location);
         Iterable<? extends File> path = getLocation(location);
         if (path == null)
             return null;
@@ -694,6 +691,7 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
                                          boolean recurse)
         throws IOException
     {
+        checkNotModuleOrientedLocation(location);
         // validatePackageName(packageName);
         nullCheck(packageName);
         nullCheck(kinds);
@@ -715,8 +713,8 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
 
     @Override @DefinedBy(Api.COMPILER)
     public String inferBinaryName(Location location, JavaFileObject file) {
+        checkNotModuleOrientedLocation(location);
         Objects.requireNonNull(file);
-        Objects.requireNonNull(location);
         // Need to match the path semantics of list(location, ...)
         Iterable<? extends Path> path = getLocationAsPaths(location);
         if (path == null) {
@@ -750,7 +748,7 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
                                               JavaFileObject.Kind kind)
         throws IOException
     {
-        nullCheck(location);
+        checkNotModuleOrientedLocation(location);
         // validateClassName(className);
         nullCheck(className);
         nullCheck(kind);
@@ -765,7 +763,7 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
                                       String relativeName)
         throws IOException
     {
-        nullCheck(location);
+        checkNotModuleOrientedLocation(location);
         // validatePackageName(packageName);
         nullCheck(packageName);
         if (!isRelativeUri(relativeName))
@@ -798,7 +796,7 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
                                                FileObject sibling)
         throws IOException
     {
-        nullCheck(location);
+        checkOutputLocation(location);
         // validateClassName(className);
         nullCheck(className);
         nullCheck(kind);
@@ -814,7 +812,7 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
                                        FileObject sibling)
         throws IOException
     {
-        nullCheck(location);
+        checkOutputLocation(location);
         // validatePackageName(packageName);
         nullCheck(packageName);
         if (!isRelativeUri(relativeName))
@@ -948,10 +946,12 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
     }
 
     @Override @DefinedBy(Api.COMPILER)
-    public Location getModuleLocation(Location location, String moduleName) throws IOException {
-        nullCheck(location);
+    public Location getLocationForModule(Location location, String moduleName) throws IOException {
+        checkModuleOrientedOrOutputLocation(location);
         nullCheck(moduleName);
-        return locations.getModuleLocation(location, moduleName);
+        if (location == SOURCE_OUTPUT && getSourceOutDir() == null)
+            location = CLASS_OUTPUT;
+        return locations.getLocationForModule(location, moduleName);
     }
 
     @Override @DefinedBy(Api.COMPILER)
@@ -959,7 +959,7 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
         nullCheck(location);
         nullCheck(service);
         Module.getModule(getClass()).addUses(service);
-        if (location.isModuleLocation()) {
+        if (location.isModuleOrientedLocation()) {
             Collection<Path> paths = locations.getLocation(location);
             ModuleFinder finder = ModuleFinder.of(paths.toArray(new Path[paths.size()]));
             Layer bootLayer = Layer.boot();
@@ -972,8 +972,8 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
     }
 
     @Override @DefinedBy(Api.COMPILER)
-    public Location getModuleLocation(Location location, JavaFileObject fo, String pkgName) throws IOException {
-        nullCheck(location);
+    public Location getLocationForModule(Location location, JavaFileObject fo, String pkgName) throws IOException {
+        checkModuleOrientedOrOutputLocation(location);
         if (!(fo instanceof PathFileObject))
             throw new IllegalArgumentException(fo.getName());
         int depth = 1; // allow 1 for filename
@@ -993,7 +993,7 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
             Path subpath = p.subpath(0, fc - depth);
             Path dir = (root == null) ? subpath : root.resolve(subpath);
             // need to find dir in location
-            return locations.getModuleLocation(location, dir);
+            return locations.getLocationForModule(location, dir);
         } else {
             return null;
         }
@@ -1001,14 +1001,14 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
 
     @Override @DefinedBy(Api.COMPILER)
     public String inferModuleName(Location location) {
-        nullCheck(location);
+        checkNotModuleOrientedLocation(location);
         return locations.inferModuleName(location);
     }
 
     @Override @DefinedBy(Api.COMPILER)
-    public Iterable<Set<Location>> listModuleLocations(Location location) throws IOException {
-        nullCheck(location);
-        return locations.listModuleLocations(location);
+    public Iterable<Set<Location>> listLocationsForModules(Location location) throws IOException {
+        checkModuleOrientedOrOutputLocation(location);
+        return locations.listLocationsForModules(location);
     }
 
     @Override @DefinedBy(Api.COMPILER)
@@ -1085,6 +1085,26 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
         if (s != null)
             return s;
         return e.toString();
+    }
+
+    private void checkOutputLocation(Location location) {
+        Objects.requireNonNull(location);
+        if (!location.isOutputLocation())
+            throw new IllegalArgumentException("location is not an output location: " + location.getName());
+    }
+
+    private void checkModuleOrientedOrOutputLocation(Location location) {
+        Objects.requireNonNull(location);
+        if (!location.isModuleOrientedLocation() && !location.isOutputLocation())
+            throw new IllegalArgumentException(
+                    "location is not an output location or a module-oriented location: "
+                            + location.getName());
+    }
+
+    private void checkNotModuleOrientedLocation(Location location) {
+        Objects.requireNonNull(location);
+        if (location.isModuleOrientedLocation())
+            throw new IllegalArgumentException("location is module-oriented: " + location.getName());
     }
 
     /* Converters between files and paths.

@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 
 import javax.tools.JavaFileManager;
 import javax.tools.FileObject;
@@ -487,6 +488,14 @@ public class ClassWriter extends ClassFile {
                 poolbuf.appendByte(CONSTANT_MethodHandle);
                 poolbuf.appendByte(ref.refKind);
                 poolbuf.appendChar(pool.put(ref.refSym));
+            } else if (value instanceof ModuleSymbol) {
+                ModuleSymbol m = (ModuleSymbol)value;
+                poolbuf.appendByte(CONSTANT_Module);
+                poolbuf.appendChar(pool.put(m.name));
+            } else if (value instanceof PackageSymbol) {
+                PackageSymbol m = (PackageSymbol)value;
+                poolbuf.appendByte(CONSTANT_Package);
+                poolbuf.appendChar(pool.put(names.fromUtf(externalize(m.fullname))));
             } else {
                 Assert.error("writePool " + value);
             }
@@ -1007,6 +1016,11 @@ public class ClassWriter extends ClassFile {
         ModuleSymbol m = (ModuleSymbol) c.owner;
 
         int alenIdx = writeAttr(names.Module);
+
+        databuf.appendChar(pool.put(m));
+        databuf.appendChar(ModuleFlags.value(m.flags)); // module_flags
+        databuf.appendChar(m.version != null ? pool.put(m.version) : 0);
+
         ListBuffer<RequiresDirective> requires = new ListBuffer<>();
         for (RequiresDirective r: m.requires) {
             if (!r.flags.contains(RequiresFlag.EXTRA))
@@ -1014,20 +1028,38 @@ public class ClassWriter extends ClassFile {
         }
         databuf.appendChar(requires.size());
         for (RequiresDirective r: requires) {
-            databuf.appendChar(pool.put(r.module.name));
+            databuf.appendChar(pool.put(r.module));
             databuf.appendChar(RequiresFlag.value(r.flags));
+            databuf.appendChar(r.module.version != null ? pool.put(r.module.version) : 0);
         }
 
         List<ExportsDirective> exports = m.exports;
         databuf.appendChar(exports.size());
         for (ExportsDirective e: exports) {
-            databuf.appendChar(pool.put(names.fromUtf(externalize(e.packge.flatName()))));
+            databuf.appendChar(pool.put(e.packge));
+            databuf.appendChar(ExportsFlag.value(e.flags));
             if (e.modules == null) {
                 databuf.appendChar(0);
             } else {
                 databuf.appendChar(e.modules.size());
-                for (ModuleSymbol msym: e.modules)
-                    databuf.appendChar(pool.put(msym.name));
+                for (ModuleSymbol msym: e.modules) {
+                    databuf.appendChar(pool.put(msym));
+                }
+            }
+        }
+
+        List<OpensDirective> opens = m.opens;
+        databuf.appendChar(opens.size());
+        for (OpensDirective o: opens) {
+            databuf.appendChar(pool.put(o.packge));
+            databuf.appendChar(OpensFlag.value(o.flags));
+            if (o.modules == null) {
+                databuf.appendChar(0);
+            } else {
+                databuf.appendChar(o.modules.size());
+                for (ModuleSymbol msym: o.modules) {
+                    databuf.appendChar(pool.put(msym));
+                }
             }
         }
 
@@ -1037,12 +1069,19 @@ public class ClassWriter extends ClassFile {
             databuf.appendChar(pool.put(s.service));
         }
 
-        List<ProvidesDirective> services = m.provides;
-        databuf.appendChar(services.size());
-        for (ProvidesDirective s: services) {
-            databuf.appendChar(pool.put(s.service));
-            databuf.appendChar(pool.put(s.impl));
+        // temporary fix to merge repeated provides clause for same service;
+        // eventually this should be disallowed when analyzing the module,
+        // so that each service type only appears once.
+        Map<ClassSymbol, Set<ClassSymbol>> mergedProvides = new LinkedHashMap<>();
+        for (ProvidesDirective p : m.provides) {
+            mergedProvides.computeIfAbsent(p.service, s -> new LinkedHashSet<>()).addAll(p.impls);
         }
+        databuf.appendChar(mergedProvides.size());
+        mergedProvides.forEach((srvc, impls) -> {
+            databuf.appendChar(pool.put(srvc));
+            databuf.appendChar(impls.size());
+            impls.forEach(impl -> databuf.appendChar(pool.put(impl)));
+        });
 
         endAttr(alenIdx);
         return 1;
@@ -1687,7 +1726,7 @@ public class ClassWriter extends ClassFile {
         Location outLocn;
         if (multiModuleMode) {
             ModuleSymbol msym = c.owner.kind == MDL ? (ModuleSymbol) c.owner : c.packge().modle;
-            outLocn = fileManager.getModuleLocation(CLASS_OUTPUT, msym.name.toString());
+            outLocn = fileManager.getLocationForModule(CLASS_OUTPUT, msym.name.toString());
         } else {
             outLocn = CLASS_OUTPUT;
         }
@@ -1749,7 +1788,12 @@ public class ClassWriter extends ClassFile {
         }
         databuf.appendChar(flags);
 
-        databuf.appendChar(pool.put(c));
+        if (c.owner.kind == MDL) {
+            PackageSymbol unnamed = ((ModuleSymbol) c.owner).unnamedPackage;
+            databuf.appendChar(pool.put(new ClassSymbol(0, names.module_info, unnamed)));
+        } else {
+            databuf.appendChar(pool.put(c));
+        }
         if (supertype.hasTag(ERROR))
             supertype = syms.objectType;
         databuf.appendChar(supertype.hasTag(CLASS) ? pool.put(supertype.tsym) : 0);
@@ -1832,12 +1876,20 @@ public class ClassWriter extends ClassFile {
         acount += writeEnclosingMethodAttribute(c);
         if (c.owner.kind == MDL) {
             acount += writeModuleAttribute(c);
+            acount += writeFlagAttrs(c.owner.flags() & ~DEPRECATED);
         }
         acount += writeExtraClassAttributes(c);
 
         poolbuf.appendInt(JAVA_MAGIC);
-        poolbuf.appendChar(target.minorVersion);
-        poolbuf.appendChar(target.majorVersion);
+
+        if (c.owner.kind == MDL) {
+            // temporarily overide to force use of v53 for module-info.class
+            poolbuf.appendChar(0);
+            poolbuf.appendChar(53);
+        } else {
+            poolbuf.appendChar(target.minorVersion);
+            poolbuf.appendChar(target.majorVersion);
+        }
 
         writePool(c.pool);
 

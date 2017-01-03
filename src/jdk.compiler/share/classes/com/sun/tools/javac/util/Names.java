@@ -64,11 +64,14 @@ public class Names {
     public final Name _super;
     public final Name _this;
     public final Name exports;
+    public final Name opens;
     public final Name module;
     public final Name provides;
     public final Name requires;
     public final Name to;
+    public final Name transitive;
     public final Name uses;
+    public final Name open;
     public final Name with;
 
     // field and method names
@@ -102,6 +105,7 @@ public class Names {
     public final Name length;
     public final Name next;
     public final Name ordinal;
+    public final Name provider;
     public final Name serialVersionUID;
     public final Name toString;
     public final Name value;
@@ -147,6 +151,7 @@ public class Names {
     public final Name LocalVariableTypeTable;
     public final Name MethodParameters;
     public final Name Module;
+    public final Name ModuleResolution;
     public final Name RuntimeInvisibleAnnotations;
     public final Name RuntimeInvisibleParameterAnnotations;
     public final Name RuntimeInvisibleTypeAnnotations;
@@ -161,7 +166,6 @@ public class Names {
     public final Name Synthetic;
     public final Name Value;
     public final Name Varargs;
-    public final Name Version;
 
     // members of java.lang.annotation.ElementType
     public final Name ANNOTATION_TYPE;
@@ -169,6 +173,7 @@ public class Names {
     public final Name FIELD;
     public final Name LOCAL_VARIABLE;
     public final Name METHOD;
+    public final Name MODULE;
     public final Name PACKAGE;
     public final Name PARAMETER;
     public final Name TYPE;
@@ -220,11 +225,14 @@ public class Names {
         _super = fromString("super");
         _this = fromString("this");
         exports = fromString("exports");
+        opens = fromString("opens");
         module = fromString("module");
         provides = fromString("provides");
         requires = fromString("requires");
         to = fromString("to");
+        transitive = fromString("transitive");
         uses = fromString("uses");
+        open = fromString("open");
         with = fromString("with");
 
         // field and method names
@@ -258,6 +266,7 @@ public class Names {
         length = fromString("length");
         next = fromString("next");
         ordinal = fromString("ordinal");
+        provider = fromString("provider");
         serialVersionUID = fromString("serialVersionUID");
         toString = fromString("toString");
         value = fromString("value");
@@ -304,6 +313,7 @@ public class Names {
         LocalVariableTypeTable = fromString("LocalVariableTypeTable");
         MethodParameters = fromString("MethodParameters");
         Module = fromString("Module");
+        ModuleResolution = fromString("ModuleResolution");
         RuntimeInvisibleAnnotations = fromString("RuntimeInvisibleAnnotations");
         RuntimeInvisibleParameterAnnotations = fromString("RuntimeInvisibleParameterAnnotations");
         RuntimeInvisibleTypeAnnotations = fromString("RuntimeInvisibleTypeAnnotations");
@@ -318,7 +328,6 @@ public class Names {
         Synthetic = fromString("Synthetic");
         Value = fromString("Value");
         Varargs = fromString("Varargs");
-        Version = fromString("Version");
 
         // members of java.lang.annotation.ElementType
         ANNOTATION_TYPE = fromString("ANNOTATION_TYPE");
@@ -326,6 +335,7 @@ public class Names {
         FIELD = fromString("FIELD");
         LOCAL_VARIABLE = fromString("LOCAL_VARIABLE");
         METHOD = fromString("METHOD");
+        MODULE = fromString("MODULE");
         PACKAGE = fromString("PACKAGE");
         PARAMETER = fromString("PARAMETER");
         TYPE = fromString("TYPE");

@@ -21,6 +21,432 @@ import com.sun.tools.javac.util.JCDiagnostic.Note;
 import com.sun.tools.javac.util.JCDiagnostic.Fragment;
 
 public class CompilerProperties {
+    public static class Notes {
+        /**
+         * compiler.note.compressed.diags=\
+         *    Some messages have been simplified; recompile with -Xdiags:verbose to get full output
+         */
+        public static final Note CompressedDiags = new Note("compiler", "compressed.diags");
+        
+        /**
+         * compiler.note.deferred.method.inst=\
+         *    Deferred instantiation of method {0}\n\
+         *    instantiated signature: {1}\n\
+         *    target-type: {2}
+         */
+        public static Note DeferredMethodInst(Symbol arg0, Type arg1, Type arg2) {
+            return new Note("compiler", "deferred.method.inst", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.note.deprecated.filename=\
+         *    {0} uses or overrides a deprecated API.
+         */
+        public static Note DeprecatedFilename(File arg0) {
+            return new Note("compiler", "deprecated.filename", arg0);
+        }
+        
+        /**
+         * compiler.note.deprecated.filename=\
+         *    {0} uses or overrides a deprecated API.
+         */
+        public static Note DeprecatedFilename(JavaFileObject arg0) {
+            return new Note("compiler", "deprecated.filename", arg0);
+        }
+        
+        /**
+         * compiler.note.deprecated.filename.additional=\
+         *    {0} has additional uses or overrides of a deprecated API.
+         */
+        public static Note DeprecatedFilenameAdditional(File arg0) {
+            return new Note("compiler", "deprecated.filename.additional", arg0);
+        }
+        
+        /**
+         * compiler.note.deprecated.filename.additional=\
+         *    {0} has additional uses or overrides of a deprecated API.
+         */
+        public static Note DeprecatedFilenameAdditional(JavaFileObject arg0) {
+            return new Note("compiler", "deprecated.filename.additional", arg0);
+        }
+        
+        /**
+         * compiler.note.deprecated.plural=\
+         *    Some input files use or override a deprecated API.
+         */
+        public static final Note DeprecatedPlural = new Note("compiler", "deprecated.plural");
+        
+        /**
+         * compiler.note.deprecated.plural.additional=\
+         *    Some input files additionally use or override a deprecated API.
+         */
+        public static final Note DeprecatedPluralAdditional = new Note("compiler", "deprecated.plural.additional");
+        
+        /**
+         * compiler.note.deprecated.recompile=\
+         *    Recompile with -Xlint:deprecation for details.
+         */
+        public static final Note DeprecatedRecompile = new Note("compiler", "deprecated.recompile");
+        
+        /**
+         * compiler.note.lambda.stat=\
+         *    Translating lambda expression\n\
+         *    alternate metafactory = {0}\n\
+         *    synthetic method = {1}
+         */
+        public static Note LambdaStat(boolean arg0, Symbol arg1) {
+            return new Note("compiler", "lambda.stat", arg0, arg1);
+        }
+        
+        /**
+         * compiler.note.mref.stat=\
+         *    Translating method reference\n\
+         *    alternate metafactory = {0}\n\
+         */
+        public static Note MrefStat(boolean arg0, Void arg1) {
+            return new Note("compiler", "mref.stat", arg0, arg1);
+        }
+        
+        /**
+         * compiler.note.mref.stat.1=\
+         *    Translating method reference\n\
+         *    alternate metafactory = {0}\n\
+         *    bridge method = {1}
+         */
+        public static Note MrefStat1(boolean arg0, Symbol arg1) {
+            return new Note("compiler", "mref.stat.1", arg0, arg1);
+        }
+        
+        /**
+         * compiler.note.note=\
+         *    Note:\u0020
+         */
+        public static final Note Note = new Note("compiler", "note");
+        
+        /**
+         * compiler.note.proc.messager=\
+         *    {0}
+         */
+        public static Note ProcMessager(String arg0) {
+            return new Note("compiler", "proc.messager", arg0);
+        }
+        
+        /**
+         * compiler.note.removal.filename=\
+         *    {0} uses or overrides a deprecated API that is marked for removal.
+         */
+        public static Note RemovalFilename(File arg0) {
+            return new Note("compiler", "removal.filename", arg0);
+        }
+        
+        /**
+         * compiler.note.removal.filename=\
+         *    {0} uses or overrides a deprecated API that is marked for removal.
+         */
+        public static Note RemovalFilename(JavaFileObject arg0) {
+            return new Note("compiler", "removal.filename", arg0);
+        }
+        
+        /**
+         * compiler.note.removal.filename.additional=\
+         *    {0} has additional uses or overrides of a deprecated API that is marked for removal.
+         */
+        public static Note RemovalFilenameAdditional(File arg0) {
+            return new Note("compiler", "removal.filename.additional", arg0);
+        }
+        
+        /**
+         * compiler.note.removal.filename.additional=\
+         *    {0} has additional uses or overrides of a deprecated API that is marked for removal.
+         */
+        public static Note RemovalFilenameAdditional(JavaFileObject arg0) {
+            return new Note("compiler", "removal.filename.additional", arg0);
+        }
+        
+        /**
+         * compiler.note.removal.plural=\
+         *    Some input files use or override a deprecated API that is marked for removal.
+         */
+        public static final Note RemovalPlural = new Note("compiler", "removal.plural");
+        
+        /**
+         * compiler.note.removal.plural.additional=\
+         *    Some input files additionally use or override a deprecated API that is marked for removal.
+         */
+        public static final Note RemovalPluralAdditional = new Note("compiler", "removal.plural.additional");
+        
+        /**
+         * compiler.note.removal.recompile=\
+         *    Recompile with -Xlint:removal for details.
+         */
+        public static final Note RemovalRecompile = new Note("compiler", "removal.recompile");
+        
+        /**
+         * compiler.note.unchecked.filename=\
+         *    {0} uses unchecked or unsafe operations.
+         */
+        public static Note UncheckedFilename(File arg0) {
+            return new Note("compiler", "unchecked.filename", arg0);
+        }
+        
+        /**
+         * compiler.note.unchecked.filename=\
+         *    {0} uses unchecked or unsafe operations.
+         */
+        public static Note UncheckedFilename(JavaFileObject arg0) {
+            return new Note("compiler", "unchecked.filename", arg0);
+        }
+        
+        /**
+         * compiler.note.unchecked.filename.additional=\
+         *    {0} has additional unchecked or unsafe operations.
+         */
+        public static Note UncheckedFilenameAdditional(File arg0) {
+            return new Note("compiler", "unchecked.filename.additional", arg0);
+        }
+        
+        /**
+         * compiler.note.unchecked.filename.additional=\
+         *    {0} has additional unchecked or unsafe operations.
+         */
+        public static Note UncheckedFilenameAdditional(JavaFileObject arg0) {
+            return new Note("compiler", "unchecked.filename.additional", arg0);
+        }
+        
+        /**
+         * compiler.note.unchecked.plural=\
+         *    Some input files use unchecked or unsafe operations.
+         */
+        public static final Note UncheckedPlural = new Note("compiler", "unchecked.plural");
+        
+        /**
+         * compiler.note.unchecked.plural.additional=\
+         *    Some input files additionally use unchecked or unsafe operations.
+         */
+        public static final Note UncheckedPluralAdditional = new Note("compiler", "unchecked.plural.additional");
+        
+        /**
+         * compiler.note.unchecked.recompile=\
+         *    Recompile with -Xlint:unchecked for details.
+         */
+        public static final Note UncheckedRecompile = new Note("compiler", "unchecked.recompile");
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, List<? extends Type> arg4, List<? extends Type> arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, List<? extends Type> arg4, JCDiagnostic arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, List<? extends Type> arg4, Fragment arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, JCDiagnostic arg4, List<? extends Type> arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, JCDiagnostic arg4, JCDiagnostic arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, JCDiagnostic arg4, Fragment arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, Fragment arg4, List<? extends Type> arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, Fragment arg4, JCDiagnostic arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi=\
+         *    resolving method {0} in type {1} to candidate {2}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, Fragment arg4, Fragment arg5) {
+            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, List<? extends Type> arg4, List<? extends Type> arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, List<? extends Type> arg4, JCDiagnostic arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, List<? extends Type> arg4, Fragment arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, JCDiagnostic arg4, List<? extends Type> arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, JCDiagnostic arg4, JCDiagnostic arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, JCDiagnostic arg4, Fragment arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, Fragment arg4, List<? extends Type> arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, Fragment arg4, JCDiagnostic arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.note.verbose.resolve.multi.1=\
+         *    erroneous resolution for method {0} in type {1}\n\
+         *    phase: {3}\n\
+         *    with actuals: {4}\n\
+         *    with type-args: {5}\n\
+         *    candidates:
+         */
+        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, Fragment arg4, Fragment arg5) {
+            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+    }
     public static class Warnings {
         /**
          * compiler.warn.access.to.member.from.serializable.element=\
@@ -37,6 +463,12 @@ public class CompilerProperties {
         public static Warning AccessToMemberFromSerializableLambda(Symbol arg0) {
             return new Warning("compiler", "access.to.member.from.serializable.lambda", arg0);
         }
+        
+        /**
+         * compiler.warn.addopens.ignored=\
+         *    --add-opens has no effect at compile time
+         */
+        public static final Warning AddopensIgnored = new Warning("compiler", "addopens.ignored");
         
         /**
          * compiler.warn.annotation.method.not.found=\
@@ -80,6 +512,14 @@ public class CompilerProperties {
          */
         public static Warning AuxiliaryClassAccessedFromOutsideOfItsSourceFile(Type arg0, JavaFileObject arg1) {
             return new Warning("compiler", "auxiliary.class.accessed.from.outside.of.its.source.file", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.bad.name.for.option=\
+         *    bad name in value for {0} option: ''{1}''
+         */
+        public static Warning BadNameForOption(Option arg0, String arg1) {
+            return new Warning("compiler", "bad.name.for.option", arg0, arg1);
         }
         
         /**
@@ -223,6 +663,22 @@ public class CompilerProperties {
         }
         
         /**
+         * compiler.warn.has.been.deprecated.for.removal.module=\
+         *    module {0} has been deprecated and marked for removal
+         */
+        public static Warning HasBeenDeprecatedForRemovalModule(Symbol arg0) {
+            return new Warning("compiler", "has.been.deprecated.for.removal.module", arg0);
+        }
+        
+        /**
+         * compiler.warn.has.been.deprecated.module=\
+         *    module {0} has been deprecated
+         */
+        public static Warning HasBeenDeprecatedModule(Symbol arg0) {
+            return new Warning("compiler", "has.been.deprecated.module", arg0);
+        }
+        
+        /**
          * compiler.warn.illegal.char.for.encoding=\
          *    unmappable character for encoding {0}
          */
@@ -253,6 +709,12 @@ public class CompilerProperties {
         public static final Warning InvalidArchiveFile = new Warning("compiler", "invalid.archive.file");
         
         /**
+         * compiler.warn.invalid.path=\
+         *    Invalid filename: {0}
+         */
+        public static final Warning InvalidPath = new Warning("compiler", "invalid.path");
+        
+        /**
          * compiler.warn.leaks.not.accessible=\
          *    {0} {1} in module {2} is not accessible to clients that require this module
          */
@@ -261,11 +723,11 @@ public class CompilerProperties {
         }
         
         /**
-         * compiler.warn.leaks.not.accessible.not.required.public=\
-         *    {0} {1} in module {2} is not indirectly exported using 'requires public'
+         * compiler.warn.leaks.not.accessible.not.required.transitive=\
+         *    {0} {1} in module {2} is not indirectly exported using 'requires transitive'
          */
-        public static Warning LeaksNotAccessibleNotRequiredPublic(KindName arg0, Symbol arg1, Symbol arg2) {
-            return new Warning("compiler", "leaks.not.accessible.not.required.public", arg0, arg1, arg2);
+        public static Warning LeaksNotAccessibleNotRequiredTransitive(KindName arg0, Symbol arg1, Symbol arg2) {
+            return new Warning("compiler", "leaks.not.accessible.not.required.transitive", arg0, arg1, arg2);
         }
         
         /**
@@ -327,6 +789,22 @@ public class CompilerProperties {
          *    deprecated item is not annotated with @Deprecated
          */
         public static final Warning MissingDeprecatedAnnotation = new Warning("compiler", "missing.deprecated.annotation");
+        
+        /**
+         * compiler.warn.module.for.option.not.found=\
+         *    module name in {0} option not found: {1}
+         */
+        public static Warning ModuleForOptionNotFound(Option arg0, Symbol arg1) {
+            return new Warning("compiler", "module.for.option.not.found", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.module.not.found=\
+         *    module not found: {0}
+         */
+        public static Warning ModuleNotFound(Symbol arg0) {
+            return new Warning("compiler", "module.not.found", arg0);
+        }
         
         /**
          * compiler.warn.option.obsolete.source=\
@@ -462,6 +940,14 @@ public class CompilerProperties {
          */
         public static Warning PkgInfoAlreadySeen(Symbol arg0) {
             return new Warning("compiler", "pkg-info.already.seen", arg0);
+        }
+        
+        /**
+         * compiler.warn.poor.choice.for.module.name=\
+         *    module name {0} should avoid terminal digits
+         */
+        public static Warning PoorChoiceForModuleName(Name arg0) {
+            return new Warning("compiler", "poor.choice.for.module.name", arg0);
         }
         
         /**
@@ -854,6 +1340,3276 @@ public class CompilerProperties {
          *    warning:\u0020
          */
         public static final Warning Warning = new Warning("compiler", "warning");
+    }
+    public static class Errors {
+        /**
+         * compiler.err.abstract.cant.be.accessed.directly=\
+         *    abstract {0} {1} in {2} cannot be accessed directly
+         */
+        public static Error AbstractCantBeAccessedDirectly(Kind arg0, Symbol arg1, Symbol arg2) {
+            return new Error("compiler", "abstract.cant.be.accessed.directly", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.abstract.cant.be.instantiated=\
+         *    {0} is abstract; cannot be instantiated
+         */
+        public static Error AbstractCantBeInstantiated(Symbol arg0) {
+            return new Error("compiler", "abstract.cant.be.instantiated", arg0);
+        }
+        
+        /**
+         * compiler.err.abstract.meth.cant.have.body=\
+         *    abstract methods cannot have a body
+         */
+        public static final Error AbstractMethCantHaveBody = new Error("compiler", "abstract.meth.cant.have.body");
+        
+        /**
+         * compiler.err.addmods.all.module.path.invalid=\
+         *    --add-modules ALL-MODULE-PATH can only be used when compiling the unnamed module
+         */
+        public static final Error AddmodsAllModulePathInvalid = new Error("compiler", "addmods.all.module.path.invalid");
+        
+        /**
+         * compiler.err.already.annotated=\
+         *    {0} {1} has already been annotated
+         */
+        public static final Error AlreadyAnnotated = new Error("compiler", "already.annotated");
+        
+        /**
+         * compiler.err.already.defined=\
+         *    {0} {1} is already defined in {2} {3}
+         */
+        public static Error AlreadyDefined(Kind arg0, Symbol arg1, Kind arg2, Symbol arg3) {
+            return new Error("compiler", "already.defined", arg0, arg1, arg2, arg3);
+        }
+        
+        /**
+         * compiler.err.already.defined.in.clinit=\
+         *    {0} {1} is already defined in {2} of {3} {4}
+         */
+        public static Error AlreadyDefinedInClinit(Kind arg0, Symbol arg1, Kind arg2, Kind arg3, Symbol arg4) {
+            return new Error("compiler", "already.defined.in.clinit", arg0, arg1, arg2, arg3, arg4);
+        }
+        
+        /**
+         * compiler.err.already.defined.single.import=\
+         *    a type with the same simple name is already defined by the single-type-import of {0}
+         */
+        public static Error AlreadyDefinedSingleImport(String arg0) {
+            return new Error("compiler", "already.defined.single.import", arg0);
+        }
+        
+        /**
+         * compiler.err.already.defined.static.single.import=\
+         *    a type with the same simple name is already defined by the static single-type-import of {0}
+         */
+        public static Error AlreadyDefinedStaticSingleImport(String arg0) {
+            return new Error("compiler", "already.defined.static.single.import", arg0);
+        }
+        
+        /**
+         * compiler.err.already.defined.this.unit=\
+         *    {0} is already defined in this compilation unit
+         */
+        public static final Error AlreadyDefinedThisUnit = new Error("compiler", "already.defined.this.unit");
+        
+        /**
+         * compiler.err.annotation.missing.default.value=\
+         *    annotation @{0} is missing a default value for the element ''{1}''
+         */
+        public static Error AnnotationMissingDefaultValue(Type arg0, List<? extends Name> arg1) {
+            return new Error("compiler", "annotation.missing.default.value", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.annotation.missing.default.value.1=\
+         *    annotation @{0} is missing default values for elements {1}
+         */
+        public static Error AnnotationMissingDefaultValue1(Type arg0, List<? extends Name> arg1) {
+            return new Error("compiler", "annotation.missing.default.value.1", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.annotation.not.valid.for.type=\
+         *    annotation not valid for an element of type {0}
+         */
+        public static Error AnnotationNotValidForType(Type arg0) {
+            return new Error("compiler", "annotation.not.valid.for.type", arg0);
+        }
+        
+        /**
+         * compiler.err.annotation.type.not.applicable=\
+         *    annotation type not applicable to this kind of declaration
+         */
+        public static final Error AnnotationTypeNotApplicable = new Error("compiler", "annotation.type.not.applicable");
+        
+        /**
+         * compiler.err.annotation.type.not.applicable.to.type=\
+         *    annotation @{0} not applicable in this type context
+         */
+        public static Error AnnotationTypeNotApplicableToType(Type arg0) {
+            return new Error("compiler", "annotation.type.not.applicable.to.type", arg0);
+        }
+        
+        /**
+         * compiler.err.annotation.value.must.be.annotation=\
+         *    annotation value must be an annotation
+         */
+        public static final Error AnnotationValueMustBeAnnotation = new Error("compiler", "annotation.value.must.be.annotation");
+        
+        /**
+         * compiler.err.annotation.value.must.be.class.literal=\
+         *    annotation value must be a class literal
+         */
+        public static final Error AnnotationValueMustBeClassLiteral = new Error("compiler", "annotation.value.must.be.class.literal");
+        
+        /**
+         * compiler.err.annotation.value.must.be.name.value=\
+         *    annotation values must be of the form ''name=value''
+         */
+        public static final Error AnnotationValueMustBeNameValue = new Error("compiler", "annotation.value.must.be.name.value");
+        
+        /**
+         * compiler.err.annotation.value.not.allowable.type=\
+         *    annotation value not of an allowable type
+         */
+        public static final Error AnnotationValueNotAllowableType = new Error("compiler", "annotation.value.not.allowable.type");
+        
+        /**
+         * compiler.err.annotations.after.type.params.not.supported.in.source=\
+         *    annotations after method type parameters are not supported in -source {0}\n\
+         *(use -source 8 or higher to enable annotations after method type parameters)
+         */
+        public static Error AnnotationsAfterTypeParamsNotSupportedInSource(String arg0) {
+            return new Error("compiler", "annotations.after.type.params.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.anon.class.impl.intf.no.args=\
+         *    anonymous class implements interface; cannot have arguments
+         */
+        public static final Error AnonClassImplIntfNoArgs = new Error("compiler", "anon.class.impl.intf.no.args");
+        
+        /**
+         * compiler.err.anon.class.impl.intf.no.qual.for.new=\
+         *    anonymous class implements interface; cannot have qualifier for new
+         */
+        public static final Error AnonClassImplIntfNoQualForNew = new Error("compiler", "anon.class.impl.intf.no.qual.for.new");
+        
+        /**
+         * compiler.err.anon.class.impl.intf.no.typeargs=\
+         *    anonymous class implements interface; cannot have type arguments
+         */
+        public static final Error AnonClassImplIntfNoTypeargs = new Error("compiler", "anon.class.impl.intf.no.typeargs");
+        
+        /**
+         * compiler.err.anonymous.diamond.method.does.not.override.superclass=\
+         *    method does not override or implement a method from a supertype\n\
+         *    {0}
+         */
+        public static Error AnonymousDiamondMethodDoesNotOverrideSuperclass(JCDiagnostic arg0) {
+            return new Error("compiler", "anonymous.diamond.method.does.not.override.superclass", arg0);
+        }
+        
+        /**
+         * compiler.err.anonymous.diamond.method.does.not.override.superclass=\
+         *    method does not override or implement a method from a supertype\n\
+         *    {0}
+         */
+        public static Error AnonymousDiamondMethodDoesNotOverrideSuperclass(Fragment arg0) {
+            return new Error("compiler", "anonymous.diamond.method.does.not.override.superclass", arg0);
+        }
+        
+        /**
+         * compiler.err.array.and.receiver =\
+         *    legacy array notation not allowed on receiver parameter
+         */
+        public static final Error ArrayAndReceiver  = new Error("compiler", "array.and.receiver ");
+        
+        /**
+         * compiler.err.array.and.varargs=\
+         *    cannot declare both {0} and {1} in {2}
+         */
+        public static Error ArrayAndVarargs(Symbol arg0, Symbol arg1, Symbol arg2) {
+            return new Error("compiler", "array.and.varargs", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.array.dimension.missing=\
+         *    array dimension missing
+         */
+        public static final Error ArrayDimensionMissing = new Error("compiler", "array.dimension.missing");
+        
+        /**
+         * compiler.err.array.req.but.found=\
+         *    array required, but {0} found
+         */
+        public static Error ArrayReqButFound(Type arg0) {
+            return new Error("compiler", "array.req.but.found", arg0);
+        }
+        
+        /**
+         * compiler.err.assert.as.identifier=\
+         *    as of release 1.4, ''assert'' is a keyword, and may not be used as an identifier
+         */
+        public static final Error AssertAsIdentifier = new Error("compiler", "assert.as.identifier");
+        
+        /**
+         * compiler.err.attribute.value.must.be.constant=\
+         *    element value must be a constant expression
+         */
+        public static final Error AttributeValueMustBeConstant = new Error("compiler", "attribute.value.must.be.constant");
+        
+        /**
+         * compiler.err.bad.functional.intf.anno=\
+         *    Unexpected @FunctionalInterface annotation
+         */
+        public static final Error BadFunctionalIntfAnno = new Error("compiler", "bad.functional.intf.anno");
+        
+        /**
+         * compiler.err.bad.functional.intf.anno.1=\
+         *    Unexpected @FunctionalInterface annotation\n\
+         *    {0}
+         */
+        public static Error BadFunctionalIntfAnno1(JCDiagnostic arg0) {
+            return new Error("compiler", "bad.functional.intf.anno.1", arg0);
+        }
+        
+        /**
+         * compiler.err.bad.functional.intf.anno.1=\
+         *    Unexpected @FunctionalInterface annotation\n\
+         *    {0}
+         */
+        public static Error BadFunctionalIntfAnno1(Fragment arg0) {
+            return new Error("compiler", "bad.functional.intf.anno.1", arg0);
+        }
+        
+        /**
+         * compiler.err.bad.initializer=\
+         *    bad initializer for {0}
+         */
+        public static Error BadInitializer(String arg0) {
+            return new Error("compiler", "bad.initializer", arg0);
+        }
+        
+        /**
+         * compiler.err.bad.name.for.option=\
+         *    bad name in value for {0} option: ''{1}''
+         */
+        public static Error BadNameForOption(Option arg0, String arg1) {
+            return new Error("compiler", "bad.name.for.option", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.break.outside.switch.loop=\
+         *    break outside switch or loop
+         */
+        public static final Error BreakOutsideSwitchLoop = new Error("compiler", "break.outside.switch.loop");
+        
+        /**
+         * compiler.err.call.must.be.first.stmt.in.ctor=\
+         *    call to {0} must be first statement in constructor
+         */
+        public static Error CallMustBeFirstStmtInCtor(Name arg0) {
+            return new Error("compiler", "call.must.be.first.stmt.in.ctor", arg0);
+        }
+        
+        /**
+         * compiler.err.call.to.super.not.allowed.in.enum.ctor=\
+         *    call to super not allowed in enum constructor
+         */
+        public static Error CallToSuperNotAllowedInEnumCtor(Void arg0) {
+            return new Error("compiler", "call.to.super.not.allowed.in.enum.ctor", arg0);
+        }
+        
+        /**
+         * compiler.err.cannot.create.array.with.diamond=\
+         *    cannot create array with ''<>''
+         */
+        public static final Error CannotCreateArrayWithDiamond = new Error("compiler", "cannot.create.array.with.diamond");
+        
+        /**
+         * compiler.err.cannot.create.array.with.type.arguments=\
+         *    cannot create array with type arguments
+         */
+        public static final Error CannotCreateArrayWithTypeArguments = new Error("compiler", "cannot.create.array.with.type.arguments");
+        
+        /**
+         * compiler.err.cant.access=\
+         *    cannot access {0}\n\
+         *    {1}
+         */
+        public static Error CantAccess(Symbol arg0, JCDiagnostic arg1) {
+            return new Error("compiler", "cant.access", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.cant.access=\
+         *    cannot access {0}\n\
+         *    {1}
+         */
+        public static Error CantAccess(Symbol arg0, Fragment arg1) {
+            return new Error("compiler", "cant.access", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.cant.apply.diamond=\
+         *    cannot infer type arguments for {0}
+         */
+        public static Error CantApplyDiamond(JCDiagnostic arg0, Void arg1) {
+            return new Error("compiler", "cant.apply.diamond", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.cant.apply.diamond=\
+         *    cannot infer type arguments for {0}
+         */
+        public static Error CantApplyDiamond(Fragment arg0, Void arg1) {
+            return new Error("compiler", "cant.apply.diamond", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.cant.apply.diamond.1=\
+         *    cannot infer type arguments for {0}\n\
+         *    reason: {1}
+         */
+        public static Error CantApplyDiamond1(JCDiagnostic arg0, JCDiagnostic arg1) {
+            return new Error("compiler", "cant.apply.diamond.1", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.cant.apply.diamond.1=\
+         *    cannot infer type arguments for {0}\n\
+         *    reason: {1}
+         */
+        public static Error CantApplyDiamond1(JCDiagnostic arg0, Fragment arg1) {
+            return new Error("compiler", "cant.apply.diamond.1", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.cant.apply.diamond.1=\
+         *    cannot infer type arguments for {0}\n\
+         *    reason: {1}
+         */
+        public static Error CantApplyDiamond1(Fragment arg0, JCDiagnostic arg1) {
+            return new Error("compiler", "cant.apply.diamond.1", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.cant.apply.diamond.1=\
+         *    cannot infer type arguments for {0}\n\
+         *    reason: {1}
+         */
+        public static Error CantApplyDiamond1(Fragment arg0, Fragment arg1) {
+            return new Error("compiler", "cant.apply.diamond.1", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.cant.apply.diamond.1=\
+         *    cannot infer type arguments for {0}\n\
+         *    reason: {1}
+         */
+        public static Error CantApplyDiamond1(Type arg0, JCDiagnostic arg1) {
+            return new Error("compiler", "cant.apply.diamond.1", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.cant.apply.diamond.1=\
+         *    cannot infer type arguments for {0}\n\
+         *    reason: {1}
+         */
+        public static Error CantApplyDiamond1(Type arg0, Fragment arg1) {
+            return new Error("compiler", "cant.apply.diamond.1", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, List<? extends Type> arg2, List<? extends Type> arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, List<? extends Type> arg2, List<? extends Type> arg3, Kind arg4, Type arg5, Fragment arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, List<? extends Type> arg2, JCDiagnostic arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, List<? extends Type> arg2, JCDiagnostic arg3, Kind arg4, Type arg5, Fragment arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, List<? extends Type> arg2, Fragment arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, List<? extends Type> arg2, Fragment arg3, Kind arg4, Type arg5, Fragment arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, JCDiagnostic arg2, List<? extends Type> arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, JCDiagnostic arg2, List<? extends Type> arg3, Kind arg4, Type arg5, Fragment arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, JCDiagnostic arg2, JCDiagnostic arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, JCDiagnostic arg2, JCDiagnostic arg3, Kind arg4, Type arg5, Fragment arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, JCDiagnostic arg2, Fragment arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, JCDiagnostic arg2, Fragment arg3, Kind arg4, Type arg5, Fragment arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, Fragment arg2, List<? extends Type> arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, Fragment arg2, List<? extends Type> arg3, Kind arg4, Type arg5, Fragment arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, Fragment arg2, JCDiagnostic arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, Fragment arg2, JCDiagnostic arg3, Kind arg4, Type arg5, Fragment arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, Fragment arg2, Fragment arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbol=\
+         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
+         *    required: {2}\n\
+         *    found: {3}\n\
+         *    reason: {6}
+         */
+        public static Error CantApplySymbol(Kind arg0, Name arg1, Fragment arg2, Fragment arg3, Kind arg4, Type arg5, Fragment arg6) {
+            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.cant.apply.symbols=\
+         *    no suitable {0} found for {1}({2})
+         */
+        public static Error CantApplySymbols(Kind arg0, Name arg1, List<? extends Type> arg2) {
+            return new Error("compiler", "cant.apply.symbols", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.cant.assign.val.to.final.var=\
+         *    cannot assign a value to final variable {0}
+         */
+        public static Error CantAssignValToFinalVar(Symbol arg0) {
+            return new Error("compiler", "cant.assign.val.to.final.var", arg0);
+        }
+        
+        /**
+         * compiler.err.cant.assign.val.to.this=\
+         *    cannot assign to ''this''
+         */
+        public static final Error CantAssignValToThis = new Error("compiler", "cant.assign.val.to.this");
+        
+        /**
+         * compiler.err.cant.deref=\
+         *    {0} cannot be dereferenced
+         */
+        public static Error CantDeref(Type arg0) {
+            return new Error("compiler", "cant.deref", arg0);
+        }
+        
+        /**
+         * compiler.err.cant.extend.intf.annotation=\
+         *    ''extends'' not allowed for @interfaces
+         */
+        public static final Error CantExtendIntfAnnotation = new Error("compiler", "cant.extend.intf.annotation");
+        
+        /**
+         * compiler.err.cant.inherit.diff.arg=\
+         *    {0} cannot be inherited with different arguments: <{1}> and <{2}>
+         */
+        public static Error CantInheritDiffArg(Symbol arg0, String arg1, String arg2) {
+            return new Error("compiler", "cant.inherit.diff.arg", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.cant.inherit.from.anon=\
+         *    cannot inherit from anonymous class
+         */
+        public static final Error CantInheritFromAnon = new Error("compiler", "cant.inherit.from.anon");
+        
+        /**
+         * compiler.err.cant.inherit.from.final=\
+         *    cannot inherit from final {0}
+         */
+        public static Error CantInheritFromFinal(Symbol arg0) {
+            return new Error("compiler", "cant.inherit.from.final", arg0);
+        }
+        
+        /**
+         * compiler.err.cant.read.file=\
+         *    cannot read: {0}
+         */
+        public static final Error CantReadFile = new Error("compiler", "cant.read.file");
+        
+        /**
+         * compiler.err.cant.ref.before.ctor.called=\
+         *    cannot reference {0} before supertype constructor has been called
+         */
+        public static Error CantRefBeforeCtorCalled(Symbol arg0) {
+            return new Error("compiler", "cant.ref.before.ctor.called", arg0);
+        }
+        
+        /**
+         * compiler.err.cant.ref.non.effectively.final.var=\
+         *    local variables referenced from {1} must be final or effectively final
+         */
+        public static Error CantRefNonEffectivelyFinalVar(Symbol arg0, JCDiagnostic arg1) {
+            return new Error("compiler", "cant.ref.non.effectively.final.var", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.cant.ref.non.effectively.final.var=\
+         *    local variables referenced from {1} must be final or effectively final
+         */
+        public static Error CantRefNonEffectivelyFinalVar(Symbol arg0, Fragment arg1) {
+            return new Error("compiler", "cant.ref.non.effectively.final.var", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.cant.resolve=\
+         *    cannot find symbol\n\
+         *    symbol: {0} {1}
+         */
+        public static Error CantResolve(Kind arg0, Name arg1, Void arg2, Void arg3) {
+            return new Error("compiler", "cant.resolve", arg0, arg1, arg2, arg3);
+        }
+        
+        /**
+         * compiler.err.cant.resolve.args=\
+         *    cannot find symbol\n\
+         *    symbol: {0} {1}({3})
+         */
+        public static Error CantResolveArgs(Kind arg0, Name arg1, Void arg2, List<? extends Type> arg3) {
+            return new Error("compiler", "cant.resolve.args", arg0, arg1, arg2, arg3);
+        }
+        
+        /**
+         * compiler.err.cant.resolve.args.params=\
+         *    cannot find symbol\n\
+         *    symbol: {0} <{2}>{1}({3})
+         */
+        public static Error CantResolveArgsParams(Kind arg0, Name arg1, List<? extends Type> arg2, List<? extends Type> arg3) {
+            return new Error("compiler", "cant.resolve.args.params", arg0, arg1, arg2, arg3);
+        }
+        
+        /**
+         * compiler.err.cant.resolve.location=\
+         *    cannot find symbol\n\
+         *    symbol:   {0} {1}\n\
+         *    location: {4}
+         */
+        public static Error CantResolveLocation(Kind arg0, Name arg1, Void arg2, Void arg3, JCDiagnostic arg4) {
+            return new Error("compiler", "cant.resolve.location", arg0, arg1, arg2, arg3, arg4);
+        }
+        
+        /**
+         * compiler.err.cant.resolve.location=\
+         *    cannot find symbol\n\
+         *    symbol:   {0} {1}\n\
+         *    location: {4}
+         */
+        public static Error CantResolveLocation(Kind arg0, Name arg1, Void arg2, Void arg3, Fragment arg4) {
+            return new Error("compiler", "cant.resolve.location", arg0, arg1, arg2, arg3, arg4);
+        }
+        
+        /**
+         * compiler.err.cant.resolve.location.args=\
+         *    cannot find symbol\n\
+         *    symbol:   {0} {1}({3})\n\
+         *    location: {4}
+         */
+        public static Error CantResolveLocationArgs(Kind arg0, Name arg1, Void arg2, List<? extends Type> arg3, JCDiagnostic arg4) {
+            return new Error("compiler", "cant.resolve.location.args", arg0, arg1, arg2, arg3, arg4);
+        }
+        
+        /**
+         * compiler.err.cant.resolve.location.args=\
+         *    cannot find symbol\n\
+         *    symbol:   {0} {1}({3})\n\
+         *    location: {4}
+         */
+        public static Error CantResolveLocationArgs(Kind arg0, Name arg1, Void arg2, List<? extends Type> arg3, Fragment arg4) {
+            return new Error("compiler", "cant.resolve.location.args", arg0, arg1, arg2, arg3, arg4);
+        }
+        
+        /**
+         * compiler.err.cant.resolve.location.args.params=\
+         *    cannot find symbol\n\
+         *    symbol:   {0} <{2}>{1}({3})\n\
+         *    location: {4}
+         */
+        @SuppressWarnings("rawtypes")
+        public static Error CantResolveLocationArgsParams(Kind arg0, Name arg1, List<? extends Type> arg2, List arg3, JCDiagnostic arg4) {
+            return new Error("compiler", "cant.resolve.location.args.params", arg0, arg1, arg2, arg3, arg4);
+        }
+        
+        /**
+         * compiler.err.cant.resolve.location.args.params=\
+         *    cannot find symbol\n\
+         *    symbol:   {0} <{2}>{1}({3})\n\
+         *    location: {4}
+         */
+        @SuppressWarnings("rawtypes")
+        public static Error CantResolveLocationArgsParams(Kind arg0, Name arg1, List<? extends Type> arg2, List arg3, Fragment arg4) {
+            return new Error("compiler", "cant.resolve.location.args.params", arg0, arg1, arg2, arg3, arg4);
+        }
+        
+        /**
+         * compiler.err.cant.select.static.class.from.param.type=\
+         *    cannot select a static class from a parameterized type
+         */
+        public static final Error CantSelectStaticClassFromParamType = new Error("compiler", "cant.select.static.class.from.param.type");
+        
+        /**
+         * compiler.err.cant.type.annotate.scoping=\
+         *    scoping construct cannot be annotated with type-use annotations: {0}
+         */
+        public static Error CantTypeAnnotateScoping(List<? extends Symbol> arg0) {
+            return new Error("compiler", "cant.type.annotate.scoping", arg0);
+        }
+        
+        /**
+         * compiler.err.cant.type.annotate.scoping.1=\
+         *    scoping construct cannot be annotated with type-use annotation: {0}
+         */
+        public static Error CantTypeAnnotateScoping1(Symbol arg0) {
+            return new Error("compiler", "cant.type.annotate.scoping.1", arg0);
+        }
+        
+        /**
+         * compiler.err.catch.without.try=\
+         *    ''catch'' without ''try''
+         */
+        public static final Error CatchWithoutTry = new Error("compiler", "catch.without.try");
+        
+        /**
+         * compiler.err.clash.with.pkg.of.same.name=\
+         *    {0} {1} clashes with package of same name
+         */
+        public static Error ClashWithPkgOfSameName(Kind arg0, Symbol arg1) {
+            return new Error("compiler", "clash.with.pkg.of.same.name", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.class.cant.write=\
+         *    error while writing {0}: {1}
+         */
+        public static Error ClassCantWrite(Symbol arg0, String arg1) {
+            return new Error("compiler", "class.cant.write", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.class.not.allowed=\
+         *    class, interface or enum declaration not allowed here
+         */
+        public static final Error ClassNotAllowed = new Error("compiler", "class.not.allowed");
+        
+        /**
+         * compiler.err.class.public.should.be.in.file=\
+         *    class {0} is public, should be declared in a file named {0}.java
+         */
+        public static Error ClassPublicShouldBeInFile(Name arg0) {
+            return new Error("compiler", "class.public.should.be.in.file", arg0);
+        }
+        
+        /**
+         * compiler.err.concrete.inheritance.conflict=\
+         *    methods {0} from {1} and {2} from {3} are inherited with the same signature
+         */
+        public static Error ConcreteInheritanceConflict(Symbol arg0, Type arg1, Symbol arg2, Type arg3, Void arg4) {
+            return new Error("compiler", "concrete.inheritance.conflict", arg0, arg1, arg2, arg3, arg4);
+        }
+        
+        /**
+         * compiler.err.conflicting.exports=\
+         *    duplicate or conflicting exports: {0}
+         */
+        public static Error ConflictingExports(Symbol arg0) {
+            return new Error("compiler", "conflicting.exports", arg0);
+        }
+        
+        /**
+         * compiler.err.conflicting.exports.to.module=\
+         *    duplicate or conflicting exports to module: {0}
+         */
+        public static Error ConflictingExportsToModule(Symbol arg0) {
+            return new Error("compiler", "conflicting.exports.to.module", arg0);
+        }
+        
+        /**
+         * compiler.err.conflicting.opens=\
+         *    duplicate or conflicting opens: {0}
+         */
+        public static Error ConflictingOpens(Symbol arg0) {
+            return new Error("compiler", "conflicting.opens", arg0);
+        }
+        
+        /**
+         * compiler.err.conflicting.opens.to.module=\
+         *    duplicate or conflicting opens to module: {0}
+         */
+        public static Error ConflictingOpensToModule(Symbol arg0) {
+            return new Error("compiler", "conflicting.opens.to.module", arg0);
+        }
+        
+        /**
+         * compiler.err.const.expr.req=\
+         *    constant expression required
+         */
+        public static final Error ConstExprReq = new Error("compiler", "const.expr.req");
+        
+        /**
+         * compiler.err.cont.outside.loop=\
+         *    continue outside of loop
+         */
+        public static final Error ContOutsideLoop = new Error("compiler", "cont.outside.loop");
+        
+        /**
+         * compiler.err.cyclic.annotation.element=\
+         *    type of element {0} is cyclic
+         */
+        public static Error CyclicAnnotationElement(Symbol arg0) {
+            return new Error("compiler", "cyclic.annotation.element", arg0);
+        }
+        
+        /**
+         * compiler.err.cyclic.inheritance=\
+         *    cyclic inheritance involving {0}
+         */
+        public static Error CyclicInheritance(Symbol arg0) {
+            return new Error("compiler", "cyclic.inheritance", arg0);
+        }
+        
+        /**
+         * compiler.err.cyclic.requires=\
+         *    cyclic dependence involving {0}
+         */
+        public static Error CyclicRequires(Symbol arg0) {
+            return new Error("compiler", "cyclic.requires", arg0);
+        }
+        
+        /**
+         * compiler.err.dc.bad.entity=\
+         *    bad HTML entity
+         */
+        public static final Error DcBadEntity = new Error("compiler", "dc.bad.entity");
+        
+        /**
+         * compiler.err.dc.bad.gt=\
+         *    bad use of ''>''
+         */
+        public static final Error DcBadGt = new Error("compiler", "dc.bad.gt");
+        
+        /**
+         * compiler.err.dc.bad.inline.tag=\
+         *    incorrect use of inline tag
+         */
+        public static final Error DcBadInlineTag = new Error("compiler", "dc.bad.inline.tag");
+        
+        /**
+         * compiler.err.dc.gt.expected=\
+         *    ''>'' expected
+         */
+        public static final Error DcGtExpected = new Error("compiler", "dc.gt.expected");
+        
+        /**
+         * compiler.err.dc.identifier.expected=\
+         *    identifier expected
+         */
+        public static final Error DcIdentifierExpected = new Error("compiler", "dc.identifier.expected");
+        
+        /**
+         * compiler.err.dc.malformed.html=\
+         *    malformed HTML
+         */
+        public static final Error DcMalformedHtml = new Error("compiler", "dc.malformed.html");
+        
+        /**
+         * compiler.err.dc.missing.semicolon=\
+         *    semicolon missing
+         */
+        public static final Error DcMissingSemicolon = new Error("compiler", "dc.missing.semicolon");
+        
+        /**
+         * compiler.err.dc.no.content=\
+         *    no content
+         */
+        public static final Error DcNoContent = new Error("compiler", "dc.no.content");
+        
+        /**
+         * compiler.err.dc.no.tag.name=\
+         *    no tag name after '@'
+         */
+        public static final Error DcNoTagName = new Error("compiler", "dc.no.tag.name");
+        
+        /**
+         * compiler.err.dc.ref.bad.parens=\
+         *    '')'' missing in reference
+         */
+        public static final Error DcRefBadParens = new Error("compiler", "dc.ref.bad.parens");
+        
+        /**
+         * compiler.err.dc.ref.syntax.error=\
+         *    syntax error in reference
+         */
+        public static final Error DcRefSyntaxError = new Error("compiler", "dc.ref.syntax.error");
+        
+        /**
+         * compiler.err.dc.ref.unexpected.input=\
+         *    unexpected text
+         */
+        public static final Error DcRefUnexpectedInput = new Error("compiler", "dc.ref.unexpected.input");
+        
+        /**
+         * compiler.err.dc.unexpected.content=\
+         *    unexpected content
+         */
+        public static final Error DcUnexpectedContent = new Error("compiler", "dc.unexpected.content");
+        
+        /**
+         * compiler.err.dc.unterminated.inline.tag=\
+         *    unterminated inline tag
+         */
+        public static final Error DcUnterminatedInlineTag = new Error("compiler", "dc.unterminated.inline.tag");
+        
+        /**
+         * compiler.err.dc.unterminated.signature=\
+         *    unterminated signature
+         */
+        public static final Error DcUnterminatedSignature = new Error("compiler", "dc.unterminated.signature");
+        
+        /**
+         * compiler.err.dc.unterminated.string=\
+         *    unterminated string
+         */
+        public static final Error DcUnterminatedString = new Error("compiler", "dc.unterminated.string");
+        
+        /**
+         * compiler.err.default.allowed.in.intf.annotation.member=\
+         *    default value only allowed in an annotation type declaration
+         */
+        public static final Error DefaultAllowedInIntfAnnotationMember = new Error("compiler", "default.allowed.in.intf.annotation.member");
+        
+        /**
+         * compiler.err.default.methods.not.supported.in.source=\
+         *    default methods are not supported in -source {0}\n\
+         *    (use -source 8 or higher to enable default methods)
+         */
+        public static Error DefaultMethodsNotSupportedInSource(String arg0) {
+            return new Error("compiler", "default.methods.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.default.overrides.object.member=\
+         *    default method {0} in {1} {2} overrides a member of java.lang.Object
+         */
+        public static Error DefaultOverridesObjectMember(Name arg0, KindName arg1, Symbol arg2) {
+            return new Error("compiler", "default.overrides.object.member", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.diamond.not.supported.in.source=\
+         *    diamond operator is not supported in -source {0}\n\
+         *    (use -source 7 or higher to enable diamond operator)
+         */
+        public static Error DiamondNotSupportedInSource(String arg0) {
+            return new Error("compiler", "diamond.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.does.not.override.abstract=\
+         *    {0} is not abstract and does not override abstract method {1} in {2}
+         */
+        public static Error DoesNotOverrideAbstract(Symbol arg0, Symbol arg1, Symbol arg2) {
+            return new Error("compiler", "does.not.override.abstract", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.doesnt.exist=\
+         *    package {0} does not exist
+         */
+        public static Error DoesntExist(Symbol arg0) {
+            return new Error("compiler", "doesnt.exist", arg0);
+        }
+        
+        /**
+         * compiler.err.dot.class.expected=\
+         *    ''.class'' expected
+         */
+        public static final Error DotClassExpected = new Error("compiler", "dot.class.expected");
+        
+        /**
+         * compiler.err.duplicate.annotation.invalid.repeated=\
+         *    annotation {0} is not a valid repeatable annotation
+         */
+        public static Error DuplicateAnnotationInvalidRepeated(Type arg0) {
+            return new Error("compiler", "duplicate.annotation.invalid.repeated", arg0);
+        }
+        
+        /**
+         * compiler.err.duplicate.annotation.member.value=\
+         *    duplicate element ''{0}'' in annotation @{1}.
+         */
+        public static Error DuplicateAnnotationMemberValue(Name arg0, Type arg1) {
+            return new Error("compiler", "duplicate.annotation.member.value", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.duplicate.annotation.missing.container=\
+         *    {0} is not a repeatable annotation type
+         */
+        public static Error DuplicateAnnotationMissingContainer(Name arg0, Void arg1) {
+            return new Error("compiler", "duplicate.annotation.missing.container", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.duplicate.case.label=\
+         *    duplicate case label
+         */
+        public static final Error DuplicateCaseLabel = new Error("compiler", "duplicate.case.label");
+        
+        /**
+         * compiler.err.duplicate.class=\
+         *    duplicate class: {0}
+         */
+        public static Error DuplicateClass(Name arg0) {
+            return new Error("compiler", "duplicate.class", arg0);
+        }
+        
+        /**
+         * compiler.err.duplicate.default.label=\
+         *    duplicate default label
+         */
+        public static final Error DuplicateDefaultLabel = new Error("compiler", "duplicate.default.label");
+        
+        /**
+         * compiler.err.duplicate.module=\
+         *    duplicate module: {0}
+         */
+        public static Error DuplicateModule(Symbol arg0) {
+            return new Error("compiler", "duplicate.module", arg0);
+        }
+        
+        /**
+         * compiler.err.duplicate.module.on.path=\
+         *    duplicate module on {0}\nmodule in {1}
+         */
+        public static Error DuplicateModuleOnPath(Fragment arg0, Name arg1) {
+            return new Error("compiler", "duplicate.module.on.path", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.duplicate.provides=\
+         *    duplicate provides: service {0}, implementation {1}
+         */
+        public static Error DuplicateProvides(Symbol arg0, Symbol arg1) {
+            return new Error("compiler", "duplicate.provides", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.duplicate.requires=\
+         *    duplicate requires: {0}
+         */
+        public static Error DuplicateRequires(Symbol arg0) {
+            return new Error("compiler", "duplicate.requires", arg0);
+        }
+        
+        /**
+         * compiler.err.duplicate.uses=\
+         *    duplicate uses: {0}
+         */
+        public static Error DuplicateUses(Symbol arg0) {
+            return new Error("compiler", "duplicate.uses", arg0);
+        }
+        
+        /**
+         * compiler.err.else.without.if=\
+         *    ''else'' without ''if''
+         */
+        public static final Error ElseWithoutIf = new Error("compiler", "else.without.if");
+        
+        /**
+         * compiler.err.empty.char.lit=\
+         *    empty character literal
+         */
+        public static final Error EmptyCharLit = new Error("compiler", "empty.char.lit");
+        
+        /**
+         * compiler.err.encl.class.required=\
+         *    an enclosing instance that contains {0} is required
+         */
+        public static Error EnclClassRequired(Symbol arg0) {
+            return new Error("compiler", "encl.class.required", arg0);
+        }
+        
+        /**
+         * compiler.err.enum.annotation.must.be.enum.constant=\
+         *    an enum annotation value must be an enum constant
+         */
+        public static final Error EnumAnnotationMustBeEnumConstant = new Error("compiler", "enum.annotation.must.be.enum.constant");
+        
+        /**
+         * compiler.err.enum.as.identifier=\
+         *    as of release 5, ''enum'' is a keyword, and may not be used as an identifier
+         */
+        public static final Error EnumAsIdentifier = new Error("compiler", "enum.as.identifier");
+        
+        /**
+         * compiler.err.enum.cant.be.instantiated=\
+         *    enum types may not be instantiated
+         */
+        public static final Error EnumCantBeInstantiated = new Error("compiler", "enum.cant.be.instantiated");
+        
+        /**
+         * compiler.err.enum.label.must.be.unqualified.enum=\
+         *    an enum switch case label must be the unqualified name of an enumeration constant
+         */
+        public static final Error EnumLabelMustBeUnqualifiedEnum = new Error("compiler", "enum.label.must.be.unqualified.enum");
+        
+        /**
+         * compiler.err.enum.no.finalize=\
+         *    enums cannot have finalize methods
+         */
+        public static final Error EnumNoFinalize = new Error("compiler", "enum.no.finalize");
+        
+        /**
+         * compiler.err.enum.no.subclassing=\
+         *    classes cannot directly extend java.lang.Enum
+         */
+        public static final Error EnumNoSubclassing = new Error("compiler", "enum.no.subclassing");
+        
+        /**
+         * compiler.err.enum.types.not.extensible=\
+         *    enum types are not extensible
+         */
+        public static final Error EnumTypesNotExtensible = new Error("compiler", "enum.types.not.extensible");
+        
+        /**
+         * compiler.err.enums.must.be.static=\
+         *    enum declarations allowed only in static contexts
+         */
+        public static final Error EnumsMustBeStatic = new Error("compiler", "enums.must.be.static");
+        
+        /**
+         * compiler.err.error=\
+         *    error:\u0020
+         */
+        public static final Error Error = new Error("compiler", "error");
+        
+        /**
+         * compiler.err.error.reading.file=\
+         *    error reading {0}; {1}
+         */
+        public static Error ErrorReadingFile(File arg0, String arg1) {
+            return new Error("compiler", "error.reading.file", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.error.reading.file=\
+         *    error reading {0}; {1}
+         */
+        public static Error ErrorReadingFile(JavaFileObject arg0, String arg1) {
+            return new Error("compiler", "error.reading.file", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.except.already.caught=\
+         *    exception {0} has already been caught
+         */
+        public static Error ExceptAlreadyCaught(Type arg0) {
+            return new Error("compiler", "except.already.caught", arg0);
+        }
+        
+        /**
+         * compiler.err.except.never.thrown.in.try=\
+         *    exception {0} is never thrown in body of corresponding try statement
+         */
+        public static Error ExceptNeverThrownInTry(Type arg0) {
+            return new Error("compiler", "except.never.thrown.in.try", arg0);
+        }
+        
+        /**
+         * compiler.err.expected=\
+         *    {0} expected
+         */
+        public static Error Expected(TokenKind arg0) {
+            return new Error("compiler", "expected", arg0);
+        }
+        
+        /**
+         * compiler.err.expected.module=\
+         *    expected ''module''
+         */
+        public static final Error ExpectedModule = new Error("compiler", "expected.module");
+        
+        /**
+         * compiler.err.expected2=\
+         *    {0} or {1} expected
+         */
+        public static Error Expected2(TokenKind arg0, TokenKind arg1) {
+            return new Error("compiler", "expected2", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.expected3=\
+         *    {0}, {1}, or {2} expected
+         */
+        public static Error Expected3(TokenKind arg0, TokenKind arg1, TokenKind arg2) {
+            return new Error("compiler", "expected3", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.final.parameter.may.not.be.assigned=\
+         *    final parameter {0} may not be assigned
+         */
+        public static Error FinalParameterMayNotBeAssigned(Symbol arg0) {
+            return new Error("compiler", "final.parameter.may.not.be.assigned", arg0);
+        }
+        
+        /**
+         * compiler.err.finally.without.try=\
+         *    ''finally'' without ''try''
+         */
+        public static final Error FinallyWithoutTry = new Error("compiler", "finally.without.try");
+        
+        /**
+         * compiler.err.foreach.not.applicable.to.type=\
+         *    for-each not applicable to expression type\n\
+         *    required: {1}\n\
+         *    found:    {0}
+         */
+        public static Error ForeachNotApplicableToType(Type arg0, JCDiagnostic arg1) {
+            return new Error("compiler", "foreach.not.applicable.to.type", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.foreach.not.applicable.to.type=\
+         *    for-each not applicable to expression type\n\
+         *    required: {1}\n\
+         *    found:    {0}
+         */
+        public static Error ForeachNotApplicableToType(Type arg0, Fragment arg1) {
+            return new Error("compiler", "foreach.not.applicable.to.type", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.fp.number.too.large=\
+         *    floating point number too large
+         */
+        public static final Error FpNumberTooLarge = new Error("compiler", "fp.number.too.large");
+        
+        /**
+         * compiler.err.fp.number.too.small=\
+         *    floating point number too small
+         */
+        public static final Error FpNumberTooSmall = new Error("compiler", "fp.number.too.small");
+        
+        /**
+         * compiler.err.generic.array.creation=\
+         *    generic array creation
+         */
+        public static final Error GenericArrayCreation = new Error("compiler", "generic.array.creation");
+        
+        /**
+         * compiler.err.generic.throwable=\
+         *    a generic class may not extend java.lang.Throwable
+         */
+        public static final Error GenericThrowable = new Error("compiler", "generic.throwable");
+        
+        /**
+         * compiler.err.icls.cant.have.static.decl=\
+         *    Illegal static declaration in inner class {0}\n\
+         *    modifier \''static\'' is only allowed in constant variable declarations
+         */
+        public static Error IclsCantHaveStaticDecl(Symbol arg0) {
+            return new Error("compiler", "icls.cant.have.static.decl", arg0);
+        }
+        
+        /**
+         * compiler.err.illegal.argument.for.option=\
+         *    illegal argument for {0}: {1}
+         */
+        public static Error IllegalArgumentForOption(String arg0, String arg1) {
+            return new Error("compiler", "illegal.argument.for.option", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.illegal.char=\
+         *    illegal character: ''{0}''
+         */
+        public static Error IllegalChar(String arg0) {
+            return new Error("compiler", "illegal.char", arg0);
+        }
+        
+        /**
+         * compiler.err.illegal.char.for.encoding=\
+         *    unmappable character (0x{0}) for encoding {1}
+         */
+        public static Error IllegalCharForEncoding(String arg0, String arg1) {
+            return new Error("compiler", "illegal.char.for.encoding", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.illegal.combination.of.modifiers=\
+         *    illegal combination of modifiers: {0} and {1}
+         */
+        public static Error IllegalCombinationOfModifiers(Set<? extends Modifier> arg0, Set<? extends Modifier> arg1) {
+            return new Error("compiler", "illegal.combination.of.modifiers", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.illegal.default.super.call=\
+         *    bad type qualifier {0} in default super call\n\
+         *    {1}
+         */
+        public static Error IllegalDefaultSuperCall(Type arg0, JCDiagnostic arg1) {
+            return new Error("compiler", "illegal.default.super.call", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.illegal.default.super.call=\
+         *    bad type qualifier {0} in default super call\n\
+         *    {1}
+         */
+        public static Error IllegalDefaultSuperCall(Type arg0, Fragment arg1) {
+            return new Error("compiler", "illegal.default.super.call", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.illegal.dot=\
+         *    illegal ''.''
+         */
+        public static final Error IllegalDot = new Error("compiler", "illegal.dot");
+        
+        /**
+         * compiler.err.illegal.enum.static.ref=\
+         *    illegal reference to static field from initializer
+         */
+        public static final Error IllegalEnumStaticRef = new Error("compiler", "illegal.enum.static.ref");
+        
+        /**
+         * compiler.err.illegal.esc.char=\
+         *    illegal escape character
+         */
+        public static final Error IllegalEscChar = new Error("compiler", "illegal.esc.char");
+        
+        /**
+         * compiler.err.illegal.forward.ref=\
+         *    illegal forward reference
+         */
+        public static final Error IllegalForwardRef = new Error("compiler", "illegal.forward.ref");
+        
+        /**
+         * compiler.err.illegal.generic.type.for.instof=\
+         *    illegal generic type for instanceof
+         */
+        public static final Error IllegalGenericTypeForInstof = new Error("compiler", "illegal.generic.type.for.instof");
+        
+        /**
+         * compiler.err.illegal.initializer.for.type=\
+         *    illegal initializer for {0}
+         */
+        public static Error IllegalInitializerForType(Type arg0) {
+            return new Error("compiler", "illegal.initializer.for.type", arg0);
+        }
+        
+        /**
+         * compiler.err.illegal.line.end.in.char.lit=\
+         *    illegal line end in character literal
+         */
+        public static final Error IllegalLineEndInCharLit = new Error("compiler", "illegal.line.end.in.char.lit");
+        
+        /**
+         * compiler.err.illegal.nonascii.digit=\
+         *    illegal non-ASCII digit
+         */
+        public static final Error IllegalNonasciiDigit = new Error("compiler", "illegal.nonascii.digit");
+        
+        /**
+         * compiler.err.illegal.qual.not.icls=\
+         *    illegal qualifier; {0} is not an inner class
+         */
+        public static Error IllegalQualNotIcls(Symbol arg0) {
+            return new Error("compiler", "illegal.qual.not.icls", arg0);
+        }
+        
+        /**
+         * compiler.err.illegal.self.ref=\
+         *    self-reference in initializer
+         */
+        public static final Error IllegalSelfRef = new Error("compiler", "illegal.self.ref");
+        
+        /**
+         * compiler.err.illegal.start.of.expr=\
+         *    illegal start of expression
+         */
+        public static final Error IllegalStartOfExpr = new Error("compiler", "illegal.start.of.expr");
+        
+        /**
+         * compiler.err.illegal.start.of.stmt=\
+         *    illegal start of statement
+         */
+        public static final Error IllegalStartOfStmt = new Error("compiler", "illegal.start.of.stmt");
+        
+        /**
+         * compiler.err.illegal.start.of.type=\
+         *    illegal start of type
+         */
+        public static final Error IllegalStartOfType = new Error("compiler", "illegal.start.of.type");
+        
+        /**
+         * compiler.err.illegal.static.intf.meth.call=\
+         *    illegal static interface method call\n\
+         *    the receiver expression should be replaced with the type qualifier ''{0}''
+         */
+        public static Error IllegalStaticIntfMethCall(Type arg0) {
+            return new Error("compiler", "illegal.static.intf.meth.call", arg0);
+        }
+        
+        /**
+         * compiler.err.illegal.underscore=\
+         *    illegal underscore
+         */
+        public static final Error IllegalUnderscore = new Error("compiler", "illegal.underscore");
+        
+        /**
+         * compiler.err.illegal.unicode.esc=\
+         *    illegal unicode escape
+         */
+        public static final Error IllegalUnicodeEsc = new Error("compiler", "illegal.unicode.esc");
+        
+        /**
+         * compiler.err.import.requires.canonical=\
+         *    import requires canonical name for {0}
+         */
+        public static Error ImportRequiresCanonical(Symbol arg0) {
+            return new Error("compiler", "import.requires.canonical", arg0);
+        }
+        
+        /**
+         * compiler.err.improperly.formed.type.inner.raw.param=\
+         *    improperly formed type, type arguments given on a raw type
+         */
+        public static final Error ImproperlyFormedTypeInnerRawParam = new Error("compiler", "improperly.formed.type.inner.raw.param");
+        
+        /**
+         * compiler.err.improperly.formed.type.param.missing=\
+         *    improperly formed type, some parameters are missing
+         */
+        public static final Error ImproperlyFormedTypeParamMissing = new Error("compiler", "improperly.formed.type.param.missing");
+        
+        /**
+         * compiler.err.incomparable.types=\
+         *    incomparable types: {0} and {1}
+         */
+        public static Error IncomparableTypes(Type arg0, Type arg1) {
+            return new Error("compiler", "incomparable.types", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.incompatible.thrown.types.in.mref=\
+         *    incompatible thrown types {0} in method reference
+         */
+        public static Error IncompatibleThrownTypesInMref(List<? extends Type> arg0) {
+            return new Error("compiler", "incompatible.thrown.types.in.mref", arg0);
+        }
+        
+        /**
+         * compiler.err.incorrect.constructor.receiver.name=\
+         *    the receiver name does not match the enclosing outer class type\n\
+         *    required: {0}\n\
+         *    found: {1}
+         */
+        public static Error IncorrectConstructorReceiverName(Type arg0, Type arg1) {
+            return new Error("compiler", "incorrect.constructor.receiver.name", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.incorrect.constructor.receiver.type=\
+         *    the receiver type does not match the enclosing outer class type\n\
+         *    required: {0}\n\
+         *    found: {1}
+         */
+        public static Error IncorrectConstructorReceiverType(Type arg0, Type arg1) {
+            return new Error("compiler", "incorrect.constructor.receiver.type", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.incorrect.receiver.name=\
+         *    the receiver name does not match the enclosing class type\n\
+         *    required: {0}\n\
+         *    found: {1}
+         */
+        public static Error IncorrectReceiverName(Type arg0, Type arg1) {
+            return new Error("compiler", "incorrect.receiver.name", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.incorrect.receiver.type=\
+         *    the receiver type does not match the enclosing class type\n\
+         *    required: {0}\n\
+         *    found: {1}
+         */
+        public static Error IncorrectReceiverType(Type arg0, Type arg1) {
+            return new Error("compiler", "incorrect.receiver.type", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.initializer.must.be.able.to.complete.normally=\
+         *    initializer must be able to complete normally
+         */
+        public static final Error InitializerMustBeAbleToCompleteNormally = new Error("compiler", "initializer.must.be.able.to.complete.normally");
+        
+        /**
+         * compiler.err.initializer.not.allowed=\
+         *    initializers not allowed in interfaces
+         */
+        public static final Error InitializerNotAllowed = new Error("compiler", "initializer.not.allowed");
+        
+        /**
+         * compiler.err.int.number.too.large=\
+         *    integer number too large: {0}
+         */
+        public static Error IntNumberTooLarge(int arg0) {
+            return new Error("compiler", "int.number.too.large", arg0);
+        }
+        
+        /**
+         * compiler.err.intersection.types.in.cast.not.supported.in.source=\
+         *    intersection types in cast are not supported in -source {0}\n\
+         *    (use -source 8 or higher to enable default methods)
+         */
+        public static Error IntersectionTypesInCastNotSupportedInSource(String arg0) {
+            return new Error("compiler", "intersection.types.in.cast.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.intf.annotation.cant.have.type.params=\
+         *    annotation type {0} cannot be generic
+         */
+        public static Error IntfAnnotationCantHaveTypeParams(Symbol arg0) {
+            return new Error("compiler", "intf.annotation.cant.have.type.params", arg0);
+        }
+        
+        /**
+         * compiler.err.intf.annotation.member.clash=\
+         *    annotation type {1} declares an element with the same name as method {0}
+         */
+        public static Error IntfAnnotationMemberClash(Symbol arg0, Type arg1) {
+            return new Error("compiler", "intf.annotation.member.clash", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.intf.annotation.members.cant.have.params=\
+         *    elements in annotation type declarations cannot declare formal parameters
+         */
+        public static final Error IntfAnnotationMembersCantHaveParams = new Error("compiler", "intf.annotation.members.cant.have.params");
+        
+        /**
+         * compiler.err.intf.annotation.members.cant.have.type.params=\
+         *    elements in annotation type declarations cannot be generic methods
+         */
+        public static final Error IntfAnnotationMembersCantHaveTypeParams = new Error("compiler", "intf.annotation.members.cant.have.type.params");
+        
+        /**
+         * compiler.err.intf.expected.here=\
+         *    interface expected here
+         */
+        public static final Error IntfExpectedHere = new Error("compiler", "intf.expected.here");
+        
+        /**
+         * compiler.err.intf.meth.cant.have.body=\
+         *    interface abstract methods cannot have body
+         */
+        public static final Error IntfMethCantHaveBody = new Error("compiler", "intf.meth.cant.have.body");
+        
+        /**
+         * compiler.err.intf.not.allowed.here=\
+         *    interface not allowed here
+         */
+        public static final Error IntfNotAllowedHere = new Error("compiler", "intf.not.allowed.here");
+        
+        /**
+         * compiler.err.invalid.annotation.member.type=\
+         *    invalid type for element {0} of annotation type
+         */
+        public static Error InvalidAnnotationMemberType(Symbol arg0) {
+            return new Error("compiler", "invalid.annotation.member.type", arg0);
+        }
+        
+        /**
+         * compiler.err.invalid.binary.number=\
+         *    binary numbers must contain at least one binary digit
+         */
+        public static final Error InvalidBinaryNumber = new Error("compiler", "invalid.binary.number");
+        
+        /**
+         * compiler.err.invalid.hex.number=\
+         *    hexadecimal numbers must contain at least one hexadecimal digit
+         */
+        public static final Error InvalidHexNumber = new Error("compiler", "invalid.hex.number");
+        
+        /**
+         * compiler.err.invalid.meth.decl.ret.type.req=\
+         *    invalid method declaration; return type required
+         */
+        public static final Error InvalidMethDeclRetTypeReq = new Error("compiler", "invalid.meth.decl.ret.type.req");
+        
+        /**
+         * compiler.err.invalid.module.directive=\
+         *  module directive keyword or ''}'' expected
+         */
+        public static final Error InvalidModuleDirective = new Error("compiler", "invalid.module.directive");
+        
+        /**
+         * compiler.err.invalid.module.specifier=\
+         *    module specifier not allowed: {0}
+         */
+        public static Error InvalidModuleSpecifier(String arg0) {
+            return new Error("compiler", "invalid.module.specifier", arg0);
+        }
+        
+        /**
+         * compiler.err.invalid.mref=\
+         *    invalid {0} reference\n\
+         *    {1}
+         */
+        public static Error InvalidMref(Kind arg0, JCDiagnostic arg1) {
+            return new Error("compiler", "invalid.mref", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.invalid.mref=\
+         *    invalid {0} reference\n\
+         *    {1}
+         */
+        public static Error InvalidMref(Kind arg0, Fragment arg1) {
+            return new Error("compiler", "invalid.mref", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation=\
+         *    duplicate annotation: {0} is annotated with an invalid @Repeatable annotation
+         */
+        public static Error InvalidRepeatableAnnotation(Type arg0, Void arg1) {
+            return new Error("compiler", "invalid.repeatable.annotation", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.elem.nondefault=\
+         *    containing annotation type ({0}) does not have a default value for element {1}
+         */
+        public static Error InvalidRepeatableAnnotationElemNondefault(Symbol arg0, Symbol arg1) {
+            return new Error("compiler", "invalid.repeatable.annotation.elem.nondefault", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.elem.nondefault=\
+         *    containing annotation type ({0}) does not have a default value for element {1}
+         */
+        public static Error InvalidRepeatableAnnotationElemNondefault(Type arg0, Symbol arg1) {
+            return new Error("compiler", "invalid.repeatable.annotation.elem.nondefault", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.incompatible.target=\
+         *    containing annotation type ({0}) is applicable to more targets than repeatable annotation type ({1})
+         */
+        public static Error InvalidRepeatableAnnotationIncompatibleTarget(Symbol arg0, Symbol arg1) {
+            return new Error("compiler", "invalid.repeatable.annotation.incompatible.target", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.invalid.value=\
+         *    {0} is not a valid @Repeatable: invalid value element
+         */
+        public static Error InvalidRepeatableAnnotationInvalidValue(Type arg0) {
+            return new Error("compiler", "invalid.repeatable.annotation.invalid.value", arg0);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.multiple.values=\
+         *    {0} is not a valid @Repeatable, {1} element methods named ''value'' declared
+         */
+        public static Error InvalidRepeatableAnnotationMultipleValues(Type arg0, int arg1) {
+            return new Error("compiler", "invalid.repeatable.annotation.multiple.values", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.no.value=\
+         *    {0} is not a valid @Repeatable, no value element method declared
+         */
+        public static Error InvalidRepeatableAnnotationNoValue(Symbol arg0) {
+            return new Error("compiler", "invalid.repeatable.annotation.no.value", arg0);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.no.value=\
+         *    {0} is not a valid @Repeatable, no value element method declared
+         */
+        public static Error InvalidRepeatableAnnotationNoValue(Type arg0) {
+            return new Error("compiler", "invalid.repeatable.annotation.no.value", arg0);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.not.applicable=\
+         *    container {0} is not applicable to element {1}
+         */
+        public static Error InvalidRepeatableAnnotationNotApplicable(Type arg0, Symbol arg1) {
+            return new Error("compiler", "invalid.repeatable.annotation.not.applicable", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.not.applicable.in.context=\
+         *    container {0} is not applicable in this type context
+         */
+        public static Error InvalidRepeatableAnnotationNotApplicableInContext(Type arg0) {
+            return new Error("compiler", "invalid.repeatable.annotation.not.applicable.in.context", arg0);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.not.documented=\
+         *    repeatable annotation type ({1}) is @Documented while containing annotation type ({0}) is not
+         */
+        public static Error InvalidRepeatableAnnotationNotDocumented(Symbol arg0, Symbol arg1) {
+            return new Error("compiler", "invalid.repeatable.annotation.not.documented", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.not.inherited=\
+         *    repeatable annotation type ({1}) is @Inherited while containing annotation type ({0}) is not
+         */
+        public static Error InvalidRepeatableAnnotationNotInherited(Symbol arg0, Symbol arg1) {
+            return new Error("compiler", "invalid.repeatable.annotation.not.inherited", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.repeated.and.container.present=\
+         *    container {0} must not be present at the same time as the element it contains
+         */
+        public static Error InvalidRepeatableAnnotationRepeatedAndContainerPresent(Symbol arg0) {
+            return new Error("compiler", "invalid.repeatable.annotation.repeated.and.container.present", arg0);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.retention=\
+         *    retention of containing annotation type ({0}) is shorter than the retention of repeatable annotation type ({2})
+         */
+        public static Error InvalidRepeatableAnnotationRetention(Symbol arg0, Void arg1, Symbol arg2, Void arg3) {
+            return new Error("compiler", "invalid.repeatable.annotation.retention", arg0, arg1, arg2, arg3);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.value.return=\
+         *    containing annotation type ({0}) must declare an element named ''value'' of type {2}
+         */
+        public static Error InvalidRepeatableAnnotationValueReturn(Symbol arg0, Void arg1, Type arg2) {
+            return new Error("compiler", "invalid.repeatable.annotation.value.return", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.invalid.repeatable.annotation.value.return=\
+         *    containing annotation type ({0}) must declare an element named ''value'' of type {2}
+         */
+        public static Error InvalidRepeatableAnnotationValueReturn(Type arg0, Void arg1, Type arg2) {
+            return new Error("compiler", "invalid.repeatable.annotation.value.return", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.io.exception=\
+         *    error reading source file: {0}
+         */
+        public static final Error IoException = new Error("compiler", "io.exception");
+        
+        /**
+         * compiler.err.label.already.in.use=\
+         *    label {0} already in use
+         */
+        public static Error LabelAlreadyInUse(Name arg0) {
+            return new Error("compiler", "label.already.in.use", arg0);
+        }
+        
+        /**
+         * compiler.err.lambda.body.neither.value.nor.void.compatible=\
+         *    lambda body is neither value nor void compatible
+         */
+        public static final Error LambdaBodyNeitherValueNorVoidCompatible = new Error("compiler", "lambda.body.neither.value.nor.void.compatible");
+        
+        /**
+         * compiler.err.lambda.not.supported.in.source=\
+         *    lambda expressions are not supported in -source {0}\n\
+         *    (use -source 8 or higher to enable lambda expressions)
+         */
+        public static Error LambdaNotSupportedInSource(String arg0) {
+            return new Error("compiler", "lambda.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.limit.code=\
+         *    code too large
+         */
+        public static final Error LimitCode = new Error("compiler", "limit.code");
+        
+        /**
+         * compiler.err.limit.code.too.large.for.try.stmt=\
+         *    code too large for try statement
+         */
+        public static final Error LimitCodeTooLargeForTryStmt = new Error("compiler", "limit.code.too.large.for.try.stmt");
+        
+        /**
+         * compiler.err.limit.dimensions=\
+         *    array type has too many dimensions
+         */
+        public static final Error LimitDimensions = new Error("compiler", "limit.dimensions");
+        
+        /**
+         * compiler.err.limit.locals=\
+         *    too many local variables
+         */
+        public static final Error LimitLocals = new Error("compiler", "limit.locals");
+        
+        /**
+         * compiler.err.limit.parameters=\
+         *    too many parameters
+         */
+        public static final Error LimitParameters = new Error("compiler", "limit.parameters");
+        
+        /**
+         * compiler.err.limit.pool=\
+         *    too many constants
+         */
+        public static final Error LimitPool = new Error("compiler", "limit.pool");
+        
+        /**
+         * compiler.err.limit.pool.in.class=\
+         *    too many constants in class {0}
+         */
+        public static final Error LimitPoolInClass = new Error("compiler", "limit.pool.in.class");
+        
+        /**
+         * compiler.err.limit.stack=\
+         *    code requires too much stack
+         */
+        public static final Error LimitStack = new Error("compiler", "limit.stack");
+        
+        /**
+         * compiler.err.limit.string=\
+         *    constant string too long
+         */
+        public static final Error LimitString = new Error("compiler", "limit.string");
+        
+        /**
+         * compiler.err.limit.string.overflow=\
+         *    UTF8 representation for string \"{0}...\" is too long for the constant pool
+         */
+        public static final Error LimitStringOverflow = new Error("compiler", "limit.string.overflow");
+        
+        /**
+         * compiler.err.local.enum=\
+         *    enum types must not be local
+         */
+        public static final Error LocalEnum = new Error("compiler", "local.enum");
+        
+        /**
+         * compiler.err.local.var.accessed.from.icls.needs.final=\
+         *    local variable {0} is accessed from within inner class; needs to be declared final
+         */
+        public static Error LocalVarAccessedFromIclsNeedsFinal(Symbol arg0) {
+            return new Error("compiler", "local.var.accessed.from.icls.needs.final", arg0);
+        }
+        
+        /**
+         * compiler.err.locn.bad.module-info=\
+         *    problem reading module-info.class in {0}
+         */
+        public static Error LocnBadModuleInfo(Path arg0) {
+            return new Error("compiler", "locn.bad.module-info", arg0);
+        }
+        
+        /**
+         * compiler.err.locn.cant.get.module.name.for.jar=\
+         *    cannot determine module name for {0}
+         */
+        public static Error LocnCantGetModuleNameForJar(Path arg0) {
+            return new Error("compiler", "locn.cant.get.module.name.for.jar", arg0);
+        }
+        
+        /**
+         * compiler.err.locn.cant.read.directory=\
+         *    cannot read directory {0}
+         */
+        public static Error LocnCantReadDirectory(Path arg0) {
+            return new Error("compiler", "locn.cant.read.directory", arg0);
+        }
+        
+        /**
+         * compiler.err.locn.cant.read.file=\
+         *    cannot read file {0}
+         */
+        public static Error LocnCantReadFile(Path arg0) {
+            return new Error("compiler", "locn.cant.read.file", arg0);
+        }
+        
+        /**
+         * compiler.err.locn.invalid.arg.for.xpatch=\
+         *    invalid argument for --patch-module option: {0}
+         */
+        public static Error LocnInvalidArgForXpatch(String arg0) {
+            return new Error("compiler", "locn.invalid.arg.for.xpatch", arg0);
+        }
+        
+        /**
+         * compiler.err.locn.module-info.not.allowed.on.patch.path=\
+         *    module-info.class not allowed on patch path: {0}
+         */
+        public static Error LocnModuleInfoNotAllowedOnPatchPath(Path arg0) {
+            return new Error("compiler", "locn.module-info.not.allowed.on.patch.path", arg0);
+        }
+        
+        /**
+         * compiler.err.malformed.fp.lit=\
+         *    malformed floating point literal
+         */
+        public static final Error MalformedFpLit = new Error("compiler", "malformed.fp.lit");
+        
+        /**
+         * compiler.err.method.does.not.override.superclass=\
+         *    method does not override or implement a method from a supertype
+         */
+        public static final Error MethodDoesNotOverrideSuperclass = new Error("compiler", "method.does.not.override.superclass");
+        
+        /**
+         * compiler.err.method.invoked.with.incorrect.number.arguments=\
+         *    method invoked with incorrect number of arguments; expected {0}, found {1}
+         */
+        public static Error MethodInvokedWithIncorrectNumberArguments(int arg0, int arg1) {
+            return new Error("compiler", "method.invoked.with.incorrect.number.arguments", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.method.references.not.supported.in.source=\
+         *    method references are not supported in -source {0}\n\
+         *    (use -source 8 or higher to enable method references)
+         */
+        public static Error MethodReferencesNotSupportedInSource(String arg0) {
+            return new Error("compiler", "method.references.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.missing.meth.body.or.decl.abstract=\
+         *    missing method body, or declare abstract
+         */
+        public static final Error MissingMethBodyOrDeclAbstract = new Error("compiler", "missing.meth.body.or.decl.abstract");
+        
+        /**
+         * compiler.err.missing.ret.stmt=\
+         *    missing return statement
+         */
+        public static final Error MissingRetStmt = new Error("compiler", "missing.ret.stmt");
+        
+        /**
+         * compiler.err.mod.not.allowed.here=\
+         *    modifier {0} not allowed here
+         */
+        public static Error ModNotAllowedHere(Set<? extends Modifier> arg0) {
+            return new Error("compiler", "mod.not.allowed.here", arg0);
+        }
+        
+        /**
+         * compiler.err.module-info.with.xmodule.classpath=\
+         *    illegal combination of -Xmodule and module-info on classpath
+         */
+        public static final Error ModuleInfoWithXmoduleClasspath = new Error("compiler", "module-info.with.xmodule.classpath");
+        
+        /**
+         * compiler.err.module-info.with.xmodule.sourcepath=\
+         *    illegal combination of -Xmodule and module-info on sourcepath
+         */
+        public static final Error ModuleInfoWithXmoduleSourcepath = new Error("compiler", "module-info.with.xmodule.sourcepath");
+        
+        /**
+         * compiler.err.module.decl.sb.in.module-info.java=\
+         *    module declarations should be in a file named module-info.java
+         */
+        public static final Error ModuleDeclSbInModuleInfoJava = new Error("compiler", "module.decl.sb.in.module-info.java");
+        
+        /**
+         * compiler.err.module.name.mismatch=\
+         *    module name {0} does not match expected name {1}
+         */
+        public static Error ModuleNameMismatch(Name arg0, Name arg1) {
+            return new Error("compiler", "module.name.mismatch", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.module.non.zero.opens=\
+         *    open module {0} has non-zero opens_count
+         */
+        public static Error ModuleNonZeroOpens(Name arg0) {
+            return new Error("compiler", "module.non.zero.opens", arg0);
+        }
+        
+        /**
+         * compiler.err.module.not.found=\
+         *    module not found: {0}
+         */
+        public static Error ModuleNotFound(Symbol arg0) {
+            return new Error("compiler", "module.not.found", arg0);
+        }
+        
+        /**
+         * compiler.err.module.not.found.in.module.source.path=\
+         *    module {0} not found in module source path
+         */
+        public static Error ModuleNotFoundInModuleSourcePath(String arg0) {
+            return new Error("compiler", "module.not.found.in.module.source.path", arg0);
+        }
+        
+        /**
+         * compiler.err.modules.not.supported.in.source=\
+         *   modules are not supported in -source {0}\n\
+         *    (use -source 9 or higher to enable modules)
+         */
+        public static Error ModulesNotSupportedInSource(String arg0) {
+            return new Error("compiler", "modules.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.modulesourcepath.must.be.specified.with.dash.m.option=\
+         *    module source path must be specified if -m option is used
+         */
+        public static final Error ModulesourcepathMustBeSpecifiedWithDashMOption = new Error("compiler", "modulesourcepath.must.be.specified.with.dash.m.option");
+        
+        /**
+         * compiler.err.multi-module.outdir.cannot.be.exploded.module=\
+         *    in multi-module mode, the output directory cannot be an exploded module: {0}
+         */
+        public static Error MultiModuleOutdirCannotBeExplodedModule(Path arg0) {
+            return new Error("compiler", "multi-module.outdir.cannot.be.exploded.module", arg0);
+        }
+        
+        /**
+         * compiler.err.multicatch.not.supported.in.source=\
+         *    multi-catch statement is not supported in -source {0}\n\
+         *    (use -source 7 or higher to enable multi-catch statement)
+         */
+        public static Error MulticatchNotSupportedInSource(String arg0) {
+            return new Error("compiler", "multicatch.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.multicatch.parameter.may.not.be.assigned=\
+         *    multi-catch parameter {0} may not be assigned
+         */
+        public static Error MulticatchParameterMayNotBeAssigned(Symbol arg0) {
+            return new Error("compiler", "multicatch.parameter.may.not.be.assigned", arg0);
+        }
+        
+        /**
+         * compiler.err.multicatch.types.must.be.disjoint=\
+         *    Alternatives in a multi-catch statement cannot be related by subclassing\n\
+         *    Alternative {0} is a subclass of alternative {1}
+         */
+        public static Error MulticatchTypesMustBeDisjoint(Type arg0, Type arg1) {
+            return new Error("compiler", "multicatch.types.must.be.disjoint", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.name.clash.same.erasure=\
+         *    name clash: {0} and {1} have the same erasure
+         */
+        public static Error NameClashSameErasure(Symbol arg0, Symbol arg1) {
+            return new Error("compiler", "name.clash.same.erasure", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.name.clash.same.erasure.no.hide=\
+         *    name clash: {0} in {1} and {2} in {3} have the same erasure, yet neither hides the other
+         */
+        public static Error NameClashSameErasureNoHide(Symbol arg0, Symbol arg1, Symbol arg2, Symbol arg3) {
+            return new Error("compiler", "name.clash.same.erasure.no.hide", arg0, arg1, arg2, arg3);
+        }
+        
+        /**
+         * compiler.err.name.clash.same.erasure.no.override=\
+         *    name clash: {0} in {1} and {2} in {3} have the same erasure, yet neither overrides the other
+         */
+        public static Error NameClashSameErasureNoOverride(Symbol arg0, Symbol arg1, Symbol arg2, Symbol arg3, Void arg4, Void arg5) {
+            return new Error("compiler", "name.clash.same.erasure.no.override", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.err.name.clash.same.erasure.no.override.1=\
+         *    name clash: {0} in {1} overrides a method whose erasure is the same as another method, yet neither overrides the other\n\
+         *    first method:  {2} in {3}\n\
+         *    second method: {4} in {5}
+         */
+        public static Error NameClashSameErasureNoOverride1(Symbol arg0, Symbol arg1, Symbol arg2, Symbol arg3, Symbol arg4, Symbol arg5) {
+            return new Error("compiler", "name.clash.same.erasure.no.override.1", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.err.name.reserved.for.internal.use=\
+         *    {0} is reserved for internal use
+         */
+        public static final Error NameReservedForInternalUse = new Error("compiler", "name.reserved.for.internal.use");
+        
+        /**
+         * compiler.err.native.meth.cant.have.body=\
+         *    native methods cannot have a body
+         */
+        public static final Error NativeMethCantHaveBody = new Error("compiler", "native.meth.cant.have.body");
+        
+        /**
+         * compiler.err.neither.conditional.subtype=\
+         *    incompatible types for ?: neither is a subtype of the other\n\
+         *    second operand: {0}\n\
+         *    third operand : {1}
+         */
+        public static Error NeitherConditionalSubtype(Type arg0, Type arg1) {
+            return new Error("compiler", "neither.conditional.subtype", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.new.not.allowed.in.annotation=\
+         *    ''new'' not allowed in an annotation
+         */
+        public static final Error NewNotAllowedInAnnotation = new Error("compiler", "new.not.allowed.in.annotation");
+        
+        /**
+         * compiler.err.no.annotation.member=\
+         *    no annotation member {0} in {1}
+         */
+        public static final Error NoAnnotationMember = new Error("compiler", "no.annotation.member");
+        
+        /**
+         * compiler.err.no.annotations.on.dot.class=\
+         *    no annotations are allowed in the type of a class literal
+         */
+        public static final Error NoAnnotationsOnDotClass = new Error("compiler", "no.annotations.on.dot.class");
+        
+        /**
+         * compiler.err.no.encl.instance.of.type.in.scope=\
+         *    no enclosing instance of type {0} is in scope
+         */
+        public static final Error NoEnclInstanceOfTypeInScope = new Error("compiler", "no.encl.instance.of.type.in.scope");
+        
+        /**
+         * compiler.err.no.intf.expected.here=\
+         *    no interface expected here
+         */
+        public static final Error NoIntfExpectedHere = new Error("compiler", "no.intf.expected.here");
+        
+        /**
+         * compiler.err.no.match.entry=\
+         *    {0} has no match in entry in {1}; required {2}
+         */
+        public static final Error NoMatchEntry = new Error("compiler", "no.match.entry");
+        
+        /**
+         * compiler.err.no.opens.unless.strong=\
+         *    ''opens'' only allowed in strong modules
+         */
+        public static final Error NoOpensUnlessStrong = new Error("compiler", "no.opens.unless.strong");
+        
+        /**
+         * compiler.err.no.output.dir=\
+         *    no class output directory specified
+         */
+        public static final Error NoOutputDir = new Error("compiler", "no.output.dir");
+        
+        /**
+         * compiler.err.no.pkg.in.module-info.java=\
+         *    package clauses should not be in file module-info.java
+         */
+        public static final Error NoPkgInModuleInfoJava = new Error("compiler", "no.pkg.in.module-info.java");
+        
+        /**
+         * compiler.err.no.superclass=\
+         *    {0} has no superclass.
+         */
+        public static Error NoSuperclass(Type arg0) {
+            return new Error("compiler", "no.superclass", arg0);
+        }
+        
+        /**
+         * compiler.err.no.zipfs.for.archive=\
+         *    No file system provider is available to handle this file: {0}
+         */
+        public static Error NoZipfsForArchive(Path arg0) {
+            return new Error("compiler", "no.zipfs.for.archive", arg0);
+        }
+        
+        /**
+         * compiler.err.non-static.cant.be.ref=\
+         *    non-static {0} {1} cannot be referenced from a static context
+         */
+        public static Error NonStaticCantBeRef(Kind arg0, Symbol arg1) {
+            return new Error("compiler", "non-static.cant.be.ref", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.not.annotation.type=\
+         *    {0} is not an annotation type
+         */
+        public static final Error NotAnnotationType = new Error("compiler", "not.annotation.type");
+        
+        /**
+         * compiler.err.not.def.access.class.intf.cant.access=\
+         *    {0} in {1} is defined in an inaccessible class or interface
+         */
+        public static Error NotDefAccessClassIntfCantAccess(Symbol arg0, Symbol arg1) {
+            return new Error("compiler", "not.def.access.class.intf.cant.access", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.not.def.access.package.cant.access=\
+         *    {0} is not visible because package {1} is not visible
+         */
+        public static Error NotDefAccessPackageCantAccess(Symbol arg0, Symbol arg1) {
+            return new Error("compiler", "not.def.access.package.cant.access", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.not.def.public.cant.access=\
+         *    {0} is not public in {1}; cannot be accessed from outside package
+         */
+        public static Error NotDefPublicCantAccess(Symbol arg0, Symbol arg1) {
+            return new Error("compiler", "not.def.public.cant.access", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.not.encl.class=\
+         *    not an enclosing class: {0}
+         */
+        public static Error NotEnclClass(Symbol arg0) {
+            return new Error("compiler", "not.encl.class", arg0);
+        }
+        
+        /**
+         * compiler.err.not.in.profile=\
+         *    {0} is not available in profile ''{1}''
+         */
+        public static Error NotInProfile(Symbol arg0, String arg1) {
+            return new Error("compiler", "not.in.profile", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.not.loop.label=\
+         *    not a loop label: {0}
+         */
+        public static Error NotLoopLabel(Name arg0) {
+            return new Error("compiler", "not.loop.label", arg0);
+        }
+        
+        /**
+         * compiler.err.not.stmt=\
+         *    not a statement
+         */
+        public static final Error NotStmt = new Error("compiler", "not.stmt");
+        
+        /**
+         * compiler.err.not.within.bounds=\
+         *    type argument {0} is not within bounds of type-variable {1}
+         */
+        public static Error NotWithinBounds(Type arg0, Type arg1) {
+            return new Error("compiler", "not.within.bounds", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.not.within.bounds=\
+         *    type argument {0} is not within bounds of type-variable {1}
+         */
+        public static Error NotWithinBounds(Type arg0, Symbol arg1) {
+            return new Error("compiler", "not.within.bounds", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.operator.cant.be.applied=\
+         *    bad operand type {1} for unary operator ''{0}''
+         */
+        public static Error OperatorCantBeApplied(Name arg0, Type arg1) {
+            return new Error("compiler", "operator.cant.be.applied", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.operator.cant.be.applied.1=\
+         *    bad operand types for binary operator ''{0}''\n\
+         *    first type:  {1}\n\
+         *    second type: {2}
+         */
+        public static Error OperatorCantBeApplied1(Name arg0, Type arg1, Type arg2) {
+            return new Error("compiler", "operator.cant.be.applied.1", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.option.removed.source=\
+         *    Source option {0} is no longer supported. Use {1} or later.
+         */
+        public static Error OptionRemovedSource(String arg0, String arg1) {
+            return new Error("compiler", "option.removed.source", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.option.removed.target=\
+         *    Target option {0} is no longer supported. Use {1} or later.
+         */
+        public static Error OptionRemovedTarget(String arg0, String arg1) {
+            return new Error("compiler", "option.removed.target", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.orphaned=\
+         *    orphaned {0}
+         */
+        public static Error Orphaned(TokenKind arg0) {
+            return new Error("compiler", "orphaned", arg0);
+        }
+        
+        /**
+         * compiler.err.output.dir.must.be.specified.with.dash.m.option=\
+         *    class output directory must be specified if -m option is used
+         */
+        public static final Error OutputDirMustBeSpecifiedWithDashMOption = new Error("compiler", "output.dir.must.be.specified.with.dash.m.option");
+        
+        /**
+         * compiler.err.override.incompatible.ret=\
+         *    {0}\n\
+         *    return type {1} is not compatible with {2}
+         */
+        public static Error OverrideIncompatibleRet(JCDiagnostic arg0, Type arg1, Type arg2) {
+            return new Error("compiler", "override.incompatible.ret", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.override.incompatible.ret=\
+         *    {0}\n\
+         *    return type {1} is not compatible with {2}
+         */
+        public static Error OverrideIncompatibleRet(Fragment arg0, Type arg1, Type arg2) {
+            return new Error("compiler", "override.incompatible.ret", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.override.meth=\
+         *    {0}\n\
+         *    overridden method is {1}
+         */
+        public static Error OverrideMeth(JCDiagnostic arg0, Set<? extends Modifier> arg1) {
+            return new Error("compiler", "override.meth", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.override.meth=\
+         *    {0}\n\
+         *    overridden method is {1}
+         */
+        public static Error OverrideMeth(Fragment arg0, Set<? extends Modifier> arg1) {
+            return new Error("compiler", "override.meth", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.override.meth.doesnt.throw=\
+         *    {0}\n\
+         *    overridden method does not throw {1}
+         */
+        public static Error OverrideMethDoesntThrow(JCDiagnostic arg0, Type arg1) {
+            return new Error("compiler", "override.meth.doesnt.throw", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.override.meth.doesnt.throw=\
+         *    {0}\n\
+         *    overridden method does not throw {1}
+         */
+        public static Error OverrideMethDoesntThrow(Fragment arg0, Type arg1) {
+            return new Error("compiler", "override.meth.doesnt.throw", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.override.static=\
+         *    {0}\n\
+         *    overriding method is static
+         */
+        public static Error OverrideStatic(JCDiagnostic arg0) {
+            return new Error("compiler", "override.static", arg0);
+        }
+        
+        /**
+         * compiler.err.override.static=\
+         *    {0}\n\
+         *    overriding method is static
+         */
+        public static Error OverrideStatic(Fragment arg0) {
+            return new Error("compiler", "override.static", arg0);
+        }
+        
+        /**
+         * compiler.err.override.weaker.access=\
+         *    {0}\n\
+         *    attempting to assign weaker access privileges; was {1}
+         */
+        public static Error OverrideWeakerAccess(JCDiagnostic arg0, Set<? extends Modifier> arg1) {
+            return new Error("compiler", "override.weaker.access", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.override.weaker.access=\
+         *    {0}\n\
+         *    attempting to assign weaker access privileges; was {1}
+         */
+        public static Error OverrideWeakerAccess(Fragment arg0, Set<? extends Modifier> arg1) {
+            return new Error("compiler", "override.weaker.access", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.package.clash.from.requires=\
+         *    module {0} reads package {1} from both {2} and {3}
+         */
+        public static Error PackageClashFromRequires(Symbol arg0, Name arg1, Symbol arg2, Symbol arg3) {
+            return new Error("compiler", "package.clash.from.requires", arg0, arg1, arg2, arg3);
+        }
+        
+        /**
+         * compiler.err.package.empty.or.not.found=\
+         *    package is empty or does not exist: {0}
+         */
+        public static Error PackageEmptyOrNotFound(Symbol arg0) {
+            return new Error("compiler", "package.empty.or.not.found", arg0);
+        }
+        
+        /**
+         * compiler.err.package.in.other.module=\
+         *    package exists in another module: {0}
+         */
+        public static Error PackageInOtherModule(Symbol arg0) {
+            return new Error("compiler", "package.in.other.module", arg0);
+        }
+        
+        /**
+         * compiler.err.pkg.annotations.sb.in.package-info.java=\
+         *    package annotations should be in file package-info.java
+         */
+        public static final Error PkgAnnotationsSbInPackageInfoJava = new Error("compiler", "pkg.annotations.sb.in.package-info.java");
+        
+        /**
+         * compiler.err.pkg.clashes.with.class.of.same.name=\
+         *    package {0} clashes with class of same name
+         */
+        public static Error PkgClashesWithClassOfSameName(Symbol arg0) {
+            return new Error("compiler", "pkg.clashes.with.class.of.same.name", arg0);
+        }
+        
+        /**
+         * compiler.err.plugin.not.found=\
+         *    plug-in not found: {0}
+         */
+        public static Error PluginNotFound(String arg0) {
+            return new Error("compiler", "plugin.not.found", arg0);
+        }
+        
+        /**
+         * compiler.err.premature.eof=\
+         *    reached end of file while parsing
+         */
+        public static final Error PrematureEof = new Error("compiler", "premature.eof");
+        
+        /**
+         * compiler.err.private.intf.methods.not.supported.in.source=\
+         *    private interface methods are not supported in -source {0}\n\
+         *    (use -source 9 or higher to enable private interface methods)
+         */
+        public static Error PrivateIntfMethodsNotSupportedInSource(String arg0) {
+            return new Error("compiler", "private.intf.methods.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.prob.found.req=\
+         *    incompatible types: {0}
+         */
+        public static Error ProbFoundReq(JCDiagnostic arg0) {
+            return new Error("compiler", "prob.found.req", arg0);
+        }
+        
+        /**
+         * compiler.err.prob.found.req=\
+         *    incompatible types: {0}
+         */
+        public static Error ProbFoundReq(Fragment arg0) {
+            return new Error("compiler", "prob.found.req", arg0);
+        }
+        
+        /**
+         * compiler.err.proc.bad.config.file=\
+         *    Bad service configuration file, or exception thrown while constructing Processor object: {0}
+         */
+        public static final Error ProcBadConfigFile = new Error("compiler", "proc.bad.config.file");
+        
+        /**
+         * compiler.err.proc.cant.access=\
+         *    cannot access {0}\n\
+         *    {1}\n\
+         *    Consult the following stack trace for details.\n\
+         *    {2}
+         */
+        public static final Error ProcCantAccess = new Error("compiler", "proc.cant.access");
+        
+        /**
+         * compiler.err.proc.cant.access.1=\
+         *    cannot access {0}\n\
+         *    {1}
+         */
+        public static Error ProcCantAccess1(Symbol arg0, String arg1) {
+            return new Error("compiler", "proc.cant.access.1", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.proc.cant.create.loader=\
+         *    Could not create class loader for annotation processors: {0}
+         */
+        public static final Error ProcCantCreateLoader = new Error("compiler", "proc.cant.create.loader");
+        
+        /**
+         * compiler.err.proc.cant.find.class=\
+         *    Could not find class file for ''{0}''.
+         */
+        public static Error ProcCantFindClass(String arg0) {
+            return new Error("compiler", "proc.cant.find.class", arg0);
+        }
+        
+        /**
+         * compiler.err.proc.messager=\
+         *    {0}
+         */
+        public static Error ProcMessager(String arg0) {
+            return new Error("compiler", "proc.messager", arg0);
+        }
+        
+        /**
+         * compiler.err.proc.no.explicit.annotation.processing.requested=\
+         *    Class names, ''{0}'', are only accepted if annotation processing is explicitly requested
+         */
+        public static Error ProcNoExplicitAnnotationProcessingRequested(List<? extends String> arg0) {
+            return new Error("compiler", "proc.no.explicit.annotation.processing.requested", arg0);
+        }
+        
+        /**
+         * compiler.err.proc.no.service=\
+         *    A ServiceLoader was not usable and is required for annotation processing.
+         */
+        public static final Error ProcNoService = new Error("compiler", "proc.no.service");
+        
+        /**
+         * compiler.err.proc.processor.bad.option.name=\
+         *    Bad option name ''{0}'' provided by processor ''{1}''
+         */
+        public static final Error ProcProcessorBadOptionName = new Error("compiler", "proc.processor.bad.option.name");
+        
+        /**
+         * compiler.err.proc.processor.cant.instantiate=\
+         *    Could not instantiate an instance of processor ''{0}''
+         */
+        public static Error ProcProcessorCantInstantiate(String arg0) {
+            return new Error("compiler", "proc.processor.cant.instantiate", arg0);
+        }
+        
+        /**
+         * compiler.err.proc.processor.not.found=\
+         *    Annotation processor ''{0}'' not found
+         */
+        public static Error ProcProcessorNotFound(String arg0) {
+            return new Error("compiler", "proc.processor.not.found", arg0);
+        }
+        
+        /**
+         * compiler.err.proc.processor.wrong.type=\
+         *    Annotation processor ''{0}'' does not implement javax.annotation.processing.Processor
+         */
+        public static Error ProcProcessorWrongType(String arg0) {
+            return new Error("compiler", "proc.processor.wrong.type", arg0);
+        }
+        
+        /**
+         * compiler.err.proc.service.problem=\
+         *    Error creating a service loader to load Processors.
+         */
+        public static final Error ProcServiceProblem = new Error("compiler", "proc.service.problem");
+        
+        /**
+         * compiler.err.processorpath.no.processormodulepath=\
+         *    illegal combination of -processorpath and --processor-module-path
+         */
+        public static final Error ProcessorpathNoProcessormodulepath = new Error("compiler", "processorpath.no.processormodulepath");
+        
+        /**
+         * compiler.err.qualified.new.of.static.class=\
+         *    qualified new of static class
+         */
+        public static Error QualifiedNewOfStaticClass(Void arg0) {
+            return new Error("compiler", "qualified.new.of.static.class", arg0);
+        }
+        
+        /**
+         * compiler.err.receiver.parameter.not.applicable.constructor.toplevel.class=\
+         *    receiver parameter not applicable for constructor of top-level class
+         */
+        public static Error ReceiverParameterNotApplicableConstructorToplevelClass(Symbol arg0) {
+            return new Error("compiler", "receiver.parameter.not.applicable.constructor.toplevel.class", arg0);
+        }
+        
+        /**
+         * compiler.err.recursive.ctor.invocation=\
+         *    recursive constructor invocation
+         */
+        public static final Error RecursiveCtorInvocation = new Error("compiler", "recursive.ctor.invocation");
+        
+        /**
+         * compiler.err.ref.ambiguous=\
+         *    reference to {0} is ambiguous\n\
+         *    both {1} {2} in {3} and {4} {5} in {6} match
+         */
+        public static Error RefAmbiguous(Name arg0, Kind arg1, Symbol arg2, Symbol arg3, Kind arg4, Symbol arg5, Symbol arg6) {
+            return new Error("compiler", "ref.ambiguous", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
+        
+        /**
+         * compiler.err.repeatable.annotations.not.supported.in.source=\
+         *    repeated annotations are not supported in -source {0}\n\
+         *(use -source 8 or higher to enable repeated annotations)
+         */
+        public static Error RepeatableAnnotationsNotSupportedInSource(String arg0) {
+            return new Error("compiler", "repeatable.annotations.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.repeated.annotation.target=\
+         *    repeated annotation target
+         */
+        public static final Error RepeatedAnnotationTarget = new Error("compiler", "repeated.annotation.target");
+        
+        /**
+         * compiler.err.repeated.interface=\
+         *    repeated interface
+         */
+        public static final Error RepeatedInterface = new Error("compiler", "repeated.interface");
+        
+        /**
+         * compiler.err.repeated.modifier=\
+         *    repeated modifier
+         */
+        public static final Error RepeatedModifier = new Error("compiler", "repeated.modifier");
+        
+        /**
+         * compiler.err.report.access=\
+         *    {0} has {1} access in {2}
+         */
+        public static Error ReportAccess(Symbol arg0, Set<? extends Modifier> arg1, Symbol arg2) {
+            return new Error("compiler", "report.access", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.ret.outside.meth=\
+         *    return outside method
+         */
+        public static final Error RetOutsideMeth = new Error("compiler", "ret.outside.meth");
+        
+        /**
+         * compiler.err.service.definition.is.enum=\
+         *    the service definition is an enum: {0}
+         */
+        public static Error ServiceDefinitionIsEnum(Symbol arg0) {
+            return new Error("compiler", "service.definition.is.enum", arg0);
+        }
+        
+        /**
+         * compiler.err.service.implementation.doesnt.have.a.no.args.constructor=\
+         *    the service implementation does not have a default constructor: {0}
+         */
+        public static Error ServiceImplementationDoesntHaveANoArgsConstructor(Symbol arg0) {
+            return new Error("compiler", "service.implementation.doesnt.have.a.no.args.constructor", arg0);
+        }
+        
+        /**
+         * compiler.err.service.implementation.is.abstract=\
+         *    the service implementation is an abstract class: {0}
+         */
+        public static Error ServiceImplementationIsAbstract(Symbol arg0) {
+            return new Error("compiler", "service.implementation.is.abstract", arg0);
+        }
+        
+        /**
+         * compiler.err.service.implementation.is.inner=\
+         *    the service implementation is an inner class: {0}
+         */
+        public static Error ServiceImplementationIsInner(Symbol arg0) {
+            return new Error("compiler", "service.implementation.is.inner", arg0);
+        }
+        
+        /**
+         * compiler.err.service.implementation.must.be.subtype.of.service.interface=\
+         *    the service implementation type must be a subtype of the service interface type, or \
+         *    have a public static no-args method named "provider" returning the service implementation
+         */
+        public static final Error ServiceImplementationMustBeSubtypeOfServiceInterface = new Error("compiler", "service.implementation.must.be.subtype.of.service.interface");
+        
+        /**
+         * compiler.err.service.implementation.no.args.constructor.not.public=\
+         *    the no arguments constructor of the service implementation is not public: {0}
+         */
+        public static Error ServiceImplementationNoArgsConstructorNotPublic(Symbol arg0) {
+            return new Error("compiler", "service.implementation.no.args.constructor.not.public", arg0);
+        }
+        
+        /**
+         * compiler.err.service.implementation.not.in.right.module=\
+         *    service implementation must be defined in the same module as the provides directive
+         */
+        public static Error ServiceImplementationNotInRightModule(Symbol arg0) {
+            return new Error("compiler", "service.implementation.not.in.right.module", arg0);
+        }
+        
+        /**
+         * compiler.err.service.implementation.provider.return.must.be.subtype.of.service.interface=\
+         *    the "provider" method return type must be a subtype of the service interface type
+         */
+        public static final Error ServiceImplementationProviderReturnMustBeSubtypeOfServiceInterface = new Error("compiler", "service.implementation.provider.return.must.be.subtype.of.service.interface");
+        
+        /**
+         * compiler.err.signature.doesnt.match.intf=\
+         *    signature does not match {0}; incompatible interfaces
+         */
+        public static final Error SignatureDoesntMatchIntf = new Error("compiler", "signature.doesnt.match.intf");
+        
+        /**
+         * compiler.err.signature.doesnt.match.supertype=\
+         *    signature does not match {0}; incompatible supertype
+         */
+        public static final Error SignatureDoesntMatchSupertype = new Error("compiler", "signature.doesnt.match.supertype");
+        
+        /**
+         * compiler.err.source.cant.overwrite.input.file=\
+         *    error writing source; cannot overwrite input file {0}
+         */
+        public static final Error SourceCantOverwriteInputFile = new Error("compiler", "source.cant.overwrite.input.file");
+        
+        /**
+         * compiler.err.stack.sim.error=\
+         *    Internal error: stack sim error on {0}
+         */
+        public static final Error StackSimError = new Error("compiler", "stack.sim.error");
+        
+        /**
+         * compiler.err.static.imp.only.classes.and.interfaces=\
+         *    static import only from classes and interfaces
+         */
+        public static final Error StaticImpOnlyClassesAndInterfaces = new Error("compiler", "static.imp.only.classes.and.interfaces");
+        
+        /**
+         * compiler.err.static.intf.method.invoke.not.supported.in.source=\
+         *    static interface method invocations are not supported in -source {0}\n\
+         *    (use -source 8 or higher to enable static interface method invocations)
+         */
+        public static Error StaticIntfMethodInvokeNotSupportedInSource(String arg0) {
+            return new Error("compiler", "static.intf.method.invoke.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.static.intf.methods.not.supported.in.source=\
+         *    static interface methods are not supported in -source {0}\n\
+         *    (use -source 8 or higher to enable static interface methods)
+         */
+        public static Error StaticIntfMethodsNotSupportedInSource(String arg0) {
+            return new Error("compiler", "static.intf.methods.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.string.const.req=\
+         *    constant string expression required
+         */
+        public static final Error StringConstReq = new Error("compiler", "string.const.req");
+        
+        /**
+         * compiler.err.string.switch.not.supported.in.source=\
+         *    strings in switch are not supported in -source {0}\n\
+         *    (use -source 7 or higher to enable strings in switch)
+         */
+        public static Error StringSwitchNotSupportedInSource(String arg0) {
+            return new Error("compiler", "string.switch.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.synthetic.name.conflict=\
+         *    the symbol {0} conflicts with a compiler-synthesized symbol in {1}
+         */
+        public static Error SyntheticNameConflict(Symbol arg0, Symbol arg1) {
+            return new Error("compiler", "synthetic.name.conflict", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.this.as.identifier=\
+         *    as of release 8, ''this'' is allowed as the parameter name for the receiver type only, which has to be the first parameter
+         */
+        public static final Error ThisAsIdentifier = new Error("compiler", "this.as.identifier");
+        
+        /**
+         * compiler.err.throws.not.allowed.in.intf.annotation=\
+         *    throws clause not allowed in @interface members
+         */
+        public static final Error ThrowsNotAllowedInIntfAnnotation = new Error("compiler", "throws.not.allowed.in.intf.annotation");
+        
+        /**
+         * compiler.err.too.many.modules=\
+         *    too many module declarations found
+         */
+        public static final Error TooManyModules = new Error("compiler", "too.many.modules");
+        
+        /**
+         * compiler.err.try.resource.may.not.be.assigned=\
+         *    auto-closeable resource {0} may not be assigned
+         */
+        public static Error TryResourceMayNotBeAssigned(Symbol arg0) {
+            return new Error("compiler", "try.resource.may.not.be.assigned", arg0);
+        }
+        
+        /**
+         * compiler.err.try.with.resources.expr.effectively.final.var=\
+         *    variable {0} used as a try-with-resources resource neither final nor effectively final
+         */
+        public static Error TryWithResourcesExprEffectivelyFinalVar(Symbol arg0) {
+            return new Error("compiler", "try.with.resources.expr.effectively.final.var", arg0);
+        }
+        
+        /**
+         * compiler.err.try.with.resources.expr.needs.var=\
+         *    the try-with-resources resource must either be a variable declaration or an expression denoting \
+         *a reference to a final or effectively final variable
+         */
+        public static final Error TryWithResourcesExprNeedsVar = new Error("compiler", "try.with.resources.expr.needs.var");
+        
+        /**
+         * compiler.err.try.with.resources.not.supported.in.source=\
+         *    try-with-resources is not supported in -source {0}\n\
+         *    (use -source 7 or higher to enable try-with-resources)
+         */
+        public static Error TryWithResourcesNotSupportedInSource(String arg0) {
+            return new Error("compiler", "try.with.resources.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.try.without.catch.finally.or.resource.decls=\
+         *    ''try'' without ''catch'', ''finally'' or resource declarations
+         */
+        public static final Error TryWithoutCatchFinallyOrResourceDecls = new Error("compiler", "try.without.catch.finally.or.resource.decls");
+        
+        /**
+         * compiler.err.try.without.catch.or.finally=\
+         *    ''try'' without ''catch'' or ''finally''
+         */
+        public static final Error TryWithoutCatchOrFinally = new Error("compiler", "try.without.catch.or.finally");
+        
+        /**
+         * compiler.err.type.annotations.not.supported.in.source=\
+         *    type annotations are not supported in -source {0}\n\
+         *(use -source 8 or higher to enable type annotations)
+         */
+        public static Error TypeAnnotationsNotSupportedInSource(String arg0) {
+            return new Error("compiler", "type.annotations.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.type.doesnt.take.params=\
+         *    type {0} does not take parameters
+         */
+        public static Error TypeDoesntTakeParams(Symbol arg0) {
+            return new Error("compiler", "type.doesnt.take.params", arg0);
+        }
+        
+        /**
+         * compiler.err.type.found.req=\
+         *    unexpected type\n\
+         *    required: {1}\n\
+         *    found:    {0}
+         */
+        public static Error TypeFoundReq(JCDiagnostic arg0, JCDiagnostic arg1) {
+            return new Error("compiler", "type.found.req", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.type.found.req=\
+         *    unexpected type\n\
+         *    required: {1}\n\
+         *    found:    {0}
+         */
+        public static Error TypeFoundReq(JCDiagnostic arg0, Fragment arg1) {
+            return new Error("compiler", "type.found.req", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.type.found.req=\
+         *    unexpected type\n\
+         *    required: {1}\n\
+         *    found:    {0}
+         */
+        public static Error TypeFoundReq(Fragment arg0, JCDiagnostic arg1) {
+            return new Error("compiler", "type.found.req", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.type.found.req=\
+         *    unexpected type\n\
+         *    required: {1}\n\
+         *    found:    {0}
+         */
+        public static Error TypeFoundReq(Fragment arg0, Fragment arg1) {
+            return new Error("compiler", "type.found.req", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.type.found.req=\
+         *    unexpected type\n\
+         *    required: {1}\n\
+         *    found:    {0}
+         */
+        public static Error TypeFoundReq(Type arg0, JCDiagnostic arg1) {
+            return new Error("compiler", "type.found.req", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.type.found.req=\
+         *    unexpected type\n\
+         *    required: {1}\n\
+         *    found:    {0}
+         */
+        public static Error TypeFoundReq(Type arg0, Fragment arg1) {
+            return new Error("compiler", "type.found.req", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.type.var.cant.be.deref=\
+         *    cannot select from a type variable
+         */
+        public static final Error TypeVarCantBeDeref = new Error("compiler", "type.var.cant.be.deref");
+        
+        /**
+         * compiler.err.type.var.may.not.be.followed.by.other.bounds=\
+         *    a type variable may not be followed by other bounds
+         */
+        public static final Error TypeVarMayNotBeFollowedByOtherBounds = new Error("compiler", "type.var.may.not.be.followed.by.other.bounds");
+        
+        /**
+         * compiler.err.type.var.more.than.once=\
+         *    type variable {0} occurs more than once in result type of {1}; cannot be left uninstantiated
+         */
+        public static final Error TypeVarMoreThanOnce = new Error("compiler", "type.var.more.than.once");
+        
+        /**
+         * compiler.err.type.var.more.than.once.in.result=\
+         *    type variable {0} occurs more than once in type of {1}; cannot be left uninstantiated
+         */
+        public static final Error TypeVarMoreThanOnceInResult = new Error("compiler", "type.var.more.than.once.in.result");
+        
+        /**
+         * compiler.err.types.incompatible.abstract.default=\
+         *    {0} {1} inherits abstract and default for {2}({3}) from types {4} and {5}
+         */
+        public static Error TypesIncompatibleAbstractDefault(KindName arg0, Type arg1, Name arg2, List<? extends Type> arg3, Symbol arg4, Symbol arg5) {
+            return new Error("compiler", "types.incompatible.abstract.default", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.err.types.incompatible.diff.ret=\
+         *    types {0} and {1} are incompatible; both define {2}, but with unrelated return types
+         */
+        public static Error TypesIncompatibleDiffRet(Type arg0, Type arg1, String arg2) {
+            return new Error("compiler", "types.incompatible.diff.ret", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.types.incompatible.unrelated.defaults=\
+         *    {0} {1} inherits unrelated defaults for {2}({3}) from types {4} and {5}
+         */
+        public static Error TypesIncompatibleUnrelatedDefaults(KindName arg0, Type arg1, Name arg2, List<? extends Type> arg3, Symbol arg4, Symbol arg5) {
+            return new Error("compiler", "types.incompatible.unrelated.defaults", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.err.unclosed.char.lit=\
+         *    unclosed character literal
+         */
+        public static final Error UnclosedCharLit = new Error("compiler", "unclosed.char.lit");
+        
+        /**
+         * compiler.err.unclosed.comment=\
+         *    unclosed comment
+         */
+        public static final Error UnclosedComment = new Error("compiler", "unclosed.comment");
+        
+        /**
+         * compiler.err.unclosed.str.lit=\
+         *    unclosed string literal
+         */
+        public static final Error UnclosedStrLit = new Error("compiler", "unclosed.str.lit");
+        
+        /**
+         * compiler.err.undef.label=\
+         *    undefined label: {0}
+         */
+        public static Error UndefLabel(Name arg0) {
+            return new Error("compiler", "undef.label", arg0);
+        }
+        
+        /**
+         * compiler.err.underscore.as.identifier=\
+         *    as of release 9, ''_'' is a keyword, and may not be used as an identifier
+         */
+        public static final Error UnderscoreAsIdentifier = new Error("compiler", "underscore.as.identifier");
+        
+        /**
+         * compiler.err.underscore.as.identifier.in.lambda=\
+         *    ''_'' used as an identifier\n\
+         *    (use of ''_'' as an identifier is forbidden for lambda parameters)
+         */
+        public static final Error UnderscoreAsIdentifierInLambda = new Error("compiler", "underscore.as.identifier.in.lambda");
+        
+        /**
+         * compiler.err.unexpected.lambda=\
+         *   lambda expression not expected here
+         */
+        public static final Error UnexpectedLambda = new Error("compiler", "unexpected.lambda");
+        
+        /**
+         * compiler.err.unexpected.mref=\
+         *   method reference not expected here
+         */
+        public static final Error UnexpectedMref = new Error("compiler", "unexpected.mref");
+        
+        /**
+         * compiler.err.unexpected.type=\
+         *    unexpected type\n\
+         *    required: {0}\n\
+         *    found:    {1}
+         */
+        public static final Error UnexpectedType = new Error("compiler", "unexpected.type");
+        
+        /**
+         * compiler.err.unnamed.pkg.not.allowed.named.modules=\
+         *    unnamed package is not allowed in named modules
+         */
+        public static final Error UnnamedPkgNotAllowedNamedModules = new Error("compiler", "unnamed.pkg.not.allowed.named.modules");
+        
+        /**
+         * compiler.err.unreachable.stmt=\
+         *    unreachable statement
+         */
+        public static final Error UnreachableStmt = new Error("compiler", "unreachable.stmt");
+        
+        /**
+         * compiler.err.unreported.exception.default.constructor=\
+         *    unreported exception {0} in default constructor
+         */
+        public static Error UnreportedExceptionDefaultConstructor(Type arg0) {
+            return new Error("compiler", "unreported.exception.default.constructor", arg0);
+        }
+        
+        /**
+         * compiler.err.unreported.exception.implicit.close=\
+         *    unreported exception {0}; must be caught or declared to be thrown\n\
+         *    exception thrown from implicit call to close() on resource variable ''{1}''
+         */
+        public static Error UnreportedExceptionImplicitClose(Type arg0, Name arg1) {
+            return new Error("compiler", "unreported.exception.implicit.close", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.unreported.exception.need.to.catch.or.throw=\
+         *    unreported exception {0}; must be caught or declared to be thrown
+         */
+        public static Error UnreportedExceptionNeedToCatchOrThrow(Type arg0) {
+            return new Error("compiler", "unreported.exception.need.to.catch.or.throw", arg0);
+        }
+        
+        /**
+         * compiler.err.unsupported.binary.lit=\
+         *    binary literals are not supported in -source {0}\n\
+         *    (use -source 7 or higher to enable binary literals)
+         */
+        public static Error UnsupportedBinaryLit(String arg0) {
+            return new Error("compiler", "unsupported.binary.lit", arg0);
+        }
+        
+        /**
+         * compiler.err.unsupported.cross.fp.lit=\
+         *    hexadecimal floating-point literals are not supported on this VM
+         */
+        public static final Error UnsupportedCrossFpLit = new Error("compiler", "unsupported.cross.fp.lit");
+        
+        /**
+         * compiler.err.unsupported.encoding=\
+         *    unsupported encoding: {0}
+         */
+        public static Error UnsupportedEncoding(Name arg0) {
+            return new Error("compiler", "unsupported.encoding", arg0);
+        }
+        
+        /**
+         * compiler.err.unsupported.underscore.lit=\
+         *    underscores in literals are not supported in -source {0}\n\
+         *    (use -source 7 or higher to enable underscores in literals)
+         */
+        public static Error UnsupportedUnderscoreLit(String arg0) {
+            return new Error("compiler", "unsupported.underscore.lit", arg0);
+        }
+        
+        /**
+         * compiler.err.var.in.try.with.resources.not.supported.in.source=\
+         *    variables in try-with-resources not supported in -source {0}\n\
+         *    (use -source 9 or higher to enable variables in try-with-resources)
+         */
+        public static Error VarInTryWithResourcesNotSupportedInSource(String arg0) {
+            return new Error("compiler", "var.in.try.with.resources.not.supported.in.source", arg0);
+        }
+        
+        /**
+         * compiler.err.var.might.already.be.assigned=\
+         *    variable {0} might already have been assigned
+         */
+        public static Error VarMightAlreadyBeAssigned(Symbol arg0) {
+            return new Error("compiler", "var.might.already.be.assigned", arg0);
+        }
+        
+        /**
+         * compiler.err.var.might.be.assigned.in.loop=\
+         *    variable {0} might be assigned in loop
+         */
+        public static Error VarMightBeAssignedInLoop(Symbol arg0) {
+            return new Error("compiler", "var.might.be.assigned.in.loop", arg0);
+        }
+        
+        /**
+         * compiler.err.var.might.not.have.been.initialized=\
+         *    variable {0} might not have been initialized
+         */
+        public static Error VarMightNotHaveBeenInitialized(Symbol arg0) {
+            return new Error("compiler", "var.might.not.have.been.initialized", arg0);
+        }
+        
+        /**
+         * compiler.err.var.not.initialized.in.default.constructor=\
+         *    variable {0} not initialized in the default constructor
+         */
+        public static Error VarNotInitializedInDefaultConstructor(Symbol arg0) {
+            return new Error("compiler", "var.not.initialized.in.default.constructor", arg0);
+        }
+        
+        /**
+         * compiler.err.varargs.and.old.array.syntax=\
+         *    legacy array notation not allowed on variable-arity parameter
+         */
+        public static final Error VarargsAndOldArraySyntax = new Error("compiler", "varargs.and.old.array.syntax");
+        
+        /**
+         * compiler.err.varargs.and.receiver =\
+         *    varargs notation not allowed on receiver parameter
+         */
+        public static final Error VarargsAndReceiver  = new Error("compiler", "varargs.and.receiver ");
+        
+        /**
+         * compiler.err.varargs.invalid.trustme.anno=\
+         *    Invalid {0} annotation. {1}
+         */
+        public static Error VarargsInvalidTrustmeAnno(Symbol arg0, JCDiagnostic arg1) {
+            return new Error("compiler", "varargs.invalid.trustme.anno", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.varargs.invalid.trustme.anno=\
+         *    Invalid {0} annotation. {1}
+         */
+        public static Error VarargsInvalidTrustmeAnno(Symbol arg0, Fragment arg1) {
+            return new Error("compiler", "varargs.invalid.trustme.anno", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.varargs.must.be.last =\
+         *    varargs parameter must be the last parameter
+         */
+        public static final Error VarargsMustBeLast  = new Error("compiler", "varargs.must.be.last ");
+        
+        /**
+         * compiler.err.variable.not.allowed=\
+         *    variable declaration not allowed here
+         */
+        public static final Error VariableNotAllowed = new Error("compiler", "variable.not.allowed");
+        
+        /**
+         * compiler.err.void.not.allowed.here=\
+         *    ''void'' type not allowed here
+         */
+        public static final Error VoidNotAllowedHere = new Error("compiler", "void.not.allowed.here");
+        
+        /**
+         * compiler.err.warnings.and.werror=\
+         *    warnings found and -Werror specified
+         */
+        public static final Error WarningsAndWerror = new Error("compiler", "warnings.and.werror");
+        
+        /**
+         * compiler.err.wrong.number.type.args=\
+         *    wrong number of type arguments; required {0}
+         */
+        public static Error WrongNumberTypeArgs(String arg0) {
+            return new Error("compiler", "wrong.number.type.args", arg0);
+        }
+        
+        /**
+         * compiler.err.xmodule.no.module.sourcepath=\
+         *    illegal combination of -Xmodule and --module-source-path
+         */
+        public static final Error XmoduleNoModuleSourcepath = new Error("compiler", "xmodule.no.module.sourcepath");
     }
     public static class Fragments {
         /**
@@ -2130,6 +5886,14 @@ public class CompilerProperties {
         }
         
         /**
+         * compiler.misc.module.non.zero.opens=\
+         *    open module {0} has non-zero opens_count
+         */
+        public static Fragment ModuleNonZeroOpens(Name arg0) {
+            return new Fragment("compiler", "module.non.zero.opens", arg0);
+        }
+        
+        /**
          * compiler.misc.mref.infer.and.explicit.params=\
          *    cannot use raw constructor reference with explicit type parameters for constructor
          */
@@ -2821,6 +6585,14 @@ public class CompilerProperties {
         }
         
         /**
+         * compiler.misc.wrong.number.type.args=\
+         *    wrong number of type arguments; required {0}
+         */
+        public static Fragment WrongNumberTypeArgs(String arg0) {
+            return new Fragment("compiler", "wrong.number.type.args", arg0);
+        }
+        
+        /**
          * compiler.misc.wrong.version=\
          *    class file has wrong version {0}.{1}, should be {2}.{3}
          */
@@ -2840,3691 +6612,6 @@ public class CompilerProperties {
          */
         public static Fragment XPrintRounds(int arg0, String arg1, Set<? extends Symbol> arg2, boolean arg3) {
             return new Fragment("compiler", "x.print.rounds", arg0, arg1, arg2, arg3);
-        }
-    }
-    public static class Errors {
-        /**
-         * compiler.err.abstract.cant.be.accessed.directly=\
-         *    abstract {0} {1} in {2} cannot be accessed directly
-         */
-        public static Error AbstractCantBeAccessedDirectly(Kind arg0, Symbol arg1, Symbol arg2) {
-            return new Error("compiler", "abstract.cant.be.accessed.directly", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.err.abstract.cant.be.instantiated=\
-         *    {0} is abstract; cannot be instantiated
-         */
-        public static Error AbstractCantBeInstantiated(Symbol arg0) {
-            return new Error("compiler", "abstract.cant.be.instantiated", arg0);
-        }
-        
-        /**
-         * compiler.err.abstract.meth.cant.have.body=\
-         *    abstract methods cannot have a body
-         */
-        public static final Error AbstractMethCantHaveBody = new Error("compiler", "abstract.meth.cant.have.body");
-        
-        /**
-         * compiler.err.addmods.all.module.path.invalid=\
-         *    --add-modules ALL-MODULE-PATH can only be used when compiling the unnamed module
-         */
-        public static final Error AddmodsAllModulePathInvalid = new Error("compiler", "addmods.all.module.path.invalid");
-        
-        /**
-         * compiler.err.already.annotated=\
-         *    {0} {1} has already been annotated
-         */
-        public static final Error AlreadyAnnotated = new Error("compiler", "already.annotated");
-        
-        /**
-         * compiler.err.already.defined=\
-         *    {0} {1} is already defined in {2} {3}
-         */
-        public static Error AlreadyDefined(Kind arg0, Symbol arg1, Kind arg2, Symbol arg3) {
-            return new Error("compiler", "already.defined", arg0, arg1, arg2, arg3);
-        }
-        
-        /**
-         * compiler.err.already.defined.in.clinit=\
-         *    {0} {1} is already defined in {2} of {3} {4}
-         */
-        public static Error AlreadyDefinedInClinit(Kind arg0, Symbol arg1, Kind arg2, Kind arg3, Symbol arg4) {
-            return new Error("compiler", "already.defined.in.clinit", arg0, arg1, arg2, arg3, arg4);
-        }
-        
-        /**
-         * compiler.err.already.defined.single.import=\
-         *    a type with the same simple name is already defined by the single-type-import of {0}
-         */
-        public static Error AlreadyDefinedSingleImport(String arg0) {
-            return new Error("compiler", "already.defined.single.import", arg0);
-        }
-        
-        /**
-         * compiler.err.already.defined.static.single.import=\
-         *    a type with the same simple name is already defined by the static single-type-import of {0}
-         */
-        public static Error AlreadyDefinedStaticSingleImport(String arg0) {
-            return new Error("compiler", "already.defined.static.single.import", arg0);
-        }
-        
-        /**
-         * compiler.err.already.defined.this.unit=\
-         *    {0} is already defined in this compilation unit
-         */
-        public static final Error AlreadyDefinedThisUnit = new Error("compiler", "already.defined.this.unit");
-        
-        /**
-         * compiler.err.annotation.missing.default.value=\
-         *    annotation @{0} is missing a default value for the element ''{1}''
-         */
-        public static Error AnnotationMissingDefaultValue(Type arg0, List<? extends Name> arg1) {
-            return new Error("compiler", "annotation.missing.default.value", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.annotation.missing.default.value.1=\
-         *    annotation @{0} is missing default values for elements {1}
-         */
-        public static Error AnnotationMissingDefaultValue1(Type arg0, List<? extends Name> arg1) {
-            return new Error("compiler", "annotation.missing.default.value.1", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.annotation.not.valid.for.type=\
-         *    annotation not valid for an element of type {0}
-         */
-        public static Error AnnotationNotValidForType(Type arg0) {
-            return new Error("compiler", "annotation.not.valid.for.type", arg0);
-        }
-        
-        /**
-         * compiler.err.annotation.type.not.applicable=\
-         *    annotation type not applicable to this kind of declaration
-         */
-        public static final Error AnnotationTypeNotApplicable = new Error("compiler", "annotation.type.not.applicable");
-        
-        /**
-         * compiler.err.annotation.type.not.applicable.to.type=\
-         *    annotation @{0} not applicable in this type context
-         */
-        public static Error AnnotationTypeNotApplicableToType(Type arg0) {
-            return new Error("compiler", "annotation.type.not.applicable.to.type", arg0);
-        }
-        
-        /**
-         * compiler.err.annotation.value.must.be.annotation=\
-         *    annotation value must be an annotation
-         */
-        public static final Error AnnotationValueMustBeAnnotation = new Error("compiler", "annotation.value.must.be.annotation");
-        
-        /**
-         * compiler.err.annotation.value.must.be.class.literal=\
-         *    annotation value must be a class literal
-         */
-        public static final Error AnnotationValueMustBeClassLiteral = new Error("compiler", "annotation.value.must.be.class.literal");
-        
-        /**
-         * compiler.err.annotation.value.must.be.name.value=\
-         *    annotation values must be of the form ''name=value''
-         */
-        public static final Error AnnotationValueMustBeNameValue = new Error("compiler", "annotation.value.must.be.name.value");
-        
-        /**
-         * compiler.err.annotation.value.not.allowable.type=\
-         *    annotation value not of an allowable type
-         */
-        public static final Error AnnotationValueNotAllowableType = new Error("compiler", "annotation.value.not.allowable.type");
-        
-        /**
-         * compiler.err.annotations.after.type.params.not.supported.in.source=\
-         *    annotations after method type parameters are not supported in -source {0}\n\
-         *(use -source 8 or higher to enable annotations after method type parameters)
-         */
-        public static Error AnnotationsAfterTypeParamsNotSupportedInSource(String arg0) {
-            return new Error("compiler", "annotations.after.type.params.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.anon.class.impl.intf.no.args=\
-         *    anonymous class implements interface; cannot have arguments
-         */
-        public static final Error AnonClassImplIntfNoArgs = new Error("compiler", "anon.class.impl.intf.no.args");
-        
-        /**
-         * compiler.err.anon.class.impl.intf.no.qual.for.new=\
-         *    anonymous class implements interface; cannot have qualifier for new
-         */
-        public static final Error AnonClassImplIntfNoQualForNew = new Error("compiler", "anon.class.impl.intf.no.qual.for.new");
-        
-        /**
-         * compiler.err.anon.class.impl.intf.no.typeargs=\
-         *    anonymous class implements interface; cannot have type arguments
-         */
-        public static final Error AnonClassImplIntfNoTypeargs = new Error("compiler", "anon.class.impl.intf.no.typeargs");
-        
-        /**
-         * compiler.err.anonymous.diamond.method.does.not.override.superclass=\
-         *    method does not override or implement a method from a supertype\n\
-         *    {0}
-         */
-        public static Error AnonymousDiamondMethodDoesNotOverrideSuperclass(JCDiagnostic arg0) {
-            return new Error("compiler", "anonymous.diamond.method.does.not.override.superclass", arg0);
-        }
-        
-        /**
-         * compiler.err.anonymous.diamond.method.does.not.override.superclass=\
-         *    method does not override or implement a method from a supertype\n\
-         *    {0}
-         */
-        public static Error AnonymousDiamondMethodDoesNotOverrideSuperclass(Fragment arg0) {
-            return new Error("compiler", "anonymous.diamond.method.does.not.override.superclass", arg0);
-        }
-        
-        /**
-         * compiler.err.array.and.receiver =\
-         *    legacy array notation not allowed on receiver parameter
-         */
-        public static final Error ArrayAndReceiver  = new Error("compiler", "array.and.receiver ");
-        
-        /**
-         * compiler.err.array.and.varargs=\
-         *    cannot declare both {0} and {1} in {2}
-         */
-        public static Error ArrayAndVarargs(Symbol arg0, Symbol arg1, Symbol arg2) {
-            return new Error("compiler", "array.and.varargs", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.err.array.dimension.missing=\
-         *    array dimension missing
-         */
-        public static final Error ArrayDimensionMissing = new Error("compiler", "array.dimension.missing");
-        
-        /**
-         * compiler.err.array.req.but.found=\
-         *    array required, but {0} found
-         */
-        public static Error ArrayReqButFound(Type arg0) {
-            return new Error("compiler", "array.req.but.found", arg0);
-        }
-        
-        /**
-         * compiler.err.assert.as.identifier=\
-         *    as of release 1.4, ''assert'' is a keyword, and may not be used as an identifier
-         */
-        public static final Error AssertAsIdentifier = new Error("compiler", "assert.as.identifier");
-        
-        /**
-         * compiler.err.attribute.value.must.be.constant=\
-         *    element value must be a constant expression
-         */
-        public static final Error AttributeValueMustBeConstant = new Error("compiler", "attribute.value.must.be.constant");
-        
-        /**
-         * compiler.err.bad.functional.intf.anno=\
-         *    Unexpected @FunctionalInterface annotation
-         */
-        public static final Error BadFunctionalIntfAnno = new Error("compiler", "bad.functional.intf.anno");
-        
-        /**
-         * compiler.err.bad.functional.intf.anno.1=\
-         *    Unexpected @FunctionalInterface annotation\n\
-         *    {0}
-         */
-        public static Error BadFunctionalIntfAnno1(JCDiagnostic arg0) {
-            return new Error("compiler", "bad.functional.intf.anno.1", arg0);
-        }
-        
-        /**
-         * compiler.err.bad.functional.intf.anno.1=\
-         *    Unexpected @FunctionalInterface annotation\n\
-         *    {0}
-         */
-        public static Error BadFunctionalIntfAnno1(Fragment arg0) {
-            return new Error("compiler", "bad.functional.intf.anno.1", arg0);
-        }
-        
-        /**
-         * compiler.err.bad.initializer=\
-         *    bad initializer for {0}
-         */
-        public static Error BadInitializer(String arg0) {
-            return new Error("compiler", "bad.initializer", arg0);
-        }
-        
-        /**
-         * compiler.err.break.outside.switch.loop=\
-         *    break outside switch or loop
-         */
-        public static final Error BreakOutsideSwitchLoop = new Error("compiler", "break.outside.switch.loop");
-        
-        /**
-         * compiler.err.call.must.be.first.stmt.in.ctor=\
-         *    call to {0} must be first statement in constructor
-         */
-        public static Error CallMustBeFirstStmtInCtor(Name arg0) {
-            return new Error("compiler", "call.must.be.first.stmt.in.ctor", arg0);
-        }
-        
-        /**
-         * compiler.err.call.to.super.not.allowed.in.enum.ctor=\
-         *    call to super not allowed in enum constructor
-         */
-        public static Error CallToSuperNotAllowedInEnumCtor(Void arg0) {
-            return new Error("compiler", "call.to.super.not.allowed.in.enum.ctor", arg0);
-        }
-        
-        /**
-         * compiler.err.cannot.create.array.with.diamond=\
-         *    cannot create array with ''<>''
-         */
-        public static final Error CannotCreateArrayWithDiamond = new Error("compiler", "cannot.create.array.with.diamond");
-        
-        /**
-         * compiler.err.cannot.create.array.with.type.arguments=\
-         *    cannot create array with type arguments
-         */
-        public static final Error CannotCreateArrayWithTypeArguments = new Error("compiler", "cannot.create.array.with.type.arguments");
-        
-        /**
-         * compiler.err.cant.access=\
-         *    cannot access {0}\n\
-         *    {1}
-         */
-        public static Error CantAccess(Symbol arg0, JCDiagnostic arg1) {
-            return new Error("compiler", "cant.access", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.cant.access=\
-         *    cannot access {0}\n\
-         *    {1}
-         */
-        public static Error CantAccess(Symbol arg0, Fragment arg1) {
-            return new Error("compiler", "cant.access", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.cant.apply.diamond=\
-         *    cannot infer type arguments for {0}
-         */
-        public static Error CantApplyDiamond(JCDiagnostic arg0, Void arg1) {
-            return new Error("compiler", "cant.apply.diamond", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.cant.apply.diamond=\
-         *    cannot infer type arguments for {0}
-         */
-        public static Error CantApplyDiamond(Fragment arg0, Void arg1) {
-            return new Error("compiler", "cant.apply.diamond", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.cant.apply.diamond.1=\
-         *    cannot infer type arguments for {0}\n\
-         *    reason: {1}
-         */
-        public static Error CantApplyDiamond1(JCDiagnostic arg0, JCDiagnostic arg1) {
-            return new Error("compiler", "cant.apply.diamond.1", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.cant.apply.diamond.1=\
-         *    cannot infer type arguments for {0}\n\
-         *    reason: {1}
-         */
-        public static Error CantApplyDiamond1(JCDiagnostic arg0, Fragment arg1) {
-            return new Error("compiler", "cant.apply.diamond.1", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.cant.apply.diamond.1=\
-         *    cannot infer type arguments for {0}\n\
-         *    reason: {1}
-         */
-        public static Error CantApplyDiamond1(Fragment arg0, JCDiagnostic arg1) {
-            return new Error("compiler", "cant.apply.diamond.1", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.cant.apply.diamond.1=\
-         *    cannot infer type arguments for {0}\n\
-         *    reason: {1}
-         */
-        public static Error CantApplyDiamond1(Fragment arg0, Fragment arg1) {
-            return new Error("compiler", "cant.apply.diamond.1", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.cant.apply.diamond.1=\
-         *    cannot infer type arguments for {0}\n\
-         *    reason: {1}
-         */
-        public static Error CantApplyDiamond1(Type arg0, JCDiagnostic arg1) {
-            return new Error("compiler", "cant.apply.diamond.1", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.cant.apply.diamond.1=\
-         *    cannot infer type arguments for {0}\n\
-         *    reason: {1}
-         */
-        public static Error CantApplyDiamond1(Type arg0, Fragment arg1) {
-            return new Error("compiler", "cant.apply.diamond.1", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, List<? extends Type> arg2, List<? extends Type> arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, List<? extends Type> arg2, List<? extends Type> arg3, Kind arg4, Type arg5, Fragment arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, List<? extends Type> arg2, JCDiagnostic arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, List<? extends Type> arg2, JCDiagnostic arg3, Kind arg4, Type arg5, Fragment arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, List<? extends Type> arg2, Fragment arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, List<? extends Type> arg2, Fragment arg3, Kind arg4, Type arg5, Fragment arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, JCDiagnostic arg2, List<? extends Type> arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, JCDiagnostic arg2, List<? extends Type> arg3, Kind arg4, Type arg5, Fragment arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, JCDiagnostic arg2, JCDiagnostic arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, JCDiagnostic arg2, JCDiagnostic arg3, Kind arg4, Type arg5, Fragment arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, JCDiagnostic arg2, Fragment arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, JCDiagnostic arg2, Fragment arg3, Kind arg4, Type arg5, Fragment arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, Fragment arg2, List<? extends Type> arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, Fragment arg2, List<? extends Type> arg3, Kind arg4, Type arg5, Fragment arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, Fragment arg2, JCDiagnostic arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, Fragment arg2, JCDiagnostic arg3, Kind arg4, Type arg5, Fragment arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, Fragment arg2, Fragment arg3, Kind arg4, Type arg5, JCDiagnostic arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbol=\
-         *    {0} {1} in {4} {5} cannot be applied to given types;\n\
-         *    required: {2}\n\
-         *    found: {3}\n\
-         *    reason: {6}
-         */
-        public static Error CantApplySymbol(Kind arg0, Name arg1, Fragment arg2, Fragment arg3, Kind arg4, Type arg5, Fragment arg6) {
-            return new Error("compiler", "cant.apply.symbol", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.cant.apply.symbols=\
-         *    no suitable {0} found for {1}({2})
-         */
-        public static Error CantApplySymbols(Kind arg0, Name arg1, List<? extends Type> arg2) {
-            return new Error("compiler", "cant.apply.symbols", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.err.cant.assign.val.to.final.var=\
-         *    cannot assign a value to final variable {0}
-         */
-        public static Error CantAssignValToFinalVar(Symbol arg0) {
-            return new Error("compiler", "cant.assign.val.to.final.var", arg0);
-        }
-        
-        /**
-         * compiler.err.cant.assign.val.to.this=\
-         *    cannot assign to ''this''
-         */
-        public static final Error CantAssignValToThis = new Error("compiler", "cant.assign.val.to.this");
-        
-        /**
-         * compiler.err.cant.deref=\
-         *    {0} cannot be dereferenced
-         */
-        public static Error CantDeref(Type arg0) {
-            return new Error("compiler", "cant.deref", arg0);
-        }
-        
-        /**
-         * compiler.err.cant.extend.intf.annotation=\
-         *    ''extends'' not allowed for @interfaces
-         */
-        public static final Error CantExtendIntfAnnotation = new Error("compiler", "cant.extend.intf.annotation");
-        
-        /**
-         * compiler.err.cant.find.module=\
-         *    cannot find module: {0}
-         */
-        public static Error CantFindModule(Symbol arg0) {
-            return new Error("compiler", "cant.find.module", arg0);
-        }
-        
-        /**
-         * compiler.err.cant.inherit.diff.arg=\
-         *    {0} cannot be inherited with different arguments: <{1}> and <{2}>
-         */
-        public static Error CantInheritDiffArg(Symbol arg0, String arg1, String arg2) {
-            return new Error("compiler", "cant.inherit.diff.arg", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.err.cant.inherit.from.anon=\
-         *    cannot inherit from anonymous class
-         */
-        public static final Error CantInheritFromAnon = new Error("compiler", "cant.inherit.from.anon");
-        
-        /**
-         * compiler.err.cant.inherit.from.final=\
-         *    cannot inherit from final {0}
-         */
-        public static Error CantInheritFromFinal(Symbol arg0) {
-            return new Error("compiler", "cant.inherit.from.final", arg0);
-        }
-        
-        /**
-         * compiler.err.cant.read.file=\
-         *    cannot read: {0}
-         */
-        public static final Error CantReadFile = new Error("compiler", "cant.read.file");
-        
-        /**
-         * compiler.err.cant.ref.before.ctor.called=\
-         *    cannot reference {0} before supertype constructor has been called
-         */
-        public static Error CantRefBeforeCtorCalled(Symbol arg0) {
-            return new Error("compiler", "cant.ref.before.ctor.called", arg0);
-        }
-        
-        /**
-         * compiler.err.cant.ref.non.effectively.final.var=\
-         *    local variables referenced from {1} must be final or effectively final
-         */
-        public static Error CantRefNonEffectivelyFinalVar(Symbol arg0, JCDiagnostic arg1) {
-            return new Error("compiler", "cant.ref.non.effectively.final.var", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.cant.ref.non.effectively.final.var=\
-         *    local variables referenced from {1} must be final or effectively final
-         */
-        public static Error CantRefNonEffectivelyFinalVar(Symbol arg0, Fragment arg1) {
-            return new Error("compiler", "cant.ref.non.effectively.final.var", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.cant.resolve=\
-         *    cannot find symbol\n\
-         *    symbol: {0} {1}
-         */
-        public static Error CantResolve(Kind arg0, Name arg1, Void arg2, Void arg3) {
-            return new Error("compiler", "cant.resolve", arg0, arg1, arg2, arg3);
-        }
-        
-        /**
-         * compiler.err.cant.resolve.args=\
-         *    cannot find symbol\n\
-         *    symbol: {0} {1}({3})
-         */
-        public static Error CantResolveArgs(Kind arg0, Name arg1, Void arg2, List<? extends Type> arg3) {
-            return new Error("compiler", "cant.resolve.args", arg0, arg1, arg2, arg3);
-        }
-        
-        /**
-         * compiler.err.cant.resolve.args.params=\
-         *    cannot find symbol\n\
-         *    symbol: {0} <{2}>{1}({3})
-         */
-        public static Error CantResolveArgsParams(Kind arg0, Name arg1, List<? extends Type> arg2, List<? extends Type> arg3) {
-            return new Error("compiler", "cant.resolve.args.params", arg0, arg1, arg2, arg3);
-        }
-        
-        /**
-         * compiler.err.cant.resolve.location=\
-         *    cannot find symbol\n\
-         *    symbol:   {0} {1}\n\
-         *    location: {4}
-         */
-        public static Error CantResolveLocation(Kind arg0, Name arg1, Void arg2, Void arg3, JCDiagnostic arg4) {
-            return new Error("compiler", "cant.resolve.location", arg0, arg1, arg2, arg3, arg4);
-        }
-        
-        /**
-         * compiler.err.cant.resolve.location=\
-         *    cannot find symbol\n\
-         *    symbol:   {0} {1}\n\
-         *    location: {4}
-         */
-        public static Error CantResolveLocation(Kind arg0, Name arg1, Void arg2, Void arg3, Fragment arg4) {
-            return new Error("compiler", "cant.resolve.location", arg0, arg1, arg2, arg3, arg4);
-        }
-        
-        /**
-         * compiler.err.cant.resolve.location.args=\
-         *    cannot find symbol\n\
-         *    symbol:   {0} {1}({3})\n\
-         *    location: {4}
-         */
-        public static Error CantResolveLocationArgs(Kind arg0, Name arg1, Void arg2, List<? extends Type> arg3, JCDiagnostic arg4) {
-            return new Error("compiler", "cant.resolve.location.args", arg0, arg1, arg2, arg3, arg4);
-        }
-        
-        /**
-         * compiler.err.cant.resolve.location.args=\
-         *    cannot find symbol\n\
-         *    symbol:   {0} {1}({3})\n\
-         *    location: {4}
-         */
-        public static Error CantResolveLocationArgs(Kind arg0, Name arg1, Void arg2, List<? extends Type> arg3, Fragment arg4) {
-            return new Error("compiler", "cant.resolve.location.args", arg0, arg1, arg2, arg3, arg4);
-        }
-        
-        /**
-         * compiler.err.cant.resolve.location.args.params=\
-         *    cannot find symbol\n\
-         *    symbol:   {0} <{2}>{1}({3})\n\
-         *    location: {4}
-         */
-        @SuppressWarnings("rawtypes")
-        public static Error CantResolveLocationArgsParams(Kind arg0, Name arg1, List<? extends Type> arg2, List arg3, JCDiagnostic arg4) {
-            return new Error("compiler", "cant.resolve.location.args.params", arg0, arg1, arg2, arg3, arg4);
-        }
-        
-        /**
-         * compiler.err.cant.resolve.location.args.params=\
-         *    cannot find symbol\n\
-         *    symbol:   {0} <{2}>{1}({3})\n\
-         *    location: {4}
-         */
-        @SuppressWarnings("rawtypes")
-        public static Error CantResolveLocationArgsParams(Kind arg0, Name arg1, List<? extends Type> arg2, List arg3, Fragment arg4) {
-            return new Error("compiler", "cant.resolve.location.args.params", arg0, arg1, arg2, arg3, arg4);
-        }
-        
-        /**
-         * compiler.err.cant.select.static.class.from.param.type=\
-         *    cannot select a static class from a parameterized type
-         */
-        public static final Error CantSelectStaticClassFromParamType = new Error("compiler", "cant.select.static.class.from.param.type");
-        
-        /**
-         * compiler.err.cant.type.annotate.scoping=\
-         *    scoping construct cannot be annotated with type-use annotations: {0}
-         */
-        public static Error CantTypeAnnotateScoping(List<? extends Symbol> arg0) {
-            return new Error("compiler", "cant.type.annotate.scoping", arg0);
-        }
-        
-        /**
-         * compiler.err.cant.type.annotate.scoping.1=\
-         *    scoping construct cannot be annotated with type-use annotation: {0}
-         */
-        public static Error CantTypeAnnotateScoping1(Symbol arg0) {
-            return new Error("compiler", "cant.type.annotate.scoping.1", arg0);
-        }
-        
-        /**
-         * compiler.err.catch.without.try=\
-         *    ''catch'' without ''try''
-         */
-        public static final Error CatchWithoutTry = new Error("compiler", "catch.without.try");
-        
-        /**
-         * compiler.err.clash.with.pkg.of.same.name=\
-         *    {0} {1} clashes with package of same name
-         */
-        public static Error ClashWithPkgOfSameName(Kind arg0, Symbol arg1) {
-            return new Error("compiler", "clash.with.pkg.of.same.name", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.class.cant.write=\
-         *    error while writing {0}: {1}
-         */
-        public static Error ClassCantWrite(Symbol arg0, String arg1) {
-            return new Error("compiler", "class.cant.write", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.class.not.allowed=\
-         *    class, interface or enum declaration not allowed here
-         */
-        public static final Error ClassNotAllowed = new Error("compiler", "class.not.allowed");
-        
-        /**
-         * compiler.err.class.public.should.be.in.file=\
-         *    class {0} is public, should be declared in a file named {0}.java
-         */
-        public static Error ClassPublicShouldBeInFile(Name arg0) {
-            return new Error("compiler", "class.public.should.be.in.file", arg0);
-        }
-        
-        /**
-         * compiler.err.concrete.inheritance.conflict=\
-         *    methods {0} from {1} and {2} from {3} are inherited with the same signature
-         */
-        public static Error ConcreteInheritanceConflict(Symbol arg0, Type arg1, Symbol arg2, Type arg3, Void arg4) {
-            return new Error("compiler", "concrete.inheritance.conflict", arg0, arg1, arg2, arg3, arg4);
-        }
-        
-        /**
-         * compiler.err.const.expr.req=\
-         *    constant expression required
-         */
-        public static final Error ConstExprReq = new Error("compiler", "const.expr.req");
-        
-        /**
-         * compiler.err.cont.outside.loop=\
-         *    continue outside of loop
-         */
-        public static final Error ContOutsideLoop = new Error("compiler", "cont.outside.loop");
-        
-        /**
-         * compiler.err.cyclic.annotation.element=\
-         *    type of element {0} is cyclic
-         */
-        public static Error CyclicAnnotationElement(Symbol arg0) {
-            return new Error("compiler", "cyclic.annotation.element", arg0);
-        }
-        
-        /**
-         * compiler.err.cyclic.inheritance=\
-         *    cyclic inheritance involving {0}
-         */
-        public static Error CyclicInheritance(Symbol arg0) {
-            return new Error("compiler", "cyclic.inheritance", arg0);
-        }
-        
-        /**
-         * compiler.err.cyclic.requires=\
-         *    cyclic dependence involving {0}
-         */
-        public static Error CyclicRequires(Symbol arg0) {
-            return new Error("compiler", "cyclic.requires", arg0);
-        }
-        
-        /**
-         * compiler.err.dc.bad.entity=\
-         *    bad HTML entity
-         */
-        public static final Error DcBadEntity = new Error("compiler", "dc.bad.entity");
-        
-        /**
-         * compiler.err.dc.bad.gt=\
-         *    bad use of ''>''
-         */
-        public static final Error DcBadGt = new Error("compiler", "dc.bad.gt");
-        
-        /**
-         * compiler.err.dc.bad.inline.tag=\
-         *    incorrect use of inline tag
-         */
-        public static final Error DcBadInlineTag = new Error("compiler", "dc.bad.inline.tag");
-        
-        /**
-         * compiler.err.dc.gt.expected=\
-         *    ''>'' expected
-         */
-        public static final Error DcGtExpected = new Error("compiler", "dc.gt.expected");
-        
-        /**
-         * compiler.err.dc.identifier.expected=\
-         *    identifier expected
-         */
-        public static final Error DcIdentifierExpected = new Error("compiler", "dc.identifier.expected");
-        
-        /**
-         * compiler.err.dc.malformed.html=\
-         *    malformed HTML
-         */
-        public static final Error DcMalformedHtml = new Error("compiler", "dc.malformed.html");
-        
-        /**
-         * compiler.err.dc.missing.semicolon=\
-         *    semicolon missing
-         */
-        public static final Error DcMissingSemicolon = new Error("compiler", "dc.missing.semicolon");
-        
-        /**
-         * compiler.err.dc.no.content=\
-         *    no content
-         */
-        public static final Error DcNoContent = new Error("compiler", "dc.no.content");
-        
-        /**
-         * compiler.err.dc.no.tag.name=\
-         *    no tag name after '@'
-         */
-        public static final Error DcNoTagName = new Error("compiler", "dc.no.tag.name");
-        
-        /**
-         * compiler.err.dc.ref.bad.parens=\
-         *    '')'' missing in reference
-         */
-        public static final Error DcRefBadParens = new Error("compiler", "dc.ref.bad.parens");
-        
-        /**
-         * compiler.err.dc.ref.syntax.error=\
-         *    syntax error in reference
-         */
-        public static final Error DcRefSyntaxError = new Error("compiler", "dc.ref.syntax.error");
-        
-        /**
-         * compiler.err.dc.ref.unexpected.input=\
-         *    unexpected text
-         */
-        public static final Error DcRefUnexpectedInput = new Error("compiler", "dc.ref.unexpected.input");
-        
-        /**
-         * compiler.err.dc.unexpected.content=\
-         *    unexpected content
-         */
-        public static final Error DcUnexpectedContent = new Error("compiler", "dc.unexpected.content");
-        
-        /**
-         * compiler.err.dc.unterminated.inline.tag=\
-         *    unterminated inline tag
-         */
-        public static final Error DcUnterminatedInlineTag = new Error("compiler", "dc.unterminated.inline.tag");
-        
-        /**
-         * compiler.err.dc.unterminated.signature=\
-         *    unterminated signature
-         */
-        public static final Error DcUnterminatedSignature = new Error("compiler", "dc.unterminated.signature");
-        
-        /**
-         * compiler.err.dc.unterminated.string=\
-         *    unterminated string
-         */
-        public static final Error DcUnterminatedString = new Error("compiler", "dc.unterminated.string");
-        
-        /**
-         * compiler.err.default.allowed.in.intf.annotation.member=\
-         *    default value only allowed in an annotation type declaration
-         */
-        public static final Error DefaultAllowedInIntfAnnotationMember = new Error("compiler", "default.allowed.in.intf.annotation.member");
-        
-        /**
-         * compiler.err.default.methods.not.supported.in.source=\
-         *    default methods are not supported in -source {0}\n\
-         *    (use -source 8 or higher to enable default methods)
-         */
-        public static Error DefaultMethodsNotSupportedInSource(String arg0) {
-            return new Error("compiler", "default.methods.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.default.overrides.object.member=\
-         *    default method {0} in {1} {2} overrides a member of java.lang.Object
-         */
-        public static Error DefaultOverridesObjectMember(Name arg0, KindName arg1, Symbol arg2) {
-            return new Error("compiler", "default.overrides.object.member", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.err.diamond.not.supported.in.source=\
-         *    diamond operator is not supported in -source {0}\n\
-         *    (use -source 7 or higher to enable diamond operator)
-         */
-        public static Error DiamondNotSupportedInSource(String arg0) {
-            return new Error("compiler", "diamond.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.does.not.override.abstract=\
-         *    {0} is not abstract and does not override abstract method {1} in {2}
-         */
-        public static Error DoesNotOverrideAbstract(Symbol arg0, Symbol arg1, Symbol arg2) {
-            return new Error("compiler", "does.not.override.abstract", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.err.doesnt.exist=\
-         *    package {0} does not exist
-         */
-        public static Error DoesntExist(Symbol arg0) {
-            return new Error("compiler", "doesnt.exist", arg0);
-        }
-        
-        /**
-         * compiler.err.dot.class.expected=\
-         *    ''.class'' expected
-         */
-        public static final Error DotClassExpected = new Error("compiler", "dot.class.expected");
-        
-        /**
-         * compiler.err.duplicate.annotation.invalid.repeated=\
-         *    annotation {0} is not a valid repeatable annotation
-         */
-        public static Error DuplicateAnnotationInvalidRepeated(Type arg0) {
-            return new Error("compiler", "duplicate.annotation.invalid.repeated", arg0);
-        }
-        
-        /**
-         * compiler.err.duplicate.annotation.member.value=\
-         *    duplicate element ''{0}'' in annotation @{1}.
-         */
-        public static Error DuplicateAnnotationMemberValue(Name arg0, Type arg1) {
-            return new Error("compiler", "duplicate.annotation.member.value", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.duplicate.annotation.missing.container=\
-         *    {0} is not a repeatable annotation type
-         */
-        public static Error DuplicateAnnotationMissingContainer(Name arg0, Void arg1) {
-            return new Error("compiler", "duplicate.annotation.missing.container", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.duplicate.case.label=\
-         *    duplicate case label
-         */
-        public static final Error DuplicateCaseLabel = new Error("compiler", "duplicate.case.label");
-        
-        /**
-         * compiler.err.duplicate.class=\
-         *    duplicate class: {0}
-         */
-        public static Error DuplicateClass(Name arg0) {
-            return new Error("compiler", "duplicate.class", arg0);
-        }
-        
-        /**
-         * compiler.err.duplicate.default.label=\
-         *    duplicate default label
-         */
-        public static final Error DuplicateDefaultLabel = new Error("compiler", "duplicate.default.label");
-        
-        /**
-         * compiler.err.duplicate.exports=\
-         *    duplicate export: {0}
-         */
-        public static Error DuplicateExports(Symbol arg0) {
-            return new Error("compiler", "duplicate.exports", arg0);
-        }
-        
-        /**
-         * compiler.err.duplicate.module=\
-         *    duplicate module: {0}
-         */
-        public static Error DuplicateModule(Symbol arg0) {
-            return new Error("compiler", "duplicate.module", arg0);
-        }
-        
-        /**
-         * compiler.err.duplicate.module.on.path=\
-         *    duplicate module on {0}\nmodule in {1}
-         */
-        public static Error DuplicateModuleOnPath(Fragment arg0, Name arg1) {
-            return new Error("compiler", "duplicate.module.on.path", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.duplicate.provides=\
-         *    duplicate provides: service {0}, implementation {1}
-         */
-        public static Error DuplicateProvides(Symbol arg0, Symbol arg1) {
-            return new Error("compiler", "duplicate.provides", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.duplicate.requires=\
-         *    duplicate requires: {0}
-         */
-        public static Error DuplicateRequires(Symbol arg0) {
-            return new Error("compiler", "duplicate.requires", arg0);
-        }
-        
-        /**
-         * compiler.err.duplicate.uses=\
-         *    duplicate uses: {0}
-         */
-        public static Error DuplicateUses(Symbol arg0) {
-            return new Error("compiler", "duplicate.uses", arg0);
-        }
-        
-        /**
-         * compiler.err.else.without.if=\
-         *    ''else'' without ''if''
-         */
-        public static final Error ElseWithoutIf = new Error("compiler", "else.without.if");
-        
-        /**
-         * compiler.err.empty.char.lit=\
-         *    empty character literal
-         */
-        public static final Error EmptyCharLit = new Error("compiler", "empty.char.lit");
-        
-        /**
-         * compiler.err.encl.class.required=\
-         *    an enclosing instance that contains {0} is required
-         */
-        public static Error EnclClassRequired(Symbol arg0) {
-            return new Error("compiler", "encl.class.required", arg0);
-        }
-        
-        /**
-         * compiler.err.enum.annotation.must.be.enum.constant=\
-         *    an enum annotation value must be an enum constant
-         */
-        public static final Error EnumAnnotationMustBeEnumConstant = new Error("compiler", "enum.annotation.must.be.enum.constant");
-        
-        /**
-         * compiler.err.enum.as.identifier=\
-         *    as of release 5, ''enum'' is a keyword, and may not be used as an identifier
-         */
-        public static final Error EnumAsIdentifier = new Error("compiler", "enum.as.identifier");
-        
-        /**
-         * compiler.err.enum.cant.be.instantiated=\
-         *    enum types may not be instantiated
-         */
-        public static final Error EnumCantBeInstantiated = new Error("compiler", "enum.cant.be.instantiated");
-        
-        /**
-         * compiler.err.enum.label.must.be.unqualified.enum=\
-         *    an enum switch case label must be the unqualified name of an enumeration constant
-         */
-        public static final Error EnumLabelMustBeUnqualifiedEnum = new Error("compiler", "enum.label.must.be.unqualified.enum");
-        
-        /**
-         * compiler.err.enum.no.finalize=\
-         *    enums cannot have finalize methods
-         */
-        public static final Error EnumNoFinalize = new Error("compiler", "enum.no.finalize");
-        
-        /**
-         * compiler.err.enum.no.subclassing=\
-         *    classes cannot directly extend java.lang.Enum
-         */
-        public static final Error EnumNoSubclassing = new Error("compiler", "enum.no.subclassing");
-        
-        /**
-         * compiler.err.enum.types.not.extensible=\
-         *    enum types are not extensible
-         */
-        public static final Error EnumTypesNotExtensible = new Error("compiler", "enum.types.not.extensible");
-        
-        /**
-         * compiler.err.enums.must.be.static=\
-         *    enum declarations allowed only in static contexts
-         */
-        public static final Error EnumsMustBeStatic = new Error("compiler", "enums.must.be.static");
-        
-        /**
-         * compiler.err.error=\
-         *    error:\u0020
-         */
-        public static final Error Error = new Error("compiler", "error");
-        
-        /**
-         * compiler.err.error.reading.file=\
-         *    error reading {0}; {1}
-         */
-        public static Error ErrorReadingFile(File arg0, String arg1) {
-            return new Error("compiler", "error.reading.file", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.error.reading.file=\
-         *    error reading {0}; {1}
-         */
-        public static Error ErrorReadingFile(JavaFileObject arg0, String arg1) {
-            return new Error("compiler", "error.reading.file", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.except.already.caught=\
-         *    exception {0} has already been caught
-         */
-        public static Error ExceptAlreadyCaught(Type arg0) {
-            return new Error("compiler", "except.already.caught", arg0);
-        }
-        
-        /**
-         * compiler.err.except.never.thrown.in.try=\
-         *    exception {0} is never thrown in body of corresponding try statement
-         */
-        public static Error ExceptNeverThrownInTry(Type arg0) {
-            return new Error("compiler", "except.never.thrown.in.try", arg0);
-        }
-        
-        /**
-         * compiler.err.expected=\
-         *    {0} expected
-         */
-        public static Error Expected(TokenKind arg0) {
-            return new Error("compiler", "expected", arg0);
-        }
-        
-        /**
-         * compiler.err.expected.module=\
-         *    expected ''module''
-         */
-        public static final Error ExpectedModule = new Error("compiler", "expected.module");
-        
-        /**
-         * compiler.err.expected2=\
-         *    {0} or {1} expected
-         */
-        public static Error Expected2(TokenKind arg0, TokenKind arg1) {
-            return new Error("compiler", "expected2", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.expected3=\
-         *    {0}, {1}, or {2} expected
-         */
-        public static Error Expected3(TokenKind arg0, TokenKind arg1, TokenKind arg2) {
-            return new Error("compiler", "expected3", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.err.final.parameter.may.not.be.assigned=\
-         *    final parameter {0} may not be assigned
-         */
-        public static Error FinalParameterMayNotBeAssigned(Symbol arg0) {
-            return new Error("compiler", "final.parameter.may.not.be.assigned", arg0);
-        }
-        
-        /**
-         * compiler.err.finally.without.try=\
-         *    ''finally'' without ''try''
-         */
-        public static final Error FinallyWithoutTry = new Error("compiler", "finally.without.try");
-        
-        /**
-         * compiler.err.foreach.not.applicable.to.type=\
-         *    for-each not applicable to expression type\n\
-         *    required: {1}\n\
-         *    found:    {0}
-         */
-        public static Error ForeachNotApplicableToType(Type arg0, JCDiagnostic arg1) {
-            return new Error("compiler", "foreach.not.applicable.to.type", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.foreach.not.applicable.to.type=\
-         *    for-each not applicable to expression type\n\
-         *    required: {1}\n\
-         *    found:    {0}
-         */
-        public static Error ForeachNotApplicableToType(Type arg0, Fragment arg1) {
-            return new Error("compiler", "foreach.not.applicable.to.type", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.fp.number.too.large=\
-         *    floating point number too large
-         */
-        public static final Error FpNumberTooLarge = new Error("compiler", "fp.number.too.large");
-        
-        /**
-         * compiler.err.fp.number.too.small=\
-         *    floating point number too small
-         */
-        public static final Error FpNumberTooSmall = new Error("compiler", "fp.number.too.small");
-        
-        /**
-         * compiler.err.generic.array.creation=\
-         *    generic array creation
-         */
-        public static final Error GenericArrayCreation = new Error("compiler", "generic.array.creation");
-        
-        /**
-         * compiler.err.generic.throwable=\
-         *    a generic class may not extend java.lang.Throwable
-         */
-        public static final Error GenericThrowable = new Error("compiler", "generic.throwable");
-        
-        /**
-         * compiler.err.icls.cant.have.static.decl=\
-         *    Illegal static declaration in inner class {0}\n\
-         *    modifier \''static\'' is only allowed in constant variable declarations
-         */
-        public static Error IclsCantHaveStaticDecl(Symbol arg0) {
-            return new Error("compiler", "icls.cant.have.static.decl", arg0);
-        }
-        
-        /**
-         * compiler.err.illegal.argument.for.option=\
-         *    illegal argument for {0}: {1}
-         */
-        public static Error IllegalArgumentForOption(String arg0, String arg1) {
-            return new Error("compiler", "illegal.argument.for.option", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.illegal.char=\
-         *    illegal character: ''{0}''
-         */
-        public static Error IllegalChar(String arg0) {
-            return new Error("compiler", "illegal.char", arg0);
-        }
-        
-        /**
-         * compiler.err.illegal.char.for.encoding=\
-         *    unmappable character (0x{0}) for encoding {1}
-         */
-        public static Error IllegalCharForEncoding(String arg0, String arg1) {
-            return new Error("compiler", "illegal.char.for.encoding", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.illegal.combination.of.modifiers=\
-         *    illegal combination of modifiers: {0} and {1}
-         */
-        public static Error IllegalCombinationOfModifiers(Set<? extends Modifier> arg0, Set<? extends Modifier> arg1) {
-            return new Error("compiler", "illegal.combination.of.modifiers", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.illegal.default.super.call=\
-         *    bad type qualifier {0} in default super call\n\
-         *    {1}
-         */
-        public static Error IllegalDefaultSuperCall(Type arg0, JCDiagnostic arg1) {
-            return new Error("compiler", "illegal.default.super.call", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.illegal.default.super.call=\
-         *    bad type qualifier {0} in default super call\n\
-         *    {1}
-         */
-        public static Error IllegalDefaultSuperCall(Type arg0, Fragment arg1) {
-            return new Error("compiler", "illegal.default.super.call", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.illegal.dot=\
-         *    illegal ''.''
-         */
-        public static final Error IllegalDot = new Error("compiler", "illegal.dot");
-        
-        /**
-         * compiler.err.illegal.enum.static.ref=\
-         *    illegal reference to static field from initializer
-         */
-        public static final Error IllegalEnumStaticRef = new Error("compiler", "illegal.enum.static.ref");
-        
-        /**
-         * compiler.err.illegal.esc.char=\
-         *    illegal escape character
-         */
-        public static final Error IllegalEscChar = new Error("compiler", "illegal.esc.char");
-        
-        /**
-         * compiler.err.illegal.forward.ref=\
-         *    illegal forward reference
-         */
-        public static final Error IllegalForwardRef = new Error("compiler", "illegal.forward.ref");
-        
-        /**
-         * compiler.err.illegal.generic.type.for.instof=\
-         *    illegal generic type for instanceof
-         */
-        public static final Error IllegalGenericTypeForInstof = new Error("compiler", "illegal.generic.type.for.instof");
-        
-        /**
-         * compiler.err.illegal.initializer.for.type=\
-         *    illegal initializer for {0}
-         */
-        public static Error IllegalInitializerForType(Type arg0) {
-            return new Error("compiler", "illegal.initializer.for.type", arg0);
-        }
-        
-        /**
-         * compiler.err.illegal.line.end.in.char.lit=\
-         *    illegal line end in character literal
-         */
-        public static final Error IllegalLineEndInCharLit = new Error("compiler", "illegal.line.end.in.char.lit");
-        
-        /**
-         * compiler.err.illegal.nonascii.digit=\
-         *    illegal non-ASCII digit
-         */
-        public static final Error IllegalNonasciiDigit = new Error("compiler", "illegal.nonascii.digit");
-        
-        /**
-         * compiler.err.illegal.qual.not.icls=\
-         *    illegal qualifier; {0} is not an inner class
-         */
-        public static Error IllegalQualNotIcls(Symbol arg0) {
-            return new Error("compiler", "illegal.qual.not.icls", arg0);
-        }
-        
-        /**
-         * compiler.err.illegal.self.ref=\
-         *    self-reference in initializer
-         */
-        public static final Error IllegalSelfRef = new Error("compiler", "illegal.self.ref");
-        
-        /**
-         * compiler.err.illegal.start.of.expr=\
-         *    illegal start of expression
-         */
-        public static final Error IllegalStartOfExpr = new Error("compiler", "illegal.start.of.expr");
-        
-        /**
-         * compiler.err.illegal.start.of.stmt=\
-         *    illegal start of statement
-         */
-        public static final Error IllegalStartOfStmt = new Error("compiler", "illegal.start.of.stmt");
-        
-        /**
-         * compiler.err.illegal.start.of.type=\
-         *    illegal start of type
-         */
-        public static final Error IllegalStartOfType = new Error("compiler", "illegal.start.of.type");
-        
-        /**
-         * compiler.err.illegal.static.intf.meth.call=\
-         *    illegal static interface method call\n\
-         *    the receiver expression should be replaced with the type qualifier ''{0}''
-         */
-        public static Error IllegalStaticIntfMethCall(Type arg0) {
-            return new Error("compiler", "illegal.static.intf.meth.call", arg0);
-        }
-        
-        /**
-         * compiler.err.illegal.underscore=\
-         *    illegal underscore
-         */
-        public static final Error IllegalUnderscore = new Error("compiler", "illegal.underscore");
-        
-        /**
-         * compiler.err.illegal.unicode.esc=\
-         *    illegal unicode escape
-         */
-        public static final Error IllegalUnicodeEsc = new Error("compiler", "illegal.unicode.esc");
-        
-        /**
-         * compiler.err.import.requires.canonical=\
-         *    import requires canonical name for {0}
-         */
-        public static Error ImportRequiresCanonical(Symbol arg0) {
-            return new Error("compiler", "import.requires.canonical", arg0);
-        }
-        
-        /**
-         * compiler.err.improperly.formed.type.inner.raw.param=\
-         *    improperly formed type, type arguments given on a raw type
-         */
-        public static final Error ImproperlyFormedTypeInnerRawParam = new Error("compiler", "improperly.formed.type.inner.raw.param");
-        
-        /**
-         * compiler.err.improperly.formed.type.param.missing=\
-         *    improperly formed type, some parameters are missing
-         */
-        public static final Error ImproperlyFormedTypeParamMissing = new Error("compiler", "improperly.formed.type.param.missing");
-        
-        /**
-         * compiler.err.incomparable.types=\
-         *    incomparable types: {0} and {1}
-         */
-        public static Error IncomparableTypes(Type arg0, Type arg1) {
-            return new Error("compiler", "incomparable.types", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.incompatible.thrown.types.in.mref=\
-         *    incompatible thrown types {0} in method reference
-         */
-        public static Error IncompatibleThrownTypesInMref(List<? extends Type> arg0) {
-            return new Error("compiler", "incompatible.thrown.types.in.mref", arg0);
-        }
-        
-        /**
-         * compiler.err.incorrect.constructor.receiver.name=\
-         *    the receiver name does not match the enclosing outer class type\n\
-         *    required: {0}\n\
-         *    found: {1}
-         */
-        public static Error IncorrectConstructorReceiverName(Type arg0, Type arg1) {
-            return new Error("compiler", "incorrect.constructor.receiver.name", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.incorrect.constructor.receiver.type=\
-         *    the receiver type does not match the enclosing outer class type\n\
-         *    required: {0}\n\
-         *    found: {1}
-         */
-        public static Error IncorrectConstructorReceiverType(Type arg0, Type arg1) {
-            return new Error("compiler", "incorrect.constructor.receiver.type", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.incorrect.receiver.name=\
-         *    the receiver name does not match the enclosing class type\n\
-         *    required: {0}\n\
-         *    found: {1}
-         */
-        public static Error IncorrectReceiverName(Type arg0, Type arg1) {
-            return new Error("compiler", "incorrect.receiver.name", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.incorrect.receiver.type=\
-         *    the receiver type does not match the enclosing class type\n\
-         *    required: {0}\n\
-         *    found: {1}
-         */
-        public static Error IncorrectReceiverType(Type arg0, Type arg1) {
-            return new Error("compiler", "incorrect.receiver.type", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.initializer.must.be.able.to.complete.normally=\
-         *    initializer must be able to complete normally
-         */
-        public static final Error InitializerMustBeAbleToCompleteNormally = new Error("compiler", "initializer.must.be.able.to.complete.normally");
-        
-        /**
-         * compiler.err.initializer.not.allowed=\
-         *    initializers not allowed in interfaces
-         */
-        public static final Error InitializerNotAllowed = new Error("compiler", "initializer.not.allowed");
-        
-        /**
-         * compiler.err.int.number.too.large=\
-         *    integer number too large: {0}
-         */
-        public static Error IntNumberTooLarge(int arg0) {
-            return new Error("compiler", "int.number.too.large", arg0);
-        }
-        
-        /**
-         * compiler.err.intersection.types.in.cast.not.supported.in.source=\
-         *    intersection types in cast are not supported in -source {0}\n\
-         *    (use -source 8 or higher to enable default methods)
-         */
-        public static Error IntersectionTypesInCastNotSupportedInSource(String arg0) {
-            return new Error("compiler", "intersection.types.in.cast.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.intf.annotation.cant.have.type.params=\
-         *    annotation type {0} cannot be generic
-         */
-        public static Error IntfAnnotationCantHaveTypeParams(Symbol arg0) {
-            return new Error("compiler", "intf.annotation.cant.have.type.params", arg0);
-        }
-        
-        /**
-         * compiler.err.intf.annotation.member.clash=\
-         *    annotation type {1} declares an element with the same name as method {0}
-         */
-        public static Error IntfAnnotationMemberClash(Symbol arg0, Type arg1) {
-            return new Error("compiler", "intf.annotation.member.clash", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.intf.annotation.members.cant.have.params=\
-         *    elements in annotation type declarations cannot declare formal parameters
-         */
-        public static final Error IntfAnnotationMembersCantHaveParams = new Error("compiler", "intf.annotation.members.cant.have.params");
-        
-        /**
-         * compiler.err.intf.annotation.members.cant.have.type.params=\
-         *    elements in annotation type declarations cannot be generic methods
-         */
-        public static final Error IntfAnnotationMembersCantHaveTypeParams = new Error("compiler", "intf.annotation.members.cant.have.type.params");
-        
-        /**
-         * compiler.err.intf.expected.here=\
-         *    interface expected here
-         */
-        public static final Error IntfExpectedHere = new Error("compiler", "intf.expected.here");
-        
-        /**
-         * compiler.err.intf.meth.cant.have.body=\
-         *    interface abstract methods cannot have body
-         */
-        public static final Error IntfMethCantHaveBody = new Error("compiler", "intf.meth.cant.have.body");
-        
-        /**
-         * compiler.err.intf.not.allowed.here=\
-         *    interface not allowed here
-         */
-        public static final Error IntfNotAllowedHere = new Error("compiler", "intf.not.allowed.here");
-        
-        /**
-         * compiler.err.invalid.annotation.member.type=\
-         *    invalid type for element {0} of annotation type
-         */
-        public static Error InvalidAnnotationMemberType(Symbol arg0) {
-            return new Error("compiler", "invalid.annotation.member.type", arg0);
-        }
-        
-        /**
-         * compiler.err.invalid.binary.number=\
-         *    binary numbers must contain at least one binary digit
-         */
-        public static final Error InvalidBinaryNumber = new Error("compiler", "invalid.binary.number");
-        
-        /**
-         * compiler.err.invalid.hex.number=\
-         *    hexadecimal numbers must contain at least one hexadecimal digit
-         */
-        public static final Error InvalidHexNumber = new Error("compiler", "invalid.hex.number");
-        
-        /**
-         * compiler.err.invalid.meth.decl.ret.type.req=\
-         *    invalid method declaration; return type required
-         */
-        public static final Error InvalidMethDeclRetTypeReq = new Error("compiler", "invalid.meth.decl.ret.type.req");
-        
-        /**
-         * compiler.err.invalid.module.directive=\
-         *  module directive keyword or ''}'' expected
-         */
-        public static final Error InvalidModuleDirective = new Error("compiler", "invalid.module.directive");
-        
-        /**
-         * compiler.err.invalid.module.specifier=\
-         *    module specifier not allowed: {0}
-         */
-        public static Error InvalidModuleSpecifier(String arg0) {
-            return new Error("compiler", "invalid.module.specifier", arg0);
-        }
-        
-        /**
-         * compiler.err.invalid.mref=\
-         *    invalid {0} reference\n\
-         *    {1}
-         */
-        public static Error InvalidMref(Kind arg0, JCDiagnostic arg1) {
-            return new Error("compiler", "invalid.mref", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.invalid.mref=\
-         *    invalid {0} reference\n\
-         *    {1}
-         */
-        public static Error InvalidMref(Kind arg0, Fragment arg1) {
-            return new Error("compiler", "invalid.mref", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation=\
-         *    duplicate annotation: {0} is annotated with an invalid @Repeatable annotation
-         */
-        public static Error InvalidRepeatableAnnotation(Type arg0, Void arg1) {
-            return new Error("compiler", "invalid.repeatable.annotation", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.elem.nondefault=\
-         *    containing annotation type ({0}) does not have a default value for element {1}
-         */
-        public static Error InvalidRepeatableAnnotationElemNondefault(Symbol arg0, Symbol arg1) {
-            return new Error("compiler", "invalid.repeatable.annotation.elem.nondefault", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.elem.nondefault=\
-         *    containing annotation type ({0}) does not have a default value for element {1}
-         */
-        public static Error InvalidRepeatableAnnotationElemNondefault(Type arg0, Symbol arg1) {
-            return new Error("compiler", "invalid.repeatable.annotation.elem.nondefault", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.incompatible.target=\
-         *    containing annotation type ({0}) is applicable to more targets than repeatable annotation type ({1})
-         */
-        public static Error InvalidRepeatableAnnotationIncompatibleTarget(Symbol arg0, Symbol arg1) {
-            return new Error("compiler", "invalid.repeatable.annotation.incompatible.target", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.invalid.value=\
-         *    {0} is not a valid @Repeatable: invalid value element
-         */
-        public static Error InvalidRepeatableAnnotationInvalidValue(Type arg0) {
-            return new Error("compiler", "invalid.repeatable.annotation.invalid.value", arg0);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.multiple.values=\
-         *    {0} is not a valid @Repeatable, {1} element methods named ''value'' declared
-         */
-        public static Error InvalidRepeatableAnnotationMultipleValues(Type arg0, int arg1) {
-            return new Error("compiler", "invalid.repeatable.annotation.multiple.values", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.no.value=\
-         *    {0} is not a valid @Repeatable, no value element method declared
-         */
-        public static Error InvalidRepeatableAnnotationNoValue(Symbol arg0) {
-            return new Error("compiler", "invalid.repeatable.annotation.no.value", arg0);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.no.value=\
-         *    {0} is not a valid @Repeatable, no value element method declared
-         */
-        public static Error InvalidRepeatableAnnotationNoValue(Type arg0) {
-            return new Error("compiler", "invalid.repeatable.annotation.no.value", arg0);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.not.applicable=\
-         *    container {0} is not applicable to element {1}
-         */
-        public static Error InvalidRepeatableAnnotationNotApplicable(Type arg0, Symbol arg1) {
-            return new Error("compiler", "invalid.repeatable.annotation.not.applicable", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.not.applicable.in.context=\
-         *    container {0} is not applicable in this type context
-         */
-        public static Error InvalidRepeatableAnnotationNotApplicableInContext(Type arg0) {
-            return new Error("compiler", "invalid.repeatable.annotation.not.applicable.in.context", arg0);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.not.documented=\
-         *    repeatable annotation type ({1}) is @Documented while containing annotation type ({0}) is not
-         */
-        public static Error InvalidRepeatableAnnotationNotDocumented(Symbol arg0, Symbol arg1) {
-            return new Error("compiler", "invalid.repeatable.annotation.not.documented", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.not.inherited=\
-         *    repeatable annotation type ({1}) is @Inherited while containing annotation type ({0}) is not
-         */
-        public static Error InvalidRepeatableAnnotationNotInherited(Symbol arg0, Symbol arg1) {
-            return new Error("compiler", "invalid.repeatable.annotation.not.inherited", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.repeated.and.container.present=\
-         *    container {0} must not be present at the same time as the element it contains
-         */
-        public static Error InvalidRepeatableAnnotationRepeatedAndContainerPresent(Symbol arg0) {
-            return new Error("compiler", "invalid.repeatable.annotation.repeated.and.container.present", arg0);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.retention=\
-         *    retention of containing annotation type ({0}) is shorter than the retention of repeatable annotation type ({2})
-         */
-        public static Error InvalidRepeatableAnnotationRetention(Symbol arg0, Void arg1, Symbol arg2, Void arg3) {
-            return new Error("compiler", "invalid.repeatable.annotation.retention", arg0, arg1, arg2, arg3);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.value.return=\
-         *    containing annotation type ({0}) must declare an element named ''value'' of type {2}
-         */
-        public static Error InvalidRepeatableAnnotationValueReturn(Symbol arg0, Void arg1, Type arg2) {
-            return new Error("compiler", "invalid.repeatable.annotation.value.return", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.err.invalid.repeatable.annotation.value.return=\
-         *    containing annotation type ({0}) must declare an element named ''value'' of type {2}
-         */
-        public static Error InvalidRepeatableAnnotationValueReturn(Type arg0, Void arg1, Type arg2) {
-            return new Error("compiler", "invalid.repeatable.annotation.value.return", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.err.io.exception=\
-         *    error reading source file: {0}
-         */
-        public static final Error IoException = new Error("compiler", "io.exception");
-        
-        /**
-         * compiler.err.label.already.in.use=\
-         *    label {0} already in use
-         */
-        public static Error LabelAlreadyInUse(Name arg0) {
-            return new Error("compiler", "label.already.in.use", arg0);
-        }
-        
-        /**
-         * compiler.err.lambda.body.neither.value.nor.void.compatible=\
-         *    lambda body is neither value nor void compatible
-         */
-        public static final Error LambdaBodyNeitherValueNorVoidCompatible = new Error("compiler", "lambda.body.neither.value.nor.void.compatible");
-        
-        /**
-         * compiler.err.lambda.not.supported.in.source=\
-         *    lambda expressions are not supported in -source {0}\n\
-         *    (use -source 8 or higher to enable lambda expressions)
-         */
-        public static Error LambdaNotSupportedInSource(String arg0) {
-            return new Error("compiler", "lambda.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.limit.code=\
-         *    code too large
-         */
-        public static final Error LimitCode = new Error("compiler", "limit.code");
-        
-        /**
-         * compiler.err.limit.code.too.large.for.try.stmt=\
-         *    code too large for try statement
-         */
-        public static final Error LimitCodeTooLargeForTryStmt = new Error("compiler", "limit.code.too.large.for.try.stmt");
-        
-        /**
-         * compiler.err.limit.dimensions=\
-         *    array type has too many dimensions
-         */
-        public static final Error LimitDimensions = new Error("compiler", "limit.dimensions");
-        
-        /**
-         * compiler.err.limit.locals=\
-         *    too many local variables
-         */
-        public static final Error LimitLocals = new Error("compiler", "limit.locals");
-        
-        /**
-         * compiler.err.limit.parameters=\
-         *    too many parameters
-         */
-        public static final Error LimitParameters = new Error("compiler", "limit.parameters");
-        
-        /**
-         * compiler.err.limit.pool=\
-         *    too many constants
-         */
-        public static final Error LimitPool = new Error("compiler", "limit.pool");
-        
-        /**
-         * compiler.err.limit.pool.in.class=\
-         *    too many constants in class {0}
-         */
-        public static final Error LimitPoolInClass = new Error("compiler", "limit.pool.in.class");
-        
-        /**
-         * compiler.err.limit.stack=\
-         *    code requires too much stack
-         */
-        public static final Error LimitStack = new Error("compiler", "limit.stack");
-        
-        /**
-         * compiler.err.limit.string=\
-         *    constant string too long
-         */
-        public static final Error LimitString = new Error("compiler", "limit.string");
-        
-        /**
-         * compiler.err.limit.string.overflow=\
-         *    UTF8 representation for string \"{0}...\" is too long for the constant pool
-         */
-        public static final Error LimitStringOverflow = new Error("compiler", "limit.string.overflow");
-        
-        /**
-         * compiler.err.local.enum=\
-         *    enum types must not be local
-         */
-        public static final Error LocalEnum = new Error("compiler", "local.enum");
-        
-        /**
-         * compiler.err.local.var.accessed.from.icls.needs.final=\
-         *    local variable {0} is accessed from within inner class; needs to be declared final
-         */
-        public static Error LocalVarAccessedFromIclsNeedsFinal(Symbol arg0) {
-            return new Error("compiler", "local.var.accessed.from.icls.needs.final", arg0);
-        }
-        
-        /**
-         * compiler.err.locn.bad.module-info=\
-         *    problem reading module-info.class in {0}
-         */
-        public static Error LocnBadModuleInfo(Path arg0) {
-            return new Error("compiler", "locn.bad.module-info", arg0);
-        }
-        
-        /**
-         * compiler.err.locn.cant.get.module.name.for.jar=\
-         *    cannot determine module name for {0}
-         */
-        public static Error LocnCantGetModuleNameForJar(Path arg0) {
-            return new Error("compiler", "locn.cant.get.module.name.for.jar", arg0);
-        }
-        
-        /**
-         * compiler.err.locn.cant.read.directory=\
-         *    cannot read directory {0}
-         */
-        public static Error LocnCantReadDirectory(Path arg0) {
-            return new Error("compiler", "locn.cant.read.directory", arg0);
-        }
-        
-        /**
-         * compiler.err.locn.cant.read.file=\
-         *    cannot read file {0}
-         */
-        public static Error LocnCantReadFile(Path arg0) {
-            return new Error("compiler", "locn.cant.read.file", arg0);
-        }
-        
-        /**
-         * compiler.err.locn.invalid.arg.for.xpatch=\
-         *    invalid argument for --patch-module option: {0}
-         */
-        public static Error LocnInvalidArgForXpatch(String arg0) {
-            return new Error("compiler", "locn.invalid.arg.for.xpatch", arg0);
-        }
-        
-        /**
-         * compiler.err.locn.module-info.not.allowed.on.patch.path=\
-         *    module-info.class not allowed on patch path: {0}
-         */
-        public static Error LocnModuleInfoNotAllowedOnPatchPath(Path arg0) {
-            return new Error("compiler", "locn.module-info.not.allowed.on.patch.path", arg0);
-        }
-        
-        /**
-         * compiler.err.malformed.fp.lit=\
-         *    malformed floating point literal
-         */
-        public static final Error MalformedFpLit = new Error("compiler", "malformed.fp.lit");
-        
-        /**
-         * compiler.err.method.does.not.override.superclass=\
-         *    method does not override or implement a method from a supertype
-         */
-        public static final Error MethodDoesNotOverrideSuperclass = new Error("compiler", "method.does.not.override.superclass");
-        
-        /**
-         * compiler.err.method.invoked.with.incorrect.number.arguments=\
-         *    method invoked with incorrect number of arguments; expected {0}, found {1}
-         */
-        public static Error MethodInvokedWithIncorrectNumberArguments(int arg0, int arg1) {
-            return new Error("compiler", "method.invoked.with.incorrect.number.arguments", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.method.references.not.supported.in.source=\
-         *    method references are not supported in -source {0}\n\
-         *    (use -source 8 or higher to enable method references)
-         */
-        public static Error MethodReferencesNotSupportedInSource(String arg0) {
-            return new Error("compiler", "method.references.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.missing.meth.body.or.decl.abstract=\
-         *    missing method body, or declare abstract
-         */
-        public static final Error MissingMethBodyOrDeclAbstract = new Error("compiler", "missing.meth.body.or.decl.abstract");
-        
-        /**
-         * compiler.err.missing.ret.stmt=\
-         *    missing return statement
-         */
-        public static final Error MissingRetStmt = new Error("compiler", "missing.ret.stmt");
-        
-        /**
-         * compiler.err.mod.not.allowed.here=\
-         *    modifier {0} not allowed here
-         */
-        public static Error ModNotAllowedHere(Set<? extends Modifier> arg0) {
-            return new Error("compiler", "mod.not.allowed.here", arg0);
-        }
-        
-        /**
-         * compiler.err.module-info.with.xmodule.classpath=\
-         *    illegal combination of -Xmodule and module-info on classpath
-         */
-        public static final Error ModuleInfoWithXmoduleClasspath = new Error("compiler", "module-info.with.xmodule.classpath");
-        
-        /**
-         * compiler.err.module-info.with.xmodule.sourcepath=\
-         *    illegal combination of -Xmodule and module-info on sourcepath
-         */
-        public static final Error ModuleInfoWithXmoduleSourcepath = new Error("compiler", "module-info.with.xmodule.sourcepath");
-        
-        /**
-         * compiler.err.module.decl.sb.in.module-info.java=\
-         *    module declarations should be in a file named module-info.java
-         */
-        public static final Error ModuleDeclSbInModuleInfoJava = new Error("compiler", "module.decl.sb.in.module-info.java");
-        
-        /**
-         * compiler.err.module.name.mismatch=\
-         *    module name {0} does not match expected name {1}
-         */
-        public static Error ModuleNameMismatch(Name arg0, Name arg1) {
-            return new Error("compiler", "module.name.mismatch", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.module.not.found=\
-         *    module not found: {0}
-         */
-        public static Error ModuleNotFound(Symbol arg0) {
-            return new Error("compiler", "module.not.found", arg0);
-        }
-        
-        /**
-         * compiler.err.module.not.found.in.module.source.path=\
-         *    module {0} not found in module source path
-         */
-        public static Error ModuleNotFoundInModuleSourcePath(String arg0) {
-            return new Error("compiler", "module.not.found.in.module.source.path", arg0);
-        }
-        
-        /**
-         * compiler.err.modules.not.supported.in.source=\
-         *   modules are not supported in -source {0}\n\
-         *    (use -source 9 or higher to enable modules)
-         */
-        public static Error ModulesNotSupportedInSource(String arg0) {
-            return new Error("compiler", "modules.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.modulesourcepath.must.be.specified.with.dash.m.option=\
-         *    module source path must be specified if -m option is used
-         */
-        public static final Error ModulesourcepathMustBeSpecifiedWithDashMOption = new Error("compiler", "modulesourcepath.must.be.specified.with.dash.m.option");
-        
-        /**
-         * compiler.err.multi-module.outdir.cannot.be.exploded.module=\
-         *    in multi-module mode, the output directory cannot be an exploded module: {0}
-         */
-        public static Error MultiModuleOutdirCannotBeExplodedModule(Path arg0) {
-            return new Error("compiler", "multi-module.outdir.cannot.be.exploded.module", arg0);
-        }
-        
-        /**
-         * compiler.err.multicatch.not.supported.in.source=\
-         *    multi-catch statement is not supported in -source {0}\n\
-         *    (use -source 7 or higher to enable multi-catch statement)
-         */
-        public static Error MulticatchNotSupportedInSource(String arg0) {
-            return new Error("compiler", "multicatch.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.multicatch.parameter.may.not.be.assigned=\
-         *    multi-catch parameter {0} may not be assigned
-         */
-        public static Error MulticatchParameterMayNotBeAssigned(Symbol arg0) {
-            return new Error("compiler", "multicatch.parameter.may.not.be.assigned", arg0);
-        }
-        
-        /**
-         * compiler.err.multicatch.types.must.be.disjoint=\
-         *    Alternatives in a multi-catch statement cannot be related by subclassing\n\
-         *    Alternative {0} is a subclass of alternative {1}
-         */
-        public static Error MulticatchTypesMustBeDisjoint(Type arg0, Type arg1) {
-            return new Error("compiler", "multicatch.types.must.be.disjoint", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.name.clash.same.erasure=\
-         *    name clash: {0} and {1} have the same erasure
-         */
-        public static Error NameClashSameErasure(Symbol arg0, Symbol arg1) {
-            return new Error("compiler", "name.clash.same.erasure", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.name.clash.same.erasure.no.hide=\
-         *    name clash: {0} in {1} and {2} in {3} have the same erasure, yet neither hides the other
-         */
-        public static Error NameClashSameErasureNoHide(Symbol arg0, Symbol arg1, Symbol arg2, Symbol arg3) {
-            return new Error("compiler", "name.clash.same.erasure.no.hide", arg0, arg1, arg2, arg3);
-        }
-        
-        /**
-         * compiler.err.name.clash.same.erasure.no.override=\
-         *    name clash: {0} in {1} and {2} in {3} have the same erasure, yet neither overrides the other
-         */
-        public static Error NameClashSameErasureNoOverride(Symbol arg0, Symbol arg1, Symbol arg2, Symbol arg3, Void arg4, Void arg5) {
-            return new Error("compiler", "name.clash.same.erasure.no.override", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.err.name.clash.same.erasure.no.override.1=\
-         *    name clash: {0} in {1} overrides a method whose erasure is the same as another method, yet neither overrides the other\n\
-         *    first method:  {2} in {3}\n\
-         *    second method: {4} in {5}
-         */
-        public static Error NameClashSameErasureNoOverride1(Symbol arg0, Symbol arg1, Symbol arg2, Symbol arg3, Symbol arg4, Symbol arg5) {
-            return new Error("compiler", "name.clash.same.erasure.no.override.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.err.name.reserved.for.internal.use=\
-         *    {0} is reserved for internal use
-         */
-        public static final Error NameReservedForInternalUse = new Error("compiler", "name.reserved.for.internal.use");
-        
-        /**
-         * compiler.err.native.meth.cant.have.body=\
-         *    native methods cannot have a body
-         */
-        public static final Error NativeMethCantHaveBody = new Error("compiler", "native.meth.cant.have.body");
-        
-        /**
-         * compiler.err.neither.conditional.subtype=\
-         *    incompatible types for ?: neither is a subtype of the other\n\
-         *    second operand: {0}\n\
-         *    third operand : {1}
-         */
-        public static Error NeitherConditionalSubtype(Type arg0, Type arg1) {
-            return new Error("compiler", "neither.conditional.subtype", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.new.not.allowed.in.annotation=\
-         *    ''new'' not allowed in an annotation
-         */
-        public static final Error NewNotAllowedInAnnotation = new Error("compiler", "new.not.allowed.in.annotation");
-        
-        /**
-         * compiler.err.no.annotation.member=\
-         *    no annotation member {0} in {1}
-         */
-        public static final Error NoAnnotationMember = new Error("compiler", "no.annotation.member");
-        
-        /**
-         * compiler.err.no.annotations.on.dot.class=\
-         *    no annotations are allowed in the type of a class literal
-         */
-        public static final Error NoAnnotationsOnDotClass = new Error("compiler", "no.annotations.on.dot.class");
-        
-        /**
-         * compiler.err.no.encl.instance.of.type.in.scope=\
-         *    no enclosing instance of type {0} is in scope
-         */
-        public static final Error NoEnclInstanceOfTypeInScope = new Error("compiler", "no.encl.instance.of.type.in.scope");
-        
-        /**
-         * compiler.err.no.intf.expected.here=\
-         *    no interface expected here
-         */
-        public static final Error NoIntfExpectedHere = new Error("compiler", "no.intf.expected.here");
-        
-        /**
-         * compiler.err.no.match.entry=\
-         *    {0} has no match in entry in {1}; required {2}
-         */
-        public static final Error NoMatchEntry = new Error("compiler", "no.match.entry");
-        
-        /**
-         * compiler.err.no.output.dir=\
-         *    no class output directory specified
-         */
-        public static final Error NoOutputDir = new Error("compiler", "no.output.dir");
-        
-        /**
-         * compiler.err.no.superclass=\
-         *    {0} has no superclass.
-         */
-        public static Error NoSuperclass(Type arg0) {
-            return new Error("compiler", "no.superclass", arg0);
-        }
-        
-        /**
-         * compiler.err.no.zipfs.for.archive=\
-         *    No file system provider is available to handle this file: {0}
-         */
-        public static Error NoZipfsForArchive(Path arg0) {
-            return new Error("compiler", "no.zipfs.for.archive", arg0);
-        }
-        
-        /**
-         * compiler.err.non-static.cant.be.ref=\
-         *    non-static {0} {1} cannot be referenced from a static context
-         */
-        public static Error NonStaticCantBeRef(Kind arg0, Symbol arg1) {
-            return new Error("compiler", "non-static.cant.be.ref", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.not.annotation.type=\
-         *    {0} is not an annotation type
-         */
-        public static final Error NotAnnotationType = new Error("compiler", "not.annotation.type");
-        
-        /**
-         * compiler.err.not.def.access.class.intf.cant.access=\
-         *    {0} in {1} is defined in an inaccessible class or interface
-         */
-        public static Error NotDefAccessClassIntfCantAccess(Symbol arg0, Symbol arg1) {
-            return new Error("compiler", "not.def.access.class.intf.cant.access", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.not.def.access.package.cant.access=\
-         *    {0} is not visible because package {1} is not visible
-         */
-        public static Error NotDefAccessPackageCantAccess(Symbol arg0, Symbol arg1) {
-            return new Error("compiler", "not.def.access.package.cant.access", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.not.def.public.cant.access=\
-         *    {0} is not public in {1}; cannot be accessed from outside package
-         */
-        public static Error NotDefPublicCantAccess(Symbol arg0, Symbol arg1) {
-            return new Error("compiler", "not.def.public.cant.access", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.not.encl.class=\
-         *    not an enclosing class: {0}
-         */
-        public static Error NotEnclClass(Symbol arg0) {
-            return new Error("compiler", "not.encl.class", arg0);
-        }
-        
-        /**
-         * compiler.err.not.in.profile=\
-         *    {0} is not available in profile ''{1}''
-         */
-        public static Error NotInProfile(Symbol arg0, String arg1) {
-            return new Error("compiler", "not.in.profile", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.not.loop.label=\
-         *    not a loop label: {0}
-         */
-        public static Error NotLoopLabel(Name arg0) {
-            return new Error("compiler", "not.loop.label", arg0);
-        }
-        
-        /**
-         * compiler.err.not.stmt=\
-         *    not a statement
-         */
-        public static final Error NotStmt = new Error("compiler", "not.stmt");
-        
-        /**
-         * compiler.err.not.within.bounds=\
-         *    type argument {0} is not within bounds of type-variable {1}
-         */
-        public static Error NotWithinBounds(Type arg0, Type arg1) {
-            return new Error("compiler", "not.within.bounds", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.not.within.bounds=\
-         *    type argument {0} is not within bounds of type-variable {1}
-         */
-        public static Error NotWithinBounds(Type arg0, Symbol arg1) {
-            return new Error("compiler", "not.within.bounds", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.operator.cant.be.applied=\
-         *    bad operand type {1} for unary operator ''{0}''
-         */
-        public static Error OperatorCantBeApplied(Name arg0, Type arg1) {
-            return new Error("compiler", "operator.cant.be.applied", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.operator.cant.be.applied.1=\
-         *    bad operand types for binary operator ''{0}''\n\
-         *    first type:  {1}\n\
-         *    second type: {2}
-         */
-        public static Error OperatorCantBeApplied1(Name arg0, Type arg1, Type arg2) {
-            return new Error("compiler", "operator.cant.be.applied.1", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.err.option.removed.source=\
-         *    Source option {0} is no longer supported. Use {1} or later.
-         */
-        public static Error OptionRemovedSource(String arg0, String arg1) {
-            return new Error("compiler", "option.removed.source", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.option.removed.target=\
-         *    Target option {0} is no longer supported. Use {1} or later.
-         */
-        public static Error OptionRemovedTarget(String arg0, String arg1) {
-            return new Error("compiler", "option.removed.target", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.orphaned=\
-         *    orphaned {0}
-         */
-        public static Error Orphaned(TokenKind arg0) {
-            return new Error("compiler", "orphaned", arg0);
-        }
-        
-        /**
-         * compiler.err.output.dir.must.be.specified.with.dash.m.option=\
-         *    class output directory must be specified if -m option is used
-         */
-        public static final Error OutputDirMustBeSpecifiedWithDashMOption = new Error("compiler", "output.dir.must.be.specified.with.dash.m.option");
-        
-        /**
-         * compiler.err.override.incompatible.ret=\
-         *    {0}\n\
-         *    return type {1} is not compatible with {2}
-         */
-        public static Error OverrideIncompatibleRet(JCDiagnostic arg0, Type arg1, Type arg2) {
-            return new Error("compiler", "override.incompatible.ret", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.err.override.incompatible.ret=\
-         *    {0}\n\
-         *    return type {1} is not compatible with {2}
-         */
-        public static Error OverrideIncompatibleRet(Fragment arg0, Type arg1, Type arg2) {
-            return new Error("compiler", "override.incompatible.ret", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.err.override.meth=\
-         *    {0}\n\
-         *    overridden method is {1}
-         */
-        public static Error OverrideMeth(JCDiagnostic arg0, Set<? extends Modifier> arg1) {
-            return new Error("compiler", "override.meth", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.override.meth=\
-         *    {0}\n\
-         *    overridden method is {1}
-         */
-        public static Error OverrideMeth(Fragment arg0, Set<? extends Modifier> arg1) {
-            return new Error("compiler", "override.meth", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.override.meth.doesnt.throw=\
-         *    {0}\n\
-         *    overridden method does not throw {1}
-         */
-        public static Error OverrideMethDoesntThrow(JCDiagnostic arg0, Type arg1) {
-            return new Error("compiler", "override.meth.doesnt.throw", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.override.meth.doesnt.throw=\
-         *    {0}\n\
-         *    overridden method does not throw {1}
-         */
-        public static Error OverrideMethDoesntThrow(Fragment arg0, Type arg1) {
-            return new Error("compiler", "override.meth.doesnt.throw", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.override.static=\
-         *    {0}\n\
-         *    overriding method is static
-         */
-        public static Error OverrideStatic(JCDiagnostic arg0) {
-            return new Error("compiler", "override.static", arg0);
-        }
-        
-        /**
-         * compiler.err.override.static=\
-         *    {0}\n\
-         *    overriding method is static
-         */
-        public static Error OverrideStatic(Fragment arg0) {
-            return new Error("compiler", "override.static", arg0);
-        }
-        
-        /**
-         * compiler.err.override.weaker.access=\
-         *    {0}\n\
-         *    attempting to assign weaker access privileges; was {1}
-         */
-        public static Error OverrideWeakerAccess(JCDiagnostic arg0, Set<? extends Modifier> arg1) {
-            return new Error("compiler", "override.weaker.access", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.override.weaker.access=\
-         *    {0}\n\
-         *    attempting to assign weaker access privileges; was {1}
-         */
-        public static Error OverrideWeakerAccess(Fragment arg0, Set<? extends Modifier> arg1) {
-            return new Error("compiler", "override.weaker.access", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.package.clash.from.requires=\
-         *    module {0} reads package {1} from both {2} and {3}
-         */
-        public static Error PackageClashFromRequires(Symbol arg0, Name arg1, Symbol arg2, Symbol arg3) {
-            return new Error("compiler", "package.clash.from.requires", arg0, arg1, arg2, arg3);
-        }
-        
-        /**
-         * compiler.err.package.empty.or.not.found=\
-         *    package is empty or does not exist: {0}
-         */
-        public static Error PackageEmptyOrNotFound(Symbol arg0) {
-            return new Error("compiler", "package.empty.or.not.found", arg0);
-        }
-        
-        /**
-         * compiler.err.package.in.other.module=\
-         *    package exists in another module: {0}
-         */
-        public static Error PackageInOtherModule(Symbol arg0) {
-            return new Error("compiler", "package.in.other.module", arg0);
-        }
-        
-        /**
-         * compiler.err.pkg.annotations.sb.in.package-info.java=\
-         *    package annotations should be in file package-info.java
-         */
-        public static final Error PkgAnnotationsSbInPackageInfoJava = new Error("compiler", "pkg.annotations.sb.in.package-info.java");
-        
-        /**
-         * compiler.err.pkg.clashes.with.class.of.same.name=\
-         *    package {0} clashes with class of same name
-         */
-        public static Error PkgClashesWithClassOfSameName(Symbol arg0) {
-            return new Error("compiler", "pkg.clashes.with.class.of.same.name", arg0);
-        }
-        
-        /**
-         * compiler.err.plugin.not.found=\
-         *    plug-in not found: {0}
-         */
-        public static Error PluginNotFound(String arg0) {
-            return new Error("compiler", "plugin.not.found", arg0);
-        }
-        
-        /**
-         * compiler.err.premature.eof=\
-         *    reached end of file while parsing
-         */
-        public static final Error PrematureEof = new Error("compiler", "premature.eof");
-        
-        /**
-         * compiler.err.private.intf.methods.not.supported.in.source=\
-         *    private interface methods are not supported in -source {0}\n\
-         *    (use -source 9 or higher to enable private interface methods)
-         */
-        public static Error PrivateIntfMethodsNotSupportedInSource(String arg0) {
-            return new Error("compiler", "private.intf.methods.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.prob.found.req=\
-         *    incompatible types: {0}
-         */
-        public static Error ProbFoundReq(JCDiagnostic arg0) {
-            return new Error("compiler", "prob.found.req", arg0);
-        }
-        
-        /**
-         * compiler.err.prob.found.req=\
-         *    incompatible types: {0}
-         */
-        public static Error ProbFoundReq(Fragment arg0) {
-            return new Error("compiler", "prob.found.req", arg0);
-        }
-        
-        /**
-         * compiler.err.proc.bad.config.file=\
-         *    Bad service configuration file, or exception thrown while constructing Processor object: {0}
-         */
-        public static final Error ProcBadConfigFile = new Error("compiler", "proc.bad.config.file");
-        
-        /**
-         * compiler.err.proc.cant.access=\
-         *    cannot access {0}\n\
-         *    {1}\n\
-         *    Consult the following stack trace for details.\n\
-         *    {2}
-         */
-        public static final Error ProcCantAccess = new Error("compiler", "proc.cant.access");
-        
-        /**
-         * compiler.err.proc.cant.access.1=\
-         *    cannot access {0}\n\
-         *    {1}
-         */
-        public static Error ProcCantAccess1(Symbol arg0, String arg1) {
-            return new Error("compiler", "proc.cant.access.1", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.proc.cant.create.loader=\
-         *    Could not create class loader for annotation processors: {0}
-         */
-        public static final Error ProcCantCreateLoader = new Error("compiler", "proc.cant.create.loader");
-        
-        /**
-         * compiler.err.proc.cant.find.class=\
-         *    Could not find class file for ''{0}''.
-         */
-        public static Error ProcCantFindClass(String arg0) {
-            return new Error("compiler", "proc.cant.find.class", arg0);
-        }
-        
-        /**
-         * compiler.err.proc.messager=\
-         *    {0}
-         */
-        public static Error ProcMessager(String arg0) {
-            return new Error("compiler", "proc.messager", arg0);
-        }
-        
-        /**
-         * compiler.err.proc.no.explicit.annotation.processing.requested=\
-         *    Class names, ''{0}'', are only accepted if annotation processing is explicitly requested
-         */
-        public static Error ProcNoExplicitAnnotationProcessingRequested(List<? extends String> arg0) {
-            return new Error("compiler", "proc.no.explicit.annotation.processing.requested", arg0);
-        }
-        
-        /**
-         * compiler.err.proc.no.service=\
-         *    A ServiceLoader was not usable and is required for annotation processing.
-         */
-        public static final Error ProcNoService = new Error("compiler", "proc.no.service");
-        
-        /**
-         * compiler.err.proc.processor.bad.option.name=\
-         *    Bad option name ''{0}'' provided by processor ''{1}''
-         */
-        public static final Error ProcProcessorBadOptionName = new Error("compiler", "proc.processor.bad.option.name");
-        
-        /**
-         * compiler.err.proc.processor.cant.instantiate=\
-         *    Could not instantiate an instance of processor ''{0}''
-         */
-        public static Error ProcProcessorCantInstantiate(String arg0) {
-            return new Error("compiler", "proc.processor.cant.instantiate", arg0);
-        }
-        
-        /**
-         * compiler.err.proc.processor.not.found=\
-         *    Annotation processor ''{0}'' not found
-         */
-        public static Error ProcProcessorNotFound(String arg0) {
-            return new Error("compiler", "proc.processor.not.found", arg0);
-        }
-        
-        /**
-         * compiler.err.proc.processor.wrong.type=\
-         *    Annotation processor ''{0}'' does not implement javax.annotation.processing.Processor
-         */
-        public static Error ProcProcessorWrongType(String arg0) {
-            return new Error("compiler", "proc.processor.wrong.type", arg0);
-        }
-        
-        /**
-         * compiler.err.proc.service.problem=\
-         *    Error creating a service loader to load Processors.
-         */
-        public static final Error ProcServiceProblem = new Error("compiler", "proc.service.problem");
-        
-        /**
-         * compiler.err.processorpath.no.processormodulepath=\
-         *    illegal combination of -processorpath and --processor-module-path
-         */
-        public static final Error ProcessorpathNoProcessormodulepath = new Error("compiler", "processorpath.no.processormodulepath");
-        
-        /**
-         * compiler.err.qualified.new.of.static.class=\
-         *    qualified new of static class
-         */
-        public static Error QualifiedNewOfStaticClass(Void arg0) {
-            return new Error("compiler", "qualified.new.of.static.class", arg0);
-        }
-        
-        /**
-         * compiler.err.receiver.parameter.not.applicable.constructor.toplevel.class=\
-         *    receiver parameter not applicable for constructor of top-level class
-         */
-        public static Error ReceiverParameterNotApplicableConstructorToplevelClass(Symbol arg0) {
-            return new Error("compiler", "receiver.parameter.not.applicable.constructor.toplevel.class", arg0);
-        }
-        
-        /**
-         * compiler.err.recursive.ctor.invocation=\
-         *    recursive constructor invocation
-         */
-        public static final Error RecursiveCtorInvocation = new Error("compiler", "recursive.ctor.invocation");
-        
-        /**
-         * compiler.err.ref.ambiguous=\
-         *    reference to {0} is ambiguous\n\
-         *    both {1} {2} in {3} and {4} {5} in {6} match
-         */
-        public static Error RefAmbiguous(Name arg0, Kind arg1, Symbol arg2, Symbol arg3, Kind arg4, Symbol arg5, Symbol arg6) {
-            return new Error("compiler", "ref.ambiguous", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-        }
-        
-        /**
-         * compiler.err.repeatable.annotations.not.supported.in.source=\
-         *    repeated annotations are not supported in -source {0}\n\
-         *(use -source 8 or higher to enable repeated annotations)
-         */
-        public static Error RepeatableAnnotationsNotSupportedInSource(String arg0) {
-            return new Error("compiler", "repeatable.annotations.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.repeated.annotation.target=\
-         *    repeated annotation target
-         */
-        public static final Error RepeatedAnnotationTarget = new Error("compiler", "repeated.annotation.target");
-        
-        /**
-         * compiler.err.repeated.interface=\
-         *    repeated interface
-         */
-        public static final Error RepeatedInterface = new Error("compiler", "repeated.interface");
-        
-        /**
-         * compiler.err.repeated.modifier=\
-         *    repeated modifier
-         */
-        public static final Error RepeatedModifier = new Error("compiler", "repeated.modifier");
-        
-        /**
-         * compiler.err.report.access=\
-         *    {0} has {1} access in {2}
-         */
-        public static Error ReportAccess(Symbol arg0, Set<? extends Modifier> arg1, Symbol arg2) {
-            return new Error("compiler", "report.access", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.err.ret.outside.meth=\
-         *    return outside method
-         */
-        public static final Error RetOutsideMeth = new Error("compiler", "ret.outside.meth");
-        
-        /**
-         * compiler.err.service.definition.is.enum=\
-         *    the service definition is an enum: {0}
-         */
-        public static Error ServiceDefinitionIsEnum(Symbol arg0) {
-            return new Error("compiler", "service.definition.is.enum", arg0);
-        }
-        
-        /**
-         * compiler.err.service.definition.is.inner=\
-         *    the service definition is an inner class: {0}
-         */
-        public static Error ServiceDefinitionIsInner(Symbol arg0) {
-            return new Error("compiler", "service.definition.is.inner", arg0);
-        }
-        
-        /**
-         * compiler.err.service.implementation.doesnt.have.a.no.args.constructor=\
-         *    the service implementation does not have a default constructor: {0}
-         */
-        public static Error ServiceImplementationDoesntHaveANoArgsConstructor(Symbol arg0) {
-            return new Error("compiler", "service.implementation.doesnt.have.a.no.args.constructor", arg0);
-        }
-        
-        /**
-         * compiler.err.service.implementation.is.abstract=\
-         *    the service implementation is an abstract class: {0}
-         */
-        public static Error ServiceImplementationIsAbstract(Symbol arg0) {
-            return new Error("compiler", "service.implementation.is.abstract", arg0);
-        }
-        
-        /**
-         * compiler.err.service.implementation.is.inner=\
-         *    the service implementation is an inner class: {0}
-         */
-        public static Error ServiceImplementationIsInner(Symbol arg0) {
-            return new Error("compiler", "service.implementation.is.inner", arg0);
-        }
-        
-        /**
-         * compiler.err.service.implementation.must.be.subtype.of.service.interface=\
-         *    the service implementation type must be a subtype of the service interface type
-         */
-        public static final Error ServiceImplementationMustBeSubtypeOfServiceInterface = new Error("compiler", "service.implementation.must.be.subtype.of.service.interface");
-        
-        /**
-         * compiler.err.service.implementation.no.args.constructor.not.public=\
-         *    the no arguments constructor of the service implementation is not public: {0}
-         */
-        public static Error ServiceImplementationNoArgsConstructorNotPublic(Symbol arg0) {
-            return new Error("compiler", "service.implementation.no.args.constructor.not.public", arg0);
-        }
-        
-        /**
-         * compiler.err.service.implementation.not.in.right.module=\
-         *    service implementation must be defined in the same module as the provides directive
-         */
-        public static Error ServiceImplementationNotInRightModule(Symbol arg0) {
-            return new Error("compiler", "service.implementation.not.in.right.module", arg0);
-        }
-        
-        /**
-         * compiler.err.signature.doesnt.match.intf=\
-         *    signature does not match {0}; incompatible interfaces
-         */
-        public static final Error SignatureDoesntMatchIntf = new Error("compiler", "signature.doesnt.match.intf");
-        
-        /**
-         * compiler.err.signature.doesnt.match.supertype=\
-         *    signature does not match {0}; incompatible supertype
-         */
-        public static final Error SignatureDoesntMatchSupertype = new Error("compiler", "signature.doesnt.match.supertype");
-        
-        /**
-         * compiler.err.source.cant.overwrite.input.file=\
-         *    error writing source; cannot overwrite input file {0}
-         */
-        public static final Error SourceCantOverwriteInputFile = new Error("compiler", "source.cant.overwrite.input.file");
-        
-        /**
-         * compiler.err.stack.sim.error=\
-         *    Internal error: stack sim error on {0}
-         */
-        public static final Error StackSimError = new Error("compiler", "stack.sim.error");
-        
-        /**
-         * compiler.err.static.imp.only.classes.and.interfaces=\
-         *    static import only from classes and interfaces
-         */
-        public static final Error StaticImpOnlyClassesAndInterfaces = new Error("compiler", "static.imp.only.classes.and.interfaces");
-        
-        /**
-         * compiler.err.static.intf.method.invoke.not.supported.in.source=\
-         *    static interface method invocations are not supported in -source {0}\n\
-         *    (use -source 8 or higher to enable static interface method invocations)
-         */
-        public static Error StaticIntfMethodInvokeNotSupportedInSource(String arg0) {
-            return new Error("compiler", "static.intf.method.invoke.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.static.intf.methods.not.supported.in.source=\
-         *    static interface methods are not supported in -source {0}\n\
-         *    (use -source 8 or higher to enable static interface methods)
-         */
-        public static Error StaticIntfMethodsNotSupportedInSource(String arg0) {
-            return new Error("compiler", "static.intf.methods.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.string.const.req=\
-         *    constant string expression required
-         */
-        public static final Error StringConstReq = new Error("compiler", "string.const.req");
-        
-        /**
-         * compiler.err.string.switch.not.supported.in.source=\
-         *    strings in switch are not supported in -source {0}\n\
-         *    (use -source 7 or higher to enable strings in switch)
-         */
-        public static Error StringSwitchNotSupportedInSource(String arg0) {
-            return new Error("compiler", "string.switch.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.synthetic.name.conflict=\
-         *    the symbol {0} conflicts with a compiler-synthesized symbol in {1}
-         */
-        public static Error SyntheticNameConflict(Symbol arg0, Symbol arg1) {
-            return new Error("compiler", "synthetic.name.conflict", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.this.as.identifier=\
-         *    as of release 8, ''this'' is allowed as the parameter name for the receiver type only, which has to be the first parameter
-         */
-        public static final Error ThisAsIdentifier = new Error("compiler", "this.as.identifier");
-        
-        /**
-         * compiler.err.throws.not.allowed.in.intf.annotation=\
-         *    throws clause not allowed in @interface members
-         */
-        public static final Error ThrowsNotAllowedInIntfAnnotation = new Error("compiler", "throws.not.allowed.in.intf.annotation");
-        
-        /**
-         * compiler.err.too.many.modules=\
-         *    too many module declarations found
-         */
-        public static final Error TooManyModules = new Error("compiler", "too.many.modules");
-        
-        /**
-         * compiler.err.try.resource.may.not.be.assigned=\
-         *    auto-closeable resource {0} may not be assigned
-         */
-        public static Error TryResourceMayNotBeAssigned(Symbol arg0) {
-            return new Error("compiler", "try.resource.may.not.be.assigned", arg0);
-        }
-        
-        /**
-         * compiler.err.try.with.resources.expr.effectively.final.var=\
-         *    variable {0} used as a try-with-resources resource neither final nor effectively final
-         */
-        public static Error TryWithResourcesExprEffectivelyFinalVar(Symbol arg0) {
-            return new Error("compiler", "try.with.resources.expr.effectively.final.var", arg0);
-        }
-        
-        /**
-         * compiler.err.try.with.resources.expr.needs.var=\
-         *    the try-with-resources resource must either be a variable declaration or an expression denoting \
-         *a reference to a final or effectively final variable
-         */
-        public static final Error TryWithResourcesExprNeedsVar = new Error("compiler", "try.with.resources.expr.needs.var");
-        
-        /**
-         * compiler.err.try.with.resources.not.supported.in.source=\
-         *    try-with-resources is not supported in -source {0}\n\
-         *    (use -source 7 or higher to enable try-with-resources)
-         */
-        public static Error TryWithResourcesNotSupportedInSource(String arg0) {
-            return new Error("compiler", "try.with.resources.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.try.without.catch.finally.or.resource.decls=\
-         *    ''try'' without ''catch'', ''finally'' or resource declarations
-         */
-        public static final Error TryWithoutCatchFinallyOrResourceDecls = new Error("compiler", "try.without.catch.finally.or.resource.decls");
-        
-        /**
-         * compiler.err.try.without.catch.or.finally=\
-         *    ''try'' without ''catch'' or ''finally''
-         */
-        public static final Error TryWithoutCatchOrFinally = new Error("compiler", "try.without.catch.or.finally");
-        
-        /**
-         * compiler.err.type.annotations.not.supported.in.source=\
-         *    type annotations are not supported in -source {0}\n\
-         *(use -source 8 or higher to enable type annotations)
-         */
-        public static Error TypeAnnotationsNotSupportedInSource(String arg0) {
-            return new Error("compiler", "type.annotations.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.type.doesnt.take.params=\
-         *    type {0} does not take parameters
-         */
-        public static Error TypeDoesntTakeParams(Symbol arg0) {
-            return new Error("compiler", "type.doesnt.take.params", arg0);
-        }
-        
-        /**
-         * compiler.err.type.found.req=\
-         *    unexpected type\n\
-         *    required: {1}\n\
-         *    found:    {0}
-         */
-        public static Error TypeFoundReq(JCDiagnostic arg0, JCDiagnostic arg1) {
-            return new Error("compiler", "type.found.req", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.type.found.req=\
-         *    unexpected type\n\
-         *    required: {1}\n\
-         *    found:    {0}
-         */
-        public static Error TypeFoundReq(JCDiagnostic arg0, Fragment arg1) {
-            return new Error("compiler", "type.found.req", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.type.found.req=\
-         *    unexpected type\n\
-         *    required: {1}\n\
-         *    found:    {0}
-         */
-        public static Error TypeFoundReq(Fragment arg0, JCDiagnostic arg1) {
-            return new Error("compiler", "type.found.req", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.type.found.req=\
-         *    unexpected type\n\
-         *    required: {1}\n\
-         *    found:    {0}
-         */
-        public static Error TypeFoundReq(Fragment arg0, Fragment arg1) {
-            return new Error("compiler", "type.found.req", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.type.found.req=\
-         *    unexpected type\n\
-         *    required: {1}\n\
-         *    found:    {0}
-         */
-        public static Error TypeFoundReq(Type arg0, JCDiagnostic arg1) {
-            return new Error("compiler", "type.found.req", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.type.found.req=\
-         *    unexpected type\n\
-         *    required: {1}\n\
-         *    found:    {0}
-         */
-        public static Error TypeFoundReq(Type arg0, Fragment arg1) {
-            return new Error("compiler", "type.found.req", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.type.var.cant.be.deref=\
-         *    cannot select from a type variable
-         */
-        public static final Error TypeVarCantBeDeref = new Error("compiler", "type.var.cant.be.deref");
-        
-        /**
-         * compiler.err.type.var.may.not.be.followed.by.other.bounds=\
-         *    a type variable may not be followed by other bounds
-         */
-        public static final Error TypeVarMayNotBeFollowedByOtherBounds = new Error("compiler", "type.var.may.not.be.followed.by.other.bounds");
-        
-        /**
-         * compiler.err.type.var.more.than.once=\
-         *    type variable {0} occurs more than once in result type of {1}; cannot be left uninstantiated
-         */
-        public static final Error TypeVarMoreThanOnce = new Error("compiler", "type.var.more.than.once");
-        
-        /**
-         * compiler.err.type.var.more.than.once.in.result=\
-         *    type variable {0} occurs more than once in type of {1}; cannot be left uninstantiated
-         */
-        public static final Error TypeVarMoreThanOnceInResult = new Error("compiler", "type.var.more.than.once.in.result");
-        
-        /**
-         * compiler.err.types.incompatible.abstract.default=\
-         *    {0} {1} inherits abstract and default for {2}({3}) from types {4} and {5}
-         */
-        public static Error TypesIncompatibleAbstractDefault(KindName arg0, Type arg1, Name arg2, List<? extends Type> arg3, Symbol arg4, Symbol arg5) {
-            return new Error("compiler", "types.incompatible.abstract.default", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.err.types.incompatible.diff.ret=\
-         *    types {0} and {1} are incompatible; both define {2}, but with unrelated return types
-         */
-        public static Error TypesIncompatibleDiffRet(Type arg0, Type arg1, String arg2) {
-            return new Error("compiler", "types.incompatible.diff.ret", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.err.types.incompatible.unrelated.defaults=\
-         *    {0} {1} inherits unrelated defaults for {2}({3}) from types {4} and {5}
-         */
-        public static Error TypesIncompatibleUnrelatedDefaults(KindName arg0, Type arg1, Name arg2, List<? extends Type> arg3, Symbol arg4, Symbol arg5) {
-            return new Error("compiler", "types.incompatible.unrelated.defaults", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.err.unclosed.char.lit=\
-         *    unclosed character literal
-         */
-        public static final Error UnclosedCharLit = new Error("compiler", "unclosed.char.lit");
-        
-        /**
-         * compiler.err.unclosed.comment=\
-         *    unclosed comment
-         */
-        public static final Error UnclosedComment = new Error("compiler", "unclosed.comment");
-        
-        /**
-         * compiler.err.unclosed.str.lit=\
-         *    unclosed string literal
-         */
-        public static final Error UnclosedStrLit = new Error("compiler", "unclosed.str.lit");
-        
-        /**
-         * compiler.err.undef.label=\
-         *    undefined label: {0}
-         */
-        public static Error UndefLabel(Name arg0) {
-            return new Error("compiler", "undef.label", arg0);
-        }
-        
-        /**
-         * compiler.err.underscore.as.identifier=\
-         *    as of release 9, ''_'' is a keyword, and may not be used as an identifier
-         */
-        public static final Error UnderscoreAsIdentifier = new Error("compiler", "underscore.as.identifier");
-        
-        /**
-         * compiler.err.underscore.as.identifier.in.lambda=\
-         *    ''_'' used as an identifier\n\
-         *    (use of ''_'' as an identifier is forbidden for lambda parameters)
-         */
-        public static final Error UnderscoreAsIdentifierInLambda = new Error("compiler", "underscore.as.identifier.in.lambda");
-        
-        /**
-         * compiler.err.unexpected.lambda=\
-         *   lambda expression not expected here
-         */
-        public static final Error UnexpectedLambda = new Error("compiler", "unexpected.lambda");
-        
-        /**
-         * compiler.err.unexpected.mref=\
-         *   method reference not expected here
-         */
-        public static final Error UnexpectedMref = new Error("compiler", "unexpected.mref");
-        
-        /**
-         * compiler.err.unexpected.type=\
-         *    unexpected type\n\
-         *    required: {0}\n\
-         *    found:    {1}
-         */
-        public static final Error UnexpectedType = new Error("compiler", "unexpected.type");
-        
-        /**
-         * compiler.err.unnamed.pkg.not.allowed.named.modules=\
-         *    unnamed package is not allowed in named modules
-         */
-        public static final Error UnnamedPkgNotAllowedNamedModules = new Error("compiler", "unnamed.pkg.not.allowed.named.modules");
-        
-        /**
-         * compiler.err.unreachable.stmt=\
-         *    unreachable statement
-         */
-        public static final Error UnreachableStmt = new Error("compiler", "unreachable.stmt");
-        
-        /**
-         * compiler.err.unreported.exception.default.constructor=\
-         *    unreported exception {0} in default constructor
-         */
-        public static Error UnreportedExceptionDefaultConstructor(Type arg0) {
-            return new Error("compiler", "unreported.exception.default.constructor", arg0);
-        }
-        
-        /**
-         * compiler.err.unreported.exception.implicit.close=\
-         *    unreported exception {0}; must be caught or declared to be thrown\n\
-         *    exception thrown from implicit call to close() on resource variable ''{1}''
-         */
-        public static Error UnreportedExceptionImplicitClose(Type arg0, Name arg1) {
-            return new Error("compiler", "unreported.exception.implicit.close", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.unreported.exception.need.to.catch.or.throw=\
-         *    unreported exception {0}; must be caught or declared to be thrown
-         */
-        public static Error UnreportedExceptionNeedToCatchOrThrow(Type arg0) {
-            return new Error("compiler", "unreported.exception.need.to.catch.or.throw", arg0);
-        }
-        
-        /**
-         * compiler.err.unsupported.binary.lit=\
-         *    binary literals are not supported in -source {0}\n\
-         *    (use -source 7 or higher to enable binary literals)
-         */
-        public static Error UnsupportedBinaryLit(String arg0) {
-            return new Error("compiler", "unsupported.binary.lit", arg0);
-        }
-        
-        /**
-         * compiler.err.unsupported.cross.fp.lit=\
-         *    hexadecimal floating-point literals are not supported on this VM
-         */
-        public static final Error UnsupportedCrossFpLit = new Error("compiler", "unsupported.cross.fp.lit");
-        
-        /**
-         * compiler.err.unsupported.encoding=\
-         *    unsupported encoding: {0}
-         */
-        public static Error UnsupportedEncoding(Name arg0) {
-            return new Error("compiler", "unsupported.encoding", arg0);
-        }
-        
-        /**
-         * compiler.err.unsupported.underscore.lit=\
-         *    underscores in literals are not supported in -source {0}\n\
-         *    (use -source 7 or higher to enable underscores in literals)
-         */
-        public static Error UnsupportedUnderscoreLit(String arg0) {
-            return new Error("compiler", "unsupported.underscore.lit", arg0);
-        }
-        
-        /**
-         * compiler.err.var.in.try.with.resources.not.supported.in.source=\
-         *    variables in try-with-resources not supported in -source {0}\n\
-         *    (use -source 9 or higher to enable variables in try-with-resources)
-         */
-        public static Error VarInTryWithResourcesNotSupportedInSource(String arg0) {
-            return new Error("compiler", "var.in.try.with.resources.not.supported.in.source", arg0);
-        }
-        
-        /**
-         * compiler.err.var.might.already.be.assigned=\
-         *    variable {0} might already have been assigned
-         */
-        public static Error VarMightAlreadyBeAssigned(Symbol arg0) {
-            return new Error("compiler", "var.might.already.be.assigned", arg0);
-        }
-        
-        /**
-         * compiler.err.var.might.be.assigned.in.loop=\
-         *    variable {0} might be assigned in loop
-         */
-        public static Error VarMightBeAssignedInLoop(Symbol arg0) {
-            return new Error("compiler", "var.might.be.assigned.in.loop", arg0);
-        }
-        
-        /**
-         * compiler.err.var.might.not.have.been.initialized=\
-         *    variable {0} might not have been initialized
-         */
-        public static Error VarMightNotHaveBeenInitialized(Symbol arg0) {
-            return new Error("compiler", "var.might.not.have.been.initialized", arg0);
-        }
-        
-        /**
-         * compiler.err.var.not.initialized.in.default.constructor=\
-         *    variable {0} not initialized in the default constructor
-         */
-        public static Error VarNotInitializedInDefaultConstructor(Symbol arg0) {
-            return new Error("compiler", "var.not.initialized.in.default.constructor", arg0);
-        }
-        
-        /**
-         * compiler.err.varargs.and.old.array.syntax=\
-         *    legacy array notation not allowed on variable-arity parameter
-         */
-        public static final Error VarargsAndOldArraySyntax = new Error("compiler", "varargs.and.old.array.syntax");
-        
-        /**
-         * compiler.err.varargs.and.receiver =\
-         *    varargs notation not allowed on receiver parameter
-         */
-        public static final Error VarargsAndReceiver  = new Error("compiler", "varargs.and.receiver ");
-        
-        /**
-         * compiler.err.varargs.invalid.trustme.anno=\
-         *    Invalid {0} annotation. {1}
-         */
-        public static Error VarargsInvalidTrustmeAnno(Symbol arg0, JCDiagnostic arg1) {
-            return new Error("compiler", "varargs.invalid.trustme.anno", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.varargs.invalid.trustme.anno=\
-         *    Invalid {0} annotation. {1}
-         */
-        public static Error VarargsInvalidTrustmeAnno(Symbol arg0, Fragment arg1) {
-            return new Error("compiler", "varargs.invalid.trustme.anno", arg0, arg1);
-        }
-        
-        /**
-         * compiler.err.varargs.must.be.last =\
-         *    varargs parameter must be the last parameter
-         */
-        public static final Error VarargsMustBeLast  = new Error("compiler", "varargs.must.be.last ");
-        
-        /**
-         * compiler.err.variable.not.allowed=\
-         *    variable declaration not allowed here
-         */
-        public static final Error VariableNotAllowed = new Error("compiler", "variable.not.allowed");
-        
-        /**
-         * compiler.err.void.not.allowed.here=\
-         *    ''void'' type not allowed here
-         */
-        public static final Error VoidNotAllowedHere = new Error("compiler", "void.not.allowed.here");
-        
-        /**
-         * compiler.err.warnings.and.werror=\
-         *    warnings found and -Werror specified
-         */
-        public static final Error WarningsAndWerror = new Error("compiler", "warnings.and.werror");
-        
-        /**
-         * compiler.err.wrong.number.type.args=\
-         *    wrong number of type arguments; required {0}
-         */
-        public static Error WrongNumberTypeArgs(String arg0) {
-            return new Error("compiler", "wrong.number.type.args", arg0);
-        }
-        
-        /**
-         * compiler.err.xaddexports.malformed.entry=\
-         *    bad value for --add-exports {0}
-         */
-        public static Error XaddexportsMalformedEntry(String arg0) {
-            return new Error("compiler", "xaddexports.malformed.entry", arg0);
-        }
-        
-        /**
-         * compiler.err.xaddexports.too.many=\
-         *    multiple --add-exports options for {0}
-         */
-        public static Error XaddexportsTooMany(String arg0) {
-            return new Error("compiler", "xaddexports.too.many", arg0);
-        }
-        
-        /**
-         * compiler.err.xaddreads.malformed.entry=\
-         *    bad value for --add-reads {0}
-         */
-        public static Error XaddreadsMalformedEntry(String arg0) {
-            return new Error("compiler", "xaddreads.malformed.entry", arg0);
-        }
-        
-        /**
-         * compiler.err.xaddreads.too.many=\
-         *    multiple --add-reads options for {0}
-         */
-        public static Error XaddreadsTooMany(String arg0) {
-            return new Error("compiler", "xaddreads.too.many", arg0);
-        }
-        
-        /**
-         * compiler.err.xmodule.no.module.sourcepath=\
-         *    illegal combination of -Xmodule and --module-source-path
-         */
-        public static final Error XmoduleNoModuleSourcepath = new Error("compiler", "xmodule.no.module.sourcepath");
-    }
-    public static class Notes {
-        /**
-         * compiler.note.compressed.diags=\
-         *    Some messages have been simplified; recompile with -Xdiags:verbose to get full output
-         */
-        public static final Note CompressedDiags = new Note("compiler", "compressed.diags");
-        
-        /**
-         * compiler.note.deferred.method.inst=\
-         *    Deferred instantiation of method {0}\n\
-         *    instantiated signature: {1}\n\
-         *    target-type: {2}
-         */
-        public static Note DeferredMethodInst(Symbol arg0, Type arg1, Type arg2) {
-            return new Note("compiler", "deferred.method.inst", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.note.deprecated.filename=\
-         *    {0} uses or overrides a deprecated API.
-         */
-        public static Note DeprecatedFilename(File arg0) {
-            return new Note("compiler", "deprecated.filename", arg0);
-        }
-        
-        /**
-         * compiler.note.deprecated.filename=\
-         *    {0} uses or overrides a deprecated API.
-         */
-        public static Note DeprecatedFilename(JavaFileObject arg0) {
-            return new Note("compiler", "deprecated.filename", arg0);
-        }
-        
-        /**
-         * compiler.note.deprecated.filename.additional=\
-         *    {0} has additional uses or overrides of a deprecated API.
-         */
-        public static Note DeprecatedFilenameAdditional(File arg0) {
-            return new Note("compiler", "deprecated.filename.additional", arg0);
-        }
-        
-        /**
-         * compiler.note.deprecated.filename.additional=\
-         *    {0} has additional uses or overrides of a deprecated API.
-         */
-        public static Note DeprecatedFilenameAdditional(JavaFileObject arg0) {
-            return new Note("compiler", "deprecated.filename.additional", arg0);
-        }
-        
-        /**
-         * compiler.note.deprecated.plural=\
-         *    Some input files use or override a deprecated API.
-         */
-        public static final Note DeprecatedPlural = new Note("compiler", "deprecated.plural");
-        
-        /**
-         * compiler.note.deprecated.plural.additional=\
-         *    Some input files additionally use or override a deprecated API.
-         */
-        public static final Note DeprecatedPluralAdditional = new Note("compiler", "deprecated.plural.additional");
-        
-        /**
-         * compiler.note.deprecated.recompile=\
-         *    Recompile with -Xlint:deprecation for details.
-         */
-        public static final Note DeprecatedRecompile = new Note("compiler", "deprecated.recompile");
-        
-        /**
-         * compiler.note.lambda.stat=\
-         *    Translating lambda expression\n\
-         *    alternate metafactory = {0}\n\
-         *    synthetic method = {1}
-         */
-        public static Note LambdaStat(boolean arg0, Symbol arg1) {
-            return new Note("compiler", "lambda.stat", arg0, arg1);
-        }
-        
-        /**
-         * compiler.note.mref.stat=\
-         *    Translating method reference\n\
-         *    alternate metafactory = {0}\n\
-         */
-        public static Note MrefStat(boolean arg0, Void arg1) {
-            return new Note("compiler", "mref.stat", arg0, arg1);
-        }
-        
-        /**
-         * compiler.note.mref.stat.1=\
-         *    Translating method reference\n\
-         *    alternate metafactory = {0}\n\
-         *    bridge method = {1}
-         */
-        public static Note MrefStat1(boolean arg0, Symbol arg1) {
-            return new Note("compiler", "mref.stat.1", arg0, arg1);
-        }
-        
-        /**
-         * compiler.note.note=\
-         *    Note:\u0020
-         */
-        public static final Note Note = new Note("compiler", "note");
-        
-        /**
-         * compiler.note.proc.messager=\
-         *    {0}
-         */
-        public static Note ProcMessager(String arg0) {
-            return new Note("compiler", "proc.messager", arg0);
-        }
-        
-        /**
-         * compiler.note.removal.filename=\
-         *    {0} uses or overrides a deprecated API that is marked for removal.
-         */
-        public static Note RemovalFilename(File arg0) {
-            return new Note("compiler", "removal.filename", arg0);
-        }
-        
-        /**
-         * compiler.note.removal.filename=\
-         *    {0} uses or overrides a deprecated API that is marked for removal.
-         */
-        public static Note RemovalFilename(JavaFileObject arg0) {
-            return new Note("compiler", "removal.filename", arg0);
-        }
-        
-        /**
-         * compiler.note.removal.filename.additional=\
-         *    {0} has additional uses or overrides of a deprecated API that is marked for removal.
-         */
-        public static Note RemovalFilenameAdditional(File arg0) {
-            return new Note("compiler", "removal.filename.additional", arg0);
-        }
-        
-        /**
-         * compiler.note.removal.filename.additional=\
-         *    {0} has additional uses or overrides of a deprecated API that is marked for removal.
-         */
-        public static Note RemovalFilenameAdditional(JavaFileObject arg0) {
-            return new Note("compiler", "removal.filename.additional", arg0);
-        }
-        
-        /**
-         * compiler.note.removal.plural=\
-         *    Some input files use or override a deprecated API that is marked for removal.
-         */
-        public static final Note RemovalPlural = new Note("compiler", "removal.plural");
-        
-        /**
-         * compiler.note.removal.plural.additional=\
-         *    Some input files additionally use or override a deprecated API that is marked for removal.
-         */
-        public static final Note RemovalPluralAdditional = new Note("compiler", "removal.plural.additional");
-        
-        /**
-         * compiler.note.removal.recompile=\
-         *    Recompile with -Xlint:removal for details.
-         */
-        public static final Note RemovalRecompile = new Note("compiler", "removal.recompile");
-        
-        /**
-         * compiler.note.unchecked.filename=\
-         *    {0} uses unchecked or unsafe operations.
-         */
-        public static Note UncheckedFilename(File arg0) {
-            return new Note("compiler", "unchecked.filename", arg0);
-        }
-        
-        /**
-         * compiler.note.unchecked.filename=\
-         *    {0} uses unchecked or unsafe operations.
-         */
-        public static Note UncheckedFilename(JavaFileObject arg0) {
-            return new Note("compiler", "unchecked.filename", arg0);
-        }
-        
-        /**
-         * compiler.note.unchecked.filename.additional=\
-         *    {0} has additional unchecked or unsafe operations.
-         */
-        public static Note UncheckedFilenameAdditional(File arg0) {
-            return new Note("compiler", "unchecked.filename.additional", arg0);
-        }
-        
-        /**
-         * compiler.note.unchecked.filename.additional=\
-         *    {0} has additional unchecked or unsafe operations.
-         */
-        public static Note UncheckedFilenameAdditional(JavaFileObject arg0) {
-            return new Note("compiler", "unchecked.filename.additional", arg0);
-        }
-        
-        /**
-         * compiler.note.unchecked.plural=\
-         *    Some input files use unchecked or unsafe operations.
-         */
-        public static final Note UncheckedPlural = new Note("compiler", "unchecked.plural");
-        
-        /**
-         * compiler.note.unchecked.plural.additional=\
-         *    Some input files additionally use unchecked or unsafe operations.
-         */
-        public static final Note UncheckedPluralAdditional = new Note("compiler", "unchecked.plural.additional");
-        
-        /**
-         * compiler.note.unchecked.recompile=\
-         *    Recompile with -Xlint:unchecked for details.
-         */
-        public static final Note UncheckedRecompile = new Note("compiler", "unchecked.recompile");
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, List<? extends Type> arg4, List<? extends Type> arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, List<? extends Type> arg4, JCDiagnostic arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, List<? extends Type> arg4, Fragment arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, JCDiagnostic arg4, List<? extends Type> arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, JCDiagnostic arg4, JCDiagnostic arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, JCDiagnostic arg4, Fragment arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, Fragment arg4, List<? extends Type> arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, Fragment arg4, JCDiagnostic arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi=\
-         *    resolving method {0} in type {1} to candidate {2}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti(Name arg0, Symbol arg1, int arg2, String arg3, Fragment arg4, Fragment arg5) {
-            return new Note("compiler", "verbose.resolve.multi", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, List<? extends Type> arg4, List<? extends Type> arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, List<? extends Type> arg4, JCDiagnostic arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, List<? extends Type> arg4, Fragment arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, JCDiagnostic arg4, List<? extends Type> arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, JCDiagnostic arg4, JCDiagnostic arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, JCDiagnostic arg4, Fragment arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, Fragment arg4, List<? extends Type> arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, Fragment arg4, JCDiagnostic arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.note.verbose.resolve.multi.1=\
-         *    erroneous resolution for method {0} in type {1}\n\
-         *    phase: {3}\n\
-         *    with actuals: {4}\n\
-         *    with type-args: {5}\n\
-         *    candidates:
-         */
-        public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, Fragment arg4, Fragment arg5) {
-            return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
         }
     }
 }

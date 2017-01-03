@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8144095 8164825
+ * @bug 8144095 8164825 8169818 8153402
  * @summary Test Command Completion
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
@@ -43,44 +43,99 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import org.testng.annotations.Test;
+import jdk.internal.jshell.tool.JShellTool;
+import jdk.internal.jshell.tool.JShellToolBuilder;
+import jdk.jshell.SourceCodeAnalysis.Suggestion;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
-@Test
 public class CommandCompletionTest extends ReplToolTesting {
 
-    public void testCommand() {
-        assertCompletion("/deb|", false);
-        assertCompletion("/re|", false, "/reload ", "/reset ");
-        assertCompletion("/h|", false, "/help ", "/history ");
+
+    private JShellTool repl;
+
+    @Override
+    protected void testRawRun(Locale locale, String[] args) {
+        repl = ((JShellToolBuilder) builder(locale))
+                .rawTool();
+        try {
+            repl.start(args);
+        } catch (Exception ex) {
+            fail("Repl tool died with exception", ex);
+        }
     }
 
-    public void testList() {
-        test(false, new String[] {"--no-startup"},
-                a -> assertCompletion(a, "/l|", false, "/list "),
-                a -> assertCompletion(a, "/list |", false, "-all ", "-history ", "-start "),
-                a -> assertCompletion(a, "/list -h|", false, "-history "),
-                a -> assertCompletion(a, "/list q|", false),
-                a -> assertVariable(a, "int", "xray"),
-                a -> assertCompletion(a, "/list |", false, "-all ", "-history ", "-start ", "1", "xray"),
-                a -> assertCompletion(a, "/list x|", false, "xray")
+    public void assertCompletion(boolean after, String code, boolean isSmart, String... expected) {
+        if (!after) {
+            setCommandInput("\n");
+        } else {
+            assertCompletion(code, isSmart, expected);
+        }
+    }
+
+    public void assertCompletion(String code, boolean isSmart, String... expected) {
+        List<String> completions = computeCompletions(code, isSmart);
+        assertEquals(completions, Arrays.asList(expected), "Command: " + code + ", output: " +
+                completions.toString());
+    }
+
+    private List<String> computeCompletions(String code, boolean isSmart) {
+        int cursor =  code.indexOf('|');
+        code = code.replace("|", "");
+        assertTrue(cursor > -1, "'|' not found: " + code);
+        List<Suggestion> completions =
+                repl.commandCompletionSuggestions(code, cursor, new int[] {-1}); //XXX: ignoring anchor for now
+        return completions.stream()
+                          .filter(s -> isSmart == s.matchesType())
+                          .map(s -> s.continuation())
+                          .distinct()
+                          .collect(Collectors.toList());
+    }
+
+    @Test
+    public void testCommand() {
+        testNoStartUp(
+                a -> assertCompletion(a, "/deb|", false),
+                a -> assertCompletion(a, "/re|", false, "/reload ", "/reset "),
+                a -> assertCompletion(a, "/h|", false, "/help ", "/history ")
         );
     }
 
+    @Test
+    public void testList() {
+        test(false, new String[] {"--no-startup"},
+                a -> assertCompletion(a, "/l|", false, "/list "),
+                a -> assertCompletion(a, "/list |", false, "-all", "-history", "-start "),
+                a -> assertCompletion(a, "/list -h|", false, "-history"),
+                a -> assertCompletion(a, "/list q|", false),
+                a -> assertVariable(a, "int", "xray"),
+                a -> assertCompletion(a, "/list |", false, "-all", "-history", "-start ", "1 ", "xray "),
+                a -> assertCompletion(a, "/list x|", false, "xray "),
+                a -> assertCompletion(a, "/list xray |", false)
+        );
+    }
+
+    @Test
     public void testDrop() {
         test(false, new String[] {"--no-startup"},
                 a -> assertCompletion(a, "/d|", false, "/drop "),
                 a -> assertClass(a, "class cTest {}", "class", "cTest"),
                 a -> assertMethod(a, "int mTest() { return 0; }", "()I", "mTest"),
                 a -> assertVariable(a, "int", "fTest"),
-                a -> assertCompletion(a, "/drop |", false, "1", "2", "3", "cTest", "fTest", "mTest"),
-                a -> assertCompletion(a, "/drop f|", false, "fTest")
+                a -> assertCompletion(a, "/drop |", false, "1 ", "2 ", "3 ", "cTest ", "fTest ", "mTest "),
+                a -> assertCompletion(a, "/drop f|", false, "fTest ")
         );
     }
 
+    @Test
     public void testEdit() {
         test(false, new String[]{"--no-startup"},
                 a -> assertCompletion(a, "/e|", false, "/edit ", "/exit "),
@@ -88,41 +143,111 @@ public class CommandCompletionTest extends ReplToolTesting {
                 a -> assertClass(a, "class cTest {}", "class", "cTest"),
                 a -> assertMethod(a, "int mTest() { return 0; }", "()I", "mTest"),
                 a -> assertVariable(a, "int", "fTest"),
-                a -> assertCompletion(a, "/edit |", false, "1", "2", "3", "cTest", "fTest", "mTest"),
-                a -> assertCompletion(a, "/edit f|", false, "fTest")
+                a -> assertCompletion(a, "/edit |", false,
+                        "-all" , "-start " , "1 ", "2 ", "3 ", "cTest ", "fTest ", "mTest "),
+                a -> assertCompletion(a, "/edit cTest |", false,
+                        "2 ", "3 ", "fTest ", "mTest "),
+                a -> assertCompletion(a, "/edit 1 fTest |", false,
+                        "2 ", "mTest "),
+                a -> assertCompletion(a, "/edit f|", false, "fTest "),
+                a -> assertCompletion(a, "/edit mTest f|", false, "fTest ")
         );
     }
 
+    @Test
+    public void testHelp() {
+        testNoStartUp(
+                a -> assertCompletion(a, "/help |", false,
+                "/! ", "/-<n> ", "/<id> ", "/? ", "/classpath ", "/drop ",
+                "/edit ", "/exit ", "/help ", "/history ", "/imports ",
+                "/list ", "/methods ", "/open ", "/reload ", "/reset ",
+                "/save ", "/set ", "/types ", "/vars ", "intro ", "shortcuts "),
+                a -> assertCompletion(a, "/? |", false,
+                "/! ", "/-<n> ", "/<id> ", "/? ", "/classpath ", "/drop ",
+                "/edit ", "/exit ", "/help ", "/history ", "/imports ",
+                "/list ", "/methods ", "/open ", "/reload ", "/reset ",
+                "/save ", "/set ", "/types ", "/vars ", "intro ", "shortcuts "),
+                a -> assertCompletion(a, "/help /s|", false,
+                "/save ", "/set "),
+                a -> assertCompletion(a, "/help /set |", false,
+                "editor", "feedback", "format", "mode", "prompt", "start", "truncation"),
+                a -> assertCompletion(a, "/help /edit |", false)
+        );
+    }
+
+    @Test
+    public void testReload() {
+        testNoStartUp(
+                a -> assertCompletion(a, "/reload |", false, "-quiet ", "-restore "),
+                a -> assertCompletion(a, "/reload -restore |", false, "-quiet"),
+                a -> assertCompletion(a, "/reload -quiet |", false, "-restore"),
+                a -> assertCompletion(a, "/reload -restore -quiet |", false)
+        );
+    }
+
+    @Test
+    public void testVarsMethodsTypes() {
+        test(false, new String[]{"--no-startup"},
+                a -> assertCompletion(a, "/v|", false, "/vars "),
+                a -> assertCompletion(a, "/m|", false, "/methods "),
+                a -> assertCompletion(a, "/t|", false, "/types "),
+                a -> assertClass(a, "class cTest {}", "class", "cTest"),
+                a -> assertMethod(a, "int mTest() { return 0; }", "()I", "mTest"),
+                a -> assertVariable(a, "int", "fTest"),
+                a -> assertCompletion(a, "/vars |", false, "-all", "-start ", "3 ", "fTest "),
+                a -> assertCompletion(a, "/meth |", false, "-all", "-start ", "2 ", "mTest "),
+                a -> assertCompletion(a, "/typ |", false, "-all", "-start ", "1 ", "cTest "),
+                a -> assertCompletion(a, "/var f|", false, "fTest ")
+        );
+    }
+
+    @Test
     public void testOpen() throws IOException {
         Compiler compiler = new Compiler();
-        assertCompletion("/o|", false, "/open ");
+        testNoStartUp(
+                a -> assertCompletion(a, "/o|", false, "/open ")
+        );
         List<String> p1 = listFiles(Paths.get(""));
-        FileSystems.getDefault().getRootDirectories().forEach(s -> p1.add(s.toString()));
+        getRootDirectories().forEach(s -> p1.add(s.toString()));
         Collections.sort(p1);
-        assertCompletion("/open |", false, p1.toArray(new String[p1.size()]));
+        testNoStartUp(
+                a -> assertCompletion(a, "/open |", false, p1.toArray(new String[p1.size()]))
+        );
         Path classDir = compiler.getClassDir();
         List<String> p2 = listFiles(classDir);
-        assertCompletion("/open " + classDir + "/|", false, p2.toArray(new String[p2.size()]));
+        testNoStartUp(
+                a -> assertCompletion(a, "/open " + classDir + "/|", false, p2.toArray(new String[p2.size()]))
+        );
     }
 
+    @Test
     public void testSave() throws IOException {
         Compiler compiler = new Compiler();
-        assertCompletion("/s|", false, "/save ", "/set ");
+        testNoStartUp(
+                a -> assertCompletion(a, "/s|", false, "/save ", "/set ")
+        );
         List<String> p1 = listFiles(Paths.get(""));
         Collections.addAll(p1, "-all ", "-history ", "-start ");
-        FileSystems.getDefault().getRootDirectories().forEach(s -> p1.add(s.toString()));
+        getRootDirectories().forEach(s -> p1.add(s.toString()));
         Collections.sort(p1);
-        assertCompletion("/save |", false, p1.toArray(new String[p1.size()]));
+        testNoStartUp(
+                a -> assertCompletion(a, "/save |", false, p1.toArray(new String[p1.size()]))
+        );
         Path classDir = compiler.getClassDir();
         List<String> p2 = listFiles(classDir);
-        assertCompletion("/save " + classDir + "/|",
-                false, p2.toArray(new String[p2.size()]));
-        assertCompletion("/save -all " + classDir + "/|",
-                false, p2.toArray(new String[p2.size()]));
+        testNoStartUp(
+                a -> assertCompletion(a, "/save " + classDir + "/|",
+                false, p2.toArray(new String[p2.size()])),
+                a -> assertCompletion(a, "/save -all " + classDir + "/|",
+                false, p2.toArray(new String[p2.size()]))
+        );
     }
 
+    @Test
     public void testClassPath() throws IOException {
-        assertCompletion("/classp|", false, "/classpath ");
+        testNoStartUp(
+                a -> assertCompletion(a, "/classp|", false, "/classpath ")
+        );
         Compiler compiler = new Compiler();
         Path outDir = compiler.getPath("testClasspathCompletion");
         Files.createDirectories(outDir);
@@ -134,9 +259,12 @@ public class CommandCompletionTest extends ReplToolTesting {
         compiler.jar(outDir, jarName, "pkg/A.class");
         compiler.getPath(outDir).resolve(jarName);
         List<String> paths = listFiles(outDir, CLASSPATH_FILTER);
-        assertCompletion("/classpath " + outDir + "/|", false, paths.toArray(new String[paths.size()]));
+        testNoStartUp(
+                a -> assertCompletion(a, "/classpath " + outDir + "/|", false, paths.toArray(new String[paths.size()]))
+        );
     }
 
+    @Test
     public void testUserHome() throws IOException {
         List<String> completions;
         Path home = Paths.get(System.getProperty("user.home"));
@@ -146,12 +274,15 @@ public class CommandCompletionTest extends ReplToolTesting {
                                  .sorted()
                                  .collect(Collectors.toList());
         }
-        assertCompletion("/classpath ~/|", false, completions.toArray(new String[completions.size()]));
+        testNoStartUp(
+                a -> assertCompletion(a, "/classpath ~/|", false, completions.toArray(new String[completions.size()]))
+        );
     }
 
+    @Test
     public void testSet() throws IOException {
         List<String> p1 = listFiles(Paths.get(""));
-        FileSystems.getDefault().getRootDirectories().forEach(s -> p1.add(s.toString()));
+        getRootDirectories().forEach(s -> p1.add(s.toString()));
         Collections.sort(p1);
 
         String[] modes = {"concise ", "normal ", "silent ", "verbose "};
@@ -220,4 +351,13 @@ public class CommandCompletionTest extends ReplToolTesting {
                     (Files.isDirectory(file) ||
                      file.getFileName().toString().endsWith(".jar") ||
                      file.getFileName().toString().endsWith(".zip"));
+
+    private static Iterable<? extends Path> getRootDirectories() {
+        return StreamSupport.stream(FileSystems.getDefault()
+                                               .getRootDirectories()
+                                               .spliterator(),
+                                    false)
+                            .filter(p -> Files.exists(p))
+                            .collect(Collectors.toList());
+    }
 }

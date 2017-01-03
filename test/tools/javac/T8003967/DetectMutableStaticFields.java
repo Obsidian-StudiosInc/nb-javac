@@ -112,6 +112,8 @@ public class DetectMutableStaticFields {
                 "bootMethod", "defineModulesWithOneLoaderMethod", "configurationMethod", "layerClass");
         ignore("com/sun/tools/javac/util/JDK9Wrappers$Module",
                 "addExportsMethod", "addUsesMethod", "getModuleMethod", "getUnnamedModuleMethod");
+        ignore("com/sun/tools/javac/util/JDK9Wrappers$ModuleDescriptor$Version",
+                "versionClass", "parseMethod");
         ignore("com/sun/tools/javac/util/JDK9Wrappers$ModuleFinder",
                 "moduleFinderClass", "ofMethod");
         ignore("com/sun/tools/javac/util/JDK9Wrappers$ServiceLoaderHelper",
@@ -170,7 +172,7 @@ public class DetectMutableStaticFields {
             ConstantPoolException,
             InvalidDescriptor {
         JavaFileManager.Location location =
-                fm.getModuleLocation(StandardLocation.SYSTEM_MODULES, moduleName);
+                fm.getLocationForModule(StandardLocation.SYSTEM_MODULES, moduleName);
         if (location == null)
             throw new AssertionError("can't find module " + moduleName);
 
