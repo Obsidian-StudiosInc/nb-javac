@@ -979,6 +979,38 @@ public class AnnotationProcessing extends ModuleTestBase {
         }
     }
 
+    @Test
+    public void testDisambiguateAnnotationsNoModules(Path base) throws Exception {
+        Path classes = base.resolve("classes");
+
+        Files.createDirectories(classes);
+
+        Path src = base.resolve("src");
+
+        tb.writeJavaFiles(src,
+                          "package api; public @interface A {}",
+                          "package api; public @interface B {}",
+                          "package impl; import api.*; @A @B public class T {}");
+
+        List<String> log = new JavacTask(tb)
+            .options("-processor", SelectAnnotationATestAP.class.getName() + "," + SelectAnnotationBTestAP.class.getName(),
+                     "-source", "8", "-target", "8")
+            .outdir(classes)
+            .files(findJavaFiles(src))
+            .run()
+            .writeAll()
+            .getOutputLines(OutputKind.STDERR);
+
+        List<String> expected = Arrays.asList("SelectAnnotationATestAP",
+                                              "SelectAnnotationBTestAP",
+                                              "SelectAnnotationATestAP",
+                                              "SelectAnnotationBTestAP");
+
+        if (!expected.equals(log)) {
+            throw new AssertionError("Output does not match; output: " + log);
+        }
+    }
+
     @SupportedAnnotationTypes("m2x/api.A")
     public static final class SelectAnnotationATestAP extends AbstractProcessor {
 
