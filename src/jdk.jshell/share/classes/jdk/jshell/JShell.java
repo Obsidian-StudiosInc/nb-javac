@@ -46,6 +46,8 @@ import java.util.function.Consumer;
 
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+import javax.tools.JavaFileManager;
+import javax.tools.StandardJavaFileManager;
 import jdk.internal.jshell.debug.InternalDebugControl;
 import jdk.jshell.Snippet.Status;
 import jdk.jshell.execution.JdiDefaultExecutionControl;
@@ -132,7 +134,7 @@ public class JShell implements AutoCloseable {
         this.maps = new SnippetMaps(this);
         this.keyMap = new KeyMap(this);
         this.outerMap = new OuterWrapMap(this);
-        this.taskFactory = new TaskFactory(this);
+        this.taskFactory = new TaskFactory(this, b.jfm);
         this.eval = new Eval(this);
         this.classTracker = new ClassTracker();
     }
@@ -165,6 +167,7 @@ public class JShell implements AutoCloseable {
         List<String> extraRemoteVMOptions = new ArrayList<>();
         List<String> extraCompilerOptions = new ArrayList<>();
         ExecutionControl.Generator executionControlGenerator;
+        StandardJavaFileManager   jfm;
 
         Builder() { }
 
@@ -344,6 +347,11 @@ public class JShell implements AutoCloseable {
         public JShell build() throws IllegalStateException {
             return new JShell(this);
         }
+        
+        public Builder fileManager(StandardJavaFileManager fm) {
+            this.jfm = fm;
+            return this;
+        }
     }
 
     // --- public API ---
@@ -515,7 +523,11 @@ public class JShell implements AutoCloseable {
         if (!closed) {
             closeDown();
             try {
-                executionControl().close();
+                // NB-FIX
+                if (executionControl != null) {
+                    executionControl().close();
+                }
+                // NB-FIX-END
             } catch (Throwable ex) {
                 // don't care about exceptions on close
             }

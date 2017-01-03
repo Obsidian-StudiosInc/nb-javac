@@ -76,6 +76,11 @@ public class JdiInitiator {
      */
     public JdiInitiator(int port, List<String> remoteVMOptions, String remoteAgent,
             boolean isLaunch, String host, int timeout) {
+        this(port, remoteVMOptions, remoteAgent, isLaunch, host, timeout, null);
+    }
+    
+    public JDIInitiator(int port, List<String> remoteVMOptions, String remoteAgent,
+            boolean isLaunch, String host, int timeout, Map<String, String> customConnectorArgs) {
         this.remoteAgent = remoteAgent;
         this.connectTimeout = (int) (timeout * CONNECT_TIMEOUT_FACTOR);
         String connectorName
@@ -95,6 +100,9 @@ public class JdiInitiator {
             if (host != null && !isLaunch) {
                 argumentName2Value.put("localAddress", host);
             }
+        }
+        if (customConnectorArgs != null) {
+            argumentName2Value.putAll(customConnectorArgs);
         }
         this.connectorArgs = mergeConnectorArgs(connector, argumentName2Value);
         this.vm = isLaunch

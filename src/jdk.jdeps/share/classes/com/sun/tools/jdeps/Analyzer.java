@@ -42,6 +42,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+<<<<<<< local
+=======
+import com.sun.tools.classfile.Dependency.Location;
+
+import com.sun.tools.classfile.Dependency.Location;
+import com.sun.tools.jdeps.PlatformClassPath.JDKArchive;
+
+>>>>>>> other
 /**
  * Dependency Analyzer.
  */

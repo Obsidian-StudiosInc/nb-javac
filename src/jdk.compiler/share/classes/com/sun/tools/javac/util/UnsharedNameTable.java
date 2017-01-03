@@ -38,8 +38,8 @@ import java.lang.ref.WeakReference;
  *  deletion without notice.</b>
  */
 public class UnsharedNameTable extends Name.Table {
-    static public Name.Table create(Names names) {
-        return new UnsharedNameTable(names);
+    static public Name.Table create(Names names, Context context) {
+        return new UnsharedNameTable(names, context);
     }
 
     static class HashEntry extends WeakReference<NameImpl> {
@@ -66,14 +66,14 @@ public class UnsharedNameTable extends Name.Table {
      *  @param hashSize the (constant) size to be used for the hash table
      *                  needs to be a power of two.
      */
-    public UnsharedNameTable(Names names, int hashSize) {
-        super(names);
+    public UnsharedNameTable(Names names, Context context, int hashSize) {
+        super(names, context);
         hashMask = hashSize - 1;
         hashes = new HashEntry[hashSize];
     }
 
-    public UnsharedNameTable(Names names) {
-        this(names, 0x8000);
+    public UnsharedNameTable(Names names, Context context) {
+        this(names, context, 0x8000);
     }
 
 

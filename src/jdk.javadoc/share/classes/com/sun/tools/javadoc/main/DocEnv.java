@@ -46,6 +46,7 @@ import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.comp.Enter;
+import com.sun.tools.javac.comp.Modules;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
@@ -139,6 +140,8 @@ public class DocEnv {
      * The source language version.
      */
     protected Source source;
+    
+    private Modules modules;
 
     /**
      * Constructor
@@ -165,6 +168,7 @@ public class DocEnv {
         // Default.  Should normally be reset with setLocale.
         this.doclocale = new DocLocale(this, "", breakiterator);
         source = Source.instance(context);
+        modules = Modules.instance(context);
     }
 
     public void setSilent(boolean silent) {
@@ -189,8 +193,7 @@ public class DocEnv {
     public ClassDocImpl loadClass(String name) {
         try {
             Name nameImpl = names.fromString(name);
-            ModuleSymbol mod = syms.inferModule(Convert.packagePart(nameImpl));
-            ClassSymbol c = finder.loadClass(mod != null ? mod : syms.errModule, nameImpl);
+            ClassSymbol c = finder.loadClass(syms.lookupPackage(modules.getDefaultModule(), Convert.packagePart(nameImpl)).modle, nameImpl);
             return getClassDoc(c);
         } catch (CompletionFailure ex) {
             chk.completionError(null, ex);

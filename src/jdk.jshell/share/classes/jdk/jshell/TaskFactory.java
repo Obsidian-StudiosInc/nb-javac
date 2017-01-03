@@ -59,8 +59,9 @@ import static java.util.stream.Collectors.toList;
 import java.util.stream.Stream;
 import javax.lang.model.util.Elements;
 import javax.tools.FileObject;
+import javax.tools.StandardJavaFileManager;
 import jdk.jshell.MemoryFileManager.SourceMemoryJavaFileObject;
-import java.lang.Runtime.Version;
+//import java.lang.Runtime.Version;
 
 /**
  * The primary interface to the compiler API.  Parsing, analysis, and
@@ -73,20 +74,23 @@ class TaskFactory {
     private final MemoryFileManager fileManager;
     private final JShell state;
     private String classpath = System.getProperty("java.class.path");
-    private final static Version INITIAL_SUPPORTED_VER = Version.parse("9");
+//    private final static Version INITIAL_SUPPORTED_VER = Version.parse("9");
 
-    TaskFactory(JShell state) {
+    TaskFactory(JShell state, StandardJavaFileManager jfm) {
         this.state = state;
         this.compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
             throw new UnsupportedOperationException("Compiler not available, must be run with full JDK 9.");
         }
+        /*
         Version current = Version.parse(System.getProperty("java.specification.version"));
         if (INITIAL_SUPPORTED_VER.compareToIgnoreOptional(current) > 0)  {
             throw new UnsupportedOperationException("Wrong compiler, must be run with full JDK 9.");
         }
+        */
         this.fileManager = new MemoryFileManager(
-                compiler.getStandardFileManager(null, null, null), state);
+                jfm != null ? jfm : compiler.getStandardFileManager(null, null, null), 
+                state);
     }
 
     void addToClasspath(String path) {
@@ -161,6 +165,40 @@ class TaskFactory {
         @Override
         public Diag diag(Diagnostic<? extends JavaFileObject> d) {
             SourceMemoryJavaFileObject smjfo = (SourceMemoryJavaFileObject) d.getSource();
+            if (smjfo == null) {
+                return new Diag() {
+                    @Override
+                    public boolean isError() {
+                        return d.getKind() == Diagnostic.Kind.ERROR;
+                    }
+
+                    @Override
+                    public long getPosition() {
+                        return d.getPosition();
+                    }
+
+                    @Override
+                    public long getStartPosition() {
+                        return d.getStartPosition();
+                    }
+
+                    @Override
+                    public long getEndPosition() {
+                        return d.getEndPosition();
+                    }
+
+                    @Override
+                    public String getCode() {
+                        return d.getCode();
+                    }
+
+                    @Override
+                    public String getMessage(Locale locale) {
+                        return d.getMessage(locale);
+                    }
+                    
+                };
+            }
             OuterWrap w = (OuterWrap) smjfo.getOrigin();
             return w.wrapDiag(d);
         }

@@ -42,6 +42,7 @@ import javax.tools.JavaFileObject.Kind;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 
+import com.sun.tools.javac.api.ClassNamesForFileOraculum;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.Completer;
@@ -134,6 +135,8 @@ public class ClassFinder {
      */
     JCDiagnostic.Factory diagFactory;
 
+    private final ClassNamesForFileOraculum classNamesOraculum;
+
     /** Can be reassigned from outside:
      *  the completer to be used for ".java" files. If this remains unassigned
      *  ".java" files will not be loaded.
@@ -188,6 +191,7 @@ public class ClassFinder {
         if (fileManager == null)
             throw new AssertionError("FileManager initialization error");
         diagFactory = JCDiagnostic.Factory.instance(context);
+        classNamesOraculum = context.get(ClassNamesForFileOraculum.class);
 
         log = Log.instance(context);
         annotate = Annotate.instance(context);
@@ -279,10 +283,16 @@ public class ClassFinder {
                 ClassSymbol c = (ClassSymbol) sym;
                 dependencies.push(c, CompletionCause.CLASS_READER);
                 annotate.blockAnnotations();
-                c.members_field = new Scope.ErrorScope(c); // make sure it's always defined
+                Scope tempScope = c.members_field = new Scope.ErrorScope(c); // make sure it's always defined
                 completeOwners(c.owner);
                 completeEnclosing(c);
-                fillIn(c);
+                if (c.members_field == tempScope) { // do not fill in when already completed as a result of completing owners
+                    try {
+                        fillIn(c);
+                    } catch (Abort a) {
+                        syms.removeClass(c.packge().modle, c.flatname);
+                    }
+                }
             } finally {
                 annotate.unblockAnnotationsNoFlush();
                 dependencies.pop();
@@ -349,7 +359,9 @@ public class ClassFinder {
                     c.flags_field |= getSupplementaryFlags(c);
                 } else {
                     if (!sourceCompleter.isTerminal()) {
-                        sourceCompleter.complete(c);
+                        if (!classfile.isNameCompatible("package-info", JavaFileObject.Kind.SOURCE)) {
+                            sourceCompleter.complete(c);
+                        }
                     } else {
                         throw new IllegalStateException("Source completer required to read "
                                                         + classfile.toUri());
@@ -421,12 +433,18 @@ public class ClassFinder {
  * Loading Packages
  ***********************************************************************/
 
+    //TODO: for compatibility, remove eventually
+    protected void includeClassFile(PackageSymbol p, JavaFileObject file) {
+        String binaryName = fileManager.inferBinaryName(currentLoc, file);        
+        includeClassFile(p, file, binaryName);
+    }
+
     /** Include class corresponding to given class file in package,
      *  unless (1) we already have one the same kind (.class or .java), or
      *         (2) we have one of the other kind, and the given class file
      *             is older.
      */
-    protected void includeClassFile(PackageSymbol p, JavaFileObject file) {
+    protected void includeClassFile(PackageSymbol p, JavaFileObject file, String binaryName) {
         if ((p.flags_field & EXISTS) == 0)
             for (Symbol q = p; q != null && q.kind == PCK; q = q.owner)
                 q.flags_field |= EXISTS;
@@ -436,7 +454,6 @@ public class ClassFinder {
             seen = CLASS_SEEN;
         else
             seen = SOURCE_SEEN;
-        String binaryName = fileManager.inferBinaryName(currentLoc, file);
         int lastDot = binaryName.lastIndexOf(".");
         Name classname = names.fromString(binaryName.substring(lastDot + 1));
         boolean isPkgInfo = classname == names.package_info;
@@ -460,8 +477,16 @@ public class ClassFinder {
             // a file of the same kind; again no further action is necessary.
             if ((c.flags_field & (CLASS_SEEN | SOURCE_SEEN)) != 0)
                 c.classfile = preferredFileObject(file, c.classfile);
+        } else if (c.classfile != null && isSigOverClass(c.classfile, file)) {
+            c.classfile = file;
         }
         c.flags_field |= seen;
+    }
+
+    private boolean isSigOverClass(final JavaFileObject a, final JavaFileObject b) {
+        String patha = a.getName().toLowerCase();
+        String pathb = b.getName().toLowerCase();
+        return pathb.endsWith(".sig") && patha.endsWith(".class");  //NOI18N
     }
 
     /** Implement policy to choose to derive information from a source
@@ -471,7 +496,7 @@ public class ClassFinder {
     protected JavaFileObject preferredFileObject(JavaFileObject a,
                                            JavaFileObject b) {
 
-        if (preferSource)
+        if (preferSource && !b.getName().toLowerCase().endsWith(".sig"))
             return (a.getKind() == JavaFileObject.Kind.SOURCE) ? a : b;
         else {
             long adate = a.getLastModified();
@@ -667,17 +692,46 @@ public class ClassFinder {
                     //intentional fall-through:
                 case CLASS:
                 case SOURCE: {
+                    String[] binaryNames = null;
+                    
+                    if (classNamesOraculum != null) {
+                        binaryNames = classNamesOraculum.divineClassName(fo);
+                    }
+                    
+                    if (binaryNames == null) {
+                        String binaryName = fileManager.inferBinaryName(currentLoc, fo);
+                        if (binaryName != null) {
+                            binaryNames = new String[] {binaryName};
+                        }
+                    }
                     // TODO pass binaryName to includeClassFile
-                    String binaryName = fileManager.inferBinaryName(currentLoc, fo);
-                    String simpleName = binaryName.substring(binaryName.lastIndexOf(".") + 1);
-                    if (SourceVersion.isIdentifier(simpleName) ||
-                        simpleName.equals("package-info"))
-                        includeClassFile(p, fo);
+                    if (binaryNames != null) {
+                        for (String binaryName : binaryNames) {
+                            String simpleName = binaryName.substring(binaryName.lastIndexOf(".") + 1);
+                            if (SourceVersion.isIdentifier(simpleName) ||
+                                simpleName.equals("package-info"))
+                                includeClassFile(p, fo);
+                        }
+                    }
                     break;
                 }
                 default:
                     extraFileActions(p, fo);
                     break;
+                }
+            }
+            if (classNamesOraculum != null && location == SOURCE_PATH) {
+                JavaFileObject[] sources = classNamesOraculum.divineSources(p.fullname.toString());
+                if (sources != null) {
+                    for (JavaFileObject fo : sources) {
+                        for (String binaryName : classNamesOraculum.divineClassName(fo)) {
+                            String simpleName = binaryName.substring(binaryName.lastIndexOf(".") + 1);
+                            if (SourceVersion.isIdentifier(simpleName) ||
+                                    simpleName.equals("package-info")) {
+                                includeClassFile(p, fo, binaryName);
+                            }
+                        }
+                    }
                 }
             }
         }

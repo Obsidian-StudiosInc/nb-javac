@@ -36,6 +36,7 @@ import javax.lang.model.element.Name;
 import com.sun.tools.javac.util.StringUtils;
 
 import static com.sun.tools.doclint.HtmlTag.Attr.*;
+import com.sun.tools.javac.util.StringUtils;
 
 /**
  * Enum representing HTML tags.

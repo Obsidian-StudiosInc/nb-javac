@@ -307,7 +307,7 @@ public class DocTreeScanner<R,P> implements DocTreeVisitor<R,P> {
      */
     @Override
     public R visitLiteral(LiteralTree node, P p) {
-        return null;
+        return scan(node.getBody(), p);
     }
 
     /**

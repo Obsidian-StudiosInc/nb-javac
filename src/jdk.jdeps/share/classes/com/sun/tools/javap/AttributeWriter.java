@@ -68,6 +68,7 @@ import com.sun.tools.classfile.StackMap_attribute;
 import com.sun.tools.classfile.Synthetic_attribute;
 
 import static com.sun.tools.classfile.AccessFlags.*;
+import com.sun.tools.javac.util.StringUtils;
 
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.StringUtils;

@@ -49,12 +49,16 @@ public class JavadocClassFinder extends ClassFinder {
     public static JavadocClassFinder instance(Context context) {
         ClassFinder instance = context.get(classFinderKey);
         if (instance == null)
-            instance = new JavadocClassFinder(context);
+            instance = new JavadocClassFinder(context, true);
         return (JavadocClassFinder)instance;
     }
 
     public static void preRegister(Context context) {
-        context.put(classFinderKey, (Factory<ClassFinder>)JavadocClassFinder::new);
+        preRegister(context, true);
+    }
+    
+    public static void preRegister(Context context, final boolean loadToolEnv) {
+        context.put(classFinderKey, (Factory<ClassFinder>)(Context c) -> new JavadocClassFinder(c, loadToolEnv));
     }
 
     private ToolEnvironment toolEnv;
@@ -63,13 +67,12 @@ public class JavadocClassFinder extends ClassFinder {
                                                           JavaFileObject.Kind.HTML);
     private EnumSet<JavaFileObject.Kind> noSource = EnumSet.of(JavaFileObject.Kind.CLASS,
                                                                JavaFileObject.Kind.HTML);
-    private JavacTrees jctrees;
-
     private final JavacTrees trees;
 
-    public JavadocClassFinder(Context context) {
+    public JavadocClassFinder(Context context, boolean loadToolEnv) {
         super(context);
-        toolEnv = ToolEnvironment.instance(context);
+        if (loadToolEnv)
+            toolEnv = ToolEnvironment.instance(context);
         preferSource = true;
         trees = JavacTrees.instance(context);
     }
@@ -79,7 +82,10 @@ public class JavadocClassFinder extends ClassFinder {
      */
     @Override
     protected EnumSet<JavaFileObject.Kind> getPackageFileKinds() {
-        return toolEnv.docClasses ? noSource : all;
+        if (toolEnv == null)
+            return super.getPackageFileKinds();
+        else
+            return toolEnv.docClasses ? noSource : all;
     }
 
     /**
