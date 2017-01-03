@@ -119,6 +119,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     private final boolean fatalErrors;
     private final boolean werror;
     private final boolean showResolveErrors;
+    private final boolean noModules;
 
     private final JavacFiler filer;
     private final JavacMessager messager;
@@ -238,8 +239,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         initialCompleter = ClassFinder.instance(context).getCompleter();
         initProcessorLoader();
 
-        defaultModule = source.allowModules() && options.isUnset("noModules")
-                ? symtab.unnamedModule : symtab.noModule;
+        noModules = !source.allowModules() || options.isSet("noModules");
+        defaultModule = noModules ? symtab.noModule : symtab.unnamedModule;
     }
 
     public void setProcessors(Iterable<? extends Processor> processors) {
@@ -674,7 +675,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         private ArrayList<Pattern> supportedAnnotationPatterns;
         private ArrayList<String>  supportedOptionNames;
 
-        ProcessorState(Processor p, Log log, Source source, ProcessingEnvironment env) {
+        ProcessorState(Processor p, Log log, Source source, boolean noModules, ProcessingEnvironment env) {
             processor = p;
             contributed = false;
 
@@ -685,7 +686,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
                 supportedAnnotationPatterns = new ArrayList<>();
                 for (String importString : processor.getSupportedAnnotationTypes()) {
-                    supportedAnnotationPatterns.add(importStringToPattern(importString,
+                    supportedAnnotationPatterns.add(importStringToPattern(noModules,
+                                                                          importString,
                                                                           processor,
                                                                           log));
                 }
@@ -780,7 +782,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
                 if (psi.processorIterator.hasNext()) {
                     ProcessorState ps = new ProcessorState(psi.processorIterator.next(),
-                                                           log, source, JavacProcessingEnvironment.this);
+                                                           log, source, noModules,
+                                                           JavacProcessingEnvironment.this);
                     psi.procStateList.add(ps);
                     return ps;
                 } else
@@ -846,7 +849,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
         for(TypeElement a  : annotationsPresent) {
             ModuleElement mod = elementUtils.getModuleOf(a);
-            unmatchedAnnotations.put((mod != null ? mod.getSimpleName() + "/" : "") + a.getQualifiedName().toString(),
+            String moduleSpec = noModules || mod == null ? "" : mod.getSimpleName() + "/";
+            unmatchedAnnotations.put(moduleSpec + a.getQualifiedName().toString(),
                                      a);
         }
 
@@ -1726,7 +1730,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
      * regex matching that string.  If the string is not a valid
      * import-style string, return a regex that won't match anything.
      */
-    private static Pattern importStringToPattern(String s, Processor p, Log log) {
+    private static Pattern importStringToPattern(boolean noModules, String s, Processor p, Log log) {
         String module;
         String pkg;
         int slash = s.indexOf('/');
@@ -1741,7 +1745,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             pkg = s.substring(slash + 1);
         }
         if (MatchingUtils.isValidImportString(pkg)) {
-            return Pattern.compile(module + MatchingUtils.validImportStringToPatternString(pkg));
+            return Pattern.compile((noModules ? "" : module) + MatchingUtils.validImportStringToPatternString(pkg));
         } else {
             log.warning("proc.malformed.supported.string", s, p.getClass().getName());
             return noMatches; // won't match any valid identifier
