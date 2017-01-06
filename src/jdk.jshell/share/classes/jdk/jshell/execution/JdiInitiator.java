@@ -79,7 +79,7 @@ public class JdiInitiator {
         this(port, remoteVMOptions, remoteAgent, isLaunch, host, timeout, null);
     }
     
-    public JDIInitiator(int port, List<String> remoteVMOptions, String remoteAgent,
+    public JdiInitiator(int port, List<String> remoteVMOptions, String remoteAgent,
             boolean isLaunch, String host, int timeout, Map<String, String> customConnectorArgs) {
         this.remoteAgent = remoteAgent;
         this.connectTimeout = (int) (timeout * CONNECT_TIMEOUT_FACTOR);
