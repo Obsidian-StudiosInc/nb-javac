@@ -3212,6 +3212,7 @@ public class JavacParser implements Parser {
                 if (mods != null || token.kind != SEMI)
                     mods = modifiersOpt(mods);
                 if (firstTypeDecl && token.kind == IDENTIFIER) {
+                    int pos = token.pos;
                     ModuleKind kind = ModuleKind.STRONG;
                     if (token.name() == names.open) {
                         kind = ModuleKind.OPEN;
@@ -3221,10 +3222,12 @@ public class JavacParser implements Parser {
                         if (mods != null) {
                             checkNoMods(mods.flags & ~Flags.DEPRECATED);
                         }
-                        defs.append(moduleDecl(mods, kind, docComment));
+                        defs.append(moduleDecl(mods, kind, docComment, pos));
                         break;
                     } else if (kind != ModuleKind.STRONG) {
                         reportSyntaxError(token.pos, "expected.module");
+                        defs.append(moduleDecl(mods, kind, docComment, pos));
+                        break;
                     }
                 }
                 JCTree def = typeDeclaration(mods, docComment);
@@ -3251,14 +3254,14 @@ public class JavacParser implements Parser {
         return toplevel;
     }
 
-    JCModuleDecl moduleDecl(JCModifiers mods, ModuleKind kind, Comment dc) {
-        int pos = token.pos;
+    JCModuleDecl moduleDecl(JCModifiers mods, ModuleKind kind, Comment dc, int pos) {
         if (!allowModules) {
             log.error(pos, Errors.ModulesNotSupportedInSource(source.name));
             allowModules = true;
         }
-
-        nextToken();
+        if (token.kind == IDENTIFIER && token.name() == names.module) {
+            nextToken();
+        }
         JCExpression name = qualident(false);
         List<JCDirective> directives = null;
 

@@ -211,7 +211,9 @@ public class ModuleFinder {
                                 inFindSingleModule = true;
                                 // Note: the following will trigger a re-entrant call to Modules.enter
                                 msym = sourceFileCompleter.complete(fo);
-                                msym.module_info.classfile = fo;
+                                if (msym.module_info != null) {
+                                    msym.module_info.classfile = fo;
+                                }
                             } finally {
                                 inFindSingleModule = false;
                             }
