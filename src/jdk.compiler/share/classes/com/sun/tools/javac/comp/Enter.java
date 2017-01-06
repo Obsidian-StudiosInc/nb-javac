@@ -812,7 +812,7 @@ public class Enter extends JCTree.Visitor {
 
                 if (!modules.modulesInitialized()) {
                     for (JCCompilationUnit cut : trees) {
-                        if (cut.getModuleDecl() != null) {
+                        if (TreeInfo.isModuleInfo(cut)) {
                             unfinishedModules.append(cut);
                         } else {
                             typeEnter.ensureImportsChecked(List.of(cut));

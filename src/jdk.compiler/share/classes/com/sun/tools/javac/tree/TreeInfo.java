@@ -1196,8 +1196,7 @@ public class TreeInfo {
     }
 
     public static boolean isModuleInfo(JCCompilationUnit tree) {
-        return tree.sourcefile.isNameCompatible("module-info", JavaFileObject.Kind.SOURCE)
-                && tree.getModuleDecl() != null;
+        return tree.sourcefile.isNameCompatible("module-info", JavaFileObject.Kind.SOURCE);
     }
 
     public static JCModuleDecl getModule(JCCompilationUnit t) {

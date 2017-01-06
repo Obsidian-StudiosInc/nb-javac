@@ -347,11 +347,17 @@ public class JavaCompiler {
             sym -> readSourceFile((ClassSymbol) sym);
 
     protected final ModuleFinder.ModuleInfoSourceFileCompleter moduleInfoSourceFileCompleter =
-            fo -> (ModuleSymbol) readSourceFile(parseImplicitFile(fo), null, tl -> {
-                return tl.defs.nonEmpty() && tl.defs.head.hasTag(Tag.MODULEDEF) ?
-                        ((JCModuleDecl) tl.defs.head).sym.module_info :
-                        syms.defineClass(names.module_info, syms.errModule);
-            }).owner;
+            fo -> {
+                try {
+                return (ModuleSymbol) readSourceFile(parseImplicitFile(fo), null, tl -> {
+                    return tl.defs.nonEmpty() && tl.defs.head.hasTag(Tag.MODULEDEF) ?
+                            ((JCModuleDecl) tl.defs.head).sym.module_info :
+                            syms.defineClass(names.module_info, syms.errModule);
+                }).owner;
+                } catch (CompletionFailure cf) {
+                    return syms.errModule;
+                }
+            };
 
     /**
      * Command line options.
