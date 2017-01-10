@@ -360,7 +360,7 @@ public class TypeEnter implements Completer {
 
                 // Import-on-demand java.lang.
                 PackageSymbol javaLang = syms.enterPackage(syms.java_base, names.java_lang);
-                if (javaLang.members().isEmpty() && !javaLang.exists()) {
+                if (javaLang.members().isEmpty() && !javaLang.exists() || syms.java_base.kind == ERR) {
                     JCDiagnostic msg = diags.fragment("fatal.err.no.java.lang");
                     if (ignoreNoLang) {                    
                         throw new CompletionFailure(javaLang, msg.toString());
@@ -541,7 +541,7 @@ public class TypeEnter implements Completer {
         }
 
         protected Type modelMissingTypes(Env<AttrContext> env, Type t, final JCExpression tree, final boolean interfaceExpected) {
-            if (!t.hasTag(ERROR))
+            if (!t.hasTag(ERROR) || tree == null)
                 return t;
 
             return new ErrorType(t.getOriginalType(), t.tsym) {

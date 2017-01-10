@@ -1572,8 +1572,10 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 if (isModuleInfo) {
                     node.modle.reset();
                     node.modle.completer = sym -> modules.enter(List.of(node), node.modle.module_info);
-                    node.modle.module_info.reset();
-                    node.modle.module_info.members_field = WriteableScope.create(node.modle.module_info);
+                    if (node.modle.module_info != null) {
+                        node.modle.module_info.reset();
+                        node.modle.module_info.members_field = WriteableScope.create(node.modle.module_info);
+                    }
                 }
                 node.packge = null;
                 topLevel = node;
