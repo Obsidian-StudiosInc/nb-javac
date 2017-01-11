@@ -579,10 +579,10 @@ public class TreeInfo {
             }
             case IDENT:
                 JCIdent i = (JCIdent) tree;
-                return i.pos + (i.name != null ? i.name.length() : 0);
+                return i.pos + (i.name != null && i.name != i.name.table.names.error ? i.name.length() : 0);
             case SELECT:
                 JCFieldAccess s = (JCFieldAccess) tree;
-                return s.pos + (s.name != null ? s.name.length() : 0) + 1;
+                return s.pos + (s.name != null && s.name != s.name.table.names.error ? s.name.length() : 0) + 1;
         }
         return Position.NOPOS;
     }
