@@ -360,8 +360,8 @@ public class Enter extends JCTree.Visitor {
                 log.error(pd.pos(), Errors.NoPkgInModuleInfoJava);
             }
             tree.packge = syms.rootPackage;
+            Env<AttrContext> topEnv = topLevelEnv(tree);
             if (tree.modle != syms.noModule) {
-                Env<AttrContext> topEnv = topLevelEnv(tree);
                 classEnter(tree.defs, topEnv);
                 tree.modle.usesProvidesCompleter = modules.getUsesProvidesCompleter();
             }

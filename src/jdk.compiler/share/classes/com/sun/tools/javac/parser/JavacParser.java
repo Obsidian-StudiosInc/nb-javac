@@ -642,15 +642,35 @@ public class JavacParser implements Parser {
      * Qualident = Ident { DOT [Annotations] Ident }
      */
     public JCExpression qualident(boolean allowAnnos) {
-        JCExpression t = toP(F.at(token.pos).Ident(ident()));
+        return qualident(allowAnnos, false);
+    }
+
+    public JCExpression qualident(boolean allowAnnos, boolean isModuleInfo) {
+        int pos = token.pos;
+        Name name;
+        if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT, LPAREN)) {
+            // Error recovery
+            reportSyntaxError(token.pos, "expected", IDENTIFIER);
+            name = names.error;
+        } else {
+            name = ident();
+        }
+        JCExpression t = toP(F.at(pos).Ident(name));
         while (token.kind == DOT) {
-            int pos = token.pos;
+            pos = token.pos;
             nextToken();
             List<JCAnnotation> tyannos = null;
             if (allowAnnos) {
                 tyannos = typeAnnotationsOpt();
             }
-            t = toP(F.at(pos).Select(t, ident()));
+            if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT, LPAREN)) {
+                // Error recovery
+                reportSyntaxError(token.pos, "expected", IDENTIFIER);
+                name = names.error;
+            } else {
+                name = ident();
+            }
+            t = toP(F.at(pos).Select(t, name));
             if (tyannos != null && tyannos.nonEmpty()) {
                 t = toP(F.at(tyannos.head.pos).AnnotatedType(tyannos, t));
             }
@@ -2837,6 +2857,9 @@ public class JavacParser implements Parser {
         return modifiersOpt(null);
     }
     protected JCModifiers modifiersOpt(JCModifiers partial) {
+        return modifiersOpt(partial, false);
+    }
+    protected JCModifiers modifiersOpt(JCModifiers partial, boolean isModuleInfo) {
         long flags;
         ListBuffer<JCAnnotation> annotations = new ListBuffer<>();
         if (typeAnnotationsPushedBack.nonEmpty()) {
@@ -2880,7 +2903,7 @@ public class JavacParser implements Parser {
             nextToken();
             if (flag == Flags.ANNOTATION) {
                 if (token.kind != INTERFACE) {
-                    JCAnnotation ann = annotation(lastPos, Tag.ANNOTATION);
+                    JCAnnotation ann = annotation(lastPos, Tag.ANNOTATION, isModuleInfo);
                     // if first modifier is an annotation, set pos to annotation's.
                     if (flags == 0 && annotations.isEmpty())
                         pos = ann.pos;
@@ -2913,11 +2936,15 @@ public class JavacParser implements Parser {
      * @param kind Whether to parse an ANNOTATION or TYPE_ANNOTATION
      */
     JCAnnotation annotation(int pos, Tag kind) {
+        return annotation(pos, kind, false);
+    }
+
+    JCAnnotation annotation(int pos, Tag kind, boolean isModuleInfo) {
         // accept(AT); // AT consumed by caller
         if (kind == Tag.TYPE_ANNOTATION) {
             checkTypeAnnotations();
         }
-        JCTree ident = qualident(false);
+        JCTree ident = qualident(false, isModuleInfo);
         int identEndPos = S.prevToken().endPos;
         boolean hasParens = token.kind == LPAREN;
         List<JCExpression> fieldValues = annotationFieldValuesOpt();
@@ -3158,6 +3185,10 @@ public class JavacParser implements Parser {
     /** CompilationUnit = [ { "@" Annotation } PACKAGE Qualident ";"] {ImportDeclaration} {TypeDeclaration}
      */
     public JCTree.JCCompilationUnit parseCompilationUnit() {
+        return parseCompilationUnit(false);
+    }
+
+    public JCTree.JCCompilationUnit parseCompilationUnit(boolean isModuleInfo) {
         Token firstToken = token;
         JCModifiers mods = null;
         boolean consumedToplevelDoc = false;
@@ -3176,7 +3207,7 @@ public class JavacParser implements Parser {
                     break;
             }
             if (checkForPackage && token.kind == MONKEYS_AT) {
-                mods = modifiersOpt();
+                mods = modifiersOpt(null, isModuleInfo);
             } else if (token.kind == PACKAGE) {
                 if (checkForPackage) {
                     int packagePos = token.pos;
@@ -3202,7 +3233,7 @@ public class JavacParser implements Parser {
             } else if (checkForImports && mods == null && token.kind == IMPORT) {
                 seenImport = true;
                 checkForPackage = false;
-                defs.append(importDeclaration());
+                defs.append(importDeclaration(isModuleInfo));
             } else {
                 Comment docComment = token.comment(CommentStyle.JAVADOC);
                 if (docComment == null && firstTypeDecl && !seenImport && !seenPackage) {
@@ -3210,7 +3241,7 @@ public class JavacParser implements Parser {
                     consumedToplevelDoc = true;
                 }
                 if (mods != null || token.kind != SEMI)
-                    mods = modifiersOpt(mods);
+                    mods = modifiersOpt(mods, isModuleInfo);
                 if (firstTypeDecl && token.kind == IDENTIFIER) {
                     int pos = token.pos;
                     ModuleKind kind = ModuleKind.STRONG;
@@ -3356,21 +3387,50 @@ public class JavacParser implements Parser {
     /** ImportDeclaration = IMPORT [ STATIC ] Ident { "." Ident } [ "." "*" ] ";"
      */
     protected JCTree importDeclaration() {
+        return importDeclaration(false);
+    }
+
+    protected JCTree importDeclaration(boolean isModuleInfo) {        
         int pos = token.pos;
         nextToken();
         boolean importStatic = false;
         if (token.kind == STATIC) {
             importStatic = true;
             nextToken();
+        } else if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT)) {
+            // Error recovery
+            JCExpression pid = F.at(token.pos).Ident(names.error);
+            pid = F.at(token.pos).Select(pid, names.error);
+            JCImport imp = F.at(pos).Import(pid, importStatic);
+            storeEnd(imp, token.pos);
+            reportSyntaxError(token.pos, "expected", IDENTIFIER);
+            return imp;
         }
         JCExpression pid = toP(F.at(token.pos).Ident(ident()));
         do {
+            if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open)) {
+                // Error recovery
+                if (pid.hasTag(IDENT)) {
+                    pid = F.at(token.pos).Select(pid, names.error);
+                }
+                JCImport imp = F.at(pos).Import(pid, importStatic);
+                storeEnd(imp, token.pos);
+                reportSyntaxError(token.pos, "expected", DOT);
+                return imp;
+            }
             int pos1 = token.pos;
             accept(DOT);
             if (token.kind == STAR) {
                 pid = to(F.at(pos1).Select(pid, names.asterisk));
                 nextToken();
                 break;
+            } else if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT, SEMI)) {
+                // Error recovery
+                pid = F.at(pos1).Select(pid, names.error);
+                JCImport imp = F.at(pos).Import(pid, importStatic);
+                storeEnd(imp, token.pos);
+                reportSyntaxError(token.pos, "expected", IDENTIFIER);
+                return imp;
             } else {
                 pid = toP(F.at(pos1).Select(pid, ident()));
             }

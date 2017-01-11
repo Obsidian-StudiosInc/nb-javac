@@ -647,7 +647,9 @@ public class JavaCompiler {
                 genEndPos = true;
             }
             Parser parser = parserFactory.newParser(content, keepComments(), genEndPos, lineDebugInfo);
-            tree = parser.parseCompilationUnit();
+            tree = parser instanceof JavacParser && filename != null && filename.isNameCompatible("module-info", JavaFileObject.Kind.SOURCE)
+                    ? ((JavacParser)parser).parseCompilationUnit(true)
+                    : parser.parseCompilationUnit();
             if (verbose) {
                 log.printVerbose("parsing.done", Long.toString(elapsed(msec)));
             }
