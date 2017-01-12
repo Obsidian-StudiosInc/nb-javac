@@ -648,7 +648,7 @@ public class JavacParser implements Parser {
     public JCExpression qualident(boolean allowAnnos, boolean isModuleInfo) {
         int pos = token.pos;
         Name name;
-        if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT, LPAREN)) {
+        if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(LPAREN)) {
             // Error recovery
             reportSyntaxError(token.pos, "expected", IDENTIFIER);
             name = names.error;
@@ -663,7 +663,7 @@ public class JavacParser implements Parser {
             if (allowAnnos) {
                 tyannos = typeAnnotationsOpt();
             }
-            if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT, LPAREN)) {
+            if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(LPAREN)) {
                 // Error recovery
                 reportSyntaxError(token.pos, "expected", IDENTIFIER);
                 name = names.error;
@@ -3202,7 +3202,7 @@ public class JavacParser implements Parser {
         while (token.kind != EOF) {
             if (token.pos <= endPosTable.errorEndPos) {
                 // error recovery
-                skip(checkForImports, false, false, false);
+                skip(checkForImports, false, true, false);
                 if (token.kind == EOF)
                     break;
             }
@@ -3397,7 +3397,7 @@ public class JavacParser implements Parser {
         if (token.kind == STATIC) {
             importStatic = true;
             nextToken();
-        } else if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT)) {
+        } else if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(SEMI)) {
             // Error recovery
             JCExpression pid = F.at(token.pos).Ident(names.error);
             pid = F.at(token.pos).Select(pid, names.error);
@@ -3424,7 +3424,7 @@ public class JavacParser implements Parser {
                 pid = to(F.at(pos1).Select(pid, names.asterisk));
                 nextToken();
                 break;
-            } else if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT, SEMI)) {
+            } else if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(SEMI)) {
                 // Error recovery
                 pid = F.at(pos1).Select(pid, names.error);
                 JCImport imp = F.at(pos).Import(pid, importStatic);
