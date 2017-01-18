@@ -161,6 +161,8 @@ public class Modules extends JCTree.Visitor {
     private final String moduleVersionOpt;
 
     private final boolean lintOptions;
+    private final boolean backgroundCompilation;
+    private final JavaFileManager fm;
 
     private Set<ModuleSymbol> rootModules = null;
 
@@ -205,6 +207,9 @@ public class Modules extends JCTree.Visitor {
         addModsOpt = options.get(Option.ADD_MODULES);
         limitModsOpt = options.get(Option.LIMIT_MODULES);
         moduleVersionOpt = options.get(Option.MODULE_VERSION);
+
+        fm = context.get(JavaFileManager.class);
+        backgroundCompilation = options.get("backgroundCompilation") != null;
     }
 
     int depth = -1;
@@ -438,7 +443,26 @@ public class Modules extends JCTree.Visitor {
                         checkSpecifiedModule(trees, Errors.ModuleInfoWithXmoduleSourcepath);
                         checkNoAllModulePath();
                         defaultModule = rootModules.iterator().next();
-                        defaultModule.classLocation = StandardLocation.CLASS_OUTPUT;
+                        Location loc = StandardLocation.CLASS_OUTPUT;
+                        if (!backgroundCompilation && !fm.hasLocation(StandardLocation.CLASS_OUTPUT)) {
+                            for (Location baseLoc : new Location[] {
+                                    StandardLocation.UPGRADE_MODULE_PATH,
+                                    StandardLocation.SYSTEM_MODULES,
+                                    StandardLocation.MODULE_PATH}) {
+                                try {
+                                    final Location tmp = fm.getLocationForModule(
+                                            baseLoc,
+                                            defaultModule.name.toString());
+                                    if(tmp != null) {
+                                        loc = tmp;
+                                        break;
+                                    }
+                                } catch (IOException ioe) {
+                                    //pass
+                                }
+                            }
+                        }
+                        defaultModule.classLocation = loc;
                         break;
                     default:
                         Assert.error("too many modules");
