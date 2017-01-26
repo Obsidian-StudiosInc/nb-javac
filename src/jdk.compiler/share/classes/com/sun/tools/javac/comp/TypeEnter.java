@@ -970,7 +970,7 @@ public class TypeEnter implements Completer {
             JCExpression valuesType = make.Type(new ArrayType(tree.sym.type, syms.arrayClass));
 
             // public static T[] values() { return ???; }
-            JCMethodDecl values = make.
+            JCMethodDecl values = make.at(Position.NOPOS).
                 MethodDef(make.Modifiers(Flags.PUBLIC|Flags.STATIC),
                           names.values,
                           valuesType,
@@ -1000,10 +1000,10 @@ public class TypeEnter implements Completer {
             DocCommentTable docComments = env.toplevel.docComments;
             if (docComments != null)
                 docComments.putComment(values, new HardcodedComment("compiler.javadoc.enum.values")); //NOI18N
-            memberEnter.memberEnter(values, env);
+            tree.defs = tree.defs.append(values);
 
             // public static T valueOf(String name) { return ???; }
-            JCMethodDecl valueOf = make.
+            JCMethodDecl valueOf = make.at(Position.NOPOS).
                 MethodDef(make.Modifiers(Flags.PUBLIC|Flags.STATIC),
                           names.valueOf,
                           make.Type(tree.sym.type),
@@ -1017,7 +1017,7 @@ public class TypeEnter implements Completer {
                           null);
             if (docComments != null)
                 docComments.putComment(valueOf, new HardcodedComment("compiler.javadoc.enum.valueOf")); //NOI18N
-            memberEnter.memberEnter(valueOf, env);
+            tree.defs = tree.defs.append(valueOf);
         }
 
     }
