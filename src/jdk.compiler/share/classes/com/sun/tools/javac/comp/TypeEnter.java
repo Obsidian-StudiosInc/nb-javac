@@ -1000,7 +1000,7 @@ public class TypeEnter implements Completer {
             DocCommentTable docComments = env.toplevel.docComments;
             if (docComments != null)
                 docComments.putComment(values, new HardcodedComment("compiler.javadoc.enum.values")); //NOI18N
-            tree.defs = tree.defs.append(values);
+            memberEnter.memberEnter(values, env);
 
             // public static T valueOf(String name) { return ???; }
             JCMethodDecl valueOf = make.at(Position.NOPOS).
@@ -1017,7 +1017,7 @@ public class TypeEnter implements Completer {
                           null);
             if (docComments != null)
                 docComments.putComment(valueOf, new HardcodedComment("compiler.javadoc.enum.valueOf")); //NOI18N
-            tree.defs = tree.defs.append(valueOf);
+            memberEnter.memberEnter(valueOf, env);
         }
 
     }
