@@ -1,6 +1,9 @@
 ^make/netbeans/nb-javac/build/
 ^make/netbeans/nb-javac/dist/
 ^make/netbeans/nb-javac/nbproject/private/
+^make/netbeans/jshell/build/
+^make/netbeans/jshell/dist/
+^make/netbeans/jshell/nbproject/private/
 ^make/netbeans/hudson/cache/
 ^build/
 ^dist/
