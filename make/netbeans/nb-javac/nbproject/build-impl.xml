@@ -698,8 +698,7 @@ is divided into following sections:
             <sequential>
                 <j2seproject3:junit excludes="@{excludes}" includes="@{includes}" testincludes="@{testincludes}" testmethods="@{testmethods}">
                     <customize>
-                        <jvmarg line="${debug-args-line}"/>
-                        <jvmarg value="-Xrunjdwp:transport=${debug-transport},address=${jpda.address}"/>
+                        <jvmarg value="-agentlib:jdwp=transport=${debug-transport},address=${jpda.address}"/>
                         <customizeDebuggee/>
                     </customize>
                 </j2seproject3:junit>
@@ -864,18 +863,6 @@ is divided into following sections:
         </macrodef>
     </target>
     <target name="-init-debug-args">
-        <property name="version-output" value="java version &quot;${ant.java.version}"/>
-        <condition property="have-jdk-older-than-1.4">
-            <or>
-                <contains string="${version-output}" substring="java version &quot;1.0"/>
-                <contains string="${version-output}" substring="java version &quot;1.1"/>
-                <contains string="${version-output}" substring="java version &quot;1.2"/>
-                <contains string="${version-output}" substring="java version &quot;1.3"/>
-            </or>
-        </condition>
-        <condition else="-Xdebug" property="debug-args-line" value="-Xdebug -Xnoagent -Djava.compiler=none">
-            <istrue value="${have-jdk-older-than-1.4}"/>
-        </condition>
         <condition else="dt_socket" property="debug-transport-by-os" value="dt_shmem">
             <os family="windows"/>
         </condition>
@@ -893,8 +880,7 @@ is divided into following sections:
             <sequential>
                 <j2seproject1:java classname="@{classname}" classpath="@{classpath}" modulename="@{modulename}" modulepath="@{modulepath}">
                     <customize>
-                        <jvmarg line="${debug-args-line}"/>
-                        <jvmarg value="-Xrunjdwp:transport=${debug-transport},address=${jpda.address}"/>
+                        <jvmarg value="-agentlib:jdwp=transport=${debug-transport},address=${jpda.address}"/>
                         <customizeDebuggee/>
                     </customize>
                 </j2seproject1:java>
@@ -1151,6 +1137,20 @@ is divided into following sections:
         <!-- Empty placeholder for easier customization. -->
         <!-- You can override this target in the ../build.xml file. -->
     </target>
+    <target depends="init,compile" name="-check-module-main-class">
+        <condition property="do.module.main.class">
+            <and>
+                <isset property="main.class.available"/>
+                <available file="${build.classes.dir}/module-info.class"/>
+                <isset property="libs.CopyLibs.classpath"/>
+                <available classname="org.netbeans.modules.java.j2seproject.moduletask.ModuleMainClass" classpath="${libs.CopyLibs.classpath}"/>
+            </and>
+        </condition>
+    </target>
+    <target depends="-check-module-main-class" if="do.module.main.class" name="-set-module-main-class">
+        <taskdef classname="org.netbeans.modules.java.j2seproject.moduletask.ModuleMainClass" classpath="${libs.CopyLibs.classpath}" name="modulemainclass"/>
+        <modulemainclass failonerror="false" mainclass="${main.class}" moduleinfo="${build.classes.dir}/module-info.class"/>
+    </target>
     <target depends="init" if="do.archive" name="-do-jar-create-manifest" unless="manifest.available">
         <tempfile deleteonexit="true" destdir="${build.dir}" property="tmp.manifest.file"/>
         <touch file="${tmp.manifest.file}" verbose="false"/>
@@ -1187,24 +1187,34 @@ is divided into following sections:
         <j2seproject1:jar manifest="${tmp.manifest.file}"/>
         <property location="${build.classes.dir}" name="build.classes.dir.resolved"/>
         <property location="${dist.jar}" name="dist.jar.resolved"/>
+        <condition else="${dist.jar.resolved}" property="jar.usage.message.class.path.replacement" value="">
+            <isset property="named.module.internal"/>
+        </condition>
         <pathconvert property="run.classpath.with.dist.jar">
             <path path="${run.classpath}"/>
-            <map from="${build.classes.dir.resolved}" to="${dist.jar.resolved}"/>
+            <map from="${build.classes.dir.resolved}" to="${jar.usage.message.class.path.replacement}"/>
         </pathconvert>
         <pathconvert property="run.modulepath.with.dist.jar">
+            <path location="${dist.jar.resolved}"/>
             <path path="${run.modulepath}"/>
             <map from="${build.classes.dir.resolved}" to="${dist.jar.resolved}"/>
         </pathconvert>
-        <condition else="" property="jar.usage.message.module.path" value=" --module-path ${run.modulepath.with.dist.jar}">
+        <condition else="${run.modulepath}" property="jar.usage.message.run.modulepath.with.dist.jar" value="${run.modulepath.with.dist.jar}">
+            <isset property="named.module.internal"/>
+        </condition>
+        <condition else="" property="jar.usage.message.module.path" value=" -p ${jar.usage.message.run.modulepath.with.dist.jar}">
             <and>
                 <isset property="modules.supported.internal"/>
-                <length length="0" string="${run.modulepath.with.dist.jar}" when="greater"/>
+                <length length="0" string="${jar.usage.message.run.modulepath.with.dist.jar}" when="greater"/>
             </and>
         </condition>
         <condition else="" property="jar.usage.message.class.path" value=" -cp ${run.classpath.with.dist.jar}">
             <length length="0" string="${run.classpath.with.dist.jar}" when="greater"/>
         </condition>
-        <condition else=" ${main.class}" property="jar.usage.message.main.class" value=" -m ${module.name}/${main.class}">
+        <condition else="/${main.class}" property="jar.usage.message.main.class.class.selector" value="">
+            <isset property="do.module.main.class"/>
+        </condition>
+        <condition else=" ${main.class}" property="jar.usage.message.main.class" value=" -m ${module.name}${jar.usage.message.main.class.class.selector}">
             <isset property="named.module.internal"/>
         </condition>
         <condition else="" property="jar.usage.message" value="To run this application from the command line without Ant, try:${line.separator}${platform.java}${jar.usage.message.module.path}${jar.usage.message.class.path}${jar.usage.message.main.class}">
@@ -1226,7 +1236,7 @@ is divided into following sections:
         <!-- Empty placeholder for easier customization. -->
         <!-- You can override this target in the ../build.xml file. -->
     </target>
-    <target depends="init,compile,-pre-jar,-do-jar-without-libraries,-do-jar-with-libraries,-post-jar" name="-do-jar"/>
+    <target depends="init,compile,-pre-jar,-set-module-main-class,-do-jar-without-libraries,-do-jar-with-libraries,-post-jar" name="-do-jar"/>
     <target depends="init,compile,-pre-jar,-do-jar,-post-jar" description="Build JAR." name="jar"/>
     <!--
                 =================
@@ -1341,8 +1351,7 @@ is divided into following sections:
         </nbprofiledirect>
         <j2seproject3:junit excludes="${excludes}" includes="${includes}" testincludes="${profile.class}" testmethods="">
             <customize>
-                <jvmarg line="${debug-args-line}"/>
-                <jvmarg value="-Xrunjdwp:transport=${debug-transport},address=${jpda.address}"/>
+                <jvmarg value="-agentlib:jdwp=transport=${debug-transport},address=${jpda.address}"/>
                 <env key="${profiler.info.pathvar}" path="${profiler.info.agentpath}:${profiler.current.path}"/>
                 <jvmarg value="${profiler.info.jvmargs.agent}"/>
                 <jvmarg line="${profiler.info.jvmargs}"/>
