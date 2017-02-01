@@ -866,8 +866,10 @@ public class JavaCompiler {
             taskListener.started(e);
         }
 
+        Log.DeferredDiagnosticHandler h = null;
         if (!skipAnnotationProcessing && processAnnotations && deferredDiagnosticHandler == null)
-            deferredDiagnosticHandler = new Log.DeferredDiagnosticHandler(log);
+            deferredDiagnosticHandler = h = new Log.DeferredDiagnosticHandler(log);
+            
 
         // Process module declarations.
         // If module resolution fails, ignore trees, and if trying to
@@ -887,10 +889,6 @@ public class JavaCompiler {
             taskListener.finished(e);
         }
 
-        if (checkEntered(tree)) {
-            toProcessAnnotations = toProcessAnnotations.prepend(tree);
-        }
-
         ClassSymbol sym = symbolGetter.apply(tree);
         if (sym == null || enter.getEnv(sym) == null) {
             boolean isPkgInfo =
@@ -901,23 +899,44 @@ public class JavaCompiler {
                                                  JavaFileObject.Kind.SOURCE);
             if (isModuleInfo) {
                 if (enter.getEnv(tree.modle) == null) {
+                    if (h != null)
+                        log.popDiagnosticHandler(h);
                     JCDiagnostic diag =
                         diagFactory.fragment("file.does.not.contain.module");
                     throw new ClassFinder.BadClassFile(sym, tree.sourcefile, diag, diagFactory);
                 }
             } else if (isPkgInfo) {
                 if (enter.getEnv(tree.packge) == null) {
+                    if (h != null)
+                        log.popDiagnosticHandler(h);
                     JCDiagnostic diag =
                         diagFactory.fragment("file.does.not.contain.package",
                                                  sym.location());
                     throw new ClassFinder.BadClassFile(sym, tree.sourcefile, diag, diagFactory);
                 }
             } else {
+                if (h != null)
+                    log.popDiagnosticHandler(h);
                 JCDiagnostic diag =
                         diagFactory.fragment("file.doesnt.contain.class",
                                             sym.getQualifiedName());
                 throw new ClassFinder.BadClassFile(sym, tree.sourcefile, diag, diagFactory);
             }
+        }
+
+        if (!skipAnnotationProcessing && processAnnotations && checkEntered(tree)) {
+            finder.ap = () -> {
+                if (annotate.annotationsBlocked()) {
+                    toProcessAnnotations = toProcessAnnotations.prepend(tree);
+                } else {
+                    skipAnnotationProcessing = true;
+                    try {
+                        processAnnotations(List.of(tree));
+                    } finally {
+                        skipAnnotationProcessing = false;
+                    }
+                }
+            };
         }
 
         implicitSourceFilesRead = true;
