@@ -1607,24 +1607,29 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     new ElementScanner6<Void, Void>() {
                         @Override
                         public Void visitType(TypeElement e, Void p) {
-                            if (e instanceof ClassSymbol)
-                                ((ClassSymbol) e).flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);                                
-                                return ((Symbol)e).completer.isTerminal() ? super.visitType(e, p) : null;
+                            if (e instanceof ClassSymbol) {
+                                ((ClassSymbol) e).flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
+                                ((ClassSymbol) e).clearAnnotationMetadata();
                             }
+                            return ((Symbol)e).completer.isTerminal() ? super.visitType(e, p) : null;
+                        }
                         @Override
                         public Void visitExecutable(ExecutableElement e, Void p) {
-                            if (e instanceof MethodSymbol)
+                            if (e instanceof MethodSymbol) {
                                 ((MethodSymbol) e).flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
+                                ((MethodSymbol) e).clearAnnotationMetadata();
+                            }
                             return null;
                         }
                         @Override
                         public Void visitVariable(VariableElement e, Void p) {
-                            if (e.getKind().isField() && e instanceof VarSymbol)
+                            if (e.getKind().isField() && e instanceof VarSymbol) {
                                 ((VarSymbol) e).flags_field |= (Flags.APT_CLEANED | Flags.FROMCLASS);
+                                ((VarSymbol) e).clearAnnotationMetadata();
+                            }
                             return null;
                         }
                     }.scan(node.sym);
-                    node.sym.clearAnnotationMetadata();
                     if (chk.getCompiled(node.sym) == node.sym)
                         chk.removeCompiled(node.sym);
                 }

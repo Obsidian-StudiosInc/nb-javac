@@ -926,7 +926,7 @@ public class JavaCompiler {
 
         if (!skipAnnotationProcessing && processAnnotations && checkEntered(tree)) {
             finder.ap = () -> {
-                if (annotate.annotationsBlocked()) {
+                if (annotate.annotationsBlocked() || annotate.isFlushing()) {
                     toProcessAnnotations = toProcessAnnotations.prepend(tree);
                 } else {
                     skipAnnotationProcessing = true;
