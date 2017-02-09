@@ -1638,6 +1638,10 @@ public abstract class Symbol extends AnnoConstruct implements Element {
             return v.visitVarSymbol(this, p);
         }
 
+        public void clearAnnotationMetadata() {
+            metadata = null;
+        }
+
         public void setName(Name name) {
             this.name = name;
         }
@@ -2023,6 +2027,11 @@ public abstract class Symbol extends AnnoConstruct implements Element {
                     return argName;
                 prefix += "$";
             }
+        }
+
+        public void clearAnnotationMetadata() {
+            metadata = null;
+            defaultValue = null;
         }
 
         public Symbol asMemberOf(Type site, Types types) {
