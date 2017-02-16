@@ -401,6 +401,7 @@ public class Modules extends JCTree.Visitor {
                     } else {
                         log.error(tree.pos(), Errors.UnnamedPkgNotAllowedNamedModules);
                         tree.modle = syms.errModule;
+                        tree.modle.completer = sym -> completeModule((ModuleSymbol)sym);
                     }
                 } catch (IOException e) {
                     throw new Error(e); // FIXME

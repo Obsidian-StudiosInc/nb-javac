@@ -1730,6 +1730,9 @@ public class ClassWriter extends ClassFile {
         } else {
             outLocn = CLASS_OUTPUT;
         }
+        if (outLocn == null) {
+            return null;
+        }
         JavaFileObject outFile
             = fileManager.getJavaFileForOutput(outLocn,
                                                name,
