@@ -128,7 +128,7 @@ public class ToolProvider {
     private static <T> T getSystemTool(Class<T> clazz, String moduleName, String className) {
         if (useLegacy) {
             try {
-                return Class.forName(className, true, ClassLoader.getSystemClassLoader()).
+                return Class.forName(className, true, Thread.currentThread().getContextClassLoader()).
                     asSubclass(clazz).getConstructor().newInstance();
             } catch (ReflectiveOperationException e) {
                 throw new Error(e);

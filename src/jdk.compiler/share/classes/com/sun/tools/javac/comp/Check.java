@@ -28,6 +28,7 @@ package com.sun.tools.javac.comp;
 import java.util.*;
 
 import javax.tools.JavaFileManager;
+import javax.lang.model.element.ElementKind;
 
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Attribute.Compound;
@@ -393,8 +394,9 @@ public class Check {
      */
     boolean checkUniqueClassName(DiagnosticPosition pos, Name name, Scope s) {
         for (Symbol sym : s.getSymbolsByName(name, NON_RECURSIVE)) {
-            if (sym.kind == TYP && sym.name != names.error) {
-                duplicateError(pos, sym);
+            if (sym.kind == TYP) {
+                if (sym.name != names.error)
+                    duplicateError(pos, sym);
                 return false;
             }
         }
@@ -433,6 +435,14 @@ public class Check {
                 return flatname;
             }
         }
+    }
+
+    Name localClassName (final ClassSymbol enclClass, final Name name, final int index) {
+        Name flatname = names.
+            fromString("" + enclClass.flatname +
+                       syntheticNameChar + index +
+                       name);
+        return flatname;
     }
 
     void clearLocalClassNameIndexes(ClassSymbol c) {
@@ -574,7 +584,7 @@ public class Check {
             return req;
         if (req.hasTag(NONE))
             return found;
-        if (checkContext.compatible(found, req, checkContext.checkWarner(pos, found, req))) {
+        if (found == null || checkContext.compatible(found, req, checkContext.checkWarner(pos, found, req))) {
             return found;
         } else {
             if (found.isNumeric() && req.isNumeric()) {
@@ -964,7 +974,7 @@ public class Check {
         List<JCExpression> args = argtrees;
         if (args != null) {
             //this is null when type-checking a method reference
-            while (formals.head != last) {
+            while (formals.head != last && args.head != null) {
                 JCTree arg = args.head;
                 Warner warn = convertWarner(arg.pos(), arg.type, nonInferred.head);
                 assertConvertible(arg, arg.type, formals.head, warn);
@@ -1008,6 +1018,9 @@ public class Check {
     }
     //where
     private void assertConvertible(JCTree tree, Type actual, Type formal, Warner warn) {
+        if (actual == null || formal == null)
+            return;
+        
         if (types.isConvertible(actual, formal, warn))
             return;
 
@@ -1129,7 +1142,7 @@ public class Check {
         case VAR:
             if (TreeInfo.isReceiverParam(tree))
                 mask = ReceiverParamFlags;
-            else if (sym.owner.kind != TYP)
+            else if (sym.owner.kind != TYP && sym.owner.kind != ERR)
                 mask = LocalVarFlags;
             else if ((sym.owner.flags_field & INTERFACE) != 0)
                 mask = implicit = InterfaceVarFlags;
@@ -1168,12 +1181,13 @@ public class Check {
                 implicit |= sym.owner.flags_field & STRICTFP;
             break;
         case TYP:
+        case ERR:
             if (sym.isLocal()) {
                 mask = LocalClassFlags;
                 if ((sym.owner.flags_field & STATIC) == 0 &&
                     (flags & ENUM) != 0)
                     log.error(pos, "enums.must.be.static");
-            } else if (sym.owner.kind == TYP) {
+            } else if (sym.owner.kind == TYP || sym.owner.kind == ERR) {
                 mask = MemberClassFlags;
                 if (sym.owner.owner.kind == PCK ||
                     (sym.owner.flags_field & STATIC) != 0)
@@ -1215,33 +1229,46 @@ public class Check {
                   // in the presence of inner classes. Should it be deleted here?
                   checkDisjoint(pos, flags,
                                 ABSTRACT,
-                                PRIVATE | STATIC | DEFAULT))
-                 &&
-                 checkDisjoint(pos, flags,
-                                STATIC | PRIVATE,
-                                DEFAULT)
-                 &&
-                 checkDisjoint(pos, flags,
-                               ABSTRACT | INTERFACE,
-                               FINAL | NATIVE | SYNCHRONIZED)
-                 &&
-                 checkDisjoint(pos, flags,
-                               PUBLIC,
-                               PRIVATE | PROTECTED)
-                 &&
-                 checkDisjoint(pos, flags,
-                               PRIVATE,
-                               PUBLIC | PROTECTED)
-                 &&
-                 checkDisjoint(pos, flags,
-                               FINAL,
-                               VOLATILE)
-                 &&
-                 (sym.kind == TYP ||
-                  checkDisjoint(pos, flags,
-                                ABSTRACT | NATIVE,
-                                STRICTFP))) {
-            // skip
+                                PRIVATE | STATIC | DEFAULT))) {
+            if (checkDisjoint(pos, flags,
+                               STATIC | PRIVATE,
+                               DEFAULT)) {
+                if (checkDisjoint(pos, flags,
+                                    ABSTRACT | INTERFACE,
+                                    FINAL | NATIVE | SYNCHRONIZED)) {
+                    if (checkDisjoint(pos, flags,
+                                        PUBLIC,
+                                        PRIVATE | PROTECTED)) {
+                        if (checkDisjoint(pos, flags,
+                                            PRIVATE,
+                                            PUBLIC | PROTECTED)) {
+                            if (checkDisjoint(pos, flags,
+                                                FINAL,
+                                                VOLATILE)) {
+                                if ((sym.kind == TYP ||
+                                        checkDisjoint(pos, flags,
+                                                    ABSTRACT | NATIVE,
+                                                    STRICTFP))) {
+                                } else {
+                                    flags &= ~STRICTFP;
+                                }
+                            } else {
+                                flags &= ~VOLATILE;
+                            }
+                        } else {
+                            flags &= ~(PUBLIC | PROTECTED);
+                        }
+                    } else {
+                        flags &= ~(PRIVATE | PROTECTED);
+                    }
+                } else {
+                    flags &= ~(FINAL | NATIVE | SYNCHRONIZED);
+                }
+            } else {
+                flags &= ~DEFAULT;
+            }
+        } else {
+            flags &= ~(PRIVATE | STATIC | DEFAULT);
         }
         return flags & (mask | ~ExtendedStandardFlags) | implicit;
     }
@@ -1338,7 +1365,7 @@ public class Check {
 
         @Override
         public void visitTypeApply(JCTypeApply tree) {
-            if (tree.type.hasTag(CLASS)) {
+            if (tree.type != null && tree.type.hasTag(CLASS)) {
                 List<JCExpression> args = tree.arguments;
                 List<Type> forms = tree.type.tsym.type.getTypeArguments();
 
@@ -1482,6 +1509,8 @@ public class Check {
     /** Is given type a subtype of some of the types in given list?
      */
     boolean subset(Type t, List<Type> ts) {
+        if (t == null)
+            return false;
         for (List<Type> l = ts; l.nonEmpty(); l = l.tail)
             if (types.isSubtype(t, l.head)) return true;
         return false;
@@ -1491,6 +1520,8 @@ public class Check {
      *  some of the types in given list?
      */
     boolean intersects(Type t, List<Type> ts) {
+        if (t == null)
+            return false;
         for (List<Type> l = ts; l.nonEmpty(); l = l.tail)
             if (types.isSubtype(t, l.head) || types.isSubtype(l.head, t)) return true;
         return false;
@@ -1500,13 +1531,13 @@ public class Check {
      *  in the list.
      */
     List<Type> incl(Type t, List<Type> ts) {
-        return subset(t, ts) ? ts : excl(t, ts).prepend(t);
+        return (t == null || subset(t, ts)) ? ts : excl(t, ts).prepend(t);
     }
 
     /** Remove type set from type set list.
      */
     List<Type> excl(Type t, List<Type> ts) {
-        if (ts.isEmpty()) {
+        if (t == null || ts.isEmpty()) {
             return ts;
         } else {
             List<Type> ts1 = excl(t, ts.tail);
@@ -1558,9 +1589,10 @@ public class Check {
      */
     boolean isUnchecked(Type exc) {
         return
+            (exc == null) ? true :
             (exc.hasTag(TYPEVAR)) ? isUnchecked(types.supertype(exc)) :
             (exc.hasTag(CLASS)) ? isUnchecked((ClassSymbol)exc.tsym) :
-            exc.hasTag(BOT);
+            exc.hasTag(BOT) || exc.hasTag(ERROR);
     }
 
     /** Same, but handling completion failures.
@@ -1752,7 +1784,7 @@ public class Check {
             }
             return;
         } else if (overrideWarner.hasNonSilentLint(LintCategory.UNCHECKED)) {
-            warnUnchecked(TreeInfo.diagnosticPositionFor(m, tree),
+            warnDeferredUnchecked(TreeInfo.diagnosticPositionFor(m, tree),
                     "override.unchecked.ret",
                     uncheckedOverrides(m, other),
                     mtres, otres);
@@ -1772,7 +1804,7 @@ public class Check {
             return;
         }
         else if (unhandledUnerased.nonEmpty()) {
-            warnUnchecked(TreeInfo.diagnosticPositionFor(m, tree),
+            warnDeferredUnchecked(TreeInfo.diagnosticPositionFor(m, tree),
                           "override.unchecked.thrown",
                          cannotOverride(m, other),
                          unhandledUnerased.head);
@@ -1806,6 +1838,20 @@ public class Check {
         }
     }
     // where
+        private void warnDeferredUnchecked(final DiagnosticPosition pos, final String msg, final Object... args) {
+            DiagnosticPosition prevPos = deferredLintHandler.setPos(pos);
+            try {
+                deferredLintHandler.report(new DeferredLintHandler.LintLogger() {
+                    @Override
+                    public void report() {
+                        warnUnchecked(pos, msg, args);
+                    }
+                });
+            } finally {
+                deferredLintHandler.setPos(prevPos);
+            }
+        }
+
         private boolean isDeprecatedOverrideIgnorable(MethodSymbol m, ClassSymbol origin) {
             // If the method, m, is defined in an interface, then ignore the issue if the method
             // is only inherited via a supertype and also implemented in the supertype,
@@ -2071,7 +2117,8 @@ public class Check {
          * equivalent with Object.equals(Object) but in any case the condition is
          * fine for completeness.
          */
-        if (someClass == (ClassSymbol)syms.objectType.tsym ||
+        if (syms.objectType.isErroneous() ||
+            someClass == (ClassSymbol)syms.objectType.tsym ||
             someClass.isInterface() || someClass.isEnum() ||
             (someClass.flags() & ANNOTATION) != 0 ||
             (someClass.flags() & ABSTRACT) != 0) return;
@@ -2091,10 +2138,12 @@ public class Check {
                     .tsym.members().findFirst(names.equals);
             MethodSymbol hashCodeAtObject = (MethodSymbol)syms.objectType
                     .tsym.members().findFirst(names.hashCode);
-            boolean overridesEquals = types.implementation(equalsAtObject,
-                someClass, false, equalsHasCodeFilter).owner == someClass;
-            boolean overridesHashCode = types.implementation(hashCodeAtObject,
-                someClass, false, equalsHasCodeFilter) != hashCodeAtObject;
+            MethodSymbol equalsImpl = types.implementation(equalsAtObject,
+                    someClass, false, equalsHasCodeFilter);
+            boolean overridesEquals = equalsImpl != null && equalsImpl.owner == someClass;
+            MethodSymbol hasCodeImpl = types.implementation(hashCodeAtObject,
+                    someClass, false, equalsHasCodeFilter);
+            boolean overridesHashCode = hasCodeImpl != null && hasCodeImpl != hashCodeAtObject;
 
             if (overridesEquals && !overridesHashCode) {
                 log.warning(LintCategory.OVERRIDES, pos,
@@ -2128,6 +2177,9 @@ public class Check {
      *  @param c            The class.
      */
     void checkAllDefined(DiagnosticPosition pos, ClassSymbol c) {
+        if (c.type == null || c.type.isErroneous()) {
+            return ;
+        }
         MethodSymbol undef = types.firstUnimplementedAbstract(c);
         if (undef != null) {
             MethodSymbol undef1 =
@@ -2209,7 +2261,7 @@ public class Check {
         }
 
         void checkClass(DiagnosticPosition pos, Symbol c, List<JCTree> supertypes) {
-            if ((c.flags_field & ACYCLIC) != 0)
+            if (c == null || (c.flags_field & ACYCLIC) != 0)
                 return;
             if (seenClasses.contains(c)) {
                 errorFound = true;
@@ -2342,6 +2394,13 @@ public class Check {
          */
         void checkImplementations(JCTree tree, ClassSymbol origin, ClassSymbol ic) {
             for (List<Type> l = types.closure(ic.type); l.nonEmpty(); l = l.tail) {
+                ElementKind kind = l.head.tsym.getKind();
+
+                if (!kind.isClass() && !kind.isInterface()) {
+                    //not a class: an error should have already been reported, ignore.
+                    continue;
+                }
+
                 ClassSymbol lc = (ClassSymbol)l.head.tsym;
                 if ((lc.flags() & ABSTRACT) != 0) {
                     for (Symbol sym : lc.members().getSymbols(NON_RECURSIVE)) {
@@ -2389,7 +2448,8 @@ public class Check {
     }
 
     void checkConflicts(DiagnosticPosition pos, Symbol sym, TypeSymbol c) {
-        for (Type ct = c.type; ct != Type.noType ; ct = types.supertype(ct)) {
+        Type previous = null;
+        for (Type ct = c.type; ct != Type.noType && ct != previous; previous = ct, ct = types.supertype(ct)) {
             for (Symbol sym2 : ct.tsym.members().getSymbolsByName(sym.name, NON_RECURSIVE)) {
                 // VM allows methods and variables with differing types
                 if (sym.kind == sym2.kind &&
@@ -2412,6 +2472,8 @@ public class Check {
      *  @param sym  The method symbol to be checked.
      */
     void checkOverrideClashes(DiagnosticPosition pos, Type site, MethodSymbol sym) {
+        if (site == null || site.isErroneous() || sym.type.isErroneous())
+            return;
          ClashFilter cf = new ClashFilter(site);
         //for each method m1 that is overridden (directly or indirectly)
         //by method 'sym' in 'site'...
@@ -2471,6 +2533,8 @@ public class Check {
      *  @param sym  The method symbol to be checked.
      */
     void checkHideClashes(DiagnosticPosition pos, Type site, MethodSymbol sym) {
+        if (site == null || site.isErroneous())
+            return;
         ClashFilter cf = new ClashFilter(site);
         //for each method m1 that is a member of 'site'...
         for (Symbol s : types.membersClosure(site, true).getSymbolsByName(sym.name, cf)) {
@@ -2514,6 +2578,9 @@ public class Check {
      }
 
     void checkDefaultMethodClashes(DiagnosticPosition pos, Type site) {
+        if (site == null || site.isErroneous()) {
+            return;
+        }
         DefaultMethodClashFilter dcf = new DefaultMethodClashFilter(site);
         for (Symbol m : types.membersClosure(site, false).getSymbols(dcf)) {
             Assert.check(m.kind == MTH);
@@ -2745,7 +2812,7 @@ public class Check {
         class AnnotationValidator extends TreeScanner {
             @Override
             public void visitAnnotation(JCAnnotation tree) {
-                if (!tree.type.isErroneous()) {
+                if (tree.type != null && !tree.type.isErroneous()) {
                     super.visitAnnotation(tree);
                     validateAnnotation(tree);
                 }
@@ -3188,7 +3255,7 @@ public class Check {
         List<Name> missingDefaults = List.nil();
         Set<MethodSymbol> membersWithDefault = metadata.getAnnotationElementsWithDefault();
         for (MethodSymbol m : elements) {
-            if (m.type.isErroneous())
+            if (m.type.isErroneous() || m.name == m.name.table.names.clinit)
                 continue;
 
             if (!membersWithDefault.contains(m))
@@ -3285,7 +3352,9 @@ public class Check {
             for (JCTree def : tree.defs) {
                 if (!def.hasTag(METHODDEF)) continue;
                 JCMethodDecl meth = (JCMethodDecl)def;
-                checkAnnotationResType(meth.pos(), meth.restype.type);
+                if (meth.restype != null) {
+                    checkAnnotationResType(meth.pos(), meth.restype.type);
+                }
             }
         } finally {
             tree.sym.flags_field &= ~LOCKED;
@@ -3344,7 +3413,7 @@ public class Check {
             JCMethodDecl meth = (JCMethodDecl) l.head;
             if (TreeInfo.name(app.meth) == names._this) {
                 callMap.put(meth.sym, TreeInfo.symbol(app.meth));
-            } else {
+            } else if (meth.sym != null) {
                 meth.sym.flags_field |= ACYCLIC;
             }
         }
@@ -3412,7 +3481,7 @@ public class Check {
      *  @param s             The scope.
      */
     boolean checkUnique(DiagnosticPosition pos, Symbol sym, Scope s) {
-        if (sym.type.isErroneous())
+        if (sym.type != null && sym.type.isErroneous())
             return true;
         if (sym.owner.name == names.any) return false;
         for (Symbol byName : s.getSymbolsByName(sym.name, NON_RECURSIVE)) {
@@ -3629,7 +3698,8 @@ public class Check {
     // Check that packages imported are in scope (JLS 7.4.3, 6.3, 6.5.3.1, 6.5.3.2)
     public void checkImportedPackagesObservable(final JCCompilationUnit toplevel) {
         OUTER: for (JCImport imp : toplevel.getImports()) {
-            if (!imp.staticImport && TreeInfo.name(imp.qualid) == names.asterisk) {
+            if (!imp.staticImport && TreeInfo.name(imp.qualid) == names.asterisk
+                    && ((JCFieldAccess)imp.qualid).selected.type != null) {
                 TypeSymbol tsym = ((JCFieldAccess)imp.qualid).selected.type.tsym;
                 if (toplevel.modle.visiblePackages != null) {
                     //TODO - unclear: selects like javax.* will get resolved from the current module

@@ -43,7 +43,7 @@ public class SharedNameTable extends Name.Table {
     // maintain a freelist of recently used name tables for reuse.
     private static List<SoftReference<SharedNameTable>> freelist = List.nil();
 
-    static public synchronized SharedNameTable create(Names names) {
+    static public synchronized SharedNameTable create(Names names, Context context) {
         while (freelist.nonEmpty()) {
             SharedNameTable t = freelist.head.get();
             freelist = freelist.tail;
@@ -51,7 +51,7 @@ public class SharedNameTable extends Name.Table {
                 return t;
             }
         }
-        return new SharedNameTable(names);
+        return new SharedNameTable(names, context);
     }
 
     static private synchronized void dispose(SharedNameTable t) {
@@ -80,16 +80,16 @@ public class SharedNameTable extends Name.Table {
      *                  needs to be a power of two.
      *  @param nameSize the initial size of the name table.
      */
-    public SharedNameTable(Names names, int hashSize, int nameSize) {
-        super(names);
+    public SharedNameTable(Names names, Context context, int hashSize, int nameSize) {
+        super(names, context);
         hashMask = hashSize - 1;
         hashes = new NameImpl[hashSize];
         bytes = new byte[nameSize];
 
     }
 
-    public SharedNameTable(Names names) {
-        this(names, 0x8000, 0x20000);
+    public SharedNameTable(Names names, Context context) {
+        this(names, context, 0x8000, 0x20000);
     }
 
     @Override

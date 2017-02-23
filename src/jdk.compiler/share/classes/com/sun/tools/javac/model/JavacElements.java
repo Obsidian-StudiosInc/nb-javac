@@ -92,6 +92,7 @@ public class JavacElements implements Elements {
     private final JavacTaskImpl javacTaskImpl;
     private final Log log;
     private final boolean allowModules;
+    private final LazyTreeLoader loader;
 
     public static JavacElements instance(Context context) {
         JavacElements instance = context.get(JavacElements.class);
@@ -114,6 +115,7 @@ public class JavacElements implements Elements {
         log = Log.instance(context);
         Source source = Source.instance(context);
         allowModules = source.allowModules();
+        loader = LazyTreeLoader.instance(context);
     }
 
     @Override @DefinedBy(Api.LANGUAGE_MODEL)
@@ -211,6 +213,54 @@ public class JavacElements implements Elements {
             //not found, or more than one element found:
             return null;
         }
+    }
+
+
+    public ClassSymbol getTypeElementByBinaryName (final CharSequence binaryName) {
+        ensureEntered("getTypeElementByBinaryName");
+        return getTypeElementByBinaryName(modules.getDefaultModule(), binaryName);
+    }
+    
+    public ClassSymbol getTypeElementByBinaryName (
+            final ModuleElement module,
+            final CharSequence binaryName) {
+        final String strName = binaryName instanceof String ? (String) binaryName : binaryName.toString();
+        int index = strName.lastIndexOf('.');    //NOI18N
+        do {
+            index = strName.indexOf('$', index+1);   //NOI18N
+            final String owner = index < 0 ? strName : strName.substring(0,index);
+            if (SourceVersion.isName(owner)) {
+                ClassSymbol clz = binaryNameToClassSymbol((ModuleSymbol)module, strName, owner);
+                if (clz != null) {
+                    return clz;
+                }
+            }
+        } while (index >= 0);
+        return null;
+    }
+
+    private ClassSymbol binaryNameToClassSymbol (
+            final ModuleSymbol module,
+            final String binaryName,
+            final String owner) {
+        final Name name = names.fromString(binaryName);
+        ClassSymbol sym = syms.getClass(module, name);  //TODO: hardcoded default module reference
+        try {
+            if (sym == null) {
+                Symbol ownerSym = javaCompiler.resolveIdent(syms.lookupPackage(module, Convert.packagePart(names.fromString(owner))).modle, owner);
+                sym = syms.getClass(ownerSym.packge().modle, name);
+            }
+
+            if (sym != null) {
+                sym.complete();
+                return (sym.exists() &&
+                    name.equals(sym.flatName()))
+                    ? sym
+                    : null;
+            }
+        } catch (CompletionFailure e) {
+        }
+        return null;
     }
 
     /**
@@ -512,6 +562,13 @@ public class JavacElements implements Elements {
         private void addMembers(WriteableScope scope, Type type) {
             members:
             for (Symbol e : type.asElement().members().getSymbols(NON_RECURSIVE)) {
+                ElementKind kind = e.getKind();
+                boolean isAbstract = (e.flags() & Flags.ABSTRACT) != 0;
+                if (kind == ElementKind.METHOD && isAbstract) {
+                    MethodSymbol impl = ((MethodSymbol)e).implementation((TypeSymbol)scope.owner, types, false);
+                    if (impl != null && impl != e)
+                        continue members;
+                }
                 for (Symbol overrider : scope.getSymbolsByName(e.getSimpleName())) {
                     if (overrider.kind == e.kind && (overrider.flags() & Flags.SYNTHETIC) == 0) {
                         if (overrider.getKind() == ElementKind.METHOD &&
@@ -521,7 +578,6 @@ public class JavacElements implements Elements {
                     }
                 }
                 boolean derived = e.getEnclosingElement() != scope.owner;
-                ElementKind kind = e.getKind();
                 boolean initializer = kind == ElementKind.CONSTRUCTOR
                     || kind == ElementKind.INSTANCE_INIT
                     || kind == ElementKind.STATIC_INIT;
@@ -682,8 +738,13 @@ public class JavacElements implements Elements {
     private Pair<JCTree, JCCompilationUnit> getTreeAndTopLevel(Element e) {
         Symbol sym = cast(Symbol.class, e);
         Env<AttrContext> enterEnv = getEnterEnv(sym);
-        if (enterEnv == null)
-            return null;
+        if (enterEnv == null) {
+            if (!loader.loadTreeFor(sym.enclClass(), false))
+                return null;
+            enterEnv = getEnterEnv(sym);
+            if (enterEnv == null)
+                return null;
+        }
         JCTree tree = TreeInfo.declarationFor(sym, enterEnv.tree);
         if (tree == null || enterEnv.toplevel == null)
             return null;

@@ -142,7 +142,7 @@ public class JShell implements AutoCloseable {
         this.maps = new SnippetMaps(this);
         this.keyMap = new KeyMap(this);
         this.outerMap = new OuterWrapMap(this);
-        this.taskFactory = new TaskFactory(this);
+        this.taskFactory = new TaskFactory(this, b.jfm);
         this.eval = new Eval(this);
         this.classTracker = new ClassTracker();
     }
@@ -178,6 +178,7 @@ public class JShell implements AutoCloseable {
         Map<String,String> executionControlParameters;
         String executionControlSpec;
         Function<StandardJavaFileManager, StandardJavaFileManager> fileManagerMapping;
+        StandardJavaFileManager   jfm;
 
         Builder() { }
 
@@ -403,6 +404,11 @@ public class JShell implements AutoCloseable {
          */
         public JShell build() throws IllegalStateException {
             return new JShell(this);
+        }
+        
+        public Builder fileManager(StandardJavaFileManager fm) {
+            this.jfm = fm;
+            return this;
         }
     }
 

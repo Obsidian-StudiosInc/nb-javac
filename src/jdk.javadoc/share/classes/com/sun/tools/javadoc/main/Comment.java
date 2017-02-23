@@ -366,7 +366,8 @@ class Comment {
                     //Found closing '}' character.
                     if (linkName.equals("see")
                            || linkName.equals("link")
-                           || linkName.equals("linkplain")) {
+                           || linkName.equals("linkplain")
+                           || linkName.equals("value")) {
                         taglist.append( new SeeTagImpl(holder, "@" + linkName,
                               inlinetext.substring(textstart, delimend)));
                     } else {

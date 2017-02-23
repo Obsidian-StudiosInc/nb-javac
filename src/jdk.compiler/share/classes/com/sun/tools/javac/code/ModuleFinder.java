@@ -57,6 +57,7 @@ import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
 
 import static com.sun.tools.javac.code.Kinds.Kind.*;
+import com.sun.tools.javac.util.Position;
 
 /**
  *  This class provides operations to locate module definitions
@@ -211,7 +212,9 @@ public class ModuleFinder {
                                 inFindSingleModule = true;
                                 // Note: the following will trigger a re-entrant call to Modules.enter
                                 msym = sourceFileCompleter.complete(fo);
-                                msym.module_info.classfile = fo;
+                                if (msym.module_info != null) {
+                                    msym.module_info.classfile = fo;
+                                }
                             } finally {
                                 inFindSingleModule = false;
                             }
@@ -375,7 +378,17 @@ public class ModuleFinder {
                 msym.module_info.completer = new Symbol.Completer() {
                     @Override
                     public void complete(Symbol sym) throws CompletionFailure {
-                        classFinder.fillIn(msym.module_info);
+                        try {
+                            classFinder.fillIn(msym.module_info);
+                        } catch (Exception ex) {
+                            msym.kind = ERR;
+                            //make sure the module is initialized:
+                            msym.directives = List.nil();
+                            msym.exports = List.nil();
+                            msym.provides = List.nil();
+                            msym.requires = List.nil();
+                            msym.uses = List.nil();
+                        }
                     }
                     @Override
                     public String toString() {

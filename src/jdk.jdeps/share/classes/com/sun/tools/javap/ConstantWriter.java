@@ -253,7 +253,7 @@ public class ConstantWriter extends BasicWriter {
         }
     }
 
-    String stringValue(int constant_pool_index) {
+    public String stringValue(int constant_pool_index) {
         ClassFile classFile = classWriter.getClassFile();
         try {
             return stringValue(classFile.constant_pool.get(constant_pool_index));

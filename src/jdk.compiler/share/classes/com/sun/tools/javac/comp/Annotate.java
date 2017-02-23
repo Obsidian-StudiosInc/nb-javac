@@ -201,7 +201,7 @@ public class Annotate {
     private ListBuffer<Runnable> validateQ = new ListBuffer<>();
 
     private int flushCount = 0;
-    private boolean isFlushing() { return flushCount > 0; }
+    public boolean isFlushing() { return flushCount > 0; }
     private void startFlushing() { flushCount++; }
     private void doneFlushing() { flushCount--; }
 
@@ -464,7 +464,7 @@ public class Annotate {
         boolean elidedValue = false;
         // special case: elided "value=" assumed
         if (args.length() == 1 && !args.head.hasTag(ASSIGN)) {
-            args.head = make.at(args.head.pos).
+            args.head = make.at(Position.NOPOS).
                     Assign(make.Ident(names.value), args.head);
             elidedValue = true;
         }
@@ -1087,6 +1087,11 @@ public class Annotate {
             scan(tree.args);
             // the anonymous class instantiation if any will be visited separately.
         }
+
+        @Override
+        public void visitErroneous(JCErroneous tree) {
+            scan(tree.errs);
+        }
     }
 
     /*********************
@@ -1194,6 +1199,11 @@ public class Annotate {
             } else if (t == tab.repeatableType) {
                 repeatable = Annotate.this.attributeAnnotation(tree, tab.repeatableType, env);
             }
+        }
+
+        @Override
+        public void visitErroneous(JCErroneous tree) {
+            scan(tree.errs);
         }
     }
 
