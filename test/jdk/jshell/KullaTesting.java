@@ -28,6 +28,10 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.io.StringWriter;
 import java.lang.reflect.Method;
+import java.lang.module.Configuration;
+import java.lang.module.ModuleFinder;
+import java.lang.reflect.Layer;
+import java.nio.file.Paths;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -95,7 +99,6 @@ public class KullaTesting {
 
     private Map<String, Snippet> idToSnippet = new LinkedHashMap<>();
     private Set<Snippet> allSnippets = new LinkedHashSet<>();
-    private List<String> classpath;
 
     static {
         JShell js = JShell.create();
@@ -155,7 +158,6 @@ public class KullaTesting {
     }
 
     public void addToClasspath(String path) {
-        classpath.add(path);
         getState().addToClasspath(path);
     }
 
@@ -196,7 +198,6 @@ public class KullaTesting {
         state = builder.build();
         allSnippets = new LinkedHashSet<>();
         idToSnippet = new LinkedHashMap<>();
-        classpath = new ArrayList<>();
     }
 
     @AfterMethod
@@ -206,7 +207,19 @@ public class KullaTesting {
         analysis = null;
         allSnippets = null;
         idToSnippet = null;
-        classpath = null;
+    }
+
+    public ClassLoader createAndRunFromModule(String moduleName, Path modPath) {
+        ModuleFinder finder = ModuleFinder.of(modPath);
+        Layer parent = Layer.boot();
+        Configuration cf = parent.configuration()
+                .resolve(finder, ModuleFinder.of(), Set.of(moduleName));
+        ClassLoader scl = ClassLoader.getSystemClassLoader();
+        Layer layer = parent.defineModulesWithOneLoader(cf, scl);
+        ClassLoader loader = layer.findLoader(moduleName);
+        ClassLoader ccl = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(loader);
+        return ccl;
     }
 
     public List<String> assertUnresolvedDependencies(DeclarationSnippet key, int unresolvedSize) {

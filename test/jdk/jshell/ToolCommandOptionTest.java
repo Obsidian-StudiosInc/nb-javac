@@ -23,7 +23,7 @@
 
  /*
  * @test
- * @bug 8157395 8157393 8157517 8158738 8167128 8163840 8167637 8170368
+ * @bug 8157395 8157393 8157517 8158738 8167128 8163840 8167637 8170368 8172102 8172179
  * @summary Tests of jshell comand options, and undoing operations
  * @modules jdk.jshell/jdk.internal.jshell.tool
  *          jdk.compiler/com.sun.tools.javac.api
@@ -46,9 +46,9 @@ public class ToolCommandOptionTest extends ReplToolTesting {
                 (a) -> assertCommand(a, "/li",
                         "1 : int x;"),
                 (a) -> assertCommandOutputStartsWith(a, "/lis -st",
-                        "\n  s1 : import"),
+                        "s1 : import"),
                 (a) -> assertCommandOutputStartsWith(a, "/list -all",
-                        "\n  s1 : import"),
+                        "s1 : import"),
                 (a) -> assertCommandOutputContains(a, "/list -all",
                         "1 : int x;"),
                 (a) -> assertCommandOutputContains(a, "/list -history",
@@ -260,17 +260,26 @@ public class ToolCommandOptionTest extends ReplToolTesting {
                         "|  Specify no more than one of -default, -none, or a startup file name -- /set start foo -default"),
                 (a) -> assertCommand(a, "/set start frfg",
                         "|  File 'frfg' for '/set start' is not found."),
+                (a) -> assertCommand(a, "/set start DEFAULT frfg",
+                        "|  File 'frfg' for '/set start' is not found."),
                 (a) -> assertCommand(a, "/set start -default",
                         ""),
                 (a) -> assertCommand(a, "/set start",
                         "|  /set start -default"),
-                (a) -> assertCommand(a, "/set start " + startup.toString(),
+                (a) -> assertCommand(a, "/set start DEFAULT",
                         ""),
                 (a) -> assertCommand(a, "/set start",
-                        "|  startup.jsh:\n" +
-                        "|  int iAmHere = 1234;\n" +
-                        "|  \n" +
-                        "|  /set start startup.jsh"),
+                        "|  /set start -default"),
+                (a) -> assertCommand(a, "/set start DEFAULT PRINTING",
+                        ""),
+                (a) -> assertCommandOutputContains(a, "/set start",
+                        "/set start DEFAULT PRINTING", "void println", "import java.util.*"),
+                (a) -> assertCommand(a, "/set start " + startup.toString(),
+                        ""),
+                (a) -> assertCommandOutputContains(a, "/set start",
+                        "|  /set start " + startup + "\n" +
+                        "|  ---- " + startup + " @ ", " ----\n" +
+                        "|  int iAmHere = 1234;\n"),
                 (a) -> assertCommand(a, "/se sta -no",
                         ""),
                 (a) -> assertCommand(a, "/set start",
@@ -312,11 +321,18 @@ public class ToolCommandOptionTest extends ReplToolTesting {
                         "|  /set start -retain -none"),
                 (a) -> assertCommand(a, "/set start -retain " + startup.toString(),
                         ""),
-                (a) -> assertCommand(a, "/set start",
-                        "|  startup.jsh:\n" +
-                        "|  int iAmHere = 1234;\n" +
-                        "|  \n" +
-                        "|  /set start -retain startup.jsh")
+                (a) -> assertCommand(a, "/set start DEFAULT PRINTING",
+                        ""),
+                (a) -> assertCommandOutputStartsWith(a, "/set start",
+                        "|  /set start -retain " + startup.toString() + "\n" +
+                        "|  /set start DEFAULT PRINTING\n" +
+                        "|  ---- " + startup.toString() + " @ "),
+                (a) -> assertCommandOutputContains(a, "/set start",
+                        "|  ---- DEFAULT ----\n",
+                        "|  ---- PRINTING ----\n",
+                        "|  int iAmHere = 1234;\n",
+                        "|  void println(String s)",
+                        "|  import java.io.*;")
         );
     }
 

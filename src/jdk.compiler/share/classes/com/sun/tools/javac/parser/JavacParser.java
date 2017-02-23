@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,6 +70,10 @@ public class JavacParser implements Parser {
      */
     private static final int infixPrecedenceLevels = 10;
 
+    /** Is the parser instantiated to parse a module-info file ?
+     */
+    private final boolean parseModuleInfo;
+
     /** The scanner used for lexical analysis.
      */
     protected Lexer S;
@@ -138,10 +142,21 @@ public class JavacParser implements Parser {
     /** Construct a parser from a given scanner, tree factory and log.
      */
     protected JavacParser(ParserFactory fac,
+                          Lexer S,
+                          boolean keepDocComments,
+                          boolean keepLineMap,
+                          boolean keepEndPositions) {
+        this(fac, S, keepDocComments, keepLineMap, keepEndPositions, false);
+
+    }
+    /** Construct a parser from a given scanner, tree factory and log.
+     */
+    protected JavacParser(ParserFactory fac,
                      Lexer S,
                      boolean keepDocComments,
                      boolean keepLineMap,
-                     boolean keepEndPositions) {
+                     boolean keepEndPositions,
+                     boolean parseModuleInfo) {
         this.S = S;
         nextToken(); // prime the pump
         this.F = fac.F;
@@ -165,6 +180,7 @@ public class JavacParser implements Parser {
         this.allowUnderscoreIdentifier = source.allowUnderscoreIdentifier();
         this.allowPrivateInterfaceMethods = source.allowPrivateInterfaceMethods();
         this.keepDocComments = keepDocComments;
+        this.parseModuleInfo = parseModuleInfo;
         this.keepLineMap = keepLineMap;
         this.errorTree = F.Erroneous();
         endPosTable = newEndPosTable(keepEndPositions);
@@ -591,7 +607,7 @@ public class JavacParser implements Parser {
     /**
      * Ident = IDENTIFIER
      */
-    protected Name ident() {
+    public Name ident() {
         return ident(false);
     }
 
@@ -642,13 +658,9 @@ public class JavacParser implements Parser {
      * Qualident = Ident { DOT [Annotations] Ident }
      */
     public JCExpression qualident(boolean allowAnnos) {
-        return qualident(allowAnnos, false);
-    }
-
-    public JCExpression qualident(boolean allowAnnos, boolean isModuleInfo) {
         int pos = token.pos;
         Name name;
-        if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(LPAREN)) {
+        if (parseModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(LPAREN)) {
             // Error recovery
             reportSyntaxError(token.pos, "expected", IDENTIFIER);
             name = names.error;
@@ -663,7 +675,7 @@ public class JavacParser implements Parser {
             if (allowAnnos) {
                 tyannos = typeAnnotationsOpt();
             }
-            if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(LPAREN)) {
+            if (parseModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(LPAREN)) {
                 // Error recovery
                 reportSyntaxError(token.pos, "expected", IDENTIFIER);
                 name = names.error;
@@ -2857,9 +2869,6 @@ public class JavacParser implements Parser {
         return modifiersOpt(null);
     }
     protected JCModifiers modifiersOpt(JCModifiers partial) {
-        return modifiersOpt(partial, false);
-    }
-    protected JCModifiers modifiersOpt(JCModifiers partial, boolean isModuleInfo) {
         long flags;
         ListBuffer<JCAnnotation> annotations = new ListBuffer<>();
         if (typeAnnotationsPushedBack.nonEmpty()) {
@@ -2903,7 +2912,7 @@ public class JavacParser implements Parser {
             nextToken();
             if (flag == Flags.ANNOTATION) {
                 if (token.kind != INTERFACE) {
-                    JCAnnotation ann = annotation(lastPos, Tag.ANNOTATION, isModuleInfo);
+                    JCAnnotation ann = annotation(lastPos, Tag.ANNOTATION);
                     // if first modifier is an annotation, set pos to annotation's.
                     if (flags == 0 && annotations.isEmpty())
                         pos = ann.pos;
@@ -2936,15 +2945,11 @@ public class JavacParser implements Parser {
      * @param kind Whether to parse an ANNOTATION or TYPE_ANNOTATION
      */
     JCAnnotation annotation(int pos, Tag kind) {
-        return annotation(pos, kind, false);
-    }
-
-    JCAnnotation annotation(int pos, Tag kind, boolean isModuleInfo) {
         // accept(AT); // AT consumed by caller
         if (kind == Tag.TYPE_ANNOTATION) {
             checkTypeAnnotations();
         }
-        JCTree ident = qualident(false, isModuleInfo);
+        JCTree ident = qualident(false);
         int identEndPos = S.prevToken().endPos;
         boolean hasParens = token.kind == LPAREN;
         List<JCExpression> fieldValues = annotationFieldValuesOpt();
@@ -3185,10 +3190,6 @@ public class JavacParser implements Parser {
     /** CompilationUnit = [ { "@" Annotation } PACKAGE Qualident ";"] {ImportDeclaration} {TypeDeclaration}
      */
     public JCTree.JCCompilationUnit parseCompilationUnit() {
-        return parseCompilationUnit(false);
-    }
-
-    public JCTree.JCCompilationUnit parseCompilationUnit(boolean isModuleInfo) {
         Token firstToken = token;
         JCModifiers mods = null;
         boolean consumedToplevelDoc = false;
@@ -3207,7 +3208,7 @@ public class JavacParser implements Parser {
                     break;
             }
             if (checkForPackage && token.kind == MONKEYS_AT) {
-                mods = modifiersOpt(null, isModuleInfo);
+                mods = modifiersOpt(null);
             } else if (token.kind == PACKAGE) {
                 if (checkForPackage) {
                     int packagePos = token.pos;
@@ -3233,7 +3234,7 @@ public class JavacParser implements Parser {
             } else if (checkForImports && mods == null && token.kind == IMPORT) {
                 seenImport = true;
                 checkForPackage = false;
-                defs.append(importDeclaration(isModuleInfo));
+                defs.append(importDeclaration());
             } else {
                 Comment docComment = token.comment(CommentStyle.JAVADOC);
                 if (docComment == null && firstTypeDecl && !seenImport && !seenPackage) {
@@ -3241,7 +3242,7 @@ public class JavacParser implements Parser {
                     consumedToplevelDoc = true;
                 }
                 if (mods != null || token.kind != SEMI)
-                    mods = modifiersOpt(mods, isModuleInfo);
+                    mods = modifiersOpt(mods);
                 if (firstTypeDecl && token.kind == IDENTIFIER) {
                     int pos = token.pos;
                     ModuleKind kind = ModuleKind.STRONG;
@@ -3387,17 +3388,13 @@ public class JavacParser implements Parser {
     /** ImportDeclaration = IMPORT [ STATIC ] Ident { "." Ident } [ "." "*" ] ";"
      */
     protected JCTree importDeclaration() {
-        return importDeclaration(false);
-    }
-
-    protected JCTree importDeclaration(boolean isModuleInfo) {        
         int pos = token.pos;
         nextToken();
         boolean importStatic = false;
         if (token.kind == STATIC) {
             importStatic = true;
             nextToken();
-        } else if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(SEMI)) {
+        } else if (parseModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(SEMI)) {
             // Error recovery
             JCExpression pid = F.at(token.pos).Ident(names.error);
             pid = F.at(token.pos).Select(pid, names.error);
@@ -3408,7 +3405,7 @@ public class JavacParser implements Parser {
         }
         JCExpression pid = toP(F.at(token.pos).Ident(ident()));
         do {
-            if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open)) {
+            if (parseModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open)) {
                 // Error recovery
                 if (pid.hasTag(IDENT)) {
                     pid = F.at(token.pos).Select(pid, names.error);
@@ -3424,7 +3421,7 @@ public class JavacParser implements Parser {
                 pid = to(F.at(pos1).Select(pid, names.asterisk));
                 nextToken();
                 break;
-            } else if (isModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(SEMI)) {
+            } else if (parseModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(SEMI)) {
                 // Error recovery
                 pid = F.at(pos1).Select(pid, names.error);
                 JCImport imp = F.at(pos).Import(pid, importStatic);
@@ -3531,8 +3528,13 @@ public class JavacParser implements Parser {
             } else {
                 errs = List.of(mods);
             }
-            return toP(F.Exec(syntaxError(pos, errs, "expected3",
-                                          CLASS, INTERFACE, ENUM)));
+            final JCErroneous erroneousTree;
+            if (parseModuleInfo) {
+                erroneousTree = syntaxError(pos, errs, "expected.module.or.open");
+            } else {
+                erroneousTree = syntaxError(pos, errs, "expected3", CLASS, INTERFACE, ENUM);
+            }
+            return toP(F.Exec(erroneousTree));
         }
     }
 
