@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -439,7 +439,9 @@ public class TypeEnter implements Completer {
                     importNamedStatic(tree, p, name, localEnv);
                     chk.checkCanonical(imp.selected);
                 } else {
-                    TypeSymbol c = attribImportType(imp, localEnv).tsym;
+                    Type importedType = attribImportType(imp, localEnv);
+                    Type originalType = importedType.getOriginalType();
+                    TypeSymbol c = originalType.hasTag(CLASS) ? originalType.tsym : importedType.tsym;
                     chk.checkCanonical(imp);
                     importNamed(tree.pos(), c, env, tree);
                 }
@@ -944,7 +946,8 @@ public class TypeEnter implements Completer {
         /** Enter members for a class.
          */
         void finishClass(JCClassDecl tree, Env<AttrContext> env) {
-            if ((tree.mods.flags & Flags.ENUM) != 0) {
+            if ((tree.mods.flags & Flags.ENUM) != 0 &&
+                !tree.sym.type.hasTag(ERROR)) {
                 Type supertype = types.supertype(tree.sym.type);
                 if (supertype != null && !supertype.hasTag(TypeTag.NONE)
                         && (supertype.tsym.flags() & Flags.ENUM) == 0

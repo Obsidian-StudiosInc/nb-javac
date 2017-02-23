@@ -118,6 +118,14 @@ public class CompilerProperties {
         }
         
         /**
+         * compiler.note.multiple.elements=\
+         *    Multiple elements named '{1}' in modules '{2}' were found by javax.lang.model.util.Elements.{0}.
+         */
+        public static Note MultipleElements(String arg0, String arg1, String arg2) {
+            return new Note("compiler", "multiple.elements", arg0, arg1, arg2);
+        }
+        
+        /**
          * compiler.note.note=\
          *    Note:\u0020
          */
@@ -446,900 +454,6 @@ public class CompilerProperties {
         public static Note VerboseResolveMulti1(Name arg0, Symbol arg1, Void arg2, String arg3, Fragment arg4, Fragment arg5) {
             return new Note("compiler", "verbose.resolve.multi.1", arg0, arg1, arg2, arg3, arg4, arg5);
         }
-    }
-    public static class Warnings {
-        /**
-         * compiler.warn.access.to.member.from.serializable.element=\
-         *    access to member {0} from serializable element can be publicly accessible to untrusted code
-         */
-        public static Warning AccessToMemberFromSerializableElement(Symbol arg0) {
-            return new Warning("compiler", "access.to.member.from.serializable.element", arg0);
-        }
-        
-        /**
-         * compiler.warn.access.to.member.from.serializable.lambda=\
-         *    access to member {0} from serializable lambda can be publicly accessible to untrusted code
-         */
-        public static Warning AccessToMemberFromSerializableLambda(Symbol arg0) {
-            return new Warning("compiler", "access.to.member.from.serializable.lambda", arg0);
-        }
-        
-        /**
-         * compiler.warn.addopens.ignored=\
-         *    --add-opens has no effect at compile time
-         */
-        public static final Warning AddopensIgnored = new Warning("compiler", "addopens.ignored");
-        
-        /**
-         * compiler.warn.annotation.method.not.found=\
-         *    Cannot find annotation method ''{1}()'' in type ''{0}''
-         */
-        public static final Warning AnnotationMethodNotFound = new Warning("compiler", "annotation.method.not.found");
-        
-        /**
-         * compiler.warn.annotation.method.not.found.reason=\
-         *    Cannot find annotation method ''{1}()'' in type ''{0}'': {2}
-         */
-        public static final Warning AnnotationMethodNotFoundReason = new Warning("compiler", "annotation.method.not.found.reason");
-        
-        /**
-         * compiler.warn.auxiliary.class.accessed.from.outside.of.its.source.file=\
-         *    auxiliary class {0} in {1} should not be accessed from outside its own source file
-         */
-        public static Warning AuxiliaryClassAccessedFromOutsideOfItsSourceFile(Symbol arg0, File arg1) {
-            return new Warning("compiler", "auxiliary.class.accessed.from.outside.of.its.source.file", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.auxiliary.class.accessed.from.outside.of.its.source.file=\
-         *    auxiliary class {0} in {1} should not be accessed from outside its own source file
-         */
-        public static Warning AuxiliaryClassAccessedFromOutsideOfItsSourceFile(Symbol arg0, JavaFileObject arg1) {
-            return new Warning("compiler", "auxiliary.class.accessed.from.outside.of.its.source.file", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.auxiliary.class.accessed.from.outside.of.its.source.file=\
-         *    auxiliary class {0} in {1} should not be accessed from outside its own source file
-         */
-        public static Warning AuxiliaryClassAccessedFromOutsideOfItsSourceFile(Type arg0, File arg1) {
-            return new Warning("compiler", "auxiliary.class.accessed.from.outside.of.its.source.file", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.auxiliary.class.accessed.from.outside.of.its.source.file=\
-         *    auxiliary class {0} in {1} should not be accessed from outside its own source file
-         */
-        public static Warning AuxiliaryClassAccessedFromOutsideOfItsSourceFile(Type arg0, JavaFileObject arg1) {
-            return new Warning("compiler", "auxiliary.class.accessed.from.outside.of.its.source.file", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.bad.name.for.option=\
-         *    bad name in value for {0} option: ''{1}''
-         */
-        public static Warning BadNameForOption(Option arg0, String arg1) {
-            return new Warning("compiler", "bad.name.for.option", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.big.major.version=\
-         *    {0}: major version {1} is newer than {2}, the highest major version supported by this compiler.\n\
-         *    It is recommended that the compiler be upgraded.
-         */
-        public static Warning BigMajorVersion(File arg0, int arg1, int arg2) {
-            return new Warning("compiler", "big.major.version", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.warn.big.major.version=\
-         *    {0}: major version {1} is newer than {2}, the highest major version supported by this compiler.\n\
-         *    It is recommended that the compiler be upgraded.
-         */
-        public static Warning BigMajorVersion(JavaFileObject arg0, int arg1, int arg2) {
-            return new Warning("compiler", "big.major.version", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.warn.constant.SVUID=\
-         *    serialVersionUID must be constant in class {0}
-         */
-        public static Warning ConstantSVUID(Symbol arg0) {
-            return new Warning("compiler", "constant.SVUID", arg0);
-        }
-        
-        /**
-         * compiler.warn.deprecated.annotation.has.no.effect=\
-         *    @Deprecated annotation has no effect on this {0} declaration
-         */
-        public static Warning DeprecatedAnnotationHasNoEffect(Kind arg0) {
-            return new Warning("compiler", "deprecated.annotation.has.no.effect", arg0);
-        }
-        
-        /**
-         * compiler.warn.diamond.redundant.args=\
-         *    Redundant type arguments in new expression (use diamond operator instead).
-         */
-        public static Warning DiamondRedundantArgs(Void arg0, Void arg1) {
-            return new Warning("compiler", "diamond.redundant.args", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.dir.path.element.not.directory=\
-         *    bad path element "{0}": not a directory
-         */
-        public static Warning DirPathElementNotDirectory(File arg0) {
-            return new Warning("compiler", "dir.path.element.not.directory", arg0);
-        }
-        
-        /**
-         * compiler.warn.dir.path.element.not.directory=\
-         *    bad path element "{0}": not a directory
-         */
-        public static Warning DirPathElementNotDirectory(JavaFileObject arg0) {
-            return new Warning("compiler", "dir.path.element.not.directory", arg0);
-        }
-        
-        /**
-         * compiler.warn.dir.path.element.not.found=\
-         *    bad path element "{0}": no such directory
-         */
-        public static Warning DirPathElementNotFound(File arg0) {
-            return new Warning("compiler", "dir.path.element.not.found", arg0);
-        }
-        
-        /**
-         * compiler.warn.dir.path.element.not.found=\
-         *    bad path element "{0}": no such directory
-         */
-        public static Warning DirPathElementNotFound(JavaFileObject arg0) {
-            return new Warning("compiler", "dir.path.element.not.found", arg0);
-        }
-        
-        /**
-         * compiler.warn.div.zero=\
-         *    division by zero
-         */
-        public static final Warning DivZero = new Warning("compiler", "div.zero");
-        
-        /**
-         * compiler.warn.empty.if=\
-         *    empty statement after if
-         */
-        public static final Warning EmptyIf = new Warning("compiler", "empty.if");
-        
-        /**
-         * compiler.warn.file.from.future=\
-         *    Modification date is in the future for file {0}
-         */
-        public static Warning FileFromFuture(File arg0) {
-            return new Warning("compiler", "file.from.future", arg0);
-        }
-        
-        /**
-         * compiler.warn.file.from.future=\
-         *    Modification date is in the future for file {0}
-         */
-        public static Warning FileFromFuture(JavaFileObject arg0) {
-            return new Warning("compiler", "file.from.future", arg0);
-        }
-        
-        /**
-         * compiler.warn.finally.cannot.complete=\
-         *    finally clause cannot complete normally
-         */
-        public static final Warning FinallyCannotComplete = new Warning("compiler", "finally.cannot.complete");
-        
-        /**
-         * compiler.warn.forward.ref=\
-         *    reference to variable ''{0}'' before it has been initialized
-         */
-        public static Warning ForwardRef(Symbol arg0) {
-            return new Warning("compiler", "forward.ref", arg0);
-        }
-        
-        /**
-         * compiler.warn.future.attr=\
-         *    {0} attribute introduced in version {1}.{2} class files is ignored in version {3}.{4} class files
-         */
-        public static Warning FutureAttr(Name arg0, int arg1, int arg2, int arg3, int arg4) {
-            return new Warning("compiler", "future.attr", arg0, arg1, arg2, arg3, arg4);
-        }
-        
-        /**
-         * compiler.warn.has.been.deprecated=\
-         *    {0} in {1} has been deprecated
-         */
-        public static Warning HasBeenDeprecated(Symbol arg0, Symbol arg1) {
-            return new Warning("compiler", "has.been.deprecated", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.has.been.deprecated.for.removal=\
-         *    {0} in {1} has been deprecated and marked for removal
-         */
-        public static Warning HasBeenDeprecatedForRemoval(Symbol arg0, Symbol arg1) {
-            return new Warning("compiler", "has.been.deprecated.for.removal", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.has.been.deprecated.for.removal.module=\
-         *    module {0} has been deprecated and marked for removal
-         */
-        public static Warning HasBeenDeprecatedForRemovalModule(Symbol arg0) {
-            return new Warning("compiler", "has.been.deprecated.for.removal.module", arg0);
-        }
-        
-        /**
-         * compiler.warn.has.been.deprecated.module=\
-         *    module {0} has been deprecated
-         */
-        public static Warning HasBeenDeprecatedModule(Symbol arg0) {
-            return new Warning("compiler", "has.been.deprecated.module", arg0);
-        }
-        
-        /**
-         * compiler.warn.illegal.char.for.encoding=\
-         *    unmappable character for encoding {0}
-         */
-        public static final Warning IllegalCharForEncoding = new Warning("compiler", "illegal.char.for.encoding");
-        
-        /**
-         * compiler.warn.improper.SVUID=\
-         *    serialVersionUID must be declared static final in class {0}
-         */
-        public static Warning ImproperSVUID(Symbol arg0) {
-            return new Warning("compiler", "improper.SVUID", arg0);
-        }
-        
-        /**
-         * compiler.warn.inexact.non-varargs.call=\
-         *    non-varargs call of varargs method with inexact argument type for last parameter;\n\
-         *    cast to {0} for a varargs call\n\
-         *    cast to {1} for a non-varargs call and to suppress this warning
-         */
-        public static Warning InexactNonVarargsCall(Type arg0, Type arg1) {
-            return new Warning("compiler", "inexact.non-varargs.call", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.invalid.archive.file=\
-         *    Unexpected file on path: {0}
-         */
-        public static final Warning InvalidArchiveFile = new Warning("compiler", "invalid.archive.file");
-        
-        /**
-         * compiler.warn.invalid.path=\
-         *    Invalid filename: {0}
-         */
-        public static final Warning InvalidPath = new Warning("compiler", "invalid.path");
-        
-        /**
-         * compiler.warn.leaks.not.accessible=\
-         *    {0} {1} in module {2} is not accessible to clients that require this module
-         */
-        public static Warning LeaksNotAccessible(KindName arg0, Symbol arg1, Symbol arg2) {
-            return new Warning("compiler", "leaks.not.accessible", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.warn.leaks.not.accessible.not.required.transitive=\
-         *    {0} {1} in module {2} is not indirectly exported using 'requires transitive'
-         */
-        public static Warning LeaksNotAccessibleNotRequiredTransitive(KindName arg0, Symbol arg1, Symbol arg2) {
-            return new Warning("compiler", "leaks.not.accessible.not.required.transitive", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.warn.leaks.not.accessible.unexported=\
-         *    {0} {1} in module {2} is not exported
-         */
-        public static Warning LeaksNotAccessibleUnexported(KindName arg0, Symbol arg1, Symbol arg2) {
-            return new Warning("compiler", "leaks.not.accessible.unexported", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.warn.leaks.not.accessible.unexported.qualified=\
-         *    {0} {1} in module {2} may not be visible to all clients that require this module
-         */
-        public static Warning LeaksNotAccessibleUnexportedQualified(KindName arg0, Symbol arg1, Symbol arg2) {
-            return new Warning("compiler", "leaks.not.accessible.unexported.qualified", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.warn.lintOption=\
-         *    [{0}]\u0020
-         */
-        public static Warning LintOption(Option arg0) {
-            return new Warning("compiler", "lintOption", arg0);
-        }
-        
-        /**
-         * compiler.warn.locn.unknown.file.on.module.path=\
-         *    unknown file on module path: {0}
-         */
-        public static Warning LocnUnknownFileOnModulePath(Path arg0) {
-            return new Warning("compiler", "locn.unknown.file.on.module.path", arg0);
-        }
-        
-        /**
-         * compiler.warn.long.SVUID=\
-         *    serialVersionUID must be of type long in class {0}
-         */
-        public static Warning LongSVUID(Symbol arg0) {
-            return new Warning("compiler", "long.SVUID", arg0);
-        }
-        
-        /**
-         * compiler.warn.method.redundant.typeargs=\
-         *    Redundant type arguments in method call.
-         */
-        public static final Warning MethodRedundantTypeargs = new Warning("compiler", "method.redundant.typeargs");
-        
-        /**
-         * compiler.warn.missing.SVUID=\
-         *    serializable class {0} has no definition of serialVersionUID
-         */
-        public static Warning MissingSVUID(Symbol arg0) {
-            return new Warning("compiler", "missing.SVUID", arg0);
-        }
-        
-        /**
-         * compiler.warn.missing.deprecated.annotation=\
-         *    deprecated item is not annotated with @Deprecated
-         */
-        public static final Warning MissingDeprecatedAnnotation = new Warning("compiler", "missing.deprecated.annotation");
-        
-        /**
-         * compiler.warn.module.for.option.not.found=\
-         *    module name in {0} option not found: {1}
-         */
-        public static Warning ModuleForOptionNotFound(Option arg0, Symbol arg1) {
-            return new Warning("compiler", "module.for.option.not.found", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.module.not.found=\
-         *    module not found: {0}
-         */
-        public static Warning ModuleNotFound(Symbol arg0) {
-            return new Warning("compiler", "module.not.found", arg0);
-        }
-        
-        /**
-         * compiler.warn.option.obsolete.source=\
-         *    source value {0} is obsolete and will be removed in a future release
-         */
-        public static Warning OptionObsoleteSource(String arg0) {
-            return new Warning("compiler", "option.obsolete.source", arg0);
-        }
-        
-        /**
-         * compiler.warn.option.obsolete.suppression=\
-         *    To suppress warnings about obsolete options, use -Xlint:-options.
-         */
-        public static final Warning OptionObsoleteSuppression = new Warning("compiler", "option.obsolete.suppression");
-        
-        /**
-         * compiler.warn.option.obsolete.target=\
-         *    target value {0} is obsolete and will be removed in a future release
-         */
-        public static Warning OptionObsoleteTarget(String arg0) {
-            return new Warning("compiler", "option.obsolete.target", arg0);
-        }
-        
-        /**
-         * compiler.warn.outdir.is.in.exploded.module=\
-         *    the output directory is within an exploded module: {0}
-         */
-        public static Warning OutdirIsInExplodedModule(Path arg0) {
-            return new Warning("compiler", "outdir.is.in.exploded.module", arg0);
-        }
-        
-        /**
-         * compiler.warn.override.bridge=\
-         *    {0}; overridden method is a bridge method
-         */
-        public static final Warning OverrideBridge = new Warning("compiler", "override.bridge");
-        
-        /**
-         * compiler.warn.override.equals.but.not.hashcode=\
-         *    Class {0} overrides equals, but neither it nor any superclass overrides hashCode method
-         */
-        public static Warning OverrideEqualsButNotHashcode(Symbol arg0) {
-            return new Warning("compiler", "override.equals.but.not.hashcode", arg0);
-        }
-        
-        /**
-         * compiler.warn.override.unchecked.ret=\
-         *    {0}\n\
-         *    return type requires unchecked conversion from {1} to {2}
-         */
-        public static Warning OverrideUncheckedRet(JCDiagnostic arg0, Type arg1, Type arg2) {
-            return new Warning("compiler", "override.unchecked.ret", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.warn.override.unchecked.ret=\
-         *    {0}\n\
-         *    return type requires unchecked conversion from {1} to {2}
-         */
-        public static Warning OverrideUncheckedRet(Fragment arg0, Type arg1, Type arg2) {
-            return new Warning("compiler", "override.unchecked.ret", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.warn.override.unchecked.thrown=\
-         *    {0}\n\
-         *    overridden method does not throw {1}
-         */
-        public static Warning OverrideUncheckedThrown(JCDiagnostic arg0, Type arg1) {
-            return new Warning("compiler", "override.unchecked.thrown", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.override.unchecked.thrown=\
-         *    {0}\n\
-         *    overridden method does not throw {1}
-         */
-        public static Warning OverrideUncheckedThrown(Fragment arg0, Type arg1) {
-            return new Warning("compiler", "override.unchecked.thrown", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.override.varargs.extra=\
-         *    {0}; overriding method is missing ''...''
-         */
-        public static Warning OverrideVarargsExtra(JCDiagnostic arg0) {
-            return new Warning("compiler", "override.varargs.extra", arg0);
-        }
-        
-        /**
-         * compiler.warn.override.varargs.extra=\
-         *    {0}; overriding method is missing ''...''
-         */
-        public static Warning OverrideVarargsExtra(Fragment arg0) {
-            return new Warning("compiler", "override.varargs.extra", arg0);
-        }
-        
-        /**
-         * compiler.warn.override.varargs.missing=\
-         *    {0}; overridden method has no ''...''
-         */
-        public static Warning OverrideVarargsMissing(JCDiagnostic arg0) {
-            return new Warning("compiler", "override.varargs.missing", arg0);
-        }
-        
-        /**
-         * compiler.warn.override.varargs.missing=\
-         *    {0}; overridden method has no ''...''
-         */
-        public static Warning OverrideVarargsMissing(Fragment arg0) {
-            return new Warning("compiler", "override.varargs.missing", arg0);
-        }
-        
-        /**
-         * compiler.warn.path.element.not.found=\
-         *    bad path element "{0}": no such file or directory
-         */
-        public static Warning PathElementNotFound(File arg0) {
-            return new Warning("compiler", "path.element.not.found", arg0);
-        }
-        
-        /**
-         * compiler.warn.path.element.not.found=\
-         *    bad path element "{0}": no such file or directory
-         */
-        public static Warning PathElementNotFound(JavaFileObject arg0) {
-            return new Warning("compiler", "path.element.not.found", arg0);
-        }
-        
-        /**
-         * compiler.warn.pkg-info.already.seen=\
-         *    a package-info.java file has already been seen for package {0}
-         */
-        public static Warning PkgInfoAlreadySeen(Symbol arg0) {
-            return new Warning("compiler", "pkg-info.already.seen", arg0);
-        }
-        
-        /**
-         * compiler.warn.poor.choice.for.module.name=\
-         *    module name {0} should avoid terminal digits
-         */
-        public static Warning PoorChoiceForModuleName(Name arg0) {
-            return new Warning("compiler", "poor.choice.for.module.name", arg0);
-        }
-        
-        /**
-         * compiler.warn.position.overflow=\
-         *    Position encoding overflows at line {0}
-         */
-        public static Warning PositionOverflow(int arg0) {
-            return new Warning("compiler", "position.overflow", arg0);
-        }
-        
-        /**
-         * compiler.warn.possible.fall-through.into.case=\
-         *    possible fall-through into case
-         */
-        public static final Warning PossibleFallThroughIntoCase = new Warning("compiler", "possible.fall-through.into.case");
-        
-        /**
-         * compiler.warn.potential.lambda.found=\
-         *    This anonymous inner class creation can be turned into a lambda expression.
-         */
-        public static final Warning PotentialLambdaFound = new Warning("compiler", "potential.lambda.found");
-        
-        /**
-         * compiler.warn.potentially.ambiguous.overload=\
-         *    {0} in {1} is potentially ambiguous with {2} in {3}
-         */
-        public static Warning PotentiallyAmbiguousOverload(Symbol arg0, Symbol arg1, Symbol arg2, Symbol arg3) {
-            return new Warning("compiler", "potentially.ambiguous.overload", arg0, arg1, arg2, arg3);
-        }
-        
-        /**
-         * compiler.warn.prob.found.req=\
-         *    {0}\n\
-         *    required: {2}\n\
-         *    found:    {1}
-         */
-        public static Warning ProbFoundReq(JCDiagnostic arg0, Type arg1, Type arg2) {
-            return new Warning("compiler", "prob.found.req", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.warn.prob.found.req=\
-         *    {0}\n\
-         *    required: {2}\n\
-         *    found:    {1}
-         */
-        public static Warning ProbFoundReq(Fragment arg0, Type arg1, Type arg2) {
-            return new Warning("compiler", "prob.found.req", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.warn.proc.annotations.without.processors=\
-         *    No processor claimed any of these annotations: {0}
-         */
-        public static Warning ProcAnnotationsWithoutProcessors(Set<? extends String> arg0) {
-            return new Warning("compiler", "proc.annotations.without.processors", arg0);
-        }
-        
-        /**
-         * compiler.warn.proc.file.create.last.round=\
-         *    File for type ''{0}'' created in the last round will not be subject to annotation processing.
-         */
-        public static Warning ProcFileCreateLastRound(Name arg0) {
-            return new Warning("compiler", "proc.file.create.last.round", arg0);
-        }
-        
-        /**
-         * compiler.warn.proc.file.reopening=\
-         *    Attempt to create a file for ''{0}'' multiple times
-         */
-        public static Warning ProcFileReopening(Name arg0) {
-            return new Warning("compiler", "proc.file.reopening", arg0);
-        }
-        
-        /**
-         * compiler.warn.proc.illegal.file.name=\
-         *    Cannot create file for illegal name ''{0}''.
-         */
-        public static Warning ProcIllegalFileName(String arg0) {
-            return new Warning("compiler", "proc.illegal.file.name", arg0);
-        }
-        
-        /**
-         * compiler.warn.proc.malformed.supported.string=\
-         *    Malformed string ''{0}'' for a supported annotation type returned by processor ''{1}''
-         */
-        public static Warning ProcMalformedSupportedString(String arg0, String arg1) {
-            return new Warning("compiler", "proc.malformed.supported.string", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.proc.messager=\
-         *    {0}
-         */
-        public static Warning ProcMessager(String arg0) {
-            return new Warning("compiler", "proc.messager", arg0);
-        }
-        
-        /**
-         * compiler.warn.proc.package.does.not.exist=\
-         *    package {0} does not exist
-         */
-        public static Warning ProcPackageDoesNotExist(String arg0) {
-            return new Warning("compiler", "proc.package.does.not.exist", arg0);
-        }
-        
-        /**
-         * compiler.warn.proc.proc-only.requested.no.procs=\
-         *    Annotation processing without compilation requested but no processors were found.
-         */
-        public static final Warning ProcProcOnlyRequestedNoProcs = new Warning("compiler", "proc.proc-only.requested.no.procs");
-        
-        /**
-         * compiler.warn.proc.processor.incompatible.source.version=\
-         *    Supported source version ''{0}'' from annotation processor ''{1}'' less than -source ''{2}''
-         */
-        public static Warning ProcProcessorIncompatibleSourceVersion(Source arg0, String arg1, String arg2) {
-            return new Warning("compiler", "proc.processor.incompatible.source.version", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.warn.proc.suspicious.class.name=\
-         *    Creating file for a type whose name ends in {1}: ''{0}''
-         */
-        public static Warning ProcSuspiciousClassName(String arg0, String arg1) {
-            return new Warning("compiler", "proc.suspicious.class.name", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.proc.type.already.exists=\
-         *    A file for type ''{0}'' already exists on the sourcepath or classpath
-         */
-        public static Warning ProcTypeAlreadyExists(Name arg0) {
-            return new Warning("compiler", "proc.type.already.exists", arg0);
-        }
-        
-        /**
-         * compiler.warn.proc.type.recreate=\
-         *    Attempt to create a file for type ''{0}'' multiple times
-         */
-        public static Warning ProcTypeRecreate(Name arg0) {
-            return new Warning("compiler", "proc.type.recreate", arg0);
-        }
-        
-        /**
-         * compiler.warn.proc.unclosed.type.files=\
-         *    Unclosed files for the types ''{0}''; these types will not undergo annotation processing
-         */
-        public static Warning ProcUnclosedTypeFiles(Set<? extends Name> arg0) {
-            return new Warning("compiler", "proc.unclosed.type.files", arg0);
-        }
-        
-        /**
-         * compiler.warn.proc.unmatched.processor.options=\
-         *    The following options were not recognized by any processor: ''{0}''
-         */
-        public static Warning ProcUnmatchedProcessorOptions(String arg0) {
-            return new Warning("compiler", "proc.unmatched.processor.options", arg0);
-        }
-        
-        /**
-         * compiler.warn.proc.use.implicit=\
-         *    Implicitly compiled files were not subject to annotation processing.\n\
-         *    Use -implicit to specify a policy for implicit compilation.
-         */
-        public static final Warning ProcUseImplicit = new Warning("compiler", "proc.use.implicit");
-        
-        /**
-         * compiler.warn.proc.use.proc.or.implicit=\
-         *    Implicitly compiled files were not subject to annotation processing.\n\
-         *    Use -proc:none to disable annotation processing or -implicit to specify a policy for implicit compilation.
-         */
-        public static final Warning ProcUseProcOrImplicit = new Warning("compiler", "proc.use.proc.or.implicit");
-        
-        /**
-         * compiler.warn.raw.class.use=\
-         *    found raw type: {0}\n\
-         *    missing type arguments for generic class {1}
-         */
-        public static Warning RawClassUse(Type arg0, Type arg1) {
-            return new Warning("compiler", "raw.class.use", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.redundant.cast=\
-         *    redundant cast to {0}
-         */
-        public static Warning RedundantCast(Type arg0) {
-            return new Warning("compiler", "redundant.cast", arg0);
-        }
-        
-        /**
-         * compiler.warn.self.ref=\
-         *    self-reference in initializer of variable ''{0}''
-         */
-        public static Warning SelfRef(Symbol arg0) {
-            return new Warning("compiler", "self.ref", arg0);
-        }
-        
-        /**
-         * compiler.warn.service.provided.but.not.exported.or.used=\
-         *    service interface provided but not exported or used
-         */
-        public static Warning ServiceProvidedButNotExportedOrUsed(Symbol arg0) {
-            return new Warning("compiler", "service.provided.but.not.exported.or.used", arg0);
-        }
-        
-        /**
-         * compiler.warn.source.no.bootclasspath=\
-         *    bootstrap class path not set in conjunction with -source {0}
-         */
-        public static Warning SourceNoBootclasspath(String arg0) {
-            return new Warning("compiler", "source.no.bootclasspath", arg0);
-        }
-        
-        /**
-         * compiler.warn.static.not.qualified.by.type=\
-         *    static {0} should be qualified by type name, {1}, instead of by an expression
-         */
-        public static Warning StaticNotQualifiedByType(Kind arg0, Symbol arg1) {
-            return new Warning("compiler", "static.not.qualified.by.type", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.sun.proprietary=\
-         *    {0} is internal proprietary API and may be removed in a future release
-         */
-        public static Warning SunProprietary(Symbol arg0) {
-            return new Warning("compiler", "sun.proprietary", arg0);
-        }
-        
-        /**
-         * compiler.warn.try.explicit.close.call=\
-         *    explicit call to close() on an auto-closeable resource
-         */
-        public static final Warning TryExplicitCloseCall = new Warning("compiler", "try.explicit.close.call");
-        
-        /**
-         * compiler.warn.try.resource.not.referenced=\
-         *    auto-closeable resource {0} is never referenced in body of corresponding try statement
-         */
-        public static Warning TryResourceNotReferenced(Symbol arg0) {
-            return new Warning("compiler", "try.resource.not.referenced", arg0);
-        }
-        
-        /**
-         * compiler.warn.try.resource.throws.interrupted.exc=\
-         *    auto-closeable resource {0} has a member method close() that could throw InterruptedException
-         */
-        public static Warning TryResourceThrowsInterruptedExc(Type arg0) {
-            return new Warning("compiler", "try.resource.throws.interrupted.exc", arg0);
-        }
-        
-        /**
-         * compiler.warn.unchecked.assign=\
-         *    unchecked assignment: {0} to {1}
-         */
-        public static final Warning UncheckedAssign = new Warning("compiler", "unchecked.assign");
-        
-        /**
-         * compiler.warn.unchecked.assign.to.var=\
-         *    unchecked assignment to variable {0} as member of raw type {1}
-         */
-        public static Warning UncheckedAssignToVar(Symbol arg0, Type arg1) {
-            return new Warning("compiler", "unchecked.assign.to.var", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.unchecked.call.mbr.of.raw.type=\
-         *    unchecked call to {0} as a member of the raw type {1}
-         */
-        public static Warning UncheckedCallMbrOfRawType(Symbol arg0, Type arg1) {
-            return new Warning("compiler", "unchecked.call.mbr.of.raw.type", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.unchecked.cast.to.type=\
-         *    unchecked cast to type {0}
-         */
-        public static final Warning UncheckedCastToType = new Warning("compiler", "unchecked.cast.to.type");
-        
-        /**
-         * compiler.warn.unchecked.generic.array.creation=\
-         *    unchecked generic array creation for varargs parameter of type {0}
-         */
-        public static Warning UncheckedGenericArrayCreation(Type arg0) {
-            return new Warning("compiler", "unchecked.generic.array.creation", arg0);
-        }
-        
-        /**
-         * compiler.warn.unchecked.meth.invocation.applied=\
-         *    unchecked method invocation: {0} {1} in {4} {5} is applied to given types\n\
-         *    required: {2}\n\
-         *    found: {3}
-         */
-        public static Warning UncheckedMethInvocationApplied(Kind arg0, Name arg1, List<? extends Type> arg2, List<? extends Type> arg3, Kind arg4, Symbol arg5) {
-            return new Warning("compiler", "unchecked.meth.invocation.applied", arg0, arg1, arg2, arg3, arg4, arg5);
-        }
-        
-        /**
-         * compiler.warn.unchecked.varargs.non.reifiable.type=\
-         *    Possible heap pollution from parameterized vararg type {0}
-         */
-        public static Warning UncheckedVarargsNonReifiableType(Type arg0) {
-            return new Warning("compiler", "unchecked.varargs.non.reifiable.type", arg0);
-        }
-        
-        /**
-         * compiler.warn.underscore.as.identifier=\
-         *    as of release 9, ''_'' is a keyword, and may not be used as an identifier
-         */
-        public static final Warning UnderscoreAsIdentifier = new Warning("compiler", "underscore.as.identifier");
-        
-        /**
-         * compiler.warn.unexpected.archive.file=\
-         *    Unexpected extension for archive file: {0}
-         */
-        public static final Warning UnexpectedArchiveFile = new Warning("compiler", "unexpected.archive.file");
-        
-        /**
-         * compiler.warn.unknown.enum.constant=\
-         *    unknown enum constant {1}.{2}
-         */
-        public static Warning UnknownEnumConstant(Symbol arg0, Name arg1) {
-            return new Warning("compiler", "unknown.enum.constant", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.unknown.enum.constant.reason=\
-         *    unknown enum constant {1}.{2}\n\
-         *    reason: {3}
-         */
-        public static Warning UnknownEnumConstantReason(Symbol arg0, Name arg1, JCDiagnostic arg2) {
-            return new Warning("compiler", "unknown.enum.constant.reason", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.warn.unknown.enum.constant.reason=\
-         *    unknown enum constant {1}.{2}\n\
-         *    reason: {3}
-         */
-        public static Warning UnknownEnumConstantReason(Symbol arg0, Name arg1, Fragment arg2) {
-            return new Warning("compiler", "unknown.enum.constant.reason", arg0, arg1, arg2);
-        }
-        
-        /**
-         * compiler.warn.unreachable.catch=\
-         *    unreachable catch clause\n\
-         *    thrown type {0} has already been caught
-         */
-        public static Warning UnreachableCatch(List<? extends Type> arg0) {
-            return new Warning("compiler", "unreachable.catch", arg0);
-        }
-        
-        /**
-         * compiler.warn.unreachable.catch.1=\
-         *    unreachable catch clause\n\
-         *    thrown types {0} have already been caught
-         */
-        public static Warning UnreachableCatch1(List<? extends Type> arg0) {
-            return new Warning("compiler", "unreachable.catch.1", arg0);
-        }
-        
-        /**
-         * compiler.warn.varargs.redundant.trustme.anno=\
-         *    Redundant {0} annotation. {1}
-         */
-        public static Warning VarargsRedundantTrustmeAnno(Symbol arg0, JCDiagnostic arg1) {
-            return new Warning("compiler", "varargs.redundant.trustme.anno", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.varargs.redundant.trustme.anno=\
-         *    Redundant {0} annotation. {1}
-         */
-        public static Warning VarargsRedundantTrustmeAnno(Symbol arg0, Fragment arg1) {
-            return new Warning("compiler", "varargs.redundant.trustme.anno", arg0, arg1);
-        }
-        
-        /**
-         * compiler.warn.varargs.unsafe.use.varargs.param=\
-         *    Varargs method could cause heap pollution from non-reifiable varargs parameter {0}
-         */
-        public static Warning VarargsUnsafeUseVarargsParam(Symbol arg0) {
-            return new Warning("compiler", "varargs.unsafe.use.varargs.param", arg0);
-        }
-        
-        /**
-         * compiler.warn.warning=\
-         *    warning:\u0020
-         */
-        public static final Warning Warning = new Warning("compiler", "warning");
     }
     public static class Errors {
         /**
@@ -2150,10 +1264,10 @@ public class CompilerProperties {
         
         /**
          * compiler.err.class.public.should.be.in.file=\
-         *    class {0} is public, should be declared in a file named {0}.java
+         *    {0} {1} is public, should be declared in a file named {1}.java
          */
-        public static Error ClassPublicShouldBeInFile(Name arg0) {
-            return new Error("compiler", "class.public.should.be.in.file", arg0);
+        public static Error ClassPublicShouldBeInFile(KindName arg0, Name arg1) {
+            return new Error("compiler", "class.public.should.be.in.file", arg0, arg1);
         }
         
         /**
@@ -2587,6 +1701,12 @@ public class CompilerProperties {
         public static final Error ExpectedModule = new Error("compiler", "expected.module");
         
         /**
+         * compiler.err.expected.module.or.open=\
+         *    ''module'' or ''open'' expected
+         */
+        public static final Error ExpectedModuleOrOpen = new Error("compiler", "expected.module.or.open");
+        
+        /**
          * compiler.err.expected2=\
          *    {0} or {1} expected
          */
@@ -2600,6 +1720,15 @@ public class CompilerProperties {
          */
         public static Error Expected3(TokenKind arg0, TokenKind arg1, TokenKind arg2) {
             return new Error("compiler", "expected3", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.file.patched.and.msp=\
+         *    file accessible from both --patch-module and --module-source-path, \
+         *    but belongs to a different module on each path: {0}, {1}
+         */
+        public static Error FilePatchedAndMsp(Name arg0, Name arg1) {
+            return new Error("compiler", "file.patched.and.msp", arg0, arg1);
         }
         
         /**
@@ -2921,7 +2050,7 @@ public class CompilerProperties {
         /**
          * compiler.err.intersection.types.in.cast.not.supported.in.source=\
          *    intersection types in cast are not supported in -source {0}\n\
-         *    (use -source 8 or higher to enable default methods)
+         *    (use -source 8 or higher to enable intersection types in cast)
          */
         public static Error IntersectionTypesInCastNotSupportedInSource(String arg0) {
             return new Error("compiler", "intersection.types.in.cast.not.supported.in.source", arg0);
@@ -3306,7 +2435,7 @@ public class CompilerProperties {
          * compiler.err.locn.module-info.not.allowed.on.patch.path=\
          *    module-info.class not allowed on patch path: {0}
          */
-        public static Error LocnModuleInfoNotAllowedOnPatchPath(Path arg0) {
+        public static Error LocnModuleInfoNotAllowedOnPatchPath(JavaFileObject arg0) {
             return new Error("compiler", "locn.module-info.not.allowed.on.patch.path", arg0);
         }
         
@@ -3360,16 +2489,16 @@ public class CompilerProperties {
         }
         
         /**
-         * compiler.err.module-info.with.xmodule.classpath=\
-         *    illegal combination of -Xmodule and module-info on classpath
+         * compiler.err.module-info.with.patched.module.classoutput=\
+         *    compiling a module patch with module-info on class output
          */
-        public static final Error ModuleInfoWithXmoduleClasspath = new Error("compiler", "module-info.with.xmodule.classpath");
+        public static final Error ModuleInfoWithPatchedModuleClassoutput = new Error("compiler", "module-info.with.patched.module.classoutput");
         
         /**
-         * compiler.err.module-info.with.xmodule.sourcepath=\
-         *    illegal combination of -Xmodule and module-info on sourcepath
+         * compiler.err.module-info.with.patched.module.sourcepath=\
+         *    compiling a module patch with module-info on sourcepath
          */
-        public static final Error ModuleInfoWithXmoduleSourcepath = new Error("compiler", "module-info.with.xmodule.sourcepath");
+        public static final Error ModuleInfoWithPatchedModuleSourcepath = new Error("compiler", "module-info.with.patched.module.sourcepath");
         
         /**
          * compiler.err.module.decl.sb.in.module-info.java=\
@@ -3408,6 +2537,12 @@ public class CompilerProperties {
         public static Error ModuleNotFoundInModuleSourcePath(String arg0) {
             return new Error("compiler", "module.not.found.in.module.source.path", arg0);
         }
+        
+        /**
+         * compiler.err.module.not.found.on.module.source.path=\
+         *    module not found on module source path
+         */
+        public static final Error ModuleNotFoundOnModuleSourcePath = new Error("compiler", "module.not.found.on.module.source.path");
         
         /**
          * compiler.err.modules.not.supported.in.source=\
@@ -3600,18 +2735,46 @@ public class CompilerProperties {
         
         /**
          * compiler.err.not.def.access.class.intf.cant.access=\
-         *    {0} in {1} is defined in an inaccessible class or interface
+         *    {1}.{0} is defined in an inaccessible class or interface
          */
         public static Error NotDefAccessClassIntfCantAccess(Symbol arg0, Symbol arg1) {
             return new Error("compiler", "not.def.access.class.intf.cant.access", arg0, arg1);
         }
         
         /**
-         * compiler.err.not.def.access.package.cant.access=\
-         *    {0} is not visible because package {1} is not visible
+         * compiler.err.not.def.access.class.intf.cant.access.reason=\
+         *    {1}.{0} in package {2} is not accessible\n\
+         *    ({3})
          */
-        public static Error NotDefAccessPackageCantAccess(Symbol arg0, Symbol arg1) {
-            return new Error("compiler", "not.def.access.package.cant.access", arg0, arg1);
+        public static Error NotDefAccessClassIntfCantAccessReason(Symbol arg0, Symbol arg1, Symbol arg2, JCDiagnostic arg3) {
+            return new Error("compiler", "not.def.access.class.intf.cant.access.reason", arg0, arg1, arg2, arg3);
+        }
+        
+        /**
+         * compiler.err.not.def.access.class.intf.cant.access.reason=\
+         *    {1}.{0} in package {2} is not accessible\n\
+         *    ({3})
+         */
+        public static Error NotDefAccessClassIntfCantAccessReason(Symbol arg0, Symbol arg1, Symbol arg2, Fragment arg3) {
+            return new Error("compiler", "not.def.access.class.intf.cant.access.reason", arg0, arg1, arg2, arg3);
+        }
+        
+        /**
+         * compiler.err.not.def.access.package.cant.access=\
+         *    {0} is not visible\n\
+         *    ({2})
+         */
+        public static Error NotDefAccessPackageCantAccess(Symbol arg0, Symbol arg1, JCDiagnostic arg2) {
+            return new Error("compiler", "not.def.access.package.cant.access", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.err.not.def.access.package.cant.access=\
+         *    {0} is not visible\n\
+         *    ({2})
+         */
+        public static Error NotDefAccessPackageCantAccess(Symbol arg0, Symbol arg1, Fragment arg2) {
+            return new Error("compiler", "not.def.access.package.cant.access", arg0, arg1, arg2);
         }
         
         /**
@@ -3629,6 +2792,12 @@ public class CompilerProperties {
         public static Error NotEnclClass(Symbol arg0) {
             return new Error("compiler", "not.encl.class", arg0);
         }
+        
+        /**
+         * compiler.err.not.in.module.on.module.source.path=\
+         *    not in a module on the module source path
+         */
+        public static final Error NotInModuleOnModuleSourcePath = new Error("compiler", "not.in.module.on.module.source.path");
         
         /**
          * compiler.err.not.in.profile=\
@@ -3828,6 +2997,24 @@ public class CompilerProperties {
          */
         public static Error PackageInOtherModule(Symbol arg0) {
             return new Error("compiler", "package.in.other.module", arg0);
+        }
+        
+        /**
+         * compiler.err.package.not.visible=\
+         *    package {0} is not visible\n\
+         *    ({1})
+         */
+        public static Error PackageNotVisible(Symbol arg0, JCDiagnostic arg1) {
+            return new Error("compiler", "package.not.visible", arg0, arg1);
+        }
+        
+        /**
+         * compiler.err.package.not.visible=\
+         *    package {0} is not visible\n\
+         *    ({1})
+         */
+        public static Error PackageNotVisible(Symbol arg0, Fragment arg1) {
+            return new Error("compiler", "package.not.visible", arg0, arg1);
         }
         
         /**
@@ -4044,6 +3231,14 @@ public class CompilerProperties {
         public static final Error RepeatedModifier = new Error("compiler", "repeated.modifier");
         
         /**
+         * compiler.err.repeated.provides.for.service=\
+         *    multiple ''provides'' for service {0}
+         */
+        public static Error RepeatedProvidesForService(Symbol arg0) {
+            return new Error("compiler", "repeated.provides.for.service", arg0);
+        }
+        
+        /**
          * compiler.err.report.access=\
          *    {0} has {1} access in {2}
          */
@@ -4206,6 +3401,14 @@ public class CompilerProperties {
          *    too many module declarations found
          */
         public static final Error TooManyModules = new Error("compiler", "too.many.modules");
+        
+        /**
+         * compiler.err.too.many.patched.modules=\
+         *    too many patched modules ({0}), use --module-source-path
+         */
+        public static Error TooManyPatchedModules(Set<? extends String> arg0) {
+            return new Error("compiler", "too.many.patched.modules", arg0);
+        }
         
         /**
          * compiler.err.try.resource.may.not.be.assigned=\
@@ -4604,12 +3807,6 @@ public class CompilerProperties {
         public static Error WrongNumberTypeArgs(String arg0) {
             return new Error("compiler", "wrong.number.type.args", arg0);
         }
-        
-        /**
-         * compiler.err.xmodule.no.module.sourcepath=\
-         *    illegal combination of -Xmodule and --module-source-path
-         */
-        public static final Error XmoduleNoModuleSourcepath = new Error("compiler", "xmodule.no.module.sourcepath");
     }
     public static class Fragments {
         /**
@@ -4740,6 +3937,22 @@ public class CompilerProperties {
          *    bad constant pool tag: {0} at {1}
          */
         public static final Fragment BadConstPoolTagAt = new Fragment("compiler", "bad.const.pool.tag.at");
+        
+        /**
+         * compiler.misc.bad.constant.range=\
+         *    constant value ''{0}'' for {1} is outside the expected range for {2}
+         */
+        public static Fragment BadConstantRange(String arg0, Symbol arg1, Type arg2) {
+            return new Fragment("compiler", "bad.constant.range", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.misc.bad.constant.value=\
+         *    bad constant value ''{0}'' for {1}, expected {2}
+         */
+        public static Fragment BadConstantValue(String arg0, Symbol arg1, String arg2) {
+            return new Fragment("compiler", "bad.constant.value", arg0, arg1, arg2);
+        }
         
         /**
          * compiler.misc.bad.enclosing.class=\
@@ -6013,10 +5226,102 @@ public class CompilerProperties {
         
         /**
          * compiler.misc.not.def.access.class.intf.cant.access=\
-         *    {0} in {1} is defined in an inaccessible class or interface
+         *    {1}.{0} is defined in an inaccessible class or interface
          */
         public static Fragment NotDefAccessClassIntfCantAccess(Symbol arg0, Symbol arg1) {
             return new Fragment("compiler", "not.def.access.class.intf.cant.access", arg0, arg1);
+        }
+        
+        /**
+         * compiler.misc.not.def.access.class.intf.cant.access.reason=\
+         *    {1}.{0} in package {2} is not accessible\n\
+         *    ({3})
+         */
+        public static Fragment NotDefAccessClassIntfCantAccessReason(Symbol arg0, Symbol arg1, Symbol arg2, JCDiagnostic arg3) {
+            return new Fragment("compiler", "not.def.access.class.intf.cant.access.reason", arg0, arg1, arg2, arg3);
+        }
+        
+        /**
+         * compiler.misc.not.def.access.class.intf.cant.access.reason=\
+         *    {1}.{0} in package {2} is not accessible\n\
+         *    ({3})
+         */
+        public static Fragment NotDefAccessClassIntfCantAccessReason(Symbol arg0, Symbol arg1, Symbol arg2, Fragment arg3) {
+            return new Fragment("compiler", "not.def.access.class.intf.cant.access.reason", arg0, arg1, arg2, arg3);
+        }
+        
+        /**
+         * compiler.misc.not.def.access.does.not.read=\
+         *    package {1} is declared in module {2}, but module {0} does not read it
+         */
+        public static Fragment NotDefAccessDoesNotRead(Symbol arg0, Symbol arg1, Symbol arg2) {
+            return new Fragment("compiler", "not.def.access.does.not.read", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.misc.not.def.access.does.not.read.from.unnamed=\
+         *    package {0} is declared in module {1}, which is not in the module graph
+         */
+        public static Fragment NotDefAccessDoesNotReadFromUnnamed(Symbol arg0, Symbol arg1) {
+            return new Fragment("compiler", "not.def.access.does.not.read.from.unnamed", arg0, arg1);
+        }
+        
+        /**
+         * compiler.misc.not.def.access.does.not.read.unnamed=\
+         *    package {0} is declared in the unnamed module, but module {0} does not read it
+         */
+        public static Fragment NotDefAccessDoesNotReadUnnamed(Symbol arg0, Symbol arg1) {
+            return new Fragment("compiler", "not.def.access.does.not.read.unnamed", arg0, arg1);
+        }
+        
+        /**
+         * compiler.misc.not.def.access.not.exported=\
+         *    package {0} is declared in module {1}, which does not export it
+         */
+        public static Fragment NotDefAccessNotExported(Symbol arg0, Symbol arg1) {
+            return new Fragment("compiler", "not.def.access.not.exported", arg0, arg1);
+        }
+        
+        /**
+         * compiler.misc.not.def.access.not.exported.from.unnamed=\
+         *    package {0} is declared in module {1}, which does not export it
+         */
+        public static Fragment NotDefAccessNotExportedFromUnnamed(Symbol arg0, Symbol arg1) {
+            return new Fragment("compiler", "not.def.access.not.exported.from.unnamed", arg0, arg1);
+        }
+        
+        /**
+         * compiler.misc.not.def.access.not.exported.to.module=\
+         *    package {0} is declared in module {1}, which does not export it to module {2}
+         */
+        public static Fragment NotDefAccessNotExportedToModule(Symbol arg0, Symbol arg1, Symbol arg2) {
+            return new Fragment("compiler", "not.def.access.not.exported.to.module", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.misc.not.def.access.not.exported.to.module.from.unnamed=\
+         *    package {0} is declared in module {1}, which does not export it to the unnamed module
+         */
+        public static Fragment NotDefAccessNotExportedToModuleFromUnnamed(Symbol arg0, Symbol arg1) {
+            return new Fragment("compiler", "not.def.access.not.exported.to.module.from.unnamed", arg0, arg1);
+        }
+        
+        /**
+         * compiler.misc.not.def.access.package.cant.access=\
+         *    {0} is not visible\n\
+         *    ({2})
+         */
+        public static Fragment NotDefAccessPackageCantAccess(Symbol arg0, Symbol arg1, JCDiagnostic arg2) {
+            return new Fragment("compiler", "not.def.access.package.cant.access", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.misc.not.def.access.package.cant.access=\
+         *    {0} is not visible\n\
+         *    ({2})
+         */
+        public static Fragment NotDefAccessPackageCantAccess(Symbol arg0, Symbol arg1, Fragment arg2) {
+            return new Fragment("compiler", "not.def.access.package.cant.access", arg0, arg1, arg2);
         }
         
         /**
@@ -6033,6 +5338,24 @@ public class CompilerProperties {
          */
         public static Fragment OverriddenDefault(Symbol arg0, Type arg1) {
             return new Fragment("compiler", "overridden.default", arg0, arg1);
+        }
+        
+        /**
+         * compiler.misc.package.not.visible=\
+         *    package {0} is not visible\n\
+         *    ({1})
+         */
+        public static Fragment PackageNotVisible(Symbol arg0, JCDiagnostic arg1) {
+            return new Fragment("compiler", "package.not.visible", arg0, arg1);
+        }
+        
+        /**
+         * compiler.misc.package.not.visible=\
+         *    package {0} is not visible\n\
+         *    ({1})
+         */
+        public static Fragment PackageNotVisible(Symbol arg0, Fragment arg1) {
+            return new Fragment("compiler", "package.not.visible", arg0, arg1);
         }
         
         /**
@@ -6613,5 +5936,915 @@ public class CompilerProperties {
         public static Fragment XPrintRounds(int arg0, String arg1, Set<? extends Symbol> arg2, boolean arg3) {
             return new Fragment("compiler", "x.print.rounds", arg0, arg1, arg2, arg3);
         }
+    }
+    public static class Warnings {
+        /**
+         * compiler.warn.access.to.member.from.serializable.element=\
+         *    access to member {0} from serializable element can be publicly accessible to untrusted code
+         */
+        public static Warning AccessToMemberFromSerializableElement(Symbol arg0) {
+            return new Warning("compiler", "access.to.member.from.serializable.element", arg0);
+        }
+        
+        /**
+         * compiler.warn.access.to.member.from.serializable.lambda=\
+         *    access to member {0} from serializable lambda can be publicly accessible to untrusted code
+         */
+        public static Warning AccessToMemberFromSerializableLambda(Symbol arg0) {
+            return new Warning("compiler", "access.to.member.from.serializable.lambda", arg0);
+        }
+        
+        /**
+         * compiler.warn.addopens.ignored=\
+         *    --add-opens has no effect at compile time
+         */
+        public static final Warning AddopensIgnored = new Warning("compiler", "addopens.ignored");
+        
+        /**
+         * compiler.warn.annotation.method.not.found=\
+         *    Cannot find annotation method ''{1}()'' in type ''{0}''
+         */
+        public static final Warning AnnotationMethodNotFound = new Warning("compiler", "annotation.method.not.found");
+        
+        /**
+         * compiler.warn.annotation.method.not.found.reason=\
+         *    Cannot find annotation method ''{1}()'' in type ''{0}'': {2}
+         */
+        public static final Warning AnnotationMethodNotFoundReason = new Warning("compiler", "annotation.method.not.found.reason");
+        
+        /**
+         * compiler.warn.auxiliary.class.accessed.from.outside.of.its.source.file=\
+         *    auxiliary class {0} in {1} should not be accessed from outside its own source file
+         */
+        public static Warning AuxiliaryClassAccessedFromOutsideOfItsSourceFile(Symbol arg0, File arg1) {
+            return new Warning("compiler", "auxiliary.class.accessed.from.outside.of.its.source.file", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.auxiliary.class.accessed.from.outside.of.its.source.file=\
+         *    auxiliary class {0} in {1} should not be accessed from outside its own source file
+         */
+        public static Warning AuxiliaryClassAccessedFromOutsideOfItsSourceFile(Symbol arg0, JavaFileObject arg1) {
+            return new Warning("compiler", "auxiliary.class.accessed.from.outside.of.its.source.file", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.auxiliary.class.accessed.from.outside.of.its.source.file=\
+         *    auxiliary class {0} in {1} should not be accessed from outside its own source file
+         */
+        public static Warning AuxiliaryClassAccessedFromOutsideOfItsSourceFile(Type arg0, File arg1) {
+            return new Warning("compiler", "auxiliary.class.accessed.from.outside.of.its.source.file", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.auxiliary.class.accessed.from.outside.of.its.source.file=\
+         *    auxiliary class {0} in {1} should not be accessed from outside its own source file
+         */
+        public static Warning AuxiliaryClassAccessedFromOutsideOfItsSourceFile(Type arg0, JavaFileObject arg1) {
+            return new Warning("compiler", "auxiliary.class.accessed.from.outside.of.its.source.file", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.bad.name.for.option=\
+         *    bad name in value for {0} option: ''{1}''
+         */
+        public static Warning BadNameForOption(Option arg0, String arg1) {
+            return new Warning("compiler", "bad.name.for.option", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.big.major.version=\
+         *    {0}: major version {1} is newer than {2}, the highest major version supported by this compiler.\n\
+         *    It is recommended that the compiler be upgraded.
+         */
+        public static Warning BigMajorVersion(File arg0, int arg1, int arg2) {
+            return new Warning("compiler", "big.major.version", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.warn.big.major.version=\
+         *    {0}: major version {1} is newer than {2}, the highest major version supported by this compiler.\n\
+         *    It is recommended that the compiler be upgraded.
+         */
+        public static Warning BigMajorVersion(JavaFileObject arg0, int arg1, int arg2) {
+            return new Warning("compiler", "big.major.version", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.warn.constant.SVUID=\
+         *    serialVersionUID must be constant in class {0}
+         */
+        public static Warning ConstantSVUID(Symbol arg0) {
+            return new Warning("compiler", "constant.SVUID", arg0);
+        }
+        
+        /**
+         * compiler.warn.deprecated.annotation.has.no.effect=\
+         *    @Deprecated annotation has no effect on this {0} declaration
+         */
+        public static Warning DeprecatedAnnotationHasNoEffect(Kind arg0) {
+            return new Warning("compiler", "deprecated.annotation.has.no.effect", arg0);
+        }
+        
+        /**
+         * compiler.warn.diamond.redundant.args=\
+         *    Redundant type arguments in new expression (use diamond operator instead).
+         */
+        public static Warning DiamondRedundantArgs(Void arg0, Void arg1) {
+            return new Warning("compiler", "diamond.redundant.args", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.dir.path.element.not.directory=\
+         *    bad path element "{0}": not a directory
+         */
+        public static Warning DirPathElementNotDirectory(File arg0) {
+            return new Warning("compiler", "dir.path.element.not.directory", arg0);
+        }
+        
+        /**
+         * compiler.warn.dir.path.element.not.directory=\
+         *    bad path element "{0}": not a directory
+         */
+        public static Warning DirPathElementNotDirectory(JavaFileObject arg0) {
+            return new Warning("compiler", "dir.path.element.not.directory", arg0);
+        }
+        
+        /**
+         * compiler.warn.dir.path.element.not.found=\
+         *    bad path element "{0}": no such directory
+         */
+        public static Warning DirPathElementNotFound(File arg0) {
+            return new Warning("compiler", "dir.path.element.not.found", arg0);
+        }
+        
+        /**
+         * compiler.warn.dir.path.element.not.found=\
+         *    bad path element "{0}": no such directory
+         */
+        public static Warning DirPathElementNotFound(JavaFileObject arg0) {
+            return new Warning("compiler", "dir.path.element.not.found", arg0);
+        }
+        
+        /**
+         * compiler.warn.div.zero=\
+         *    division by zero
+         */
+        public static final Warning DivZero = new Warning("compiler", "div.zero");
+        
+        /**
+         * compiler.warn.empty.if=\
+         *    empty statement after if
+         */
+        public static final Warning EmptyIf = new Warning("compiler", "empty.if");
+        
+        /**
+         * compiler.warn.file.from.future=\
+         *    Modification date is in the future for file {0}
+         */
+        public static Warning FileFromFuture(File arg0) {
+            return new Warning("compiler", "file.from.future", arg0);
+        }
+        
+        /**
+         * compiler.warn.file.from.future=\
+         *    Modification date is in the future for file {0}
+         */
+        public static Warning FileFromFuture(JavaFileObject arg0) {
+            return new Warning("compiler", "file.from.future", arg0);
+        }
+        
+        /**
+         * compiler.warn.finally.cannot.complete=\
+         *    finally clause cannot complete normally
+         */
+        public static final Warning FinallyCannotComplete = new Warning("compiler", "finally.cannot.complete");
+        
+        /**
+         * compiler.warn.forward.ref=\
+         *    reference to variable ''{0}'' before it has been initialized
+         */
+        public static Warning ForwardRef(Symbol arg0) {
+            return new Warning("compiler", "forward.ref", arg0);
+        }
+        
+        /**
+         * compiler.warn.future.attr=\
+         *    {0} attribute introduced in version {1}.{2} class files is ignored in version {3}.{4} class files
+         */
+        public static Warning FutureAttr(Name arg0, int arg1, int arg2, int arg3, int arg4) {
+            return new Warning("compiler", "future.attr", arg0, arg1, arg2, arg3, arg4);
+        }
+        
+        /**
+         * compiler.warn.has.been.deprecated=\
+         *    {0} in {1} has been deprecated
+         */
+        public static Warning HasBeenDeprecated(Symbol arg0, Symbol arg1) {
+            return new Warning("compiler", "has.been.deprecated", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.has.been.deprecated.for.removal=\
+         *    {0} in {1} has been deprecated and marked for removal
+         */
+        public static Warning HasBeenDeprecatedForRemoval(Symbol arg0, Symbol arg1) {
+            return new Warning("compiler", "has.been.deprecated.for.removal", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.has.been.deprecated.for.removal.module=\
+         *    module {0} has been deprecated and marked for removal
+         */
+        public static Warning HasBeenDeprecatedForRemovalModule(Symbol arg0) {
+            return new Warning("compiler", "has.been.deprecated.for.removal.module", arg0);
+        }
+        
+        /**
+         * compiler.warn.has.been.deprecated.module=\
+         *    module {0} has been deprecated
+         */
+        public static Warning HasBeenDeprecatedModule(Symbol arg0) {
+            return new Warning("compiler", "has.been.deprecated.module", arg0);
+        }
+        
+        /**
+         * compiler.warn.illegal.char.for.encoding=\
+         *    unmappable character for encoding {0}
+         */
+        public static final Warning IllegalCharForEncoding = new Warning("compiler", "illegal.char.for.encoding");
+        
+        /**
+         * compiler.warn.improper.SVUID=\
+         *    serialVersionUID must be declared static final in class {0}
+         */
+        public static Warning ImproperSVUID(Symbol arg0) {
+            return new Warning("compiler", "improper.SVUID", arg0);
+        }
+        
+        /**
+         * compiler.warn.incubating.modules=\
+         *    using incubating module(s): {0}
+         */
+        public static Warning IncubatingModules(String arg0) {
+            return new Warning("compiler", "incubating.modules", arg0);
+        }
+        
+        /**
+         * compiler.warn.inexact.non-varargs.call=\
+         *    non-varargs call of varargs method with inexact argument type for last parameter;\n\
+         *    cast to {0} for a varargs call\n\
+         *    cast to {1} for a non-varargs call and to suppress this warning
+         */
+        public static Warning InexactNonVarargsCall(Type arg0, Type arg1) {
+            return new Warning("compiler", "inexact.non-varargs.call", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.invalid.archive.file=\
+         *    Unexpected file on path: {0}
+         */
+        public static final Warning InvalidArchiveFile = new Warning("compiler", "invalid.archive.file");
+        
+        /**
+         * compiler.warn.invalid.path=\
+         *    Invalid filename: {0}
+         */
+        public static final Warning InvalidPath = new Warning("compiler", "invalid.path");
+        
+        /**
+         * compiler.warn.leaks.not.accessible=\
+         *    {0} {1} in module {2} is not accessible to clients that require this module
+         */
+        public static Warning LeaksNotAccessible(KindName arg0, Symbol arg1, Symbol arg2) {
+            return new Warning("compiler", "leaks.not.accessible", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.warn.leaks.not.accessible.not.required.transitive=\
+         *    {0} {1} in module {2} is not indirectly exported using 'requires transitive'
+         */
+        public static Warning LeaksNotAccessibleNotRequiredTransitive(KindName arg0, Symbol arg1, Symbol arg2) {
+            return new Warning("compiler", "leaks.not.accessible.not.required.transitive", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.warn.leaks.not.accessible.unexported=\
+         *    {0} {1} in module {2} is not exported
+         */
+        public static Warning LeaksNotAccessibleUnexported(KindName arg0, Symbol arg1, Symbol arg2) {
+            return new Warning("compiler", "leaks.not.accessible.unexported", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.warn.leaks.not.accessible.unexported.qualified=\
+         *    {0} {1} in module {2} may not be visible to all clients that require this module
+         */
+        public static Warning LeaksNotAccessibleUnexportedQualified(KindName arg0, Symbol arg1, Symbol arg2) {
+            return new Warning("compiler", "leaks.not.accessible.unexported.qualified", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.warn.lintOption=\
+         *    [{0}]\u0020
+         */
+        public static Warning LintOption(Option arg0) {
+            return new Warning("compiler", "lintOption", arg0);
+        }
+        
+        /**
+         * compiler.warn.locn.unknown.file.on.module.path=\
+         *    unknown file on module path: {0}
+         */
+        public static Warning LocnUnknownFileOnModulePath(Path arg0) {
+            return new Warning("compiler", "locn.unknown.file.on.module.path", arg0);
+        }
+        
+        /**
+         * compiler.warn.long.SVUID=\
+         *    serialVersionUID must be of type long in class {0}
+         */
+        public static Warning LongSVUID(Symbol arg0) {
+            return new Warning("compiler", "long.SVUID", arg0);
+        }
+        
+        /**
+         * compiler.warn.method.redundant.typeargs=\
+         *    Redundant type arguments in method call.
+         */
+        public static final Warning MethodRedundantTypeargs = new Warning("compiler", "method.redundant.typeargs");
+        
+        /**
+         * compiler.warn.missing.SVUID=\
+         *    serializable class {0} has no definition of serialVersionUID
+         */
+        public static Warning MissingSVUID(Symbol arg0) {
+            return new Warning("compiler", "missing.SVUID", arg0);
+        }
+        
+        /**
+         * compiler.warn.missing.deprecated.annotation=\
+         *    deprecated item is not annotated with @Deprecated
+         */
+        public static final Warning MissingDeprecatedAnnotation = new Warning("compiler", "missing.deprecated.annotation");
+        
+        /**
+         * compiler.warn.module.for.option.not.found=\
+         *    module name in {0} option not found: {1}
+         */
+        public static Warning ModuleForOptionNotFound(Option arg0, Symbol arg1) {
+            return new Warning("compiler", "module.for.option.not.found", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.module.not.found=\
+         *    module not found: {0}
+         */
+        public static Warning ModuleNotFound(Symbol arg0) {
+            return new Warning("compiler", "module.not.found", arg0);
+        }
+        
+        /**
+         * compiler.warn.option.obsolete.source=\
+         *    source value {0} is obsolete and will be removed in a future release
+         */
+        public static Warning OptionObsoleteSource(String arg0) {
+            return new Warning("compiler", "option.obsolete.source", arg0);
+        }
+        
+        /**
+         * compiler.warn.option.obsolete.suppression=\
+         *    To suppress warnings about obsolete options, use -Xlint:-options.
+         */
+        public static final Warning OptionObsoleteSuppression = new Warning("compiler", "option.obsolete.suppression");
+        
+        /**
+         * compiler.warn.option.obsolete.target=\
+         *    target value {0} is obsolete and will be removed in a future release
+         */
+        public static Warning OptionObsoleteTarget(String arg0) {
+            return new Warning("compiler", "option.obsolete.target", arg0);
+        }
+        
+        /**
+         * compiler.warn.outdir.is.in.exploded.module=\
+         *    the output directory is within an exploded module: {0}
+         */
+        public static Warning OutdirIsInExplodedModule(Path arg0) {
+            return new Warning("compiler", "outdir.is.in.exploded.module", arg0);
+        }
+        
+        /**
+         * compiler.warn.override.bridge=\
+         *    {0}; overridden method is a bridge method
+         */
+        public static final Warning OverrideBridge = new Warning("compiler", "override.bridge");
+        
+        /**
+         * compiler.warn.override.equals.but.not.hashcode=\
+         *    Class {0} overrides equals, but neither it nor any superclass overrides hashCode method
+         */
+        public static Warning OverrideEqualsButNotHashcode(Symbol arg0) {
+            return new Warning("compiler", "override.equals.but.not.hashcode", arg0);
+        }
+        
+        /**
+         * compiler.warn.override.unchecked.ret=\
+         *    {0}\n\
+         *    return type requires unchecked conversion from {1} to {2}
+         */
+        public static Warning OverrideUncheckedRet(JCDiagnostic arg0, Type arg1, Type arg2) {
+            return new Warning("compiler", "override.unchecked.ret", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.warn.override.unchecked.ret=\
+         *    {0}\n\
+         *    return type requires unchecked conversion from {1} to {2}
+         */
+        public static Warning OverrideUncheckedRet(Fragment arg0, Type arg1, Type arg2) {
+            return new Warning("compiler", "override.unchecked.ret", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.warn.override.unchecked.thrown=\
+         *    {0}\n\
+         *    overridden method does not throw {1}
+         */
+        public static Warning OverrideUncheckedThrown(JCDiagnostic arg0, Type arg1) {
+            return new Warning("compiler", "override.unchecked.thrown", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.override.unchecked.thrown=\
+         *    {0}\n\
+         *    overridden method does not throw {1}
+         */
+        public static Warning OverrideUncheckedThrown(Fragment arg0, Type arg1) {
+            return new Warning("compiler", "override.unchecked.thrown", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.override.varargs.extra=\
+         *    {0}; overriding method is missing ''...''
+         */
+        public static Warning OverrideVarargsExtra(JCDiagnostic arg0) {
+            return new Warning("compiler", "override.varargs.extra", arg0);
+        }
+        
+        /**
+         * compiler.warn.override.varargs.extra=\
+         *    {0}; overriding method is missing ''...''
+         */
+        public static Warning OverrideVarargsExtra(Fragment arg0) {
+            return new Warning("compiler", "override.varargs.extra", arg0);
+        }
+        
+        /**
+         * compiler.warn.override.varargs.missing=\
+         *    {0}; overridden method has no ''...''
+         */
+        public static Warning OverrideVarargsMissing(JCDiagnostic arg0) {
+            return new Warning("compiler", "override.varargs.missing", arg0);
+        }
+        
+        /**
+         * compiler.warn.override.varargs.missing=\
+         *    {0}; overridden method has no ''...''
+         */
+        public static Warning OverrideVarargsMissing(Fragment arg0) {
+            return new Warning("compiler", "override.varargs.missing", arg0);
+        }
+        
+        /**
+         * compiler.warn.package.empty.or.not.found=\
+         *    package is empty or does not exist: {0}
+         */
+        public static Warning PackageEmptyOrNotFound(Symbol arg0) {
+            return new Warning("compiler", "package.empty.or.not.found", arg0);
+        }
+        
+        /**
+         * compiler.warn.path.element.not.found=\
+         *    bad path element "{0}": no such file or directory
+         */
+        public static Warning PathElementNotFound(File arg0) {
+            return new Warning("compiler", "path.element.not.found", arg0);
+        }
+        
+        /**
+         * compiler.warn.path.element.not.found=\
+         *    bad path element "{0}": no such file or directory
+         */
+        public static Warning PathElementNotFound(JavaFileObject arg0) {
+            return new Warning("compiler", "path.element.not.found", arg0);
+        }
+        
+        /**
+         * compiler.warn.pkg-info.already.seen=\
+         *    a package-info.java file has already been seen for package {0}
+         */
+        public static Warning PkgInfoAlreadySeen(Symbol arg0) {
+            return new Warning("compiler", "pkg-info.already.seen", arg0);
+        }
+        
+        /**
+         * compiler.warn.poor.choice.for.module.name=\
+         *    module name {0} should avoid terminal digits
+         */
+        public static Warning PoorChoiceForModuleName(Name arg0) {
+            return new Warning("compiler", "poor.choice.for.module.name", arg0);
+        }
+        
+        /**
+         * compiler.warn.position.overflow=\
+         *    Position encoding overflows at line {0}
+         */
+        public static Warning PositionOverflow(int arg0) {
+            return new Warning("compiler", "position.overflow", arg0);
+        }
+        
+        /**
+         * compiler.warn.possible.fall-through.into.case=\
+         *    possible fall-through into case
+         */
+        public static final Warning PossibleFallThroughIntoCase = new Warning("compiler", "possible.fall-through.into.case");
+        
+        /**
+         * compiler.warn.potential.lambda.found=\
+         *    This anonymous inner class creation can be turned into a lambda expression.
+         */
+        public static final Warning PotentialLambdaFound = new Warning("compiler", "potential.lambda.found");
+        
+        /**
+         * compiler.warn.potentially.ambiguous.overload=\
+         *    {0} in {1} is potentially ambiguous with {2} in {3}
+         */
+        public static Warning PotentiallyAmbiguousOverload(Symbol arg0, Symbol arg1, Symbol arg2, Symbol arg3) {
+            return new Warning("compiler", "potentially.ambiguous.overload", arg0, arg1, arg2, arg3);
+        }
+        
+        /**
+         * compiler.warn.prob.found.req=\
+         *    {0}\n\
+         *    required: {2}\n\
+         *    found:    {1}
+         */
+        public static Warning ProbFoundReq(JCDiagnostic arg0, Type arg1, Type arg2) {
+            return new Warning("compiler", "prob.found.req", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.warn.prob.found.req=\
+         *    {0}\n\
+         *    required: {2}\n\
+         *    found:    {1}
+         */
+        public static Warning ProbFoundReq(Fragment arg0, Type arg1, Type arg2) {
+            return new Warning("compiler", "prob.found.req", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.warn.proc.annotations.without.processors=\
+         *    No processor claimed any of these annotations: {0}
+         */
+        public static Warning ProcAnnotationsWithoutProcessors(Set<? extends String> arg0) {
+            return new Warning("compiler", "proc.annotations.without.processors", arg0);
+        }
+        
+        /**
+         * compiler.warn.proc.file.create.last.round=\
+         *    File for type ''{0}'' created in the last round will not be subject to annotation processing.
+         */
+        public static Warning ProcFileCreateLastRound(Name arg0) {
+            return new Warning("compiler", "proc.file.create.last.round", arg0);
+        }
+        
+        /**
+         * compiler.warn.proc.file.reopening=\
+         *    Attempt to create a file for ''{0}'' multiple times
+         */
+        public static Warning ProcFileReopening(Name arg0) {
+            return new Warning("compiler", "proc.file.reopening", arg0);
+        }
+        
+        /**
+         * compiler.warn.proc.illegal.file.name=\
+         *    Cannot create file for illegal name ''{0}''.
+         */
+        public static Warning ProcIllegalFileName(String arg0) {
+            return new Warning("compiler", "proc.illegal.file.name", arg0);
+        }
+        
+        /**
+         * compiler.warn.proc.malformed.supported.string=\
+         *    Malformed string ''{0}'' for a supported annotation type returned by processor ''{1}''
+         */
+        public static Warning ProcMalformedSupportedString(String arg0, String arg1) {
+            return new Warning("compiler", "proc.malformed.supported.string", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.proc.messager=\
+         *    {0}
+         */
+        public static Warning ProcMessager(String arg0) {
+            return new Warning("compiler", "proc.messager", arg0);
+        }
+        
+        /**
+         * compiler.warn.proc.package.does.not.exist=\
+         *    package {0} does not exist
+         */
+        public static Warning ProcPackageDoesNotExist(String arg0) {
+            return new Warning("compiler", "proc.package.does.not.exist", arg0);
+        }
+        
+        /**
+         * compiler.warn.proc.proc-only.requested.no.procs=\
+         *    Annotation processing without compilation requested but no processors were found.
+         */
+        public static final Warning ProcProcOnlyRequestedNoProcs = new Warning("compiler", "proc.proc-only.requested.no.procs");
+        
+        /**
+         * compiler.warn.proc.processor.incompatible.source.version=\
+         *    Supported source version ''{0}'' from annotation processor ''{1}'' less than -source ''{2}''
+         */
+        public static Warning ProcProcessorIncompatibleSourceVersion(Source arg0, String arg1, String arg2) {
+            return new Warning("compiler", "proc.processor.incompatible.source.version", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.warn.proc.suspicious.class.name=\
+         *    Creating file for a type whose name ends in {1}: ''{0}''
+         */
+        public static Warning ProcSuspiciousClassName(String arg0, String arg1) {
+            return new Warning("compiler", "proc.suspicious.class.name", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.proc.type.already.exists=\
+         *    A file for type ''{0}'' already exists on the sourcepath or classpath
+         */
+        public static Warning ProcTypeAlreadyExists(Name arg0) {
+            return new Warning("compiler", "proc.type.already.exists", arg0);
+        }
+        
+        /**
+         * compiler.warn.proc.type.recreate=\
+         *    Attempt to create a file for type ''{0}'' multiple times
+         */
+        public static Warning ProcTypeRecreate(Name arg0) {
+            return new Warning("compiler", "proc.type.recreate", arg0);
+        }
+        
+        /**
+         * compiler.warn.proc.unclosed.type.files=\
+         *    Unclosed files for the types ''{0}''; these types will not undergo annotation processing
+         */
+        public static Warning ProcUnclosedTypeFiles(Set<? extends Name> arg0) {
+            return new Warning("compiler", "proc.unclosed.type.files", arg0);
+        }
+        
+        /**
+         * compiler.warn.proc.unmatched.processor.options=\
+         *    The following options were not recognized by any processor: ''{0}''
+         */
+        public static Warning ProcUnmatchedProcessorOptions(String arg0) {
+            return new Warning("compiler", "proc.unmatched.processor.options", arg0);
+        }
+        
+        /**
+         * compiler.warn.proc.use.implicit=\
+         *    Implicitly compiled files were not subject to annotation processing.\n\
+         *    Use -implicit to specify a policy for implicit compilation.
+         */
+        public static final Warning ProcUseImplicit = new Warning("compiler", "proc.use.implicit");
+        
+        /**
+         * compiler.warn.proc.use.proc.or.implicit=\
+         *    Implicitly compiled files were not subject to annotation processing.\n\
+         *    Use -proc:none to disable annotation processing or -implicit to specify a policy for implicit compilation.
+         */
+        public static final Warning ProcUseProcOrImplicit = new Warning("compiler", "proc.use.proc.or.implicit");
+        
+        /**
+         * compiler.warn.raw.class.use=\
+         *    found raw type: {0}\n\
+         *    missing type arguments for generic class {1}
+         */
+        public static Warning RawClassUse(Type arg0, Type arg1) {
+            return new Warning("compiler", "raw.class.use", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.redundant.cast=\
+         *    redundant cast to {0}
+         */
+        public static Warning RedundantCast(Type arg0) {
+            return new Warning("compiler", "redundant.cast", arg0);
+        }
+        
+        /**
+         * compiler.warn.self.ref=\
+         *    self-reference in initializer of variable ''{0}''
+         */
+        public static Warning SelfRef(Symbol arg0) {
+            return new Warning("compiler", "self.ref", arg0);
+        }
+        
+        /**
+         * compiler.warn.service.provided.but.not.exported.or.used=\
+         *    service interface provided but not exported or used
+         */
+        public static Warning ServiceProvidedButNotExportedOrUsed(Symbol arg0) {
+            return new Warning("compiler", "service.provided.but.not.exported.or.used", arg0);
+        }
+        
+        /**
+         * compiler.warn.source.no.bootclasspath=\
+         *    bootstrap class path not set in conjunction with -source {0}
+         */
+        public static Warning SourceNoBootclasspath(String arg0) {
+            return new Warning("compiler", "source.no.bootclasspath", arg0);
+        }
+        
+        /**
+         * compiler.warn.static.not.qualified.by.type=\
+         *    static {0} should be qualified by type name, {1}, instead of by an expression
+         */
+        public static Warning StaticNotQualifiedByType(Kind arg0, Symbol arg1) {
+            return new Warning("compiler", "static.not.qualified.by.type", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.sun.proprietary=\
+         *    {0} is internal proprietary API and may be removed in a future release
+         */
+        public static Warning SunProprietary(Symbol arg0) {
+            return new Warning("compiler", "sun.proprietary", arg0);
+        }
+        
+        /**
+         * compiler.warn.try.explicit.close.call=\
+         *    explicit call to close() on an auto-closeable resource
+         */
+        public static final Warning TryExplicitCloseCall = new Warning("compiler", "try.explicit.close.call");
+        
+        /**
+         * compiler.warn.try.resource.not.referenced=\
+         *    auto-closeable resource {0} is never referenced in body of corresponding try statement
+         */
+        public static Warning TryResourceNotReferenced(Symbol arg0) {
+            return new Warning("compiler", "try.resource.not.referenced", arg0);
+        }
+        
+        /**
+         * compiler.warn.try.resource.throws.interrupted.exc=\
+         *    auto-closeable resource {0} has a member method close() that could throw InterruptedException
+         */
+        public static Warning TryResourceThrowsInterruptedExc(Type arg0) {
+            return new Warning("compiler", "try.resource.throws.interrupted.exc", arg0);
+        }
+        
+        /**
+         * compiler.warn.unchecked.assign=\
+         *    unchecked assignment: {0} to {1}
+         */
+        public static final Warning UncheckedAssign = new Warning("compiler", "unchecked.assign");
+        
+        /**
+         * compiler.warn.unchecked.assign.to.var=\
+         *    unchecked assignment to variable {0} as member of raw type {1}
+         */
+        public static Warning UncheckedAssignToVar(Symbol arg0, Type arg1) {
+            return new Warning("compiler", "unchecked.assign.to.var", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.unchecked.call.mbr.of.raw.type=\
+         *    unchecked call to {0} as a member of the raw type {1}
+         */
+        public static Warning UncheckedCallMbrOfRawType(Symbol arg0, Type arg1) {
+            return new Warning("compiler", "unchecked.call.mbr.of.raw.type", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.unchecked.cast.to.type=\
+         *    unchecked cast to type {0}
+         */
+        public static final Warning UncheckedCastToType = new Warning("compiler", "unchecked.cast.to.type");
+        
+        /**
+         * compiler.warn.unchecked.generic.array.creation=\
+         *    unchecked generic array creation for varargs parameter of type {0}
+         */
+        public static Warning UncheckedGenericArrayCreation(Type arg0) {
+            return new Warning("compiler", "unchecked.generic.array.creation", arg0);
+        }
+        
+        /**
+         * compiler.warn.unchecked.meth.invocation.applied=\
+         *    unchecked method invocation: {0} {1} in {4} {5} is applied to given types\n\
+         *    required: {2}\n\
+         *    found: {3}
+         */
+        public static Warning UncheckedMethInvocationApplied(Kind arg0, Name arg1, List<? extends Type> arg2, List<? extends Type> arg3, Kind arg4, Symbol arg5) {
+            return new Warning("compiler", "unchecked.meth.invocation.applied", arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+        
+        /**
+         * compiler.warn.unchecked.varargs.non.reifiable.type=\
+         *    Possible heap pollution from parameterized vararg type {0}
+         */
+        public static Warning UncheckedVarargsNonReifiableType(Type arg0) {
+            return new Warning("compiler", "unchecked.varargs.non.reifiable.type", arg0);
+        }
+        
+        /**
+         * compiler.warn.underscore.as.identifier=\
+         *    as of release 9, ''_'' is a keyword, and may not be used as an identifier
+         */
+        public static final Warning UnderscoreAsIdentifier = new Warning("compiler", "underscore.as.identifier");
+        
+        /**
+         * compiler.warn.unexpected.archive.file=\
+         *    Unexpected extension for archive file: {0}
+         */
+        public static final Warning UnexpectedArchiveFile = new Warning("compiler", "unexpected.archive.file");
+        
+        /**
+         * compiler.warn.unknown.enum.constant=\
+         *    unknown enum constant {1}.{2}
+         */
+        public static Warning UnknownEnumConstant(Symbol arg0, Name arg1) {
+            return new Warning("compiler", "unknown.enum.constant", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.unknown.enum.constant.reason=\
+         *    unknown enum constant {1}.{2}\n\
+         *    reason: {3}
+         */
+        public static Warning UnknownEnumConstantReason(Symbol arg0, Name arg1, JCDiagnostic arg2) {
+            return new Warning("compiler", "unknown.enum.constant.reason", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.warn.unknown.enum.constant.reason=\
+         *    unknown enum constant {1}.{2}\n\
+         *    reason: {3}
+         */
+        public static Warning UnknownEnumConstantReason(Symbol arg0, Name arg1, Fragment arg2) {
+            return new Warning("compiler", "unknown.enum.constant.reason", arg0, arg1, arg2);
+        }
+        
+        /**
+         * compiler.warn.unreachable.catch=\
+         *    unreachable catch clause\n\
+         *    thrown type {0} has already been caught
+         */
+        public static Warning UnreachableCatch(List<? extends Type> arg0) {
+            return new Warning("compiler", "unreachable.catch", arg0);
+        }
+        
+        /**
+         * compiler.warn.unreachable.catch.1=\
+         *    unreachable catch clause\n\
+         *    thrown types {0} have already been caught
+         */
+        public static Warning UnreachableCatch1(List<? extends Type> arg0) {
+            return new Warning("compiler", "unreachable.catch.1", arg0);
+        }
+        
+        /**
+         * compiler.warn.varargs.redundant.trustme.anno=\
+         *    Redundant {0} annotation. {1}
+         */
+        public static Warning VarargsRedundantTrustmeAnno(Symbol arg0, JCDiagnostic arg1) {
+            return new Warning("compiler", "varargs.redundant.trustme.anno", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.varargs.redundant.trustme.anno=\
+         *    Redundant {0} annotation. {1}
+         */
+        public static Warning VarargsRedundantTrustmeAnno(Symbol arg0, Fragment arg1) {
+            return new Warning("compiler", "varargs.redundant.trustme.anno", arg0, arg1);
+        }
+        
+        /**
+         * compiler.warn.varargs.unsafe.use.varargs.param=\
+         *    Varargs method could cause heap pollution from non-reifiable varargs parameter {0}
+         */
+        public static Warning VarargsUnsafeUseVarargsParam(Symbol arg0) {
+            return new Warning("compiler", "varargs.unsafe.use.varargs.param", arg0);
+        }
+        
+        /**
+         * compiler.warn.warning=\
+         *    warning:\u0020
+         */
+        public static final Warning Warning = new Warning("compiler", "warning");
     }
 }
