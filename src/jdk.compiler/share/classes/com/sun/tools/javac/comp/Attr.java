@@ -36,7 +36,6 @@ import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.TreeVisitor;
 import com.sun.source.util.SimpleTreeVisitor;
 import com.sun.tools.javac.code.*;
-import com.sun.tools.javac.code.Directive.RequiresFlag;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Symbol.*;
@@ -46,7 +45,6 @@ import com.sun.tools.javac.code.Types.FunctionDescriptorLookupError;
 import com.sun.tools.javac.comp.ArgumentAttr.LocalCacheContext;
 import com.sun.tools.javac.comp.Check.CheckContext;
 import com.sun.tools.javac.comp.DeferredAttr.AttrMode;
-import com.sun.tools.javac.comp.Infer.FreeTypeListener;
 import com.sun.tools.javac.jvm.*;
 import static com.sun.tools.javac.resources.CompilerProperties.Fragments.Diamond;
 import static com.sun.tools.javac.resources.CompilerProperties.Fragments.DiamondInvalidArg;
@@ -3084,6 +3082,14 @@ public class Attr extends JCTree.Visitor {
                 return;
             }
 
+            if (!env.info.isSpeculative && that.getMode() == JCMemberReference.ReferenceMode.NEW) {
+                Type enclosingType = exprType.getEnclosingType();
+                if (enclosingType != null && enclosingType.hasTag(CLASS)) {
+                    // Check for the existence of an apropriate outer instance
+                    rs.resolveImplicitThis(that.pos(), env, exprType);
+                }
+            }
+
             if (resultInfo.checkContext.deferredAttrContext().mode == AttrMode.CHECK) {
 
                 if (that.getMode() == ReferenceMode.INVOKE &&
@@ -4221,10 +4227,16 @@ public class Attr extends JCTree.Visitor {
                         rs.methodArguments(argtypes.map(checkDeferredMap)),
                         kindName(sym.location()),
                         sym.location());
-               owntype = new MethodType(owntype.getParameterTypes(),
-                       types.erasure(owntype.getReturnType()),
-                       types.erasure(owntype.getThrownTypes()),
-                       syms.methodClass);
+                if (resultInfo.pt != Infer.anyPoly ||
+                        !owntype.hasTag(METHOD) ||
+                        !owntype.isPartial()) {
+                    //if this is not a partially inferred method type, erase return type. Otherwise,
+                    //erasure is carried out in PartiallyInferredMethodType.check().
+                    owntype = new MethodType(owntype.getParameterTypes(),
+                            types.erasure(owntype.getReturnType()),
+                            types.erasure(owntype.getThrownTypes()),
+                            syms.methodClass);
+                }
             }
 
             PolyKind pkind = (sym.type.hasTag(FORALL) &&

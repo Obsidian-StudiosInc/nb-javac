@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,11 +51,14 @@
  *     independent, operate at different levels, and do not share functionality or
  *     definitions.
  * </p>
+ *
+ * @since 9
  */
 module jdk.jshell {
     requires transitive java.compiler;
     requires transitive jdk.jdi;
     requires transitive java.prefs;
+    requires java.logging;
     requires jdk.compiler;
     requires jdk.internal.le;
     requires jdk.internal.ed;
@@ -66,7 +69,13 @@ module jdk.jshell {
     exports jdk.jshell.execution;
     exports jdk.jshell.tool;
 
+    uses jdk.jshell.spi.ExecutionControlProvider;
     uses jdk.internal.editor.spi.BuildInEditorProvider;
 
-    provides javax.tools.Tool with jdk.internal.jshell.tool.JShellToolProvider;
+    provides javax.tools.Tool
+        with jdk.internal.jshell.tool.JShellToolProvider;
+    provides jdk.jshell.spi.ExecutionControlProvider
+        with jdk.jshell.execution.JdiExecutionControlProvider,
+             jdk.jshell.execution.LocalExecutionControlProvider,
+             jdk.jshell.execution.FailOverExecutionControlProvider;
 }

@@ -33,18 +33,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.processing.Processor;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.util.ElementFilter;
 import javax.tools.*;
-import javax.tools.JavaFileObject.Kind;
 
 import com.sun.source.tree.*;
 import com.sun.source.util.SourcePositions;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.ModuleSymbol;
-import com.sun.tools.javac.code.Symbol.PackageSymbol;
 import com.sun.tools.javac.comp.*;
 import com.sun.tools.javac.file.BaseFileManager;
 import com.sun.tools.javac.main.*;
@@ -201,7 +196,7 @@ public class JavacTaskImpl extends BasicJavacTask {
             compiler.genEndPos = true;
             notYetEntered = new HashMap<>();
             if (forParse) {
-                compiler.initProcessAnnotations(processors);
+                compiler.initProcessAnnotations(processors, args.getFileObjects(), args.getClassNames());
                 compiler.initNotYetEntered(notYetEntered);
                 for (JavaFileObject file: args.getFileObjects())
                     notYetEntered.put(file, null);

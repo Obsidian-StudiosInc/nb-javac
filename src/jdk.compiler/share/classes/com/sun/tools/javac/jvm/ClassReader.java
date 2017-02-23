@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.CharBuffer;
+import java.nio.file.ClosedFileSystemException;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -1038,8 +1039,45 @@ public class ClassReader {
                 protected void read(Symbol sym, int attrLen) {
                     Object v = readPool(nextChar());
                     // Ignore ConstantValue attribute if field not final.
-                    if ((sym.flags() & FINAL) != 0)
-                        ((VarSymbol) sym).setData(v);
+                    if ((sym.flags() & FINAL) == 0) {
+                        return;
+                    }
+                    VarSymbol var = (VarSymbol) sym;
+                    switch (var.type.getTag()) {
+                       case BOOLEAN:
+                       case BYTE:
+                       case CHAR:
+                       case SHORT:
+                       case INT:
+                           checkType(var, Integer.class, v);
+                           break;
+                       case LONG:
+                           checkType(var, Long.class, v);
+                           break;
+                       case FLOAT:
+                           checkType(var, Float.class, v);
+                           break;
+                       case DOUBLE:
+                           checkType(var, Double.class, v);
+                           break;
+                       case CLASS:
+                           Assert.check(var.type.tsym == syms.stringType.tsym);
+                           checkType(var, String.class, v);
+                           break;
+                       default:
+                           // ignore ConstantValue attribute if type is not primitive or String
+                           return;
+                    }
+                    if (v instanceof Integer && !var.type.getTag().checkRange((Integer) v)) {
+                        throw badClassFile("bad.constant.range", v, var, var.type);
+                    }
+                    var.setData(v);
+                }
+
+                void checkType(Symbol var, Class<?> clazz, Object value) {
+                    if (!clazz.isInstance(value)) {
+                        throw badClassFile("bad.constant.value", value, var, clazz.getSimpleName());
+                    }
                 }
             },
 
@@ -2734,8 +2772,8 @@ public class ClassReader {
                 currentModule.usesProvidesCompleter =
                             new UsesProvidesCompleter(currentModule, interimUses, interimProvides);
             }
-        } catch (IOException ex) {
-            throw badClassFile("unable.to.access.file", ex.getMessage());
+        } catch (IOException | ClosedFileSystemException ex) {
+            throw badClassFile("unable.to.access.file", ex.toString());
         } catch (ArrayIndexOutOfBoundsException ex) {
             throw badClassFile("bad.class.file", c.flatname);
         } finally {

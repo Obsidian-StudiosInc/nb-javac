@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@ import javax.lang.model.element.ElementVisitor;
 import javax.tools.DiagnosticListener;
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
+import javax.tools.JavaFileObject.Kind;
 import javax.tools.StandardLocation;
 
 import com.sun.source.util.TaskEvent;
@@ -376,7 +377,7 @@ public class JavaCompiler {
      **/
     protected boolean implicitSourceFilesRead;
 
-    protected boolean enterDone;
+    private boolean enterDone;
 
     protected CompileStates compileStates;
 
@@ -646,10 +647,9 @@ public class JavaCompiler {
                 keepComments = true;
                 genEndPos = true;
             }
-            Parser parser = parserFactory.newParser(content, keepComments(), genEndPos, lineDebugInfo);
-            tree = parser instanceof JavacParser && filename != null && filename.isNameCompatible("module-info", JavaFileObject.Kind.SOURCE)
-                    ? ((JavacParser)parser).parseCompilationUnit(true)
-                    : parser.parseCompilationUnit();
+            Parser parser = parserFactory.newParser(content, keepComments(), genEndPos,
+                                lineDebugInfo, filename != null && filename.isNameCompatible("module-info", Kind.SOURCE));
+            tree = parser.parseCompilationUnit();
             if (verbose) {
                 log.printVerbose("parsing.done", Long.toString(elapsed(msec)));
             }
@@ -706,7 +706,7 @@ public class JavaCompiler {
         if (sep == -1) {
             msym = modules.getDefaultModule();
             typeName = name;
-        } else if (source.allowModules() && !options.isSet("noModules")) {
+        } else if (source.allowModules()) {
             Name modName = names.fromString(name.substring(0, sep));
 
             msym = moduleFinder.findModule(modName);
@@ -997,7 +997,7 @@ public class JavaCompiler {
         start_msec = now();
 
         try {
-            initProcessAnnotations(processors);
+            initProcessAnnotations(processors, sourceFileObjects, classnames);
 
             for (String className : classnames) {
                 int sep = className.indexOf('/');
@@ -1118,7 +1118,7 @@ public class JavaCompiler {
     public List<JCCompilationUnit> initModules(List<JCCompilationUnit> roots) {
         modules.initModules(roots);
         if (roots.isEmpty()) {
-            enterDone = true;
+            enterDone();
         }
         return roots;
     }
@@ -1139,7 +1139,7 @@ public class JavaCompiler {
 
         enter.main(roots);
 
-        enterDone = true;
+        enterDone();
 
         if (!taskListener.isEmpty()) {
             for (JCCompilationUnit unit: roots) {
@@ -1204,7 +1204,9 @@ public class JavaCompiler {
      * @param processors user provided annotation processors to bypass
      * discovery, {@code null} means that no processors were provided
      */
-    public void initProcessAnnotations(Iterable<? extends Processor> processors) {
+    public void initProcessAnnotations(Iterable<? extends Processor> processors,
+                                       Collection<? extends JavaFileObject> initialFiles,
+                                       Collection<String> initialClassNames) {
         // Process annotations if processing is not disabled and there
         // is at least one Processor available.
         if (options.isSet(PROC, "none")) {
@@ -1222,6 +1224,7 @@ public class JavaCompiler {
                 if (!taskListener.isEmpty())
                     taskListener.started(new TaskEvent(TaskEvent.Kind.ANNOTATION_PROCESSING));
                 deferredDiagnosticHandler = new Log.DeferredDiagnosticHandler(log);
+                procEnvImpl.getFiler().setInitialState(initialFiles, initialClassNames);
             } else { // free resources
                 procEnvImpl.close();
             }
@@ -1540,6 +1543,11 @@ public class JavaCompiler {
             return;
         }
 
+        if (!modules.multiModuleMode && env.toplevel.modle != modules.getDefaultModule()) {
+            //can only generate classfiles for a single module:
+            return;
+        }
+
         if (duplicateClassChecker != null && env.tree.hasTag(JCTree.Tag.CLASSDEF) && duplicateClassChecker.check(((JCClassDecl)env.tree).sym.fullname,
                 env.enclClass.sym.sourcefile != null
                 ? env.enclClass.sym.sourcefile
@@ -1839,6 +1847,11 @@ public class JavaCompiler {
         if (log.compressedOutput) {
             log.mandatoryNote(null, "compressed.diags");
         }
+    }
+
+    public void enterDone() {
+        enterDone = true;
+        annotate.enterDone();
     }
 
     public boolean isEnterDone() {
