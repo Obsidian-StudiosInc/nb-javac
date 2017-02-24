@@ -400,7 +400,9 @@ public class JavacParser implements Parser {
                     break;
                 case UNDERSCORE:
                 case IDENTIFIER:
-                   if (stopAtIdentifier)
+                    if (parseModuleInfo && token.name() == names.module)
+                        return;
+                    if (stopAtIdentifier)
                         return;
                     break;
                 case CASE:
@@ -3267,9 +3269,9 @@ public class JavacParser implements Parser {
                 if (def instanceof JCClassDecl) {
                     checkForPackage = false;
                     checkForImports = false;
+                    firstTypeDecl = false;
                 }
                 mods = null;
-                firstTypeDecl = false;
             }
         }
         JCTree.JCCompilationUnit toplevel = F.at(firstToken.pos).TopLevel(defs.toList());
