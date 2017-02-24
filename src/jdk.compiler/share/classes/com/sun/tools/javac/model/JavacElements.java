@@ -196,6 +196,11 @@ public class JavacElements implements Elements {
                 }
             }
         }
+        
+        if (found.size() == 2) {
+            // prefer ordinary modules over unnamed module
+            found = found.stream().filter(t -> t.packge().modle != syms.unnamedModule).collect(Collectors.toSet());
+        }
 
         if (found.size() == 1) {
             return found.iterator().next();
