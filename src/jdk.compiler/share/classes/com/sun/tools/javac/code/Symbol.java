@@ -1984,7 +1984,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         public List<VarSymbol> params() {
             owner.complete();
             if (params == null) {
-                Assert.checkNonNull(type, "Invalid element: " + this.name);
+                Assert.checkNonNull(type, () -> "Invalid element: " + this.name);
                 // If ClassReader.saveParameterNames has been set true, then
                 // savedParameterNames will be set to a list of names that
                 // matches the types in type.getParameterTypes().  If any names
