@@ -532,7 +532,7 @@ public class Enter extends JCTree.Visitor {
                         //if this class is a member of such an anonymous class, fix the owner:
                         Assert.check(owner.owner.kind != TYP && owner.owner.kind != ERR, owner::toString);
                         Symbol own = c.owner;
-                        Assert.check(c.owner.kind == TYP || c.owner.kind == ERR, () -> own.toString());
+                        Assert.check(c.owner.kind == TYP || c.owner.kind == ERR, own::toString);
                         ClassSymbol cowner = (ClassSymbol) c.owner;
                         if (cowner.members_field != null) {
                             cowner.members_field.remove(c);

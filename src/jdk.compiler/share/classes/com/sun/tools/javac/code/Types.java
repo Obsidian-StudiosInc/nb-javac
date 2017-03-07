@@ -584,7 +584,7 @@ public class Types {
                 throw failure("not.a.functional.intf", origin);
             }
 
-            Assert.checkNonNull(membersCache, "Null members closure returned for symbol: " + origin + " of type: " + origin.type);
+            Assert.checkNonNull(membersCache, () -> "Null members closure returned for symbol: " + origin + " of type: " + origin.type);
             final ListBuffer<Symbol> abstracts = new ListBuffer<>();
             for (Symbol sym : membersCache.getSymbols(new DescriptorFilter(origin))) {
                 Type mtype = memberType(origin.type, sym);
