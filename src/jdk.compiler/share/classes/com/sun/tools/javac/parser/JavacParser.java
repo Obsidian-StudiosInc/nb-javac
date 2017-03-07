@@ -180,7 +180,7 @@ public class JavacParser implements Parser {
         this.allowUnderscoreIdentifier = source.allowUnderscoreIdentifier();
         this.allowPrivateInterfaceMethods = source.allowPrivateInterfaceMethods();
         this.keepDocComments = keepDocComments;
-        this.parseModuleInfo = parseModuleInfo;
+        this.parseModuleInfo = this.stopAtModule = parseModuleInfo;
         this.keepLineMap = keepLineMap;
         this.errorTree = F.Erroneous();
         endPosTable = newEndPosTable(keepEndPositions);
@@ -353,6 +353,7 @@ public class JavacParser implements Parser {
     /* ---------- error recovery -------------- */
 
     private JCErroneous errorTree;
+    private boolean stopAtModule;
 
     /** Skip forward until a suitable stop token is found.
      */
@@ -400,7 +401,7 @@ public class JavacParser implements Parser {
                     break;
                 case UNDERSCORE:
                 case IDENTIFIER:
-                    if (parseModuleInfo && token.name() == names.module)
+                    if (stopAtModule && token.name() == names.module)
                         return;
                     if (stopAtIdentifier)
                         return;
@@ -662,7 +663,7 @@ public class JavacParser implements Parser {
     public JCExpression qualident(boolean allowAnnos) {
         int pos = token.pos;
         Name name;
-        if (parseModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(LPAREN)) {
+        if (stopAtModule && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(LPAREN)) {
             // Error recovery
             reportSyntaxError(token.pos, "expected", IDENTIFIER);
             name = names.error;
@@ -677,7 +678,7 @@ public class JavacParser implements Parser {
             if (allowAnnos) {
                 tyannos = typeAnnotationsOpt();
             }
-            if (parseModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(LPAREN)) {
+            if (stopAtModule && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(LPAREN)) {
                 // Error recovery
                 reportSyntaxError(token.pos, "expected", IDENTIFIER);
                 name = names.error;
@@ -3297,6 +3298,7 @@ public class JavacParser implements Parser {
             nextToken();
         }
         JCExpression name = qualident(false);
+        stopAtModule = false;
         List<JCDirective> directives = null;
 
         accept(LBRACE);
@@ -3396,7 +3398,7 @@ public class JavacParser implements Parser {
         if (token.kind == STATIC) {
             importStatic = true;
             nextToken();
-        } else if (parseModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(SEMI)) {
+        } else if (stopAtModule && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(SEMI)) {
             // Error recovery
             JCExpression pid = F.at(token.pos).Ident(names.error);
             pid = F.at(token.pos).Select(pid, names.error);
@@ -3407,7 +3409,7 @@ public class JavacParser implements Parser {
         }
         JCExpression pid = toP(F.at(token.pos).Ident(ident()));
         do {
-            if (parseModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open)) {
+            if (stopAtModule && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open)) {
                 // Error recovery
                 if (pid.hasTag(IDENT)) {
                     pid = F.at(token.pos).Select(pid, names.error);
@@ -3423,7 +3425,7 @@ public class JavacParser implements Parser {
                 pid = to(F.at(pos1).Select(pid, names.asterisk));
                 nextToken();
                 break;
-            } else if (parseModuleInfo && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(SEMI)) {
+            } else if (stopAtModule && token.kind == IDENTIFIER && (token.name() == names.module || token.name() == names.open) && !peekToken(DOT) && !peekToken(SEMI)) {
                 // Error recovery
                 pid = F.at(pos1).Select(pid, names.error);
                 JCImport imp = F.at(pos).Import(pid, importStatic);
