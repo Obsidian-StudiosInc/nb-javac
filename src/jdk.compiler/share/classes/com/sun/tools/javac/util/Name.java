@@ -50,6 +50,9 @@ public abstract class Name implements javax.lang.model.element.Name {
      */
     @DefinedBy(Api.LANGUAGE_MODEL)
     public boolean contentEquals(CharSequence cs) {
+        if (cs instanceof Name && table == ((Name)cs).table) {
+            return getIndex() == ((Name)cs).getIndex();
+        }
         return toString().equals(cs.toString());
     }
 
