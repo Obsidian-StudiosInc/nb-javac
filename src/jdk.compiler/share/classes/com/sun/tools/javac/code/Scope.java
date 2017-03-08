@@ -740,14 +740,18 @@ public abstract class Scope {
          * No further changes to class hierarchy or class content will be reflected.
          */
         public void finalizeScope() {
-            for (List<Scope> scopes = this.subScopes; scopes.nonEmpty(); scopes = scopes.tail) {
+            OUTER: for (List<Scope> scopes = this.subScopes; scopes.nonEmpty(); scopes = scopes.tail) {
                 Scope impScope = scopes.head;
 
                 if (impScope instanceof FilterImportScope && impScope.owner.kind == Kind.TYP) {
                     WriteableScope finalized = WriteableScope.create(impScope.owner);
+                    int count = 0;
 
                     for (Symbol sym : impScope.getSymbols()) {
                         finalized.enter(sym);
+                        if (count++ > 256) {
+                            continue OUTER;
+                        }
                     }
 
                     finalized.listeners.add(new ScopeListener() {

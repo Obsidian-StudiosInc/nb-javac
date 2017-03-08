@@ -1581,6 +1581,9 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     }
                 }
                 node.packge = null;
+                node.namedImportScope = null;
+                node.starImportScope = null;
+                node.toplevelScope = null;
                 topLevel = node;
                 try {
                     super.visitTopLevel(node);
