@@ -78,14 +78,18 @@
         <delete file="${dist.jar}"/>
         <jar destfile="${dist.dir}/jshell.jar">
             <fileset dir="${build.classes.dir}">
+		<include name="META-INF/services/*"/>
                 <include name="jdk/**/*"/>
             </fileset>
         </jar>
     </target>
 
     <target name="-copy-jars-to-build" if="modules.ext.exists">
+	<!--
         <copy file="${dist.dir}/jshell.jar" tofile="../../../../nbbuild/netbeans/java/modules/ext/nb-jshell.jar" />
+	-->
         <copy file="${dist.dir}/jshell.jar"  tofile="../../../../libs.jshell/external/jshell.jar"/>
+        <copy file="${dist.dir}/jshell.jar"  tofile="../../../../libs.jshell.compile/external/jshell.jar"/>
         <touch file="../../../../nbbuild/netbeans/java/.lastModified" />
     </target>
 
