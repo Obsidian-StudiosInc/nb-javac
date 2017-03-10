@@ -36,7 +36,6 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.util.Elements;
-import javax.tools.JavaFileObject;
 import static javax.lang.model.util.ElementFilter.methodsIn;
 
 import com.sun.source.util.JavacTask;
@@ -68,7 +67,6 @@ import static com.sun.tools.javac.code.Scope.LookupKind.NON_RECURSIVE;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
 import com.sun.tools.javac.comp.Modules;
 import com.sun.tools.javac.comp.Resolve;
-import com.sun.tools.javac.comp.Resolve.RecoveryLoadClass;
 import com.sun.tools.javac.resources.CompilerProperties.Notes;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 
@@ -220,54 +218,6 @@ public class JavacElements implements Elements {
         }
     }
 
-
-    public ClassSymbol getTypeElementByBinaryName (final CharSequence binaryName) {
-        ensureEntered("getTypeElementByBinaryName");
-        return getTypeElementByBinaryName(modules.getDefaultModule(), binaryName);
-    }
-    
-    public ClassSymbol getTypeElementByBinaryName (
-            final ModuleElement module,
-            final CharSequence binaryName) {
-        final String strName = binaryName instanceof String ? (String) binaryName : binaryName.toString();
-        int index = strName.lastIndexOf('.');    //NOI18N
-        do {
-            index = strName.indexOf('$', index+1);   //NOI18N
-            final String owner = index < 0 ? strName : strName.substring(0,index);
-            if (SourceVersion.isName(owner)) {
-                ClassSymbol clz = binaryNameToClassSymbol((ModuleSymbol)module, strName, owner);
-                if (clz != null) {
-                    return clz;
-                }
-            }
-        } while (index >= 0);
-        return null;
-    }
-
-    private ClassSymbol binaryNameToClassSymbol (
-            final ModuleSymbol module,
-            final String binaryName,
-            final String owner) {
-        final Name name = names.fromString(binaryName);
-        ClassSymbol sym = syms.getClass(module, name);  //TODO: hardcoded default module reference
-        try {
-            if (sym == null) {
-                Symbol ownerSym = javaCompiler.resolveIdent(syms.lookupPackage(module, Convert.packagePart(names.fromString(owner))).modle, owner);
-                sym = syms.getClass(ownerSym.packge().modle, name);
-            }
-
-            if (sym != null) {
-                sym.complete();
-                return (sym.exists() &&
-                    name.equals(sym.flatName()))
-                    ? sym
-                    : null;
-            }
-        } catch (CompletionFailure e) {
-        }
-        return null;
-    }
-
     /**
      * Returns a symbol given the type's or package's canonical name,
      * or null if the name isn't found.
@@ -294,6 +244,96 @@ public class JavacElements implements Elements {
         } catch (CompletionFailure e) {
             return null;
         }
+    }
+
+
+    public ClassSymbol getTypeElementByBinaryName (final CharSequence binaryName) {
+        return getTypeElementByBinaryName(null, binaryName);
+    }
+    
+    public ClassSymbol getTypeElementByBinaryName (
+            final ModuleElement module,
+            final CharSequence binaryName) {
+        ensureEntered("getTypeElementByBinaryName");
+        final String strName = binaryName instanceof String ? (String) binaryName : binaryName.toString();
+        int index = strName.lastIndexOf('.');    //NOI18N
+        do {
+            index = strName.indexOf('$', index+1);   //NOI18N
+            final String owner = index < 0 ? strName : strName.substring(0,index);
+            if (SourceVersion.isName(owner)) {                
+                ClassSymbol clz = module != null
+                        ? binaryNameToClassSymbol((ModuleSymbol)module, strName, owner)
+                        : unboundBinaryNameToClassSymbol(strName, owner);
+                if (clz != null) {
+                    return clz;
+                }
+            }
+        } while (index >= 0);
+        return null;
+    }
+
+    private ClassSymbol unboundBinaryNameToClassSymbol(
+            final String binaryName,
+            final String owner) {
+        if (modules.getDefaultModule() == syms.noModule) { //not a modular mode:
+            return binaryNameToClassSymbol(syms.noModule, binaryName, owner);
+        }
+
+        Set<ClassSymbol> found = new LinkedHashSet<>();
+
+        for (ModuleSymbol msym : modules.allModules()) {
+            ClassSymbol sym = binaryNameToClassSymbol(msym, binaryName, owner);
+
+            if (sym != null) {
+                found.add(sym);
+            }
+        }
+        
+        if (found.size() == 2) {
+            // prefer ordinary modules over unnamed module
+            found = found.stream().filter(t -> t.packge().modle != syms.unnamedModule).collect(Collectors.toSet());
+        }
+
+        if (found.size() == 1) {
+            return found.iterator().next();
+        } else if (found.size() > 1) {
+            //more than one element found, produce a note:
+            if (alreadyWarnedDuplicates.add("getTypeElementByBinaryName:" + binaryName)) {
+                String moduleNames = found.stream()
+                                          .map(s -> s.packge().modle)
+                                          .map(m -> m.toString())
+                                          .collect(Collectors.joining(", "));
+                log.note(Notes.MultipleElements("getTypeElementByBinaryName", binaryName, moduleNames));
+            }
+            return null;
+        } else {
+            //not found, or more than one element found:
+            return null;
+        }
+    }
+
+    private ClassSymbol binaryNameToClassSymbol (
+            final ModuleSymbol module,
+            final String binaryName,
+            final String owner) {
+        final Name name = names.fromString(binaryName);
+        ClassSymbol sym = syms.getClass(module, name);  //TODO: hardcoded default module reference
+        try {
+            if (sym == null) {
+                Symbol ownerSym = javaCompiler.resolveIdent(module, owner);
+                sym = syms.getClass(ownerSym.packge().modle, name);
+            }
+
+            if (sym != null) {
+                sym.complete();
+                return (sym.exists() &&
+                    name.equals(sym.flatName()))
+                    ? sym
+                    : null;
+            }
+        } catch (CompletionFailure e) {
+        }
+        return null;
     }
 
     /**
