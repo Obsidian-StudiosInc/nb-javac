@@ -479,7 +479,7 @@ public class JavacTrees extends DocTrees {
                 // we first check if qualifierExpression identifies a type,
                 // and if not, then we check to see if it identifies a package.
                 Type t = attr.attribType(ref.qualifierExpression, env);
-                if (t.isErroneous() || t.hasTag(TYPEVAR)) {
+                if (t.isErroneous()) {
                     JCCompilationUnit toplevel =
                         treeMaker.TopLevel(List.nil());
                     final ModuleSymbol msym = modules.getDefaultModule();
@@ -531,7 +531,7 @@ public class JavacTrees extends DocTrees {
                 paramTypes = lb.toList();
             }
 
-            ClassSymbol sym = (ClassSymbol) types.cvarUpperBound(tsym.type).tsym;
+            ClassSymbol sym = (ClassSymbol) (tsym.type.hasTag(TYPEVAR) ? types.cvarUpperBound(((Type.TypeVar)tsym.type).bound) : tsym.type).tsym;
 
             Symbol msym = (memberName == sym.name)
                     ? findConstructor(sym, paramTypes)
