@@ -29,8 +29,6 @@ import com.sun.tools.javac.code.Kinds.Kind;
 import java.lang.ref.WeakReference;
 import java.util.*;
 import java.util.function.BiConsumer;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import com.sun.tools.javac.code.Symbol.CompletionFailure;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
@@ -40,6 +38,8 @@ import com.sun.tools.javac.util.List;
 
 import static com.sun.tools.javac.code.Scope.LookupKind.NON_RECURSIVE;
 import static com.sun.tools.javac.code.Scope.LookupKind.RECURSIVE;
+import static com.sun.tools.javac.util.Iterators.createCompoundIterator;
+import static com.sun.tools.javac.util.Iterators.createFilterIterator;
 
 /** A scope represents an area of visibility in a Java program. The
  *  Scope class is a container for symbols which provides
@@ -902,7 +902,11 @@ public abstract class Scope {
                         return tsym.members().getSymbols(sf, lookupKind);
                     }
                 };
-                return si.importFrom((TypeSymbol) origin.owner) :: iterator;
+                List<Iterable<Symbol>> results =
+                        si.importFrom((TypeSymbol) origin.owner, List.nil());
+                return () -> createFilterIterator(createCompoundIterator(results,
+                                                                         Iterable::iterator),
+                                                  s -> filter.accepts(origin, s));
             } catch (CompletionFailure cf) {
                 cfHandler.accept(imp, cf);
                 return Collections.emptyList();
@@ -922,7 +926,11 @@ public abstract class Scope {
                         return tsym.members().getSymbolsByName(name, sf, lookupKind);
                     }
                 };
-                return si.importFrom((TypeSymbol) origin.owner) :: iterator;
+                List<Iterable<Symbol>> results =
+                        si.importFrom((TypeSymbol) origin.owner, List.nil());
+                return () -> createFilterIterator(createCompoundIterator(results,
+                                                                         Iterable::iterator),
+                                                  s -> filter.accepts(origin, s));
             } catch (CompletionFailure cf) {
                 cfHandler.accept(imp, cf);
                 return Collections.emptyList();
@@ -946,24 +954,21 @@ public abstract class Scope {
             public SymbolImporter(boolean inspectSuperTypes) {
                 this.inspectSuperTypes = inspectSuperTypes;
             }
-            Stream<Symbol> importFrom(TypeSymbol tsym) {
+            List<Iterable<Symbol>> importFrom(TypeSymbol tsym, List<Iterable<Symbol>> results) {
                 if (tsym == null || !processed.add(tsym))
-                    return Stream.empty();
+                    return results;
 
-                Stream<Symbol> result = Stream.empty();
 
                 if (inspectSuperTypes) {
                     // also import inherited names
                     Type sup = types.supertype(tsym.type);
                     if (sup != null)
-                        result = importFrom(sup.tsym);
+                        results = importFrom(sup.tsym, results);
                     for (Type t : types.interfaces(tsym.type))
-                        result = Stream.concat(importFrom(t.tsym), result);
+                        results = importFrom(t.tsym, results);
                 }
 
-                return Stream.concat(StreamSupport.stream(doLookup(tsym).spliterator(), false)
-                                                  .filter(s -> filter.accepts(origin, s)),
-                                     result);
+                return results.prepend(doLookup(tsym));
             }
             abstract Iterable<Symbol> doLookup(TypeSymbol tsym);
         }

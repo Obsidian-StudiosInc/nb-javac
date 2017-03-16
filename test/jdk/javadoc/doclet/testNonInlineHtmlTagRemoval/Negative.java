@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,15 +21,9 @@
  * questions.
  */
 
-/**
- * The Taglet API provides a way to declare custom tags that can be
- * used by the standard doclet.
- *
- * <p style="font-style: italic">
- * <b>Note:</b> The declarations in this package supersede those
- * in the older package {@code com.sun.tools.doclets}.
- * </p>
- *
- * @since 9
- */
-package jdk.javadoc.doclet.taglet;
+public class Negative {
+    /**
+     * case1: A hanging &lt;  : <blockquote>xx</blockquote><
+     */
+    public void case1() {}
+}

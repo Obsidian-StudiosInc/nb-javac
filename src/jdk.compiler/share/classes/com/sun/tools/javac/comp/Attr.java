@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1000,8 +1000,11 @@ public class Attr extends JCTree.Visitor {
 
             ClassSymbol owner = env.enclClass.sym;
             if ((owner.flags() & ANNOTATION) != 0 &&
-                    tree.params.nonEmpty())
-                log.error(tree.params.head.pos(),
+                    (tree.params.nonEmpty() ||
+                    tree.recvparam != null))
+                log.error(tree.params.nonEmpty() ?
+                        tree.params.head.pos() :
+                        tree.recvparam.pos(),
                         "intf.annotation.members.cant.have.params");
 
             // Attribute all value parameters.
@@ -3193,7 +3196,8 @@ public class Attr extends JCTree.Visitor {
 
         if (!returnType.hasTag(VOID) && !resType.hasTag(VOID)) {
             if (resType.isErroneous() ||
-                    new FunctionalReturnContext(checkContext).compatible(resType, returnType, types.noWarnings)) {
+                    new FunctionalReturnContext(checkContext).compatible(resType, returnType,
+                            checkContext.checkWarner(tree, resType, returnType))) {
                 incompatibleReturnType = null;
             }
         }
@@ -5238,6 +5242,9 @@ public class Attr extends JCTree.Visitor {
             if (that.sym == null) {
                 that.sym = new VarSymbol(inMethodParams ? Flags.PARAMETER : 0, that.name, that.type, syms.noSymbol);
                 that.sym.adr = 0;
+            }
+            if (that.vartype == null) {
+                that.vartype = make.Erroneous();
             }
             super.visitVarDef(that);
         }
