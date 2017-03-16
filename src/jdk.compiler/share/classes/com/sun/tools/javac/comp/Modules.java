@@ -380,7 +380,7 @@ public class Modules extends JCTree.Visitor {
                     Location msplocn = getModuleLocation(tree);
                     Location plocn = fileManager.hasLocation(StandardLocation.PATCH_MODULE_PATH) ?
                             fileManager.getLocationForModule(StandardLocation.PATCH_MODULE_PATH,
-                                                             tree.sourcefile, getPackageName(tree)) :
+                                                             tree.sourcefile) :
                             null;
 
                     if (plocn != null) {
@@ -396,6 +396,13 @@ public class Modules extends JCTree.Visitor {
                             }
                         }
                     } else if (msplocn != null) {
+                        if (tree.getModuleDecl() != null) {
+                            JavaFileObject canonical =
+                                    fileManager.getJavaFileForInput(msplocn, "module-info", Kind.SOURCE);
+                            if (canonical == null || !fileManager.isSameFile(canonical, tree.sourcefile)) {
+                                log.error(tree.pos(), Errors.ModuleNotFoundOnModuleSourcePath);
+                            }
+                        }
                         Name name = names.fromString(fileManager.inferModuleName(msplocn));
                         ModuleSymbol msym;
                         JCModuleDecl decl = tree.getModuleDecl();
@@ -543,8 +550,7 @@ public class Modules extends JCTree.Visitor {
 
             try {
                 Location loc =
-                        fileManager.getLocationForModule(StandardLocation.PATCH_MODULE_PATH,
-                                                         fo, getPackageName(tree));
+                        fileManager.getLocationForModule(StandardLocation.PATCH_MODULE_PATH, fo);
 
                 if (loc != null) {
                     override.add(fileManager.inferModuleName(loc));
@@ -563,15 +569,6 @@ public class Modules extends JCTree.Visitor {
         }
     }
 
-    private String getPackageName(JCCompilationUnit tree) {
-        if (tree.getModuleDecl() != null) {
-            return null;
-        } else {
-            JCPackageDecl pkg = tree.getPackage();
-            return (pkg == null) ? "" : TreeInfo.fullName(pkg.pid).toString();
-        }
-    }
-
     /**
      * Determine the location for the module on the module source path
      * or source output directory which contains a given CompilationUnit.
@@ -583,18 +580,15 @@ public class Modules extends JCTree.Visitor {
      * @throws IOException if there is a problem while searching for the module.
      */
     private Location getModuleLocation(JCCompilationUnit tree) throws IOException {
-        String pkgName = getPackageName(tree);
         JavaFileObject fo = tree.sourcefile;
 
         Location loc =
-                fileManager.getLocationForModule(StandardLocation.MODULE_SOURCE_PATH,
-                                                 fo, (pkgName == null) ? null : pkgName);
+                fileManager.getLocationForModule(StandardLocation.MODULE_SOURCE_PATH, fo);
         if (loc == null) {
             Location sourceOutput = fileManager.hasLocation(StandardLocation.SOURCE_OUTPUT) ?
                     StandardLocation.SOURCE_OUTPUT : StandardLocation.CLASS_OUTPUT;
             loc =
-                fileManager.getLocationForModule(sourceOutput,
-                                                 fo, (pkgName == null) ? null : pkgName);
+                fileManager.getLocationForModule(sourceOutput, fo);
         }
         return loc;
     }
@@ -1027,8 +1021,18 @@ public class Modules extends JCTree.Visitor {
             }
             ListBuffer<ClassSymbol> impls = new ListBuffer<>();
             for (JCExpression implName : tree.implNames) {
-                Type it = attr.attribType(implName, env, syms.objectType);
+                Type it;
+                boolean prevVisitingServiceImplementation = env.info.visitingServiceImplementation;
+                try {
+                    env.info.visitingServiceImplementation = true;
+                    it = attr.attribType(implName, env, syms.objectType);
+                } finally {
+                    env.info.visitingServiceImplementation = prevVisitingServiceImplementation;
+                }
                 ClassSymbol impl = (ClassSymbol) it.tsym;
+                if ((impl.flags_field & PUBLIC) == 0) {
+                    log.error(implName.pos(), Errors.NotDefPublic(impl, impl.location()));
+                }
                 //find provider factory:
                 MethodSymbol factory = factoryMethod(impl);
                 if (factory != null) {

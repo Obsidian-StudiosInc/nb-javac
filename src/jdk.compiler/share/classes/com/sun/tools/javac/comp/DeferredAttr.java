@@ -30,7 +30,8 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Type.ErrorType;
 import com.sun.tools.javac.code.Type.MethodType;
-import com.sun.tools.javac.code.Type.TypeMapping;
+import com.sun.tools.javac.code.Type.StructuralTypeMapping;
+import com.sun.tools.javac.code.Types.TypeMapping;
 import com.sun.tools.javac.comp.ArgumentAttr.LocalCacheContext;
 import com.sun.tools.javac.comp.Resolve.ResolveError;
 import com.sun.tools.javac.main.JavaCompiler;
@@ -937,7 +938,7 @@ public class DeferredAttr extends JCTree.Visitor {
      * where T is computed by retrieving the type that has already been
      * computed for D during a previous deferred attribution round of the given kind.
      */
-    class DeferredTypeMap extends TypeMapping<Void> {
+    class DeferredTypeMap extends StructuralTypeMapping<Void> {
         DeferredAttrContext deferredAttrContext;
 
         protected DeferredTypeMap(AttrMode mode, Symbol msym, MethodResolutionPhase phase) {

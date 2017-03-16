@@ -96,22 +96,22 @@ public class JavacTypes implements javax.lang.model.util.Types {
 
     @DefinedBy(Api.LANGUAGE_MODEL)
     public boolean isSubtype(TypeMirror t1, TypeMirror t2) {
-        validateTypeNotIn(t1, EXEC_OR_PKG);
-        validateTypeNotIn(t2, EXEC_OR_PKG);
+        validateTypeNotIn(t1, EXEC_OR_PKG_OR_MOD);
+        validateTypeNotIn(t2, EXEC_OR_PKG_OR_MOD);
         return types.isSubtype((Type) t1, (Type) t2);
     }
 
     @DefinedBy(Api.LANGUAGE_MODEL)
     public boolean isAssignable(TypeMirror t1, TypeMirror t2) {
-        validateTypeNotIn(t1, EXEC_OR_PKG);
-        validateTypeNotIn(t2, EXEC_OR_PKG);
+        validateTypeNotIn(t1, EXEC_OR_PKG_OR_MOD);
+        validateTypeNotIn(t2, EXEC_OR_PKG_OR_MOD);
         return types.isAssignable((Type) t1, (Type) t2);
     }
 
     @DefinedBy(Api.LANGUAGE_MODEL)
     public boolean contains(TypeMirror t1, TypeMirror t2) {
-        validateTypeNotIn(t1, EXEC_OR_PKG);
-        validateTypeNotIn(t2, EXEC_OR_PKG);
+        validateTypeNotIn(t1, EXEC_OR_PKG_OR_MOD);
+        validateTypeNotIn(t2, EXEC_OR_PKG_OR_MOD);
         return types.containsType((Type) t1, (Type) t2);
     }
 
@@ -122,7 +122,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
 
     @DefinedBy(Api.LANGUAGE_MODEL)
     public List<Type> directSupertypes(TypeMirror t) {
-        validateTypeNotIn(t, EXEC_OR_PKG);
+        validateTypeNotIn(t, EXEC_OR_PKG_OR_MOD);
         Type ty = (Type)t;
         return types.directSupertypes(ty).stream()
                 .map(Type::stripMetadataIfNeeded)
@@ -131,7 +131,8 @@ public class JavacTypes implements javax.lang.model.util.Types {
 
     @DefinedBy(Api.LANGUAGE_MODEL)
     public TypeMirror erasure(TypeMirror t) {
-        if (t.getKind() == TypeKind.PACKAGE)
+        TypeKind kind = t.getKind();
+        if (kind == TypeKind.PACKAGE || kind == TypeKind.MODULE)
             throw new IllegalArgumentException(t.toString());
         return types.erasure((Type)t).stripMetadataIfNeeded();
     }
@@ -153,7 +154,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
 
     @DefinedBy(Api.LANGUAGE_MODEL)
     public TypeMirror capture(TypeMirror t) {
-        validateTypeNotIn(t, EXEC_OR_PKG);
+        validateTypeNotIn(t, EXEC_OR_PKG_OR_MOD);
         return types.capture((Type)t).stripMetadataIfNeeded();
     }
 
@@ -195,6 +196,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
         case EXECUTABLE:
         case WILDCARD:  // heh!
         case PACKAGE:
+        case MODULE:
             throw new IllegalArgumentException(componentType.toString());
         }
         return new Type.ArrayType((Type) componentType, syms.arrayClass);
@@ -303,8 +305,8 @@ public class JavacTypes implements javax.lang.model.util.Types {
     }
 
 
-    private static final Set<TypeKind> EXEC_OR_PKG =
-            EnumSet.of(TypeKind.EXECUTABLE, TypeKind.PACKAGE);
+    private static final Set<TypeKind> EXEC_OR_PKG_OR_MOD =
+        EnumSet.of(TypeKind.EXECUTABLE, TypeKind.PACKAGE, TypeKind.MODULE);
 
     /**
      * Throws an IllegalArgumentException if a type's kind is one of a set.
