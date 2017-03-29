@@ -1865,6 +1865,10 @@ public class JavaCompiler {
         return enterDone;
     }
 
+    public void resetEnterDone() {
+        enterDone = false;
+    }
+
     /** Close the compiler, flushing the logs
      */
     public void close() {

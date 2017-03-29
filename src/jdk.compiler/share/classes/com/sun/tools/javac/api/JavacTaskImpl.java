@@ -377,6 +377,13 @@ public class JavacTaskImpl extends BasicJavacTask {
             return List.nil();
         }
 
+        Annotate annotate = Annotate.instance(context);
+
+        if (compiler.isEnterDone()) {
+            annotate.blockAnnotations();
+            compiler.resetEnterDone();
+        }
+
         List<JCCompilationUnit> units = compiler.initModules(roots.toList());
 
         if (!compiler.skipAnnotationProcessing && compiler.processAnnotations && compiler.deferredDiagnosticHandler == null)
