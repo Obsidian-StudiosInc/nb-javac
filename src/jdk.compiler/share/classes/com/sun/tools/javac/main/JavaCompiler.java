@@ -70,12 +70,12 @@ import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCLambda;
 import com.sun.tools.javac.tree.JCTree.JCMemberReference;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
-import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
-import com.sun.tools.javac.tree.JCTree.Tag;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.JCDiagnostic.Factory;
+import com.sun.tools.javac.util.Log.DiagnosticHandler;
+import com.sun.tools.javac.util.Log.DiscardDiagnosticHandler;
 import com.sun.tools.javac.util.Log.WriterKind;
 
 import static com.sun.tools.javac.code.Kinds.Kind.*;
@@ -90,6 +90,8 @@ import static com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag.*;
 import java.util.Iterator;
 
 import static javax.tools.StandardLocation.CLASS_OUTPUT;
+
+import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
 
 /** This class could be the main entry point for GJC when GJC is used as a
  *  component in a larger software system. It provides operations to
@@ -347,19 +349,6 @@ public class JavaCompiler {
     protected final Symbol.Completer sourceCompleter =
             sym -> readSourceFile((ClassSymbol) sym);
 
-    protected final ModuleFinder.ModuleInfoSourceFileCompleter moduleInfoSourceFileCompleter =
-            fo -> {
-                try {
-                return (ModuleSymbol) readSourceFile(parseImplicitFile(fo), null, tl -> {
-                    return tl.defs.nonEmpty() && tl.defs.head.hasTag(Tag.MODULEDEF) ?
-                            ((JCModuleDecl) tl.defs.head).sym.module_info :
-                            syms.defineClass(names.module_info, syms.errModule);
-                }).owner;
-                } catch (CompletionFailure cf) {
-                    return syms.errModule;
-                }
-            };
-
     /**
      * Command line options.
      */
@@ -439,7 +428,8 @@ public class JavaCompiler {
         duplicateClassChecker = context.get(DuplicateClassChecker.class);
 
         finder.sourceCompleter = sourceCompleter;
-        moduleFinder.sourceFileCompleter = moduleInfoSourceFileCompleter;
+        modules.findPackageInFile = this::findPackageInFile;
+        moduleFinder.moduleNameFromSourceReader = this::readModuleName;
 
         options = Options.instance(context);
 
@@ -818,25 +808,6 @@ public class JavaCompiler {
         readSourceFile(null, c);
     }
 
-    private JCTree.JCCompilationUnit parseImplicitFile(JavaFileObject filename) {
-        JavaFileObject prev = log.useSource(filename);
-        try {
-            JCTree.JCCompilationUnit t = null;
-            if (notYetEntered != null) {
-                t = notYetEntered.remove(filename);                
-            }
-            if (t == null) {
-                t = parse(filename, filename.getCharContent(false));
-            }
-            return t;
-        } catch (IOException e) {
-            log.error("error.reading.file", filename, JavacFileManager.getMessage(e));
-            return make.TopLevel(List.nil());
-        } finally {
-            log.useSource(prev);
-        }
-    }
-
     /** Compile a ClassSymbol from source, optionally using the given compilation unit as
      *  the source tree.
      *  @param tree the compilation unit in which the given ClassSymbol resides,
@@ -847,19 +818,19 @@ public class JavaCompiler {
         if (completionFailureName == c.fullname) {
             throw new CompletionFailure(c, "user-selected completion failure by class name");
         }
+        JavaFileObject filename = c.classfile;
+        JavaFileObject prev = log.useSource(filename);
 
         if (tree == null) {
-            tree = parseImplicitFile(c.classfile);
+            try {
+                tree = parse(filename, filename.getCharContent(false));
+            } catch (IOException e) {
+                log.error("error.reading.file", filename, JavacFileManager.getMessage(e));
+                tree = make.TopLevel(List.<JCTree>nil());
+            } finally {
+                log.useSource(prev);
+            }
         }
-
-        readSourceFile(tree, c, cut -> c);
-    }
-
-    private ClassSymbol readSourceFile(JCCompilationUnit tree,
-                                       ClassSymbol expectedSymbol,
-                                       Function<JCCompilationUnit, ClassSymbol> symbolGetter)
-                                           throws CompletionFailure {
-        Assert.checkNonNull(tree);
 
         if (!taskListener.isEmpty()) {
             TaskEvent e = new TaskEvent(TaskEvent.Kind.ENTER, tree);
@@ -877,20 +848,18 @@ public class JavaCompiler {
         // Note that if module resolution failed, we may not even
         // have enough modules available to access java.lang, and
         // so risk getting FatalError("no.java.lang") from MemberEnter.
-        if (!modules.enter(List.of(tree), expectedSymbol)) {
-            throw new CompletionFailure(symbolGetter.apply(tree),
-                                        diags.fragment("cant.resolve.modules"));
+        if (!modules.enter(List.of(tree), c)) {
+            throw new CompletionFailure(c, diags.fragment("cant.resolve.modules"));
         }
 
-        enter.complete(List.of(tree), expectedSymbol);
+        enter.complete(List.of(tree), c);
 
         if (!taskListener.isEmpty()) {
             TaskEvent e = new TaskEvent(TaskEvent.Kind.ENTER, tree);
             taskListener.finished(e);
         }
 
-        ClassSymbol sym = symbolGetter.apply(tree);
-        if (sym == null || enter.getEnv(sym) == null) {
+        if (enter.getEnv(c) == null) {
             boolean isPkgInfo =
                 tree.sourcefile.isNameCompatible("package-info",
                                                  JavaFileObject.Kind.SOURCE);
@@ -903,7 +872,7 @@ public class JavaCompiler {
                         log.popDiagnosticHandler(h);
                     JCDiagnostic diag =
                         diagFactory.fragment("file.does.not.contain.module");
-                    throw new ClassFinder.BadClassFile(sym, tree.sourcefile, diag, diagFactory);
+                    throw new ClassFinder.BadClassFile(c, filename, diag, diagFactory);
                 }
             } else if (isPkgInfo) {
                 if (enter.getEnv(tree.packge) == null) {
@@ -911,27 +880,28 @@ public class JavaCompiler {
                         log.popDiagnosticHandler(h);
                     JCDiagnostic diag =
                         diagFactory.fragment("file.does.not.contain.package",
-                                                 sym.location());
-                    throw new ClassFinder.BadClassFile(sym, tree.sourcefile, diag, diagFactory);
+                                                 c.location());
+                    throw new ClassFinder.BadClassFile(c, filename, diag, diagFactory);
                 }
             } else {
                 if (h != null)
                     log.popDiagnosticHandler(h);
                 JCDiagnostic diag =
                         diagFactory.fragment("file.doesnt.contain.class",
-                                            sym.getQualifiedName());
-                throw new ClassFinder.BadClassFile(sym, tree.sourcefile, diag, diagFactory);
+                                            c.getQualifiedName());
+                throw new ClassFinder.BadClassFile(c, filename, diag, diagFactory);
             }
         }
 
         if (!skipAnnotationProcessing && processAnnotations && checkEntered(tree)) {
+            JCCompilationUnit t = tree;
             finder.ap = () -> {
                 if (annotate.annotationsBlocked() || annotate.isFlushing()) {
-                    toProcessAnnotations = toProcessAnnotations.prepend(tree);
+                    toProcessAnnotations = toProcessAnnotations.prepend(t);
                 } else {
                     skipAnnotationProcessing = true;
                     try {
-                        processAnnotations(List.of(tree));
+                        processAnnotations(List.of(t));
                     } finally {
                         skipAnnotationProcessing = false;
                     }
@@ -940,8 +910,6 @@ public class JavaCompiler {
         }
 
         implicitSourceFilesRead = true;
-
-        return sym;
     }
     
     private boolean checkEntered(JCCompilationUnit unit) {
@@ -1863,6 +1831,32 @@ public class JavaCompiler {
 
     public boolean isEnterDone() {
         return enterDone;
+    }
+
+    private Name readModuleName(JavaFileObject fo) {
+        return parseAndGetName(fo, t -> {
+            JCModuleDecl md = t.getModuleDecl();
+
+            return md != null ? TreeInfo.fullName(md.getName()) : null;
+        });
+    }
+
+    private Name findPackageInFile(JavaFileObject fo) {
+        return parseAndGetName(fo, t -> t.getPackage() != null ?
+                                        TreeInfo.fullName(t.getPackage().getPackageName()) : null);
+    }
+
+    private Name parseAndGetName(JavaFileObject fo,
+                                 Function<JCTree.JCCompilationUnit, Name> tree2Name) {
+        DiagnosticHandler dh = new DiscardDiagnosticHandler(log);
+        try {
+            JCTree.JCCompilationUnit t = parse(fo, fo.getCharContent(false));
+            return tree2Name.apply(t);
+        } catch (IOException e) {
+            return null;
+        } finally {
+            log.popDiagnosticHandler(dh);
+        }
     }
 
     public void resetEnterDone() {
