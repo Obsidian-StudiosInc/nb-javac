@@ -1093,8 +1093,10 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             treesToClean.addAll(parsedFiles);
 
             // Check for errors after parsing
-            if (unrecoverableError())
+            if (unrecoverableError()) {
+                compiler.initModules(List.nil());
                 return;
+            }
 
             roots = compiler.initModules(roots);
 
