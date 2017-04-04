@@ -556,7 +556,9 @@ public class Modules extends JCTree.Visitor {
             }
 
             for (JCCompilationUnit tree: trees) {
-                tree.modle = module;
+                if (tree.modle == null) {
+                    tree.modle = module;
+                }
             }
         }
     }
