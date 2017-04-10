@@ -821,20 +821,17 @@ public class JavaCompiler {
         JavaFileObject filename = c.classfile;
         JavaFileObject prev = log.useSource(filename);
 
+        if (tree == null && notYetEntered != null) {
+            tree = notYetEntered.remove(filename);
+        }
         if (tree == null) {
-            tree = enter.getCompilationUnit(filename);
-            if (tree == null && notYetEntered != null) {
-                tree = notYetEntered.remove(filename);
-            }
-            if (tree == null) {
-                try {
-                    tree = parse(filename, filename.getCharContent(false));
-                } catch (IOException e) {
-                    log.error("error.reading.file", filename, JavacFileManager.getMessage(e));
-                    tree = make.TopLevel(List.<JCTree>nil());
-                } finally {
-                    log.useSource(prev);
-                }
+            try {
+                tree = parse(filename, filename.getCharContent(false));
+            } catch (IOException e) {
+                log.error("error.reading.file", filename, JavacFileManager.getMessage(e));
+                tree = make.TopLevel(List.<JCTree>nil());
+            } finally {
+                log.useSource(prev);
             }
         }
 
