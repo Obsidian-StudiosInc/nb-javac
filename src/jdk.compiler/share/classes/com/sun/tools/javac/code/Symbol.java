@@ -746,7 +746,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
          */
         static public Name formFullName(Name name, Symbol owner) {
             if (owner == null) return name;
-            if ((owner.kind != ERR) &&
+            if (owner.kind != ERR &&
                 (owner.kind.matches(KindSelector.VAL_MTH) ||
                  (owner.kind == TYP && owner.type.hasTag(TYPEVAR))
                  )) return name;
@@ -760,9 +760,11 @@ public abstract class Symbol extends AnnoConstruct implements Element {
          *  converting to flat representation
          */
         static public Name formFlatName(Name name, Symbol owner) {
-            if (owner == null || owner.kind.matches(KindSelector.VAL_MTH) ||
-                (owner.kind == TYP && owner.type.hasTag(TYPEVAR))
-                ) return name;
+            if (owner == null) return name;
+            if (owner.kind != ERR &&
+                (owner.kind.matches(KindSelector.VAL_MTH) ||
+                 (owner.kind == TYP && owner.type.hasTag(TYPEVAR))
+                 )) return name;
             char sep = owner.kind == TYP ? '$' : '.';
             Name prefix = owner.flatName();
             if (prefix == null || prefix == prefix.table.names.empty)
