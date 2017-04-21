@@ -871,24 +871,30 @@ public class JavaCompiler {
                                                  JavaFileObject.Kind.SOURCE);
             if (isModuleInfo) {
                 if (enter.getEnv(tree.modle) == null) {
-                    if (h != null)
+                    if (h != null) {
                         log.popDiagnosticHandler(h);
+                        deferredDiagnosticHandler = null;
+                    }
                     JCDiagnostic diag =
                         diagFactory.fragment("file.does.not.contain.module");
                     throw new ClassFinder.BadClassFile(c, filename, diag, diagFactory);
                 }
             } else if (isPkgInfo) {
                 if (enter.getEnv(tree.packge) == null) {
-                    if (h != null)
+                    if (h != null) {
                         log.popDiagnosticHandler(h);
+                        deferredDiagnosticHandler = null;
+                    }
                     JCDiagnostic diag =
                         diagFactory.fragment("file.does.not.contain.package",
                                                  c.location());
                     throw new ClassFinder.BadClassFile(c, filename, diag, diagFactory);
                 }
             } else {
-                if (h != null)
+                if (h != null) {
                     log.popDiagnosticHandler(h);
+                    deferredDiagnosticHandler = null;
+                }
                 JCDiagnostic diag =
                         diagFactory.fragment("file.doesnt.contain.class",
                                             c.getQualifiedName());
