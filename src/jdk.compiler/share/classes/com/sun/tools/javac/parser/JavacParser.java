@@ -3559,6 +3559,14 @@ public class JavacParser implements Parser {
             nextToken();
             extending = parseType();
         }
+        
+        if (token.kind != IMPLEMENTS && token.kind != LBRACE) {
+            syntaxError(token.pos, "expected2", LBRACE, IMPLEMENTS);
+            do {
+                nextToken();
+            } while (token.kind != IMPLEMENTS && token.kind != LBRACE);
+        }
+
         List<JCExpression> implementing = List.nil();
         if (token.kind == IMPLEMENTS) {
             nextToken();
