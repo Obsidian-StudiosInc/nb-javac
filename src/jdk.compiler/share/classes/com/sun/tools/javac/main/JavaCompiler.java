@@ -819,12 +819,12 @@ public class JavaCompiler {
             throw new CompletionFailure(c, "user-selected completion failure by class name");
         }
         JavaFileObject filename = c.classfile;
-        JavaFileObject prev = log.useSource(filename);
 
         if (tree == null && notYetEntered != null) {
             tree = notYetEntered.remove(filename);
         }
         if (tree == null) {
+            JavaFileObject prev = log.useSource(filename);
             try {
                 tree = parse(filename, filename.getCharContent(false));
             } catch (IOException e) {
