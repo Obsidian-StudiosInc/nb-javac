@@ -3562,9 +3562,7 @@ public class JavacParser implements Parser {
         
         if (token.kind != IMPLEMENTS && token.kind != LBRACE) {
             syntaxError(token.pos, "expected2", LBRACE, IMPLEMENTS);
-            do {
-                nextToken();
-            } while (token.kind != IMPLEMENTS && token.kind != LBRACE);
+            skip(false, true, false, false);
         }
 
         List<JCExpression> implementing = List.nil();
