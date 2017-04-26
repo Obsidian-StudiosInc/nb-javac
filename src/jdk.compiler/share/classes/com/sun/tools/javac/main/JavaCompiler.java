@@ -819,22 +819,19 @@ public class JavaCompiler {
             throw new CompletionFailure(c, "user-selected completion failure by class name");
         }
         JavaFileObject filename = c.classfile;
-        JavaFileObject prev = log.useSource(filename);
 
+        if (tree == null && notYetEntered != null) {
+            tree = notYetEntered.remove(filename);
+        }
         if (tree == null) {
-            tree = enter.getCompilationUnit(filename);
-            if (tree == null && notYetEntered != null) {
-                tree = notYetEntered.remove(filename);
-            }
-            if (tree == null) {
-                try {
-                    tree = parse(filename, filename.getCharContent(false));
-                } catch (IOException e) {
-                    log.error("error.reading.file", filename, JavacFileManager.getMessage(e));
-                    tree = make.TopLevel(List.<JCTree>nil());
-                } finally {
-                    log.useSource(prev);
-                }
+            JavaFileObject prev = log.useSource(filename);
+            try {
+                tree = parse(filename, filename.getCharContent(false));
+            } catch (IOException e) {
+                log.error("error.reading.file", filename, JavacFileManager.getMessage(e));
+                tree = make.TopLevel(List.<JCTree>nil());
+            } finally {
+                log.useSource(prev);
             }
         }
 
@@ -874,24 +871,30 @@ public class JavaCompiler {
                                                  JavaFileObject.Kind.SOURCE);
             if (isModuleInfo) {
                 if (enter.getEnv(tree.modle) == null) {
-                    if (h != null)
+                    if (h != null) {
                         log.popDiagnosticHandler(h);
+                        deferredDiagnosticHandler = null;
+                    }
                     JCDiagnostic diag =
                         diagFactory.fragment("file.does.not.contain.module");
                     throw new ClassFinder.BadClassFile(c, filename, diag, diagFactory);
                 }
             } else if (isPkgInfo) {
                 if (enter.getEnv(tree.packge) == null) {
-                    if (h != null)
+                    if (h != null) {
                         log.popDiagnosticHandler(h);
+                        deferredDiagnosticHandler = null;
+                    }
                     JCDiagnostic diag =
                         diagFactory.fragment("file.does.not.contain.package",
                                                  c.location());
                     throw new ClassFinder.BadClassFile(c, filename, diag, diagFactory);
                 }
             } else {
-                if (h != null)
+                if (h != null) {
                     log.popDiagnosticHandler(h);
+                    deferredDiagnosticHandler = null;
+                }
                 JCDiagnostic diag =
                         diagFactory.fragment("file.doesnt.contain.class",
                                             c.getQualifiedName());
