@@ -613,6 +613,9 @@ public class Modules extends JCTree.Visitor {
                     StandardLocation.SOURCE_OUTPUT : StandardLocation.CLASS_OUTPUT;
             loc =
                 fileManager.getLocationForModule(sourceOutput, fo);
+            if (loc != null) {
+                loc = fileManager.getLocationForModule(StandardLocation.MODULE_SOURCE_PATH, fileManager.inferModuleName(loc));
+            }
         }
         return loc;
     }
