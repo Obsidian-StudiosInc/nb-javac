@@ -648,7 +648,14 @@ public class Attr extends JCTree.Visitor {
         try {
             this.env = env;
             this.resultInfo = resultInfo;
-            resultInfo.attr(tree, env);
+            try {
+                resultInfo.attr(tree, env);
+            } catch (Resolve.InapplicableMethodException ime) {
+                if (tree != breakTree ||
+                        resultInfo.checkContext.deferredAttrContext().mode != AttrMode.CHECK) {
+                    throw ime;
+                }
+            }
             if (tree == breakTree &&
                     resultInfo.checkContext.deferredAttrContext().mode == AttrMode.CHECK) {
                 throw new BreakAttr(copyEnv(env), result);
