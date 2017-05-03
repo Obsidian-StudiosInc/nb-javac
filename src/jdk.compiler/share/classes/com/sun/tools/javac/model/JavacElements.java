@@ -330,7 +330,7 @@ public class JavacElements implements Elements {
         try {
             if (sym == null) {
                 Symbol ownerSym = javaCompiler.resolveIdent(module, owner);
-                sym = syms.getClass(ownerSym.packge().modle, name);
+                sym = syms.getClass(ownerSym != null && ownerSym.kind.isValid() ? ownerSym.packge().modle : module, name);
             }
 
             if (sym != null) {
