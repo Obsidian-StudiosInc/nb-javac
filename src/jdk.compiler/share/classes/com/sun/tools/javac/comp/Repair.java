@@ -542,7 +542,7 @@ public class Repair extends TreeTranslator {
                         break;
                 }
                 hasError = false;
-                isErrClass = c.type.isErroneous() || c.type == syms.unknownType;
+                isErrClass |= c.type.isErroneous() || c.type == syms.unknownType;
                 err = null;
                 staticInit = null;
                 JCClassDecl tree = (JCClassDecl)attrEnv.tree;
