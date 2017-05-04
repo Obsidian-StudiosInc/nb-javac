@@ -499,7 +499,7 @@ public class Gen extends JCTree.Visitor {
         ListBuffer<Attribute.TypeCompound> fieldTAs = new ListBuffer<>();
         ListBuffer<Attribute.TypeCompound> nonfieldTAs = new ListBuffer<>();
         for (TypeCompound ta : tas) {
-            if (ta.getPosition().type != TargetType.UNKNOWN) {
+            if (ta.getPosition() != null && ta.getPosition().type != TargetType.UNKNOWN) {
                 if (ta.getPosition().type == TargetType.FIELD) {
                     fieldTAs.add(ta);
                 } else {
