@@ -133,6 +133,7 @@ public class Log extends AbstractLog {
      */
     public static class DeferredDiagnosticHandler extends DiagnosticHandler {
         private Queue<JCDiagnostic> deferred = new ListBuffer<>();
+        private Throwable t;
         private final Filter<JCDiagnostic> filter;
 
         public DeferredDiagnosticHandler(Log log) {
@@ -166,10 +167,14 @@ public class Log extends AbstractLog {
         /** Report selected deferred diagnostics. */
         public void reportDeferredDiagnostics(Set<JCDiagnostic.Kind> kinds) {
             JCDiagnostic d;
+            if (deferred == null) {
+                throw new IllegalStateException(t);
+            }
             while ((d = deferred.poll()) != null) {
                 if (kinds.contains(d.getKind()))
                         prev.report(d);
             }
+            t = new Exception();
             deferred = null; // prevent accidental ongoing use
         }
     }

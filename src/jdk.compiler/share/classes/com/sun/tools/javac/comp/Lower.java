@@ -1087,7 +1087,7 @@ public class Lower extends TreeTranslator {
             }
             // Otherwise replace the variable by its proxy.
             sym = proxies.findFirst(proxyName(sym.name));
-            Assert.check(sym != null && (sym.flags_field & FINAL) != 0);
+            Assert.check(sym != null && (sym.flags_field & FINAL) != 0, "Sym: " + sym);
             tree = make.at(tree.pos).Ident(sym);
         }
         JCExpression base = (tree.hasTag(SELECT)) ? ((JCFieldAccess) tree).selected : null;
