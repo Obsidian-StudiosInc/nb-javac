@@ -1150,10 +1150,15 @@ is divided into following sections:
         <!-- You can override this target in the ../build.xml file. -->
     </target>
     <target depends="init,compile" name="-check-module-main-class">
+        <pathconvert property="main.class.file">
+            <string value="${main.class}"/>
+            <unpackagemapper from="*" to="*.class"/>
+        </pathconvert>
         <condition property="do.module.main.class">
             <and>
                 <isset property="main.class.available"/>
                 <available file="${build.classes.dir}/module-info.class"/>
+                <available file="${build.classes.dir}/${main.class.file}"/>
                 <isset property="libs.CopyLibs.classpath"/>
                 <available classname="org.netbeans.modules.java.j2seproject.moduletask.ModuleMainClass" classpath="${libs.CopyLibs.classpath}"/>
             </and>
