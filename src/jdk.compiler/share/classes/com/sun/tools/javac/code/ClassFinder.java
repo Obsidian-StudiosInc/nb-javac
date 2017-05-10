@@ -312,8 +312,9 @@ public class ClassFinder {
                 annotate.flush(); // finish attaching annotations
         } finally {
             if (ap != null) {
-                ap.run();
+                final Runnable r = ap;
                 ap = null;
+                r.run();
             }
         }
     }
