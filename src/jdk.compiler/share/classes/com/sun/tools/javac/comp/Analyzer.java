@@ -250,7 +250,7 @@ public class Analyzer {
                     List<Type> explicitArgs = oldType.getTypeArguments();
                     List<Type> inferredArgs = newType.getTypeArguments();
                     for (Type t : inferredArgs) {
-                        if (!types.isSameType(t, explicitArgs.head)) {
+                        if (t == null || explicitArgs.head == null || !types.isSameType(t, explicitArgs.head)) {
                             return;
                         }
                         explicitArgs = explicitArgs.tail;
