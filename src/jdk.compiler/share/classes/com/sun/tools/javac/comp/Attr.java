@@ -506,9 +506,12 @@ public class Attr extends JCTree.Visitor {
             this.checkMode = checkMode;
         }
 
-        protected void attr(JCTree tree, Env<AttrContext> env) {
-            tree.accept(Attr.this);
-        }
+        /**
+         * Should {@link Attr#attribTree} use the {@ArgumentAttr} visitor instead of this one?
+         * @param tree The tree to be type-checked.
+         * @return true if {@ArgumentAttr} should be used.
+         */
+        protected boolean needsArgumentAttr(JCTree tree) { return false; }
 
         protected Type check(final DiagnosticPosition pos, final Type found) {
             return chk.checkType(pos, found, pt, checkContext);
@@ -554,8 +557,8 @@ public class Attr extends JCTree.Visitor {
         }
 
         @Override
-        protected void attr(JCTree tree, Env<AttrContext> env) {
-            result = argumentAttr.attribArg(tree, env);
+        protected boolean needsArgumentAttr(JCTree tree) {
+            return true;
         }
 
         protected ResultInfo dup(Type newPt) {
@@ -649,7 +652,11 @@ public class Attr extends JCTree.Visitor {
             this.env = env;
             this.resultInfo = resultInfo;
             try {
-                resultInfo.attr(tree, env);
+                if (resultInfo.needsArgumentAttr(tree)) {
+                    result = argumentAttr.attribArg(tree, env);
+                } else {
+                    tree.accept(this);
+                }
             } catch (Resolve.InapplicableMethodException ime) {
                 if (tree != breakTree ||
                         resultInfo.checkContext.deferredAttrContext().mode != AttrMode.CHECK) {

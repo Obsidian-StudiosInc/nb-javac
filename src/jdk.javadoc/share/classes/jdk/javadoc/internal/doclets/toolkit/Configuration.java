@@ -26,6 +26,7 @@
 package jdk.javadoc.internal.doclets.toolkit;
 
 import java.io.*;
+import java.lang.ref.*;
 import java.util.*;
 
 import javax.lang.model.element.Element;
@@ -54,7 +55,9 @@ import jdk.javadoc.internal.doclets.toolkit.util.MetaKeywords;
 import jdk.javadoc.internal.doclets.toolkit.util.SimpleDocletException;
 import jdk.javadoc.internal.doclets.toolkit.util.TypeElementCatalog;
 import jdk.javadoc.internal.doclets.toolkit.util.Utils;
+import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberMap;
 import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberMap.GetterSetter;
+import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberMap.Kind;
 
 import static javax.tools.Diagnostic.Kind.*;
 
@@ -296,6 +299,8 @@ public abstract class Configuration {
 
     private List<GroupContainer> groups;
 
+    private final Map<TypeElement, EnumMap<Kind, Reference<VisibleMemberMap>>> typeElementMemberCache;
+
     public abstract Messages getMessages();
     public abstract Resources getResources();
 
@@ -355,6 +360,7 @@ public abstract class Configuration {
         setTabWidth(DocletConstants.DEFAULT_TAB_STOP_LENGTH);
         metakeywords = new MetaKeywords(this);
         groups = new ArrayList<>(0);
+        typeElementMemberCache = new HashMap<>();
     }
 
     private boolean initialized = false;
@@ -517,7 +523,7 @@ public abstract class Configuration {
                     return true;
                 }
             },
-            new Hidden(resources, "-javafx") {
+            new Option(resources, "--javafx -javafx") {
                 @Override
                 public boolean process(String opt, List<String> args) {
                     javafx = true;
@@ -1076,11 +1082,14 @@ public abstract class Configuration {
         private final int argCount;
 
         protected Option(Resources resources, String name, int argCount) {
-            this(resources, "doclet.usage." + name.toLowerCase().replaceAll("^-+", ""), name, argCount);
+            this(resources, null, name, argCount);
         }
 
         protected Option(Resources resources, String keyBase, String name, int argCount) {
             this.names = name.trim().split("\\s+");
+            if (keyBase == null) {
+                keyBase = "doclet.usage." + names[0].toLowerCase().replaceAll("^-+", "");
+            }
             String desc = getOptionsMessage(resources, keyBase + ".description");
             if (desc.isEmpty()) {
                 this.description = "<MISSING KEY>";
@@ -1258,5 +1267,19 @@ public abstract class Configuration {
      */
     public boolean isAllowScriptInComments() {
         return allowScriptInComments;
+    }
+
+    public VisibleMemberMap getVisibleMemberMap(TypeElement te, VisibleMemberMap.Kind kind) {
+        EnumMap<Kind, Reference<VisibleMemberMap>> cacheMap = typeElementMemberCache
+                .computeIfAbsent(te, k -> new EnumMap<>(VisibleMemberMap.Kind.class));
+
+        Reference<VisibleMemberMap> vmapRef = cacheMap.get(kind);
+        // recompute, if referent has been garbage collected
+        VisibleMemberMap vMap = vmapRef == null ? null : vmapRef.get();
+        if (vMap == null) {
+            vMap = new VisibleMemberMap(te, kind, this);
+            cacheMap.put(kind, new SoftReference<>(vMap));
+        }
+        return vMap;
     }
 }
