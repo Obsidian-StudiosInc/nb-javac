@@ -23,7 +23,8 @@
 
 /*
  * @test
- * @bug      4494033 7028815 7052425 8007338 8023608 8008164 8016549 8072461 8154261 8162363 8160196 8151743
+ * @bug      4494033 7028815 7052425 8007338 8023608 8008164 8016549 8072461 8154261 8162363 8160196 8151743 8177417
+ *           8175218 8176452
  * @summary  Run tests on doclet stylesheet.
  * @author   jamieh
  * @library  ../lib
@@ -140,8 +141,8 @@ public class TestStylesheet extends JavadocTester {
                 + ".usesSummary td.colFirst, .usesSummary th.colFirst,\n"
                 + ".providesSummary td.colFirst, .providesSummary th.colFirst,\n"
                 + ".memberSummary td.colFirst, .memberSummary th.colFirst,\n"
-                + ".memberSummary td.colSecond, .memberSummary th.colSecond,\n"
-                + ".typeSummary td.colFirst{\n"
+                + ".memberSummary td.colSecond, .memberSummary th.colSecond, .memberSummary th.colConstructorName,\n"
+                + ".typeSummary td.colFirst {\n"
                 + "    vertical-align:top;\n"
                 + "}",
                 ".overviewSummary td, .memberSummary td, .typeSummary td,\n"
@@ -162,13 +163,46 @@ public class TestStylesheet extends JavadocTester {
                 "@import url('resources/fonts/dejavu.css');",
                 ".navPadding {\n"
                 + "    padding-top: 107px;\n"
+                + "}",
+                "a[name]:before, a[name]:target, a[id]:before, a[id]:target {\n"
+                + "    content:\"\";\n"
+                + "    display:inline-block;\n"
+                + "    position:relative;\n"
+                + "    padding-top:129px;\n"
+                + "    margin-top:-129px;\n"
+                + "}\n"
+                + ".searchTagResult:before, .searchTagResult:target {\n"
+                + "    color:red;\n"
+                + "}",
+                "a[href]:hover, a[href]:focus {\n"
+                + "    text-decoration:none;\n"
+                + "    color:#bb7a2a;\n"
+                + "}",
+                "td.colFirst a:link, td.colFirst a:visited,\n"
+                + "td.colSecond a:link, td.colSecond a:visited,\n"
+                + "th.colFirst a:link, th.colFirst a:visited,\n"
+                + "th.colSecond a:link, th.colSecond a:visited,\n"
+                + "th.colConstructorName a:link, th.colConstructorName a:visited,\n"
+                + "td.colLast a:link, td.colLast a:visited,\n"
+                + ".constantValuesContainer td a:link, .constantValuesContainer td a:visited {\n"
+                + "    font-weight:bold;\n"
                 + "}");
 
-        // Test whether a link to the stylesheet file is inserted properly
-        // in the class documentation.
         checkOutput("pkg/A.html", true,
+                // Test whether a link to the stylesheet file is inserted properly
+                // in the class documentation.
                 "<link rel=\"stylesheet\" type=\"text/css\" "
-                + "href=\"../stylesheet.css\" title=\"Style\">");
+                + "href=\"../stylesheet.css\" title=\"Style\">",
+                "<div class=\"block\">Test comment for a class which has an <a name=\"named_anchor\">"
+                + "anchor_with_name</a> and\n"
+                + " an <a id=\"named_anchor1\">anchor_with_id</a>.</div>");
+
+        checkOutput("pkg/package-summary.html", true,
+                "<td class=\"colLast\">\n"
+                + "<div class=\"block\">Test comment for a class which has an <a name=\"named_anchor\">"
+                + "anchor_with_name</a> and\n"
+                + " an <a id=\"named_anchor1\">anchor_with_id</a>.</div>\n"
+                + "</td>");
 
         checkOutput("index.html", true,
                 "<link rel=\"stylesheet\" type=\"text/css\" href=\"stylesheet.css\" title=\"Style\">");
@@ -177,6 +211,14 @@ public class TestStylesheet extends JavadocTester {
                 "* {\n"
                 + "    margin:0;\n"
                 + "    padding:0;\n"
+                + "}",
+                "a:active {\n"
+                + "    text-decoration:none;\n"
+                + "    color:#4A6782;\n"
+                + "}",
+                "a[name]:hover {\n"
+                + "    text-decoration:none;\n"
+                + "    color:#353833;\n"
                 + "}");
     }
 }

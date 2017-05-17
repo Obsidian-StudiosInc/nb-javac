@@ -473,10 +473,14 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
                     }
                 } else {
                     if (isValidFile(fname, fileKinds)) {
-                        RelativeFile file = new RelativeFile(subdirectory, fname);
-                        JavaFileObject fe = PathFileObject.forDirectoryPath(JavacFileManager.this,
-                                file.resolveAgainst(directory), userPath, file);
-                        resultList.append(fe);
+                        try {
+                            RelativeFile file = new RelativeFile(subdirectory, fname);
+                            JavaFileObject fe = PathFileObject.forDirectoryPath(JavacFileManager.this,
+                                    file.resolveAgainst(directory), userPath, file);
+                            resultList.append(fe);
+                        } catch (InvalidPathException e) {
+                            throw new IOException("error accessing directory " + directory + e);
+                        }
                     }
                 }
             }
@@ -940,6 +944,14 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
     public Iterable<? extends Path> getLocationAsPaths(Location location) {
         nullCheck(location);
         return locations.getLocation(location);
+    }
+
+    @Override @DefinedBy(Api.COMPILER)
+    public boolean contains(Location location, FileObject fo) throws IOException {
+        nullCheck(location);
+        nullCheck(fo);
+        Path p = asPath(fo);
+        return locations.contains(location, p);
     }
 
     private Path getClassOutDir() {
