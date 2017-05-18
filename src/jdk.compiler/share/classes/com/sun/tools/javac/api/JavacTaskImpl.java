@@ -354,7 +354,6 @@ public class JavacTaskImpl extends BasicJavacTask {
                         roots.append(unit);
                     }
                 }
-                notYetEntered.clear();
             }
         }
         else {
