@@ -91,6 +91,7 @@ public class Lower extends TreeTranslator {
     private final Name classDollar;
     private final Name dollarCloseResource;
     private final Types types;
+    private final Repair repair;
     private final boolean debugLower;
     private final PkgInfo pkginfoOpt;
 
@@ -117,6 +118,7 @@ public class Lower extends TreeTranslator {
             fromString(target.syntheticNameChar() + "closeResource");
 
         types = Types.instance(context);
+        repair = Repair.instance(context);
         Options options = Options.instance(context);
         debugLower = options.isSet("debuglower");
         pkginfoOpt = PkgInfo.get(options);
@@ -1085,10 +1087,14 @@ public class Lower extends TreeTranslator {
                 make.at(tree.pos);
                 return makeLit(sym.type, cv);
             }
-            // Otherwise replace the variable by its proxy.
+            // Otherwise replace the variable by its proxy.            
             sym = proxies.findFirst(proxyName(sym.name));
-            Assert.check(sym != null && (sym.flags_field & FINAL) != 0, "Sym: " + sym);
-            tree = make.at(tree.pos).Ident(sym);
+            if (sym != null && (sym.flags_field & FINAL) != 0) {
+                tree = make.at(tree.pos).Ident(sym);
+            } else {
+                make.at(tree.pos);
+                return repair.generateErrExpr(make, tree, "Cannot find proxy for the variable");
+            }
         }
         JCExpression base = (tree.hasTag(SELECT)) ? ((JCFieldAccess) tree).selected : null;
         switch (sym.kind) {

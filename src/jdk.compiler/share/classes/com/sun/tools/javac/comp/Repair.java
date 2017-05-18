@@ -118,6 +118,8 @@ public class Repair extends TreeTranslator {
     private boolean isErrClass;
     private boolean insideErrEnum;
     private Name fixedTopLevelName;
+    private Symbol runtimeExceptionDefaultConstructor = null;
+    private Symbol runtimeExceptionConstructor = null;
     
     private Repair(Context context) {
         context.put(repairKey, this);
@@ -454,29 +456,35 @@ public class Repair extends TreeTranslator {
     }
 
     private JCStatement generateErrStat(DiagnosticPosition pos, String msg) {
+        return generateErrStat(make, pos, msg);
+    }
+    
+    JCStatement generateErrStat(TreeMaker make, DiagnosticPosition pos, String msg) {
         make.at(pos);
         ClassType ctype = (ClassType)syms.runtimeExceptionType;
-        Symbol ctor = rs.resolveConstructor(pos, attrEnv, ctype, List.of(syms.stringType), null);
-        if (ctor.kind == Kinds.Kind.MTH) {
+        if (runtimeExceptionConstructor != null && runtimeExceptionConstructor.kind == Kinds.Kind.MTH) {
             JCLiteral literal = make.Literal(msg != null ? ERR_MESSAGE + " - " + msg : ERR_MESSAGE); //NOI18N
             JCNewClass tree = make.NewClass(null, null, make.QualIdent(ctype.tsym), List.<JCExpression>of(literal), null);
             tree.type = ctype;
-            tree.constructor = ctor;
+            tree.constructor = runtimeExceptionConstructor;
             return make.Throw(tree);
         }
-        ctor = rs.resolveConstructor(pos, attrEnv, ctype, List.<Type>nil(), null);
-        if (ctor.kind == Kinds.Kind.MTH) {
+        if (runtimeExceptionDefaultConstructor != null && runtimeExceptionDefaultConstructor.kind == Kinds.Kind.MTH) {
             JCNewClass tree = make.NewClass(null, null, make.QualIdent(ctype.tsym), List.<JCExpression>nil(), null);
             tree.type = ctype;
-            tree.constructor = ctor;
+            tree.constructor = runtimeExceptionDefaultConstructor;
             return make.Throw(tree);
         }
         throw new MissingPlatformError (diags.fragment("fatal.err.cant.locate.ctor", ctype)); //NOI18N
     }
     
     private JCExpression generateErrExpr(DiagnosticPosition pos, String msg) {
+        return generateErrExpr(make, pos, msg);
+    }
+
+    JCExpression generateErrExpr(TreeMaker make, DiagnosticPosition pos, String msg) {
         make.at(pos);
-        JCExpression expr = make.Erroneous(List.<JCStatement>of(generateErrStat(pos, msg)));
+        JCExpression expr = make.Erroneous(List.<JCStatement>of(generateErrStat(make, pos, msg)));
         expr.type = syms.errType;
         return expr;
     }
@@ -688,6 +696,12 @@ public class Repair extends TreeTranslator {
             hasError = false;
             insideErrEnum = false;
             parents = List.nil();
+            if (runtimeExceptionConstructor == null) {
+                runtimeExceptionConstructor = rs.resolveConstructor(tree, attrEnv, syms.runtimeExceptionType, List.of(syms.stringType), null);
+            }
+            if (runtimeExceptionDefaultConstructor == null) {
+                runtimeExceptionDefaultConstructor = rs.resolveConstructor(tree, attrEnv, syms.runtimeExceptionType, List.<Type>nil(), null);
+            }
             return translate(tree);
         } finally {
             attrEnv = null;
