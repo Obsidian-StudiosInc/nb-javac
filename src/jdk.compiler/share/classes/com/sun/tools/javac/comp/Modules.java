@@ -164,6 +164,7 @@ public class Modules extends JCTree.Visitor {
 
     private final boolean lintOptions;
     private final boolean backgroundCompilation;
+    private final boolean ideMode;
     private final JavaFileManager fm;
 
     private Set<ModuleSymbol> rootModules = null;
@@ -221,6 +222,7 @@ public class Modules extends JCTree.Visitor {
 
         fm = context.get(JavaFileManager.class);
         backgroundCompilation = options.get("backgroundCompilation") != null;
+        ideMode = options.get("ide") != null;
     }
     //where
         private static final String XMODULES_PREFIX = "-Xmodule:";
@@ -578,7 +580,7 @@ public class Modules extends JCTree.Visitor {
 
     private void checkSourceLocation(JCCompilationUnit tree, ModuleSymbol msym) {
         // skip check if legacy module override still in use
-        if (legacyModuleOverride != null) {
+        if (ideMode || legacyModuleOverride != null) {
             return;
         }
 
