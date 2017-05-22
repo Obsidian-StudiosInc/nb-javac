@@ -637,6 +637,9 @@ public class Symtab {
             c.name = name;
             c.owner = owner;
             c.fullname = ClassSymbol.formFullName(name, owner);
+            if (c.type != null && c.type.hasTag(CLASS)) {
+                ((ClassType)c.type).setEnclosingType(Type.noType);
+            }
         }
         return c;
     }
