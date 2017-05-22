@@ -1428,7 +1428,9 @@ public class ClassReader {
         // sym is a nested class with an "Enclosing Method" attribute
         // remove sym from it's current owners scope and place it in
         // the scope specified by the attribute
-        sym.owner.members().remove(sym);
+        if (sym.owner.members() != null) {
+            sym.owner.members().remove(sym);
+        }
         ClassSymbol self = (ClassSymbol)sym;
         ClassSymbol c = readClassSymbol(nextChar());
         NameAndType nt = readNameAndType(nextChar());
