@@ -1027,20 +1027,24 @@ public class DeferredAttr extends JCTree.Visitor {
 
         @Override
         public Type visitMethodType(Type.MethodType t, Void _unused) {
-            if (t.hasTag(METHOD) && deferredAttrContext.mode == AttrMode.CHECK) {
-                Type mtype = deferredAttrContext.msym.type;
-                mtype = mtype.hasTag(ERROR) ? ((ErrorType)mtype).getOriginalType() : null;
-                if (mtype != null && mtype.hasTag(METHOD)) {
-                    List<Type> argtypes1 = map(t.getParameterTypes(), mtype.getParameterTypes());
-                    Type restype1 = this.apply(t.getReturnType());
-                    List<Type> thrown1 = map(t.getThrownTypes(), mtype.getThrownTypes());
-                    if (argtypes1 == t.getParameterTypes() &&
-                        restype1 == t.getReturnType() &&
-                        thrown1 == t.getThrownTypes()) return t;
-                    else return new MethodType(argtypes1, restype1, thrown1, t.tsym);
+            try {
+                if (t.hasTag(METHOD) && deferredAttrContext.mode == AttrMode.CHECK) {
+                    Type mtype = deferredAttrContext.msym.type;
+                    mtype = mtype.hasTag(ERROR) ? ((ErrorType)mtype).getOriginalType() : null;
+                    if (mtype != null && mtype.hasTag(METHOD)) {
+                        List<Type> argtypes1 = map(t.getParameterTypes(), mtype.getParameterTypes());
+                        Type restype1 = this.apply(t.getReturnType());
+                        List<Type> thrown1 = map(t.getThrownTypes(), mtype.getThrownTypes());
+                        if (argtypes1 == t.getParameterTypes() &&
+                            restype1 == t.getReturnType() &&
+                            thrown1 == t.getThrownTypes()) return t;
+                        else return new MethodType(argtypes1, restype1, thrown1, t.tsym);
+                    }
                 }
+                return super.visitMethodType(t, _unused);
+            } catch (AssertionError ae) {
+                return t;
             }
-            return super.visitMethodType(t, _unused);
         }
         
         /**
