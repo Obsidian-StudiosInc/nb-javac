@@ -626,7 +626,7 @@ public class ArgumentAttr extends JCTree.Visitor {
 
         @Override
         ResultInfo resultInfo(ResultInfo resultInfo) {
-            return resultInfo.dup(attr.diamondContext(speculativeTree, speculativeTree.clazz.type.tsym, resultInfo.checkContext));
+            return resultInfo.dup(attr.diamondContext((JCNewClass) tree, speculativeTree.clazz.type.tsym, resultInfo.checkContext));
         }
 
         @Override
