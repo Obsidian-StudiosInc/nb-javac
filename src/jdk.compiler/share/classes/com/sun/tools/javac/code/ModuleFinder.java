@@ -31,7 +31,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.function.Function;
 
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileManager.Location;
@@ -58,6 +57,7 @@ import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
 
 import static com.sun.tools.javac.code.Kinds.Kind.*;
+import com.sun.tools.javac.comp.Check;
 
 /**
  *  This class provides operations to locate module definitions
@@ -82,6 +82,7 @@ public class ModuleFinder {
     private final Names names;
 
     private final ClassFinder classFinder;
+    private final Check chk;
 
     /** Access to files
      */
@@ -109,6 +110,7 @@ public class ModuleFinder {
         fileManager = context.get(JavaFileManager.class);
         log = Log.instance(context);
         classFinder = ClassFinder.instance(context);
+        chk = Check.instance(context);
 
         diags = JCDiagnostic.Factory.instance(context);
     }
@@ -203,7 +205,13 @@ public class ModuleFinder {
             if (fo == null) {
                 msym = syms.unnamedModule;
             } else {
-                msym = readModule(fo);
+                try {
+                    msym = readModule(fo);
+                } catch (CompletionFailure ex) {
+                    chk.completionError(null, ex);
+                    msym = syms.unnamedModule;
+                }
+                    
             }
 
             if (msym.patchLocation == null) {
