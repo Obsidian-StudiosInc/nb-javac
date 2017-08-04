@@ -556,8 +556,10 @@ public class Repair extends TreeTranslator {
                     final String path = source.toUri().getPath();
                     int start = path.lastIndexOf('/');
                     int end = path.lastIndexOf('.');
-                    fixedTopLevelName = c.name.table.fromString(path.substring(start+1, end));
-                    c.name = fixedTopLevelName;
+                    if (end > start) {
+                        fixedTopLevelName = c.name.table.fromString(path.substring(start+1, end));
+                        c.name = fixedTopLevelName;
+                    }
                     c.fullname = Symbol.TypeSymbol.formFullName(c.name, enclosingElement);
                     c.flatname = c.fullname;
                     tree.name = c.name;
