@@ -2719,7 +2719,7 @@ public class Check {
             !lint.isSuppressed(LintCategory.SERIAL) &&
             isLambda)) {
             Symbol sym = TreeInfo.symbol(tree);
-            if (!sym.kind.matches(KindSelector.VAL_MTH)) {
+            if (!sym.kind.matches(KindSelector.VAL_MTH) || sym.owner.kind == PCK) {
                 return;
             }
 
