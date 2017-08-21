@@ -499,8 +499,14 @@ public class JavacTaskImpl extends BasicJavacTask {
                 };
                 f.run(compiler.todo, classes);
             }
-            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
-                compiler.processAnnotations(List.<JCCompilationUnit>nil());
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty()) {
+                compiler.skipAnnotationProcessing = true;
+                try {
+                    compiler.processAnnotations(List.<JCCompilationUnit>nil());
+                } finally {
+                    compiler.skipAnnotationProcessing = false;
+                }
+            }
         } finally {
             compiler.log.flush();
         }
@@ -783,8 +789,14 @@ public class JavacTaskImpl extends BasicJavacTask {
             Type type = tree instanceof JCExpression
                     ? attr.attribExpr(tree, env, Type.noType)
                     : attr.attribStat(tree, env);
-            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
-                compiler.processAnnotations(List.<JCCompilationUnit>nil());
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty()) {
+                compiler.skipAnnotationProcessing = true;
+                try {
+                    compiler.processAnnotations(List.<JCCompilationUnit>nil());
+                } finally {
+                    compiler.skipAnnotationProcessing = false;
+                }
+            }
             return type;
         } finally {
             cacheContext.leave();
@@ -808,8 +820,14 @@ public class JavacTaskImpl extends BasicJavacTask {
         ArgumentAttr.LocalCacheContext cacheContext = argumentAttr.withLocalCacheContext();
         try {
             Env<AttrContext> ret = tree instanceof JCExpression ? attr.attribExprToTree(tree, env, to) : attr.attribStatToTree(tree, env, to);
-            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
-                compiler.processAnnotations(List.<JCCompilationUnit>nil());
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty()) {
+                compiler.skipAnnotationProcessing = true;
+                try {
+                    compiler.processAnnotations(List.<JCCompilationUnit>nil());
+                } finally {
+                    compiler.skipAnnotationProcessing = false;
+                }
+            }
             return new JavacScope(ret);
         } finally {
             cacheContext.leave();

@@ -1004,8 +1004,14 @@ public class JavacTrees extends DocTrees {
         ArgumentAttr.LocalCacheContext cacheContext = argumentAttr.withLocalCacheContext();
         try {
             Env<AttrContext> ret = attr.attribStatToTree(stat, env, tree);
-            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
-                compiler.processAnnotations(List.<JCCompilationUnit>nil());
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty()) {
+                compiler.skipAnnotationProcessing = true;
+                try {
+                    compiler.processAnnotations(List.<JCCompilationUnit>nil());
+                } finally {
+                    compiler.skipAnnotationProcessing = false;
+                }
+            }
             return ret;
         } finally {
             cacheContext.leave();
@@ -1025,8 +1031,14 @@ public class JavacTrees extends DocTrees {
         ArgumentAttr.LocalCacheContext cacheContext = argumentAttr.withLocalCacheContext();
         try {
             Env<AttrContext> ret = attr.attribExprToTree(expr, env, tree);
-            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty())
-                compiler.processAnnotations(List.<JCCompilationUnit>nil());
+            if (!compiler.skipAnnotationProcessing && compiler.deferredDiagnosticHandler != null && compiler.toProcessAnnotations.nonEmpty()) {
+                compiler.skipAnnotationProcessing = true;
+                try {
+                    compiler.processAnnotations(List.<JCCompilationUnit>nil());
+                } finally {
+                    compiler.skipAnnotationProcessing = false;
+                }
+            }
             return ret;
         } finally {
             cacheContext.leave();
