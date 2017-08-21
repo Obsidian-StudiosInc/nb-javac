@@ -745,8 +745,14 @@ public class JavaCompiler {
             toplevel.modle = msym;
             toplevel.packge = msym.unnamedPackage;
             Symbol ret = attr.attribIdent(tree, toplevel);
-            if (!skipAnnotationProcessing && deferredDiagnosticHandler != null && toProcessAnnotations.nonEmpty())
-                processAnnotations(List.<JCCompilationUnit>nil());
+            if (!skipAnnotationProcessing && deferredDiagnosticHandler != null && toProcessAnnotations.nonEmpty()) {
+                skipAnnotationProcessing = true;
+                try {
+                    processAnnotations(List.<JCCompilationUnit>nil());
+                } finally {
+                    skipAnnotationProcessing = false;
+                }
+            }
             return ret;
         } finally {
             deferredDiagnosticHandler = deferredHandler;
