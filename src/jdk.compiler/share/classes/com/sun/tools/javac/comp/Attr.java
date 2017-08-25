@@ -4105,7 +4105,7 @@ public class Attr extends JCTree.Visitor {
                 switch (env.tree.getTag()) {
                     case VARDEF:
                         JCVariableDecl vdecl = (JCVariableDecl)env.tree;
-                        if (vdecl.sym.owner.kind == TYP) {
+                        if (vdecl.sym != null && vdecl.sym.owner != null && vdecl.sym.owner.kind == TYP) {
                             //field
                             return env;
                         }
