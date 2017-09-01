@@ -648,10 +648,12 @@ public class Annotate {
             log.error(na.elemtype.pos(), "new.not.allowed.in.annotation");
         }
         ListBuffer<Attribute> buf = new ListBuffer<>();
-        for (List<JCExpression> l = na.elems; l.nonEmpty(); l=l.tail) {
-            buf.append(attributeAnnotationValue(types.elemtype(expectedElementType),
-                    l.head,
-                    env));
+        if (na.elems != null) {
+            for (List<JCExpression> l = na.elems; l.nonEmpty(); l=l.tail) {
+                buf.append(attributeAnnotationValue(types.elemtype(expectedElementType),
+                        l.head,
+                        env));
+            }
         }
         na.type = expectedElementType;
         return new Attribute.
