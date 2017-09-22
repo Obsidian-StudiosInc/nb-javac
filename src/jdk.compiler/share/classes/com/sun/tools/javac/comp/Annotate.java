@@ -463,10 +463,14 @@ public class Annotate {
 
         boolean elidedValue = false;
         // special case: elided "value=" assumed
-        if (args.length() == 1 && !args.head.hasTag(ASSIGN)) {
-            args.head = make.at(Position.NOPOS).
-                    Assign(make.Ident(names.value), args.head);
-            elidedValue = true;
+        if (args.length() == 1) {
+            if (!args.head.hasTag(ASSIGN)) {
+                args.head = make.at(Position.NOPOS).
+                        Assign(make.Ident(names.value), args.head);
+                elidedValue = true;
+            } else if (args.head.pos == Position.NOPOS) {
+                elidedValue = true;
+            }
         }
 
         ListBuffer<Pair<MethodSymbol,Attribute>> buf = new ListBuffer<>();
