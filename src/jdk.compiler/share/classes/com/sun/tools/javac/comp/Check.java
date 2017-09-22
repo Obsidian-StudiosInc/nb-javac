@@ -3722,7 +3722,7 @@ public class Check {
             if (!imp.staticImport && TreeInfo.name(imp.qualid) == names.asterisk
                     && ((JCFieldAccess)imp.qualid).selected.type != null) {
                 TypeSymbol tsym = ((JCFieldAccess)imp.qualid).selected.type.tsym;
-                if (toplevel.modle.visiblePackages != null) {
+                if (toplevel.modle != null && toplevel.modle.visiblePackages != null) {
                     //TODO - unclear: selects like javax.* will get resolved from the current module
                     //(as javax is not an exported package from any module). And as javax in the current
                     //module typically does not contain any classes or subpackages, we need to go through
